@@ -837,6 +837,137 @@ print("Debug: " + print("valor interno"));
 
 ## 📦 Módulos e Imports
 
+### Sistema Oak
+
+Dryad utiliza o sistema de módulos **Oak**, que permite instalar e organizar bibliotecas de forma eficiente. O Oak é um gerenciador de pacotes completo que oferece dois tipos de projeto:
+
+#### Tipos de Projeto
+
+**1. Projeto (Project)**
+```json
+{
+  "name": "meu-projeto",
+  "version": "0.1.0", 
+  "type": "project",
+  "main": "main.dryad",
+  "dependencies": {},
+  "scripts": {
+    "start": "dryad run main.dryad",
+    "test": "dryad test",
+    "check": "dryad check main.dryad"
+  }
+}
+```
+
+**2. Biblioteca (Library)**
+```json
+{
+  "name": "minha-biblioteca",
+  "version": "0.1.0",
+  "type": "library", 
+  "main": "src/main.dryad",
+  "dependencies": {
+    "dryad-stdlib": "^0.1.0"
+  },
+  "scripts": {
+    "check": "dryad check src/main.dryad",
+    "test": "dryad test"
+  }
+}
+```
+
+#### Estrutura de Projetos
+
+**Projeto:**
+```
+meu-projeto/
+├── main.dryad           # Ponto de entrada
+├── oaklibs.json         # Configuração do projeto
+├── oaklock.json         # Lock file (gerado automaticamente)
+├── README.md
+├── .gitignore
+└── src/                 # Código adicional (opcional)
+```
+
+**Biblioteca:**
+```
+minha-biblioteca/
+├── src/
+│   └── main.dryad       # Ponto de entrada da biblioteca
+├── lib/
+│   ├── matematica.dryad # Módulos exportáveis
+│   └── utilidades.dryad
+├── oaklibs.json         # Configuração da biblioteca
+├── oaklock.json         # Mapeamento de módulos
+├── README.md
+└── .gitignore
+```
+
+#### Comandos Oak
+
+**Inicializar Projeto:**
+```bash
+# Criar projeto
+oak init meu-projeto --type project
+
+# Criar biblioteca  
+oak init minha-biblioteca --type library
+```
+
+**Gerenciar Dependências:**
+```bash
+# Instalar dependência
+oak install matematica-utils --version "^0.1.0"
+
+# Remover dependência
+oak remove matematica-utils
+
+# Listar dependências
+oak list
+
+# Atualizar dependências
+oak update
+```
+
+**Resolução de Módulos:**
+```bash
+# Gerar/atualizar oaklock.json
+oak lock
+
+# Informações do projeto
+oak info
+
+# Executar scripts
+oak run start
+oak run test
+oak run check
+```
+
+#### Arquivo oaklock.json
+
+O `oaklock.json` mapeia aliases para caminhos de arquivos, permitindo importações eficientes:
+
+```json
+{
+  "modules": {
+    "matematica-utils": {
+      "paths": {
+        "matematica": "./oak_modules/matematica-utils/lib/matematica.dryad",
+        "utilidades": "./oak_modules/matematica-utils/lib/utilidades.dryad", 
+        "formas": "./oak_modules/matematica-utils/lib/formas.dryad"
+      }
+    },
+    "dryad-stdlib": {
+      "paths": {
+        "io": "./oak_modules/dryad-stdlib/io.dryad",
+        "math": "./oak_modules/dryad-stdlib/math.dryad",
+        "string": "./oak_modules/dryad-stdlib/string.dryad"
+      }
+    }
+  }
+}
+```
+
 ### Exports
 
 #### Export de Variáveis
@@ -873,18 +1004,146 @@ export class Retangulo {
 }
 ```
 
+#### Export de Métodos Estáticos
+```dryad
+// arquivo: calculadora.dryad
+export class Calculadora {
+    static function pi() {
+        return 3.14159;
+    }
+    
+    static function circunferencia(raio) {
+        return 2 * Calculadora.pi() * raio;
+    }
+    
+    static function area(raio) {
+        return Calculadora.pi() * raio * raio;
+    }
+}
+```
+
+**Exemplo de uso:**
+```dryad
+// Usando métodos estáticos exportados
+print("π = " + Calculadora.pi());                    // π = 3.14159
+print("Circunferência (r=5) = " + Calculadora.circunferencia(5)); // Circunferência (r=5) = 31.4159
+print("Área (r=3) = " + Calculadora.area(3));        // Área (r=3) = 28.2743
+```
+
 ### Imports
 
 #### Use (Import direto)
 ```dryad
-// Importa por caminho relativo
-use "./library/utilidades";
+// Importando por caminho relativo -> começa do arquivo atual e percorre o caminho provido.
+use "../../oak_modules/matematica-utils/lib/matematica.dryad";
 
-// Importa por caminho absoluto
-use "/caminho/para/biblioteca/matematica";
+// Importando por caminho absoluto -> começa com a raiz do projeto e percorre o caminho provido.
+use "@/matematica-utils/lib/utilidades.dryad";
 
-// Importa apartir da raiz do projeto
-use "@/lib/matematica";
+// Import de bibliotecas instaladas (oak_modules) -> usa o ficheiro oaklock.json para resolver o caminho. com base no alias provido.
+use "matematica-utils/matematica";
+use "matematica-utils/utilidades";
+
+// Uso direto das funções importadas.
+let resultado = quadrado(4);
+let forma = Retangulo(10, 20);
+let area = forma.area();
+```
+
+#### Estrutura Modular Completa
+
+**Biblioteca matematica-utils/lib/matematica.dryad:**
+```dryad
+export function fatorial(n) {
+    if n <= 1 {
+        return 1;
+    }
+    return n * fatorial(n - 1);
+}
+
+export function fibonacci(n) {
+    if n <= 1 {
+        return n;
+    }
+    return fibonacci(n - 1) + fibonacci(n - 2);
+}
+```
+
+**Projeto que usa a biblioteca:**
+```dryad
+// main.dryad
+use "matematica";
+
+let fat5 = fatorial(5);    // 120
+let fib7 = fibonacci(7);   // 13
+print("5! = " + fat5);
+print("fibonacci(7) = " + fib7);
+```
+
+#### Configuração Completa
+
+**oaklibs.json (projeto que consome):**
+```json
+{
+  "name": "meu-app",
+  "version": "1.0.0",
+  "type": "project",
+  "main": "main.dryad",
+  "dependencies": {
+    "matematica-utils": "^0.1.0",
+    "dryad-stdlib": "^0.1.0"
+  }
+}
+```
+
+**oaklock.json (gerado automaticamente):**
+```json
+{
+  "modules": {
+    "matematica-utils": {
+      "paths": {
+        "matematica": "./oak_modules/matematica-utils/lib/matematica.dryad",
+        "utilidades": "./oak_modules/matematica-utils/lib/utilidades.dryad"
+      }
+    }
+  }
+}
+```
+
+### Estrutura de Módulos
+
+```
+projeto/
+├── main.dryad
+├── oaklibs.json
+├── oaklock.json
+├── oak_modules/
+│   └── matematica-utils/
+│       └── lib/
+│           ├── matematica.dryad
+│           ├── utilidades.dryad
+│           └── formas.dryad
+└── README.md
+```
+
+### Configuração Oak
+
+O arquivo `oaklibs.json` é o coração do sistema de módulos:
+
+```json
+{
+  "name": "meu-projeto",
+  "version": "1.0.0",
+  "type": "project",
+  "main": "main.dryad",
+  "dependencies": {
+    "matematica-utils": "^0.1.0"
+  },
+  "scripts": {
+    "start": "dryad run main.dryad",
+    "test": "dryad test",
+    "check": "dryad check main.dryad"
+use "matematica-utils/matematica";
 
 let resultado = quadrado(4); // Usa quadrado diretamente
 ```

@@ -1,8 +1,0 @@
-class TestClass {
-    static function test() {
-        return "working";
-    }
-}
-
-print("Calling static method:");
-TestClass.test();

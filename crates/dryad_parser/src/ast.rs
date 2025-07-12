@@ -18,6 +18,8 @@ pub enum Stmt {
     Throw(Expr),                         // throw expression;
     FunctionDeclaration(String, Vec<String>, Box<Stmt>), // function name(params...) { body }
     ClassDeclaration(String, Option<String>, Vec<ClassMember>), // class Name [extends Parent] { members... }
+    Export(Box<Stmt>),                   // export statement
+    Use(String),                         // use "module/path"
     Return(Option<Expr>),                // return [expression];
     NativeDirective(String),             // #<module_name>
 }

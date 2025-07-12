@@ -3,6 +3,9 @@ use dryad_parser::ast::{Expr, Literal, Stmt, Program, ClassMember, Visibility, O
 use dryad_errors::DryadError;
 use crate::native_functions::{NativeFunctionRegistry, NativeModule};
 use std::collections::HashMap;
+use std::fs;
+use std::path::{Path, PathBuf};
+use serde_json::{self, Value as JsonValue};
 
 #[derive(Debug, Clone)]
 pub enum FlowControl {
@@ -16,6 +19,8 @@ pub struct Interpreter {
     native_functions: NativeFunctionRegistry,
     classes: HashMap<String, Value>, // Para armazenar definições de classe
     current_instance: Option<Value>, // Para contexto de 'this'
+    imported_modules: HashMap<String, HashMap<String, Value>>, // Módulos importados com seus namespaces
+    current_file_path: Option<PathBuf>, // Caminho do arquivo atual para resolver imports relativos
 }
 
 #[derive(Debug, Clone)]
@@ -140,6 +145,8 @@ impl Interpreter {
             native_functions: NativeFunctionRegistry::new(),
             classes: HashMap::new(),
             current_instance: None,
+            imported_modules: HashMap::new(),
+            current_file_path: None,
         }
     }
 
@@ -151,6 +158,10 @@ impl Interpreter {
         for module in modules {
             self.native_functions.enable_module(module);
         }
+    }
+
+    pub fn set_current_file(&mut self, file_path: PathBuf) {
+        self.current_file_path = Some(file_path);
     }
 
     pub fn execute(&mut self, program: &Program) -> Result<String, DryadError> {
@@ -398,6 +409,15 @@ impl Interpreter {
                     Value::Instance { .. } => Err(DryadError::new(3021, &format!("RETURN_OTHER:{}", value.to_string()))),
                     Value::Object { .. } => Err(DryadError::new(3021, &format!("RETURN_OTHER:{}", value.to_string()))),
                 }
+            }
+            Stmt::Export(stmt) => {
+                // Por enquanto, simplesmente executa o statement interno
+                // Em uma implementação completa, isto seria registrado como exportação
+                self.execute_statement(stmt)
+            }
+            Stmt::Use(module_path) => {
+                // Importa o módulo especificado
+                self.import_module(module_path)
             }
         }
     }
@@ -1738,6 +1758,202 @@ impl Interpreter {
             properties: object_properties,
             methods: object_methods,
         })
+    }
+
+    fn import_module(&mut self, module_path: &str) -> Result<Value, DryadError> {
+        println!("Importando módulo: {}", module_path);
+        
+        // 1. Resolver o caminho do módulo
+        let resolved_path = self.resolve_module_path(module_path)?;
+        println!("Caminho resolvido: {:?}", resolved_path);
+        
+        // 2. Verificar se o módulo já foi importado
+        if self.imported_modules.contains_key(&resolved_path.to_string_lossy().to_string()) {
+            println!("Módulo já importado: {}", resolved_path.display());
+            return self.apply_imported_module(&resolved_path.to_string_lossy().to_string());
+        }
+        
+        // 3. Ler o arquivo do módulo
+        let source_code = fs::read_to_string(&resolved_path)
+            .map_err(|e| DryadError::Runtime(3001, format!("Erro ao ler módulo '{}': {}", resolved_path.display(), e)))?;
+        
+        // 4. Fazer lexing e parsing do módulo
+        let mut lexer = dryad_lexer::lexer::Lexer::new(&source_code);
+        let mut tokens = Vec::new();
+        
+        // Coletar todos os tokens
+        loop {
+            match lexer.next_token() {
+                Ok(token) => {
+                    let is_eof = matches!(token, dryad_lexer::token::Token::Eof);
+                    tokens.push(token);
+                    if is_eof {
+                        break;
+                    }
+                },
+                Err(e) => return Err(DryadError::Runtime(3002, format!("Erro de lexing no módulo '{}': {:?}", resolved_path.display(), e)))
+            }
+        }
+        
+        let mut parser = dryad_parser::parser::Parser::new(tokens);
+        let program = parser.parse()
+            .map_err(|e| DryadError::Runtime(3003, format!("Erro de parsing no módulo '{}': {:?}", resolved_path.display(), e)))?;
+        
+        // 5. Executar o módulo em um contexto separado e capturar exports
+        let exported_symbols = self.execute_module_and_capture_exports(&program, &resolved_path)?;
+        
+        // 6. Armazenar os símbolos exportados
+        let module_key = resolved_path.to_string_lossy().to_string();
+        self.imported_modules.insert(module_key.clone(), exported_symbols);
+        
+        // 7. Aplicar as importações ao escopo atual
+        self.apply_imported_module(&module_key)
+    }
+    
+    fn resolve_module_path(&self, module_path: &str) -> Result<PathBuf, DryadError> {
+        if module_path.starts_with("./") || module_path.starts_with("../") {
+            // Caminho relativo
+            if let Some(current_file) = &self.current_file_path {
+                let base_dir = current_file.parent()
+                    .ok_or_else(|| DryadError::Runtime(3004, "Não é possível determinar diretório base".to_string()))?;
+                Ok(base_dir.join(module_path))
+            } else {
+                // Se não há arquivo atual, usar diretório de trabalho
+                Ok(PathBuf::from(module_path))
+            }
+        } else if module_path.starts_with("@/") {
+            // Caminho absoluto do projeto
+            let relative_path = &module_path[2..]; // Remove "@/"
+            Ok(PathBuf::from(relative_path))
+        } else {
+            // Tentativa de usar Oak (oaklock.json)
+            self.resolve_oak_module(module_path)
+        }
+    }
+    
+    fn resolve_oak_module(&self, module_alias: &str) -> Result<PathBuf, DryadError> {
+        // Tentar carregar oaklock.json
+        let oaklock_path = PathBuf::from("oaklock.json");
+        
+        if !oaklock_path.exists() {
+            return Err(DryadError::Runtime(3005, format!(
+                "oaklock.json não encontrado. Não é possível resolver módulo '{}'", 
+                module_alias
+            )));
+        }
+        
+        let oaklock_content = fs::read_to_string(&oaklock_path)
+            .map_err(|e| DryadError::Runtime(3006, format!("Erro ao ler oaklock.json: {}", e)))?;
+        
+        let oaklock: JsonValue = serde_json::from_str(&oaklock_content)
+            .map_err(|e| DryadError::Runtime(3007, format!("Erro ao parsear oaklock.json: {}", e)))?;
+        
+        // Parsear alias do tipo "matematica-utils/matematica"
+        let parts: Vec<&str> = module_alias.split('/').collect();
+        if parts.len() != 2 {
+            return Err(DryadError::Runtime(3008, format!(
+                "Alias de módulo inválido: '{}'. Esperado formato 'pacote/módulo'", 
+                module_alias
+            )));
+        }
+        
+        let package_name = parts[0];
+        let module_name = parts[1];
+        
+        // Procurar no oaklock.json
+        let modules = oaklock.get("modules")
+            .ok_or_else(|| DryadError::Runtime(3009, "Seção 'modules' não encontrada no oaklock.json".to_string()))?;
+        
+        let package = modules.get(package_name)
+            .ok_or_else(|| DryadError::Runtime(3010, format!("Pacote '{}' não encontrado no oaklock.json", package_name)))?;
+        
+        let paths = package.get("paths")
+            .ok_or_else(|| DryadError::Runtime(3011, format!("Seção 'paths' não encontrada para pacote '{}'", package_name)))?;
+        
+        let module_path = paths.get(module_name)
+            .ok_or_else(|| DryadError::Runtime(3012, format!("Módulo '{}' não encontrado no pacote '{}'", module_name, package_name)))?
+            .as_str()
+            .ok_or_else(|| DryadError::Runtime(3013, format!("Caminho inválido para módulo '{}/{}'", package_name, module_name)))?;
+        
+        Ok(PathBuf::from(module_path))
+    }
+    
+    fn execute_module_and_capture_exports(&mut self, program: &Program, module_path: &PathBuf) -> Result<HashMap<String, Value>, DryadError> {
+        // Salvar estado atual
+        let original_file_path = self.current_file_path.clone();
+        let original_variables = self.variables.clone();
+        let original_classes = self.classes.clone();
+        
+        // Definir contexto do módulo
+        self.current_file_path = Some(module_path.clone());
+        
+        // Executar todas as declarações do módulo
+        let mut exported_symbols = HashMap::new();
+        
+        for stmt in &program.statements {
+            match stmt {
+                Stmt::Export(exported_stmt) => {
+                    // Executar a declaração exportada
+                    self.execute_statement(exported_stmt)?;
+                    
+                    // Capturar o símbolo exportado
+                    match exported_stmt.as_ref() {
+                        Stmt::VarDeclaration(name, _) => {
+                            if let Some(value) = self.variables.get(name) {
+                                exported_symbols.insert(name.clone(), value.clone());
+                            }
+                        },
+                        Stmt::FunctionDeclaration(name, _, _) => {
+                            if let Some(value) = self.variables.get(name) {
+                                exported_symbols.insert(name.clone(), value.clone());
+                            }
+                        },
+                        Stmt::ClassDeclaration(name, _, _) => {
+                            if let Some(value) = self.classes.get(name) {
+                                exported_symbols.insert(name.clone(), value.clone());
+                            }
+                        },
+                        _ => {} // Outros tipos de export
+                    }
+                },
+                _ => {
+                    // Executar declarações normais (não exportadas)
+                    self.execute_statement(stmt)?;
+                }
+            }
+        }
+        
+        // Restaurar estado original
+        self.current_file_path = original_file_path;
+        self.variables = original_variables;
+        self.classes = original_classes;
+        
+        Ok(exported_symbols)
+    }
+    
+    fn apply_imported_module(&mut self, module_key: &str) -> Result<Value, DryadError> {
+        if let Some(exported_symbols) = self.imported_modules.get(module_key) {
+            // Aplicar todos os símbolos exportados ao escopo atual
+            for (name, value) in exported_symbols {
+                match value {
+                    Value::Class { .. } => {
+                        // Classes vão para ambos os namespaces
+                        self.classes.insert(name.clone(), value.clone());
+                        self.variables.insert(name.clone(), value.clone()); // Também como variável para acesso estático
+                    },
+                    _ => {
+                        // Variáveis e funções vão para o namespace de variáveis
+                        self.variables.insert(name.clone(), value.clone());
+                    }
+                }
+            }
+            
+            println!("Módulo '{}' importado com sucesso! {} símbolos importados.", 
+                     module_key, exported_symbols.len());
+            Ok(Value::Null)
+        } else {
+            Err(DryadError::Runtime(3014, format!("Módulo '{}' não encontrado nos módulos importados", module_key)))
+        }
     }
 }
 

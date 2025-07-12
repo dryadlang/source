@@ -74,6 +74,12 @@ impl Parser {
             Token::Keyword(keyword) if keyword == "class" => {
                 Ok(Some(self.class_declaration()?))
             }
+            Token::Keyword(keyword) if keyword == "export" => {
+                Ok(Some(self.export_statement()?))
+            }
+            Token::Keyword(keyword) if keyword == "use" => {
+                Ok(Some(self.use_statement()?))
+            }
             Token::Keyword(keyword) if keyword == "return" => {
                 Ok(Some(self.return_statement()?))
             }
@@ -752,6 +758,33 @@ impl Parser {
         }
     }
 
+    fn export_statement(&mut self) -> Result<Stmt, DryadError> {
+        // Consome 'export'
+        self.advance();
+        
+        // O próximo token deve ser function, class, let ou variable
+        match self.peek() {
+            Token::Keyword(keyword) if keyword == "function" => {
+                let func_stmt = self.function_declaration()?;
+                Ok(Stmt::Export(Box::new(func_stmt)))
+            }
+            Token::Keyword(keyword) if keyword == "class" => {
+                let class_stmt = self.class_declaration()?;
+                Ok(Stmt::Export(Box::new(class_stmt)))
+            }
+            Token::Keyword(keyword) if keyword == "let" => {
+                let var_stmt = self.var_declaration()?;
+                Ok(Stmt::Export(Box::new(var_stmt)))
+            }
+            _ => {
+                Err(DryadError::new(
+                    4001,
+                    "Export deve ser seguido por 'function', 'class' ou 'let'"
+                ))
+            }
+        }
+    }
+
     fn block_statement(&mut self) -> Result<Stmt, DryadError> {
         self.advance(); // consume '{'
         
@@ -1132,7 +1165,7 @@ impl Parser {
                             self.advance();
                             
                             if matches!(self.peek(), Token::Symbol(',')) {
-                                self.advance(); // consume ','
+                                self.advance(); // consome ','
                             } else if !matches!(self.peek(), Token::Symbol(')')) {
                                 return Err(DryadError::new(2093, "Esperado ',' ou ')' na lista de parâmetros"));
                             }
@@ -1571,5 +1604,26 @@ impl Parser {
         let value_expr = self.expression()?;
         
         Ok(Stmt::PropertyAssignment(object_expr, property_name, value_expr))
+    }
+
+    fn use_statement(&mut self) -> Result<Stmt, DryadError> {
+        // Consome 'use'
+        self.advance();
+        
+        // Deve ser seguido por uma string com o caminho do módulo
+        match self.peek() {
+            Token::String(path) => {
+                let module_path = path.clone();
+                self.advance(); // consome a string
+                self.consume_semicolon()?; // consome o ponto e vírgula opcional
+                Ok(Stmt::Use(module_path))
+            }
+            _ => {
+                Err(DryadError::new(
+                    4002,
+                    "Use deve ser seguido por uma string com o caminho do módulo"
+                ))
+            }
+        }
     }
 }

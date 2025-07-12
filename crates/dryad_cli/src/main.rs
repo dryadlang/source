@@ -130,6 +130,10 @@ fn run_file(filename: &str, verbose: bool) -> Result<(), Box<dyn std::error::Err
 
     // Execução
     let mut interpreter = Interpreter::new();
+    
+    // Definir o arquivo atual para resolução de imports relativos
+    interpreter.set_current_file(std::path::PathBuf::from(filename));
+    
     let result = interpreter.execute(&program)?;
 
     if verbose {

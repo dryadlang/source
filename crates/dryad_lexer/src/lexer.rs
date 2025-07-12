@@ -326,7 +326,7 @@ impl Lexer {
         
         // Verifica se é uma palavra-chave
         let token = match text.as_str() {
-            "let" | "if" | "else" | "function" | "class" | "return" | "for" | "while" | "do" | "break" | "continue" | "import" | "export" | "try" | "catch" | "finally" | "throw" | "in" | "this" | "super" | "static" | "public" | "private" | "protected" | "extends" => {
+            "let" | "if" | "else" | "function" | "class" | "return" | "for" | "while" | "do" | "break" | "continue" | "import" | "export" | "use" | "try" | "catch" | "finally" | "throw" | "in" | "this" | "super" | "static" | "public" | "private" | "protected" | "extends" => {
                 Token::Keyword(text)
             },
             "true" => Token::Boolean(true),

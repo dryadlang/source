@@ -10,11 +10,6 @@ use std::time::{SystemTime, UNIX_EPOCH, Instant};
 use std::thread;
 use std::env;
 use std::process::Command;
-use serde::{Deserialize, Serialize};
-use serde_json;
-use csv;
-use serde_yaml;
-use toml;
 
 // Conjunto de módulos nativos disponíveis
 #[derive(Debug, Clone)]
@@ -60,7 +55,7 @@ impl NativeModule {
 pub struct NativeFunctionRegistry {
     enabled_modules: Vec<NativeModule>,
     functions: HashMap<String, fn(&[Value]) -> Result<Value, DryadError>>,
-    start_time: Instant,
+    _start_time: Instant,
 }
 
 impl NativeFunctionRegistry {
@@ -68,7 +63,7 @@ impl NativeFunctionRegistry {
         Self {
             enabled_modules: Vec::new(),
             functions: HashMap::new(),
-            start_time: Instant::now(),
+            _start_time: Instant::now(),
         }
     }
 

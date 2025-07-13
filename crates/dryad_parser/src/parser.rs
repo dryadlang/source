@@ -1,7 +1,7 @@
 // crates/dryad_parser/src/parser.rs
 use dryad_errors::DryadError;
 use dryad_lexer::token::Token;
-use crate::ast::{Expr, Literal, Stmt, Program, ClassMember, Visibility, ObjectProperty};
+use crate::ast::{Expr, Literal, Stmt, Program, ClassMember, Visibility};
 
 pub struct Parser {
     tokens: Vec<Token>,
@@ -212,7 +212,7 @@ impl Parser {
 
         if matches!(self.peek(), Token::Symbol('=')) {
             self.advance(); // consume '='
-            let value = self.assignment()?;
+            let _value = self.assignment()?;
             
             match expr {
                 Expr::Variable(_name) => {

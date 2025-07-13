@@ -4,7 +4,7 @@ use dryad_errors::DryadError;
 use crate::native_functions::{NativeFunctionRegistry, NativeModule};
 use std::collections::HashMap;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use serde_json::{self, Value as JsonValue};
 
 #[derive(Debug, Clone)]
@@ -1582,7 +1582,7 @@ impl Interpreter {
                     Err(DryadError::new(3030, &format!("Propriedade estática '{}' não encontrada na classe '{}'", property_name, class_name)))
                 }
             }
-            Value::Instance { class_name, mut properties } => {
+            Value::Instance { class_name, properties } => {
                 // First check instance properties
                 if let Some(value) = properties.get(property_name) {
                     return Ok(value.clone());

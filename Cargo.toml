@@ -5,6 +5,7 @@ members = [
     "crates/dryad_parser",
     "crates/dryad_runtime",
     "crates/dryad_cli",
+    "crates/dryad_benchmark",
     "crates/oak"
 ]
 resolver = "2"

@@ -34,7 +34,8 @@ impl Lexer {
             '0'..='9' => self.number(),
             
             // Strings
-            '"' => self.string(),
+            '"' => self.string('"'),
+            '\'' => self.string('\''),
             
             // Identificadores e palavras-chave
             'a'..='z' | 'A'..='Z' | '_' => self.identifier(),
@@ -265,10 +266,10 @@ impl Lexer {
         }
     }
 
-    fn string(&mut self) -> Result<Token, DryadError> {
+    fn string(&mut self, delimiter: char) -> Result<Token, DryadError> {
         let mut value = String::new();
         
-        while !self.is_at_end() && self.peek() != '"' {
+        while !self.is_at_end() && self.peek() != delimiter {
             if self.peek() == '\n' {
                 self.line += 1;
                 self.column = 1;
@@ -297,6 +298,32 @@ impl Lexer {
                         value.push('"');
                         self.advance();
                     },
+                    '\'' => {
+                        value.push('\'');
+                        self.advance();
+                    },
+                    'u' => {
+                        // Unicode escape sequence \uXXXX
+                        self.advance(); // consome 'u'
+                        let mut unicode_digits = String::new();
+                        for _ in 0..4 {
+                            if !self.is_at_end() && self.peek().is_ascii_hexdigit() {
+                                unicode_digits.push(self.peek());
+                                self.advance();
+                            } else {
+                                return Err(DryadError::new(1005, "Sequência de escape Unicode inválida: esperado 4 dígitos hexadecimais"));
+                            }
+                        }
+                        if let Ok(code_point) = u32::from_str_radix(&unicode_digits, 16) {
+                            if let Some(unicode_char) = char::from_u32(code_point) {
+                                value.push(unicode_char);
+                            } else {
+                                return Err(DryadError::new(1005, &format!("Código Unicode inválido: \\u{}", unicode_digits)));
+                            }
+                        } else {
+                            return Err(DryadError::new(1005, &format!("Sequência de escape Unicode inválida: \\u{}", unicode_digits)));
+                        }
+                    },
                     c => {
                         return Err(DryadError::new(1005, &format!("Sequência de escape inválida: '\\{}'", c)));
                     }
@@ -307,7 +334,7 @@ impl Lexer {
         }
 
         if self.is_at_end() {
-            return Err(DryadError::new(1002, "String literal não fechada"));
+            return Err(DryadError::new(1002, &format!("String literal não fechada (delimitador '{}')", delimiter)));
         }
 
         // Consome a aspas de fechamento

@@ -1,0 +1,73 @@
+#<file_io>
+#<console_io>
+
+// Exemplo avançado do módulo file_io
+native_println("📁 Sistema de Gerenciamento de Arquivos Avançado");
+
+// 1. Criando estrutura de projeto
+native_mkdir("projeto_exemplo");
+native_mkdir("projeto_exemplo/src");
+native_mkdir("projeto_exemplo/docs");
+native_mkdir("projeto_exemplo/tests");
+native_println("✅ Estrutura de diretórios criada");
+
+// 2. Criando arquivo principal
+let codigo_principal = "// Arquivo principal do projeto\nfunction main() {\n    println(\"Hello, Dryad!\");\n}\n\nmain();";
+native_write_file("projeto_exemplo/src/main.dryad", codigo_principal);
+
+// 3. Criando arquivo de configuração
+let config = "{\n  \"name\": \"projeto_exemplo\",\n  \"version\": \"1.0.0\",\n  \"author\": \"Desenvolvedor Dryad\"\n}";
+native_write_file("projeto_exemplo/config.json", config);
+
+// 4. Criando documentação
+let readme = "# Projeto Exemplo\n\nEste é um projeto de exemplo criado com Dryad.\n\n## Características\n- Gerenciamento de arquivos\n- Estrutura organizada\n- Documentação completa";
+native_write_file("projeto_exemplo/README.md", readme);
+
+// 5. Criando arquivo de teste
+let teste = "// Arquivo de teste\nfunction testar() {\n    assert(true == true);\n    println(\"Teste passou!\");\n}\n\ntestar();";
+native_write_file("projeto_exemplo/tests/test_main.dryad", teste);
+
+native_println("✅ Arquivos do projeto criados");
+
+// 6. Listando estrutura completa
+native_println("📋 Estrutura do projeto:");
+let arquivos_raiz = native_list_dir("projeto_exemplo");
+native_println("projeto_exemplo/");
+native_println("  " + arquivos_raiz[0]);
+native_println("  " + arquivos_raiz[1]);
+native_println("  " + arquivos_raiz[2]);
+native_println("  " + arquivos_raiz[3]);
+
+// 7. Verificando informações dos arquivos
+let info_main = native_get_file_info("projeto_exemplo/src/main.dryad");
+let info_config = native_get_file_info("projeto_exemplo/config.json");
+native_println("📊 Informações dos arquivos:");
+native_println("  main.dryad: " + info_main[0] + " bytes");
+native_println("  config.json: " + info_config[0] + " bytes");
+
+// 8. Criando backup da configuração
+native_copy_file("projeto_exemplo/config.json", "projeto_exemplo/config_backup.json");
+native_println("💾 Backup da configuração criado");
+
+// 9. Atualizando configuração
+let nova_config = "{\n  \"name\": \"projeto_exemplo\",\n  \"version\": \"1.1.0\",\n  \"author\": \"Desenvolvedor Dryad\",\n  \"description\": \"Projeto atualizado\"\n}";
+native_write_file("projeto_exemplo/config.json", nova_config);
+
+// 10. Adicionando changelog
+native_write_file("projeto_exemplo/CHANGELOG.md", "# Changelog\n\n## v1.1.0\n- Configuração atualizada\n- Backup implementado");
+native_append_file("projeto_exemplo/CHANGELOG.md", "\n- Sistema de arquivos funcionando");
+
+// 11. Verificando arquivos finais
+let arquivos_finais = native_list_dir("projeto_exemplo");
+native_println("📁 Arquivos finais no projeto:");
+native_println("  Total de arquivos: " + "6");
+
+// 12. Lendo arquivo atualizado
+let config_atualizada = native_read_file_content("projeto_exemplo/config.json");
+native_println("🔧 Configuração atualizada: " + config_atualizada);
+
+// 13. Cleanup (comentado para manter os arquivos para inspeção)
+// native_delete_file("projeto_exemplo/config_backup.json");
+// native_println("🗑️ Backup removido");
+
+native_println("🎯 Sistema de gerenciamento de arquivos demonstrado com sucesso!");

@@ -1,0 +1,6 @@
+#<console_io>
+#<time>
+
+native_println("Teste com duas diretivas");
+var timestamp = native_timestamp();
+native_println("Timestamp: " + timestamp);

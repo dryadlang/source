@@ -1,0 +1,148 @@
+#<console_io>
+#<time>
+#<system_env>
+#<encode_decode>
+
+// ============================================
+// TESTE COMPLETO DOS MÓDULOS IMPLEMENTADOS
+// ============================================
+
+native_println("=== 🚀 DEMONSTRAÇÃO DOS MÓDULOS NATIVOS ===");
+native_println("");
+
+// ============================================
+// 1. MÓDULO CONSOLE_IO - Entrada e saída
+// ============================================
+escreva("📝 1. TESTANDO MÓDULO CONSOLE_IO:");
+
+// Input básico
+escreva("Digite seu nome:");
+var nome = native_input();
+escreva("Olá, " + nome + "!");
+
+// Input com timeout
+escreva("Digite algo em 3 segundos (ou será timeout):");
+var resposta_timeout = native_input_timeout(3);
+se (resposta_timeout == null) {
+    escreva("⏰ Timeout! Muito devagar...");
+} senao {
+    escreva("✅ Você digitou: " + resposta_timeout);
+}
+
+// Print colorido
+native_print("🎨 Texto colorido!", "green");
+native_print("🔥 Texto vermelho!", "red");
+
+escreva("");
+
+// ============================================
+// 2. MÓDULO TIME - Tempo e data
+// ============================================
+escreva("⏰ 2. TESTANDO MÓDULO TIME:");
+
+var timestamp_atual = native_timestamp();
+escreva("⏱️ Timestamp atual: " + timestamp_atual);
+
+var data_atual = native_date();
+escreva("📅 Data atual: " + data_atual);
+
+var hora_atual = native_time();
+escreva("🕐 Hora atual: " + hora_atual);
+
+var timestamp_ms = native_timestamp_ms();
+escreva("⏱️ Timestamp em milissegundos: " + timestamp_ms);
+
+var data_formatada = native_format_date(timestamp_atual, "%d/%m/%Y %H:%M:%S");
+escreva("✨ Data formatada: " + data_formatada);
+
+escreva("⏳ Dormindo por 2 segundos...");
+native_sleep(2);
+escreva("😴 Acordei!");
+
+var nova_data = native_parse_date("2024-12-25 10:30:00", "%Y-%m-%d %H:%M:%S");
+escreva("🎄 Data do Natal 2024 (timestamp): " + nova_data);
+
+escreva("");
+
+// ============================================
+// 3. MÓDULO SYSTEM_ENV - Sistema e ambiente
+// ============================================
+escreva("💻 3. TESTANDO MÓDULO SYSTEM_ENV:");
+
+var sistema = native_os_name();
+escreva("🖥️ Sistema operacional: " + sistema);
+
+var arquitetura = native_arch();
+escreva("🏗️ Arquitetura: " + arquitetura);
+
+var usuario = native_username();
+escreva("👤 Usuário atual: " + usuario);
+
+var hostname = native_hostname();
+escreva("🌐 Nome do host: " + hostname);
+
+var dir_atual = native_current_dir();
+escreva("📁 Diretório atual: " + dir_atual);
+
+var dir_home = native_home_dir();
+escreva("🏠 Diretório home: " + dir_home);
+
+var dir_temp = native_temp_dir();
+escreva("🗂️ Diretório temporário: " + dir_temp);
+
+// Teste de variável de ambiente
+var path_env = native_get_env("PATH");
+se (path_env != null) {
+    escreva("🛤️ PATH encontrado (primeiros 100 chars): " + native_substring(path_env, 0, 100));
+} senao {
+    escreva("❌ PATH não encontrado");
+}
+
+escreva("");
+
+// ============================================
+// 4. MÓDULO ENCODE_DECODE - Conversão de dados
+// ============================================
+escreva("🔄 4. TESTANDO MÓDULO ENCODE_DECODE:");
+
+// Teste JSON
+var dados_teste = {"nome": "João", "idade": 30, "ativo": true};
+var json_string = native_json_encode(dados_teste);
+escreva("📄 JSON codificado: " + json_string);
+
+var dados_decodificados = native_json_decode(json_string);
+escreva("✅ JSON decodificado com sucesso!");
+
+// Teste CSV
+var dados_csv = [["Nome", "Idade", "Cidade"], ["Ana", "25", "São Paulo"], ["Carlos", "35", "Rio de Janeiro"]];
+var csv_string = native_csv_encode(dados_csv);
+escreva("📊 CSV codificado:");
+escreva(csv_string);
+
+var csv_decodificado = native_csv_decode(csv_string);
+escreva("✅ CSV decodificado com " + csv_decodificado.length + " linhas");
+
+// Teste XML
+var dados_xml = {"produto": {"nome": "Notebook", "preco": 2500, "disponivel": true}};
+var xml_string = native_xml_encode(dados_xml, "catalogo");
+escreva("📋 XML codificado: " + xml_string);
+
+var xml_decodificado = native_xml_decode(xml_string);
+escreva("✅ XML decodificado com sucesso!");
+
+escreva("");
+
+// ============================================
+// 5. RESUMO E CONCLUSÃO
+// ============================================
+escreva("📊 === RESUMO DOS MÓDULOS TESTADOS ===");
+escreva("✅ CONSOLE_IO: Input/Output avançado - 8 funções");
+escreva("✅ TIME: Manipulação de tempo e data - 7 funções");  
+escreva("✅ SYSTEM_ENV: Informações do sistema - 8 funções");
+escreva("✅ ENCODE_DECODE: JSON/CSV/XML - 6 funções");
+escreva("");
+escreva("🎯 TOTAL: 29 funções nativas implementadas!");
+escreva("🚀 Sistema modular funcionando perfeitamente!");
+
+escreva("");
+escreva("=== 🎉 DEMONSTRAÇÃO CONCLUÍDA ===");

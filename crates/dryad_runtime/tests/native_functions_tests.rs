@@ -1,7 +1,6 @@
 // crates/dryad_runtime/tests/native_functions_tests.rs
 
 use dryad_runtime::interpreter::{Interpreter, Value};
-use dryad_runtime::native_functions::NativeModule;
 use dryad_parser::Parser;
 use dryad_lexer::{Lexer, Token};
 

@@ -447,6 +447,7 @@ exemplo de diretiva:
 #<binary_io>
 #<date_time>
 #<system_env>
+#<encode_decode>
 #<crypto>
 #<debug>
 #<http>
@@ -457,100 +458,547 @@ exemplo de diretiva:
 etc... etc.. etc..
 Isto permite que quando o código é executado, as funções nativas estejam disponíveis para uso imediato, sem a necessidade de importações adicionais, ja economia de processamento e memória é algo desejado.
 
-```dryad
-
-🧱 Tipos e Representação
-Você pode definir internamente uma estrutura Rust como:
-pub enum NativeValue {
-    Bytes(Vec<u8>),
-    Buffer(Rc<RefCell<Buffer>>),
-    String(String),
-    Number(f64),
-    // ...
-}
+Todas as funções nativas são separadas por módulos, e cada módulo pode ser carregado ou não dependendo da necessidade do código, usando a diretiva de importação.
 
 ```dryad
-Funções Nativas: Buffer de Console / Terminal
+Funções Nativas: 
+
+Buffer de Console / Terminal #<console_io>
 
 native_input();                        // lê linha do stdin
-native_input_char();                   // lê 1 caractere (sem esperar Enter)
-native_input_bytes(count);             // lê N bytes do console
-native_input_timeout(ms);              // lê com timeout
+/*
+Lê o buffer de entrada do console, esperando Enter, retorna string.
+Esta função é bloqueante, ou seja, espera o usuário digitar e pressionar Enter.
+retorna: string
+*/
 
-📤 Saída com controle
+native_input_char();                   // lê 1 caractere (sem esperar Enter)
+/*
+Lê um único caractere do console, sem esperar Enter.
+Útil para inputs rápidos ou interativos.
+Entrada: nenhum
+*/
+
+native_input_bytes(count);             // lê N bytes do console
+/*
+Lê um número específico de bytes do console.
+Esta função é útil para ler dados binários ou quando o tamanho do input é conhecido.
+Entrada: um número inteiro representando a quantidade de bytes a serem lidos.
+retorna: array de bytes
+*/
+
+native_input_timeout(ms);              // lê com timeout
+/*
+Lê do console com um tempo limite em milissegundos.
+Se o tempo limite for atingido, retorna null.
+Entrada: um número inteiro representando o tempo limite em milissegundos.
+retorna: string ou null
+*/
 
 native_print(data);                    // sem quebra de linha
-native_println(data);                  // com quebra de linha
-native_write_stdout(bytes);            // escrita binária direta
-native_flush();                        // força flush do stdout
+/*
+Imprime dados no console sem adicionar uma nova linha.
+Entrada: qualquer tipo de dado (string, número, etc.).
+retorna: nenhum
+*/
 
-🎨 Controle de terminal (ANSI)
+native_println(data);                  // com quebra de linha
+/*
+Imprime dados no console e adiciona uma nova linha.
+Entrada: qualquer tipo de dado (string, número, etc.).
+retorna: nenhum
+*/
+
+native_write_stdout(bytes);            // escrita binária direta
+/*
+Escreve bytes diretamente no stdout.
+Entrada: um array de bytes.
+retorna: nenhum
+*/
+
+native_flush();                        // força flush do stdout
+/*
+Força a saída do buffer do stdout.
+Entrada: nenhum
+retorna: nenhum
+*/
+
+
+🎨 Controle de terminal (ANSI) #<terminal_ansi>
 
 native_clear_screen();                 // limpa terminal
-native_move_cursor(x, y);              // move cursor
-native_set_color(fg, bg);              // cores (ex: "red", "blue", hex ou índice)
-native_reset_style();                  // reseta estilo do texto
-native_hide_cursor();                  // oculta cursor
-native_show_cursor();                  // mostra cursor
-native_terminal_size();                // retorna (cols, rows)
 
-Escrita binária
+/*
+Limpa a tela do terminal, movendo o cursor para o início.
+Entrada: nenhum
+retorna: nenhum
+*/
+
+native_move_cursor(x, y);              // move cursor
+/*
+Move o cursor para uma posição específica (x, y).
+Entrada: dois números inteiros representando as coordenadas x e y.
+retorna: nenhum
+*/
+
+native_set_color(fg, bg);              // cores (ex: "red", "blue", hex ou índice)
+/*
+Define a cor do texto e do fundo.
+Entrada: duas strings representando as cores do primeiro plano (fg) e do fundo (bg).
+retorna: nenhum
+*/
+
+native_set_style(style);               // estilo do texto (ex: "bold", "italic")
+/*
+Define o estilo do texto.
+Entrada: uma string representando o estilo (ex: "bold", "italic", "underline").
+retorna: nenhum
+*/
+
+native_reset_style();                  // reseta estilo do texto
+/*
+Reseta o estilo do texto para o padrão do terminal.
+Entrada: nenhum
+retorna: nenhum
+*/
+
+
+native_hide_cursor();                  // oculta cursor
+/*
+Oculta o cursor do terminal.
+Entrada: nenhum
+retorna: nenhum
+*/
+
+native_show_cursor();                  // mostra cursor
+/*
+Mostra o cursor do terminal.
+Entrada: nenhum
+retorna: nenhum
+*/
+
+native_terminal_size();                // retorna (cols, rows)
+/*
+Retorna o tamanho do terminal como uma tupla (colunas, linhas).
+Entrada: nenhum
+retorna: uma tupla com dois números inteiros representando as colunas e linhas do terminal.
+*/
+
+Escrita binária #<binary_io>
 
 native_write_bytes(path, bytes);       // salva buffer no disco
-native_append_bytes(path, bytes);      // adiciona ao final
-native_overwrite_chunk(path, offset, bytes); // sobrescreve parte
+/*
+Escreve um array de bytes em um arquivo.
+Entrada: um caminho de arquivo (string) e um array de bytes.
+retorna: nenhum
+*/
 
-Leitura binária
+native_append_bytes(path, bytes);      // adiciona ao final
+/*
+Adiciona bytes ao final de um arquivo existente.
+Entrada: um caminho de arquivo (string) e um array de bytes.
+retorna: nenhum
+*/
+
+native_overwrite_chunk(path, offset, bytes); // sobrescreve parte
+/*
+Sobrescreve uma parte específica de um arquivo com bytes.
+Entrada: um caminho de arquivo (string), um offset (número inteiro) e um array de bytes.
+retorna: nenhum
+*/
 
 native_read_bytes(path);               // retorna array de bytes (ou string binária)
-native_read_chunk(path, offset, size); // lê parte do arquivo
-native_file_size(path);                // retorna tamanho do arquivo
+/*
+Lê o conteúdo de um arquivo como um array de bytes.
+Entrada: um caminho de arquivo (string).
+retorna: um array de bytes.
+*/
 
-🗂️ Sistema de Arquivos e Diretórios
+native_read_chunk(path, offset, size); // lê parte do arquivo
+/*
+Lê uma parte específica de um arquivo como um array de bytes.
+Entrada: um caminho de arquivo (string), um offset (número inteiro) e um tamanho (número inteiro).
+retorna: um array de bytes.
+*/
+
+native_file_size(path);                // retorna tamanho do arquivo
+/*
+Retorna o tamanho de um arquivo em bytes.
+Entrada: um caminho de arquivo (string).
+retorna: um número inteiro representando o tamanho do arquivo.
+*/
+
+🗂️ Sistema de Arquivos e Diretórios #<file_io>
 
 native_read_file(path);           // lê conteúdo do arquivo como string
-native_write_file(path, data);    // escreve string no arquivo
-native_append_file(path, data);   // adiciona conteúdo ao fim do arquivo
-native_delete_file(path);         // deleta arquivo
-native_list_dir(path);            // lista arquivos/pastas no diretório
-native_copy_file(from, to);       // copia arquivo
-native_move_file(from, to);       // move arquivo
-native_file_exists(path);         // bool
-native_is_dir(path);              // bool
-native_mkdir(path);               // cria pasta
-native_getcwd();                  // retorna diretório atual
-native_setcwd(path);              // muda o diretório atual
+/*
+Lê o conteúdo de um arquivo como uma string.
+Entrada: um caminho de arquivo (string).
+retorna: uma string com o conteúdo do arquivo.
+*/
 
-🕓 Tempo, Datas, Temporização
+native_write_file(path, data);    // escreve string no arquivo
+/*
+Escreve uma string em um arquivo, sobrescrevendo o conteúdo existente.
+Entrada: um caminho de arquivo (string) e uma string com os dados.
+retorna: nenhum
+*/
+
+native_append_file(path, data);   // adiciona conteúdo ao fim do arquivo
+/*
+Adiciona uma string ao final de um arquivo existente.
+Entrada: um caminho de arquivo (string) e uma string com os dados.
+retorna: nenhum
+*/
+
+native_delete_file(path);         // deleta arquivo
+/*
+Deleta um arquivo do sistema.
+Entrada: um caminho de arquivo (string).
+retorna: nenhum
+*/
+
+native_list_dir(path);            // lista arquivos/pastas no diretório
+/*
+Lista os arquivos e pastas em um diretório.
+Entrada: um caminho de diretório (string).
+retorna: um array de strings com os nomes dos arquivos e pastas.
+*/
+
+native_copy_file(from, to);       // copia arquivo
+/*
+Copia um arquivo de um local para outro.
+Entrada: dois caminhos de arquivo (string), o primeiro é o arquivo de origem e o segundo é o destino.
+retorna: nenhum
+*/
+
+native_move_file(from, to);       // move arquivo
+/*
+Move um arquivo de um local para outro.
+Entrada: dois caminhos de arquivo (string), o primeiro é o arquivo de origem e o segundo é o destino.
+retorna: nenhum
+*/
+
+native_file_exists(path);         // bool
+/*
+Verifica se um arquivo existe.
+Entrada: um caminho de arquivo (string).
+retorna: um booleano (true se o arquivo existir, false caso contrário).
+*/
+
+native_is_dir(path);              // bool
+/*
+Verifica se um caminho é um diretório.
+Entrada: um caminho de arquivo ou diretório (string).
+retorna: um booleano (true se for um diretório, false caso contrário).
+*/
+
+native_mkdir(path);               // cria pasta
+/*
+Cria um diretório.
+Entrada: um caminho de diretório (string).
+retorna: nenhum
+*/
+
+native_getcwd();                  // retorna diretório atual
+/*
+Retorna o diretório de trabalho atual como uma string.
+Entrada: nenhum
+retorna: uma string com o caminho do diretório atual.
+*/
+
+native_setcwd(path);              // muda o diretório atual
+/*
+Muda o diretório de trabalho atual para o especificado.
+Entrada: um caminho de diretório (string).
+retorna: nenhum
+*/
+
+native_get_file_info(path);       // retorna info do arquivo
+/*
+Retorna informações sobre um arquivo, como tamanho, data de modificação, etc.
+Entrada: um caminho de arquivo (string).
+retorna: um objeto com as informações do arquivo.
+*/
+
+native_read_file_content(path); // lê conteúdo do arquivo em string, com uma unica linha retornada.
+/*
+Lê o conteúdo de um arquivo como uma string, sem quebra de linha.
+Entrada: um caminho de arquivo (string).
+retorna: uma string com o conteúdo do arquivo.
+*/
+
+
+🕓 Tempo, Datas, Temporização #<time>
 
 native_now();                     // timestamp atual
-native_sleep(ms);                 // pausa em milissegundos
-native_timestamp();              // timestamp unix
-native_date();                   // data atual (ex: "2025-07-11")
-native_time();                   // hora atual (ex: "13:37:42")
-native_format_date(fmt);         // formato customizado
-native_uptime();                 // tempo desde início da execução
+/*
+Retorna o timestamp atual em milissegundos desde a época (epoch).
+Entrada: nenhum
+retorna: um número inteiro representando o timestamp atual.
+*/
 
-🧠 Sistema, Ambiente e Processo
+native_sleep(ms);                 // pausa em milissegundos
+/*
+Pausa a execução por um número específico de milissegundos.
+Entrada: um número inteiro representando o tempo em milissegundos.
+retorna: nenhum
+*/
+
+native_timestamp();              // timestamp unix
+/*
+Retorna o timestamp atual em segundos desde a época (epoch).
+Entrada: nenhum
+retorna: um número inteiro representando o timestamp atual.
+*/
+
+native_date();                   // data atual (ex: "2025-07-11")
+/*
+Retorna a data atual no formato "YYYY-MM-DD".
+Entrada: nenhum
+retorna: uma string representando a data atual.
+*/
+
+native_time();                   // hora atual (ex: "13:37:42")
+/*
+Retorna a hora atual no formato "HH:MM:SS".
+Entrada: nenhum
+retorna: uma string representando a hora atual.
+*/
+
+native_format_date(fmt);         // formato customizado
+/*
+Formata a data atual de acordo com o formato especificado.
+Entrada: uma string representando o formato (ex: "YYYY-MM-DD HH:mm:ss").
+retorna: uma string com a data formatada.
+*/
+
+native_uptime();                 // tempo desde início da execução
+/*
+Retorna o tempo de execução do programa em milissegundos.
+Entrada: nenhum
+retorna: um número inteiro representando o tempo de execução.
+*/
+
+🧠 Sistema, Ambiente e Processo #<system_env>
 
 native_platform();               // "linux", "windows", "macos"
-native_arch();                   // "x86_64", "aarch64"
-native_env(key);                 // busca variável de ambiente
-native_set_env(key, value);      // define variável de ambiente
-native_exec(cmd);                // executa comando no shell
-native_exec_output(cmd);         // executa e retorna stdout
-native_pid();                    // ID do processo atual
-native_exit(code);               // encerra execução com código
+/*
+Retorna o sistema operacional atual.
+Entrada: nenhum
+retorna: uma string representando o sistema operacional.
+*/
 
-🔐 Criptografia e Identificadores
+native_arch();                   // "x86_64", "aarch64"
+/*
+Retorna a arquitetura do sistema atual.
+Entrada: nenhum
+retorna: uma string representando a arquitetura do sistema.
+*/
+
+native_env(key);                 // busca variável de ambiente
+/*
+Busca o valor de uma variável de ambiente.
+Entrada: uma string representando o nome da variável de ambiente.
+retorna: uma string com o valor da variável ou null se não existir.
+*/
+
+native_set_env(key, value);      // define variável de ambiente
+/*
+Define o valor de uma variável de ambiente.
+Entrada: duas strings, a primeira é o nome da variável e a segunda é o valor.
+retorna: nenhum
+*/
+
+native_exec(cmd);                // executa comando no shell
+/*
+Executa um comando no shell e retorna o status de saída.
+Entrada: uma string representando o comando a ser executado.
+retorna: um número inteiro representando o status de saída do comando.
+*/
+
+native_exec_output(cmd);         // executa e retorna stdout
+/*
+Executa um comando no shell e retorna sua saída padrão.
+Entrada: uma string representando o comando a ser executado.
+retorna: uma string com a saída do comando.
+*/
+
+native_pid();                    // ID do processo atual
+/*
+Retorna o ID do processo atual.
+Entrada: nenhum
+retorna: um número inteiro representando o ID do processo.
+*/
+
+native_exit(code);               // encerra execução com código
+/*
+Encerra a execução do programa com um código de saída.
+Entrada: um número inteiro representando o código de saída (0 para sucesso, outros valores para erro).
+retorna: nenhum
+*/
+
+Encode/Decode (Codificação e Decodificação) #<encode_decode> (json, xml, csv)
+
+native_json_encode(obj);          // converte objeto para JSON
+/*
+Converte um objeto Dryad para uma string JSON.
+Entrada: um objeto Dryad.
+retorna: uma string JSON representando o objeto.
+*/
+
+native_json_decode(json_str);    // converte JSON para objeto
+/*
+Converte uma string JSON para um objeto Dryad.
+Entrada: uma string JSON.
+retorna: um objeto Dryad representando os dados JSON.
+*/
+
+native_csv_encode(array);        // converte array para CSV
+/*  
+Converte um array de arrays ou objetos para uma string CSV.
+Entrada: um array de arrays ou objetos.
+retorna: uma string CSV representando os dados.
+*/
+
+native_csv_decode(csv_str);      // converte CSV para array
+/*
+Converte uma string CSV para um array de arrays ou objetos.
+Entrada: uma string CSV.
+retorna: um array de arrays ou objetos representando os dados CSV.
+*/
+
+native_xml_encode(obj);          // converte objeto para XML
+/*  
+Converte um objeto Dryad para uma string XML.
+Entrada: um objeto Dryad.
+retorna: uma string XML representando o objeto.
+*/
+
+native_xml_decode(xml_str);    // converte XML para objeto
+/*
+Converte uma string XML para um objeto Dryad.
+Entrada: uma string XML.
+retorna: um objeto Dryad representando os dados XML.
+*/
+
+🔐 Criptografia e Identificadores #<crypto>
 
 native_hash_sha256(data);       // string hash
+/*
+Calcula o hash SHA-256 de uma string ou array de bytes.
+Entrada: uma string ou array de bytes.
+retorna: uma string representando o hash SHA-256.
+*/
+
 native_hash_md5(data);          // md5
+/*
+Calcula o hash MD5 de uma string ou array de bytes.
+Entrada: uma string ou array de bytes.
+retorna: uma string representando o hash MD5.
+*/
+
 native_uuid();                  // UUID v4
+/*
+Gera um UUID v4 aleatório.
+Entrada: nenhum
+retorna: uma string representando o UUID.
+*/
+
 native_base64_encode(str);      // codifica
+/*
+Codifica uma string ou array de bytes em Base64.
+Entrada: uma string ou array de bytes.
+retorna: uma string Base64 representando os dados.
+*/
+
 native_base64_decode(str);      // decodifica
+/*
+Decodifica uma string Base64 para uma string ou array de bytes.
+Entrada: uma string Base64.
+retorna: uma string ou array de bytes representando os dados decodificados.
+*/
+
 native_hex_encode(str);         // para hexadecimal
+/*
+Codifica uma string ou array de bytes em hexadecimal.
+Entrada: uma string ou array de bytes.
+retorna: uma string hexadecimal representando os dados.
+*/
+
 native_hex_decode(str);         // de volta para string
+/*
+Decodifica uma string hexadecimal para uma string ou array de bytes.
+Entrada: uma string hexadecimal.
+retorna: uma string ou array de bytes representando os dados decodificados.
+*/
+
+native_random_bytes(length); // gera bytes aleatórios
+/*
+Gera um array de bytes aleatórios de um tamanho específico.
+Entrada: um número inteiro representando o tamanho do array.
+retorna: um array de bytes aleatórios.
+*/
+
+native_random_string(length, charset); // gera string aleatória
+/*
+Gera uma string aleatória de um tamanho específico usando um conjunto de caracteres.
+Entrada: um número inteiro representando o tamanho da string e uma string com os caracteres permitidos
+(retorna todos os caracteres ASCII se não for especificado).
+retorna: uma string aleatória.
+*/
+
+native_encrypt_aes(data, key); // criptografa com AES
+/*
+Criptografa dados usando AES com uma chave fornecida.
+Entrada: um array de bytes (dados) e uma string (chave).
+retorna: um array de bytes criptografados.
+*/
+
+native_decrypt_aes(data, key); // descriptografa com AES
+/*
+Descriptografa dados criptografados com AES usando a mesma chave.
+Entrada: um array de bytes (dados criptografados) e uma string (chave).
+retorna: um array de bytes descriptografados.
+*/
+
+native_encrypt_rsa(data, public_key); // criptografa com RSA
+/*
+Criptografa dados usando RSA com uma chave pública fornecida.
+Entrada: um array de bytes (dados) e uma string (chave pública).
+retorna: um array de bytes criptografados.
+*/
+
+native_decrypt_rsa(data, private_key); // descriptografa com RSA
+/*
+Descriptografa dados criptografados com RSA usando a chave privada correspondente.
+Entrada: um array de bytes (dados criptografados) e uma string (chave privada).
+retorna: um array de bytes descriptografados.
+*/
+
+native_sign(data, private_key); // assina com RSA
+/*
+Assina dados usando RSA com uma chave privada fornecida.
+Entrada: um array de bytes (dados) e uma string (chave privada).
+retorna: um array de bytes com a assinatura.
+*/
+
+native_verify(data, signature, public_key); // verifica assinatura RSA
+/*
+Verifica uma assinatura RSA usando a chave pública correspondente.
+Entrada: um array de bytes (dados), um array de bytes (assinatura) e uma
+string (chave pública).
+retorna: um booleano (true se a assinatura for válida, false caso contrário).
+*/
+
+native_generate_rsa_keypair(bits); // gera par de chaves RSA
+/*
+Gera um par de chaves RSA (pública e privada) com o número de bits
+especificado.
+Entrada: um número inteiro representando o tamanho da chave em bits.
+retorna: um objeto com as chaves pública e privada.
+*/
+
 
 🧪 Debug e Diagnóstico
 
@@ -669,18 +1117,71 @@ native_udp_close();                     // encerra socket UDP
 Para facilitar criação de APIs locais:
 
 native_web_listen(port);                // inicia servidor web simples
+/*
+Inicia um servidor web simples na porta especificada.
+Entrada: um número inteiro representando a porta.
+retorna: nenhum
+*/
+
 native_web_route(method, path, handler); // define rota e função
+/*
+Define uma rota para o servidor web.
+Entrada: uma string representando o método HTTP (ex: "GET", "POST"), uma string representando o caminho da rota e uma função que será chamada quando a rota for acessada.
+retorna: nenhum
+*/
+
+native_web_route_static(path, dir); // rota para arquivos estáticos
+/*
+Define uma rota para servir arquivos estáticos de um diretório.
+Entrada: uma string representando o caminho da rota e uma string representando o diretório de onde os arquivos serão servidos.
+retorna: nenhum
+*/
+
+native_web_route_data(path, data); // rota para dados dinâmicos
+/*
+Define uma rota para retornar dados dinâmicos.
+Entrada: uma string representando o caminho da rota e uma string representando os dados que serão retornados.
+(ex: JSON, XML, etc.)
+retorna: nenhum
+*/
+
+native_web_on_error(handler); // define função para erros
+/*
+Define uma função que será chamada quando ocorrer um erro no servidor web.
+Entrada: uma função que recebe os parâmetros (error, socket_id) e retorna uma resposta HTTP.
+retorna: nenhum
+*/
+
+native_web_on_request(handler); // define função para requisições
+/*
+Define uma função que será chamada para cada requisição recebida pelo servidor web.
+Entrada: uma função que recebe os parâmetros (socket_id, method, path, headers, body
+) e retorna uma resposta HTTP.
+retorna: nenhum
+*/
+
 native_web_shutdown();                  // encerra servidor
+/*
+Encerra o servidor web.
+Entrada: nenhum
+retorna: nenhum
+*/
+
+native_web_on_request(handler); // define função para requisições
+/*
+Define uma função que será chamada para cada requisição recebida pelo servidor web.
+Entrada: uma função que recebe os parâmetros (socket_id, method, path, headers, body) e retorna uma resposta HTTP.
+retorna: nenhum
+*/
+
 native_web_send_response(socket_id, status, headers, body); // envia resposta
-native_web_send_file(socket_id, path); // envia arquivo como resposta
-native_web_static_dir(path);           // serve arquivos estáticos de um diretório
-native_web_json(socket_id, data); // envia JSON como resposta
-native_web_header(socket_id, key, value); // adiciona header
-native_web_status(socket_id, status); // define status HTTP
-native_web_redirect(socket_id, url); // redireciona para outra URL
-native_web_cors(socket_id, origin); // habilita CORS para origem específica
-native_web_cors_all(socket_id); // habilita CORS para todas origens
-native_web_cookie(socket_id, name, value, options); // define cookie
+/*
+Envia uma resposta HTTP para o cliente.
+Entrada: um número inteiro representando o ID do socket, um número inteiro representando o status HTTP (ex: 200, 404), um array de strings representando os headers e uma string representando o corpo da resposta.
+retorna: nenhum
+*/
+
+
 
 ```
 
@@ -1015,19 +1516,7 @@ export class Calculadora {
     static function circunferencia(raio) {
         return 2 * Calculadora.pi() * raio;
     }
-    
-    static function area(raio) {
-        return Calculadora.pi() * raio * raio;
-    }
 }
-```
-
-**Exemplo de uso:**
-```dryad
-// Usando métodos estáticos exportados
-print("π = " + Calculadora.pi());                    // π = 3.14159
-print("Circunferência (r=5) = " + Calculadora.circunferencia(5)); // Circunferência (r=5) = 31.4159
-print("Área (r=3) = " + Calculadora.area(3));        // Área (r=3) = 28.2743
 ```
 
 ### Imports

@@ -15,6 +15,31 @@ quick-xml = { version = "0.31", features = ["serialize"] }
 serde-xml-rs = "0.6"
 serde_yaml = "0.9"
 toml = { version = "0.8", features = ["preserve_order"] }
+# Web server dependencies
+tokio = { version = "1.0", features = ["full"] }
+hyper = { version = "1.0", features = ["full"] }
+hyper-util = { version = "0.1", features = ["full"] }
+http-body-util = "0.1"
+tower = { version = "0.4", features = ["full"] }
+tower-http = { version = "0.5", features = ["fs", "cors"] }
+# WebSocket dependencies
+tokio-tungstenite = "0.21"
+tungstenite = "0.21"
+# HTTP client dependencies
+reqwest = { version = "0.11", features = ["json"] }
+# Date and time handling
+chrono = { version = "0.4", features = ["serde"] }
+# Async runtime for blocking calls
+tokio-util = "0.7"
+futures = "0.3"
+lazy_static = "1.4"
+
+# Terminal ANSI dependencies (cross-platform)
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[target.'cfg(windows)'.dependencies]
+winapi = { version = "0.3", features = ["wincon", "processenv", "winbase"] }
 
 [dev-dependencies]
 dryad_lexer = { workspace = true }

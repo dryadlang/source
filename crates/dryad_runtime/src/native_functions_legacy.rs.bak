@@ -1,0 +1,1241 @@
+// crates/dryad_runtime/src/native_functions.rs
+
+use crate::interpreter::Value;
+use dryad_errors::DryadError;
+use std::collections::HashMap;
+use std::io::{self, Write, Read};
+use std::fs::{self, OpenOptions};
+use std::path::Path;
+use std::time::{SystemTime, UNIX_EPOCH, Instant};
+use std::thread;
+use std::env;
+use std::process::Command;
+use std::sync::{Arc, Mutex};
+
+use hyper::server::conn::http1;
+use hyper::service::service_fn;
+use hyper::{body::Bytes, Request, Response, StatusCode};
+use hyper_util::rt::TokioIo;
+use http_body_util::Full;
+use tokio::net::TcpListener;
+use std::convert::Infallible;
+
+// Estruturas para servidor web real
+lazy_static::lazy_static! {
+    static ref REAL_SERVERS: Arc<Mutex<HashMap<String, ServerData>>> = Arc::new(Mutex::new(HashMap::new()));
+    static ref SERVER_CONTENT: Arc<Mutex<HashMap<String, HashMap<String, ContentData>>>> = Arc::new(Mutex::new(HashMap::new()));
+}
+
+#[derive(Debug, Clone)]
+struct ContentData {
+    content: String,
+    content_type: String,
+}
+
+#[derive(Debug, Clone)]
+struct ServerData {
+    port: u16,
+    is_running: bool,
+}
+
+// Conjunto de módulos nativos disponíveis
+#[derive(Debug, Clone)]
+pub enum NativeModule {
+    ConsoleIO,
+    FileIO,
+    TerminalAnsi,
+    BinaryIO,
+    DateTime,
+    SystemEnv,
+    Crypto,
+    Debug,
+    DataStructures,
+    Http,
+    WebSocket,
+    Tcp,
+    Udp,
+    WebServer,
+}
+
+impl NativeModule {
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s {
+            "console_io" => Some(Self::ConsoleIO),
+            "file_io" => Some(Self::FileIO),
+            "terminal_ansi" => Some(Self::TerminalAnsi),
+            "binary_io" => Some(Self::BinaryIO),
+            "date_time" => Some(Self::DateTime),
+            "system_env" => Some(Self::SystemEnv),
+            "crypto" => Some(Self::Crypto),
+            "debug" => Some(Self::Debug),
+            "http" => Some(Self::Http),
+            "websocket" => Some(Self::WebSocket),
+            "tcp" => Some(Self::Tcp),
+            "udp" => Some(Self::Udp),
+            "web_server" => Some(Self::WebServer),
+            _ => None,
+        }
+    }
+}
+
+// Sistema de funções nativas
+pub struct NativeFunctionRegistry {
+    enabled_modules: Vec<NativeModule>,
+    functions: HashMap<String, fn(&[Value]) -> Result<Value, DryadError>>,
+    _start_time: Instant,
+}
+
+impl NativeFunctionRegistry {
+    pub fn new() -> Self {
+        Self {
+            enabled_modules: Vec::new(),
+            functions: HashMap::new(),
+            _start_time: Instant::now(),
+        }
+    }
+
+    pub fn enable_module(&mut self, module: NativeModule) {
+        if !self.enabled_modules.contains(&module) {
+            self.enabled_modules.push(module.clone());
+            self.register_module_functions(&module);
+        }
+    }
+
+    pub fn is_native_function(&self, name: &str) -> bool {
+        self.functions.contains_key(name)
+    }
+
+    pub fn call_native_function(&self, name: &str, args: &[Value]) -> Result<Value, DryadError> {
+        if let Some(func) = self.functions.get(name) {
+            func(args)
+        } else {
+            Err(DryadError::new(3005, &format!("Função nativa '{}' não encontrada", name)))
+        }
+    }
+
+    fn register_module_functions(&mut self, module: &NativeModule) {
+        match module {
+            NativeModule::ConsoleIO => self.register_console_io_functions(),
+            NativeModule::FileIO => self.register_file_io_functions(),
+            NativeModule::TerminalAnsi => self.register_terminal_ansi_functions(),
+            NativeModule::BinaryIO => self.register_binary_io_functions(),
+            NativeModule::DateTime => self.register_date_time_functions(),
+            NativeModule::SystemEnv => self.register_system_env_functions(),
+            NativeModule::Crypto => self.register_crypto_functions(),
+            NativeModule::Debug => self.register_debug_functions(),
+            NativeModule::DataStructures => {
+                // Estruturas de dados serão implementadas no futuro
+                eprintln!("Módulo DataStructures ainda não implementado");
+            },
+            NativeModule::WebServer => self.register_webserver_functions(),
+            _ => {
+                // Módulos avançados (HTTP, WebSocket, etc.) serão implementados no futuro
+                eprintln!("Módulo {:?} ainda não implementado", module);
+            }
+        }
+    }
+
+    // === MÓDULO: Console I/O ===
+    fn register_console_io_functions(&mut self) {
+        // Entrada do console
+        self.functions.insert("native_input".to_string(), |_args| {
+            let mut input = String::new();
+            match io::stdin().read_line(&mut input) {
+                Ok(_) => Ok(Value::String(input.trim().to_string())),
+                Err(_) => Err(DryadError::new(5001, "Erro ao ler entrada do console")),
+            }
+        });
+
+        self.functions.insert("native_input_char".to_string(), |_args| {
+            let mut buffer = [0; 1];
+            match io::stdin().read_exact(&mut buffer) {
+                Ok(_) => Ok(Value::String(String::from_utf8_lossy(&buffer).to_string())),
+                Err(_) => Err(DryadError::new(5001, "Erro ao ler caractere do console")),
+            }
+        });
+
+        self.functions.insert("native_input_bytes".to_string(), |args| {
+            if args.len() != 1 {
+                return Err(DryadError::new(3004, "native_input_bytes espera 1 argumento (count)"));
+            }
+            
+            let count = match &args[0] {
+                Value::Number(n) => *n as usize,
+                _ => return Err(DryadError::new(3002, "Argumento deve ser um número")),
+            };
+
+            let mut buffer = vec![0; count];
+            match io::stdin().read_exact(&mut buffer) {
+                Ok(_) => Ok(Value::String(String::from_utf8_lossy(&buffer).to_string())),
+                Err(_) => Err(DryadError::new(5001, "Erro ao ler bytes do console")),
+            }
+        });
+
+        // Saída do console
+        self.functions.insert("native_print".to_string(), |args| {
+            if args.is_empty() {
+                return Ok(Value::Null);
+            }
+            print!("{}", args[0].to_string());
+            let _ = io::stdout().flush();
+            Ok(Value::Null)
+        });
+
+        self.functions.insert("print".to_string(), |args| {
+            if args.is_empty() {
+                return Ok(Value::Null);
+            }
+            print!("{}", args[0].to_string());
+            let _ = io::stdout().flush();
+            Ok(Value::Null)
+        });
+
+        self.functions.insert("native_println".to_string(), |args| {
+            if args.is_empty() {
+                println!();
+            } else {
+                println!("{}", args[0].to_string());
+            }
+            Ok(Value::Null)
+        });
+
+        self.functions.insert("println".to_string(), |args| {
+            if args.is_empty() {
+                println!();
+            } else {
+                println!("{}", args[0].to_string());
+            }
+            Ok(Value::Null)
+        });
+
+        self.functions.insert("native_flush".to_string(), |_args| {
+            match io::stdout().flush() {
+                Ok(_) => Ok(Value::Null),
+                Err(_) => Err(DryadError::new(5002, "Erro ao fazer flush do stdout")),
+            }
+        });
+    }
+
+    // === MÓDULO: File I/O ===
+    fn register_file_io_functions(&mut self) {
+        self.functions.insert("native_read_file".to_string(), |args| {
+            if args.len() != 1 {
+                return Err(DryadError::new(3004, "native_read_file espera 1 argumento (path)"));
+            }
+            
+            let path = match &args[0] {
+                Value::String(s) => s,
+                _ => return Err(DryadError::new(3002, "Caminho deve ser uma string")),
+            };
+
+            match fs::read_to_string(path) {
+                Ok(content) => Ok(Value::String(content)),
+                Err(_) => Err(DryadError::new(5003, &format!("Erro ao ler arquivo: {}", path))),
+            }
+        });
+
+        self.functions.insert("native_write_file".to_string(), |args| {
+            if args.len() != 2 {
+                return Err(DryadError::new(3004, "native_write_file espera 2 argumentos (path, data)"));
+            }
+            
+            let path = match &args[0] {
+                Value::String(s) => s,
+                _ => return Err(DryadError::new(3002, "Caminho deve ser uma string")),
+            };
+
+            let data = args[1].to_string();
+
+            match fs::write(path, data) {
+                Ok(_) => Ok(Value::Bool(true)),
+                Err(_) => Err(DryadError::new(5004, &format!("Erro ao escrever arquivo: {}", path))),
+            }
+        });
+
+        self.functions.insert("native_append_file".to_string(), |args| {
+            if args.len() != 2 {
+                return Err(DryadError::new(3004, "native_append_file espera 2 argumentos (path, data)"));
+            }
+            
+            let path = match &args[0] {
+                Value::String(s) => s,
+                _ => return Err(DryadError::new(3002, "Caminho deve ser uma string")),
+            };
+
+            let data = args[1].to_string();
+
+            match OpenOptions::new().create(true).append(true).open(path) {
+                Ok(mut file) => {
+                    match file.write_all(data.as_bytes()) {
+                        Ok(_) => Ok(Value::Bool(true)),
+                        Err(_) => Err(DryadError::new(5004, &format!("Erro ao adicionar ao arquivo: {}", path))),
+                    }
+                }
+                Err(_) => Err(DryadError::new(5004, &format!("Erro ao abrir arquivo: {}", path))),
+            }
+        });
+
+        self.functions.insert("native_delete_file".to_string(), |args| {
+            if args.len() != 1 {
+                return Err(DryadError::new(3004, "native_delete_file espera 1 argumento (path)"));
+            }
+            
+            let path = match &args[0] {
+                Value::String(s) => s,
+                _ => return Err(DryadError::new(3002, "Caminho deve ser uma string")),
+            };
+
+            match fs::remove_file(path) {
+                Ok(_) => Ok(Value::Bool(true)),
+                Err(_) => Err(DryadError::new(5005, &format!("Erro ao deletar arquivo: {}", path))),
+            }
+        });
+
+        self.functions.insert("native_file_exists".to_string(), |args| {
+            if args.len() != 1 {
+                return Err(DryadError::new(3004, "native_file_exists espera 1 argumento (path)"));
+            }
+            
+            let path = match &args[0] {
+                Value::String(s) => s,
+                _ => return Err(DryadError::new(3002, "Caminho deve ser uma string")),
+            };
+
+            Ok(Value::Bool(Path::new(path).exists()))
+        });
+
+        self.functions.insert("file_exists".to_string(), |args| {
+            if args.len() != 1 {
+                return Err(DryadError::new(3004, "file_exists espera 1 argumento (path)"));
+            }
+            
+            let path = match &args[0] {
+                Value::String(s) => s,
+                _ => return Err(DryadError::new(3002, "Caminho deve ser uma string")),
+            };
+
+            Ok(Value::Bool(Path::new(path).exists()))
+        });
+
+        self.functions.insert("native_is_dir".to_string(), |args| {
+            if args.len() != 1 {
+                return Err(DryadError::new(3004, "native_is_dir espera 1 argumento (path)"));
+            }
+            
+            let path = match &args[0] {
+                Value::String(s) => s,
+                _ => return Err(DryadError::new(3002, "Caminho deve ser uma string")),
+            };
+
+            Ok(Value::Bool(Path::new(path).is_dir()))
+        });
+
+        self.functions.insert("native_mkdir".to_string(), |args| {
+            if args.len() != 1 {
+                return Err(DryadError::new(3004, "native_mkdir espera 1 argumento (path)"));
+            }
+            
+            let path = match &args[0] {
+                Value::String(s) => s,
+                _ => return Err(DryadError::new(3002, "Caminho deve ser uma string")),
+            };
+
+            match fs::create_dir_all(path) {
+                Ok(_) => Ok(Value::Bool(true)),
+                Err(_) => Err(DryadError::new(5006, &format!("Erro ao criar diretório: {}", path))),
+            }
+        });
+
+        self.functions.insert("native_getcwd".to_string(), |_args| {
+            match env::current_dir() {
+                Ok(path) => Ok(Value::String(path.to_string_lossy().to_string())),
+                Err(_) => Err(DryadError::new(5007, "Erro ao obter diretório atual")),
+            }
+        });
+    }
+
+    // === MÓDULO: Terminal ANSI ===
+    fn register_terminal_ansi_functions(&mut self) {
+        self.functions.insert("native_clear_screen".to_string(), |_args| {
+            print!("\x1B[2J\x1B[H");
+            let _ = io::stdout().flush();
+            Ok(Value::Null)
+        });
+
+        self.functions.insert("native_move_cursor".to_string(), |args| {
+            if args.len() != 2 {
+                return Err(DryadError::new(3004, "native_move_cursor espera 2 argumentos (x, y)"));
+            }
+            
+            let x = match &args[0] {
+                Value::Number(n) => *n as u32,
+                _ => return Err(DryadError::new(3002, "Coordenada X deve ser um número")),
+            };
+
+            let y = match &args[1] {
+                Value::Number(n) => *n as u32,
+                _ => return Err(DryadError::new(3002, "Coordenada Y deve ser um número")),
+            };
+
+            print!("\x1B[{};{}H", y, x);
+            let _ = io::stdout().flush();
+            Ok(Value::Null)
+        });
+
+        self.functions.insert("native_hide_cursor".to_string(), |_args| {
+            print!("\x1B[?25l");
+            let _ = io::stdout().flush();
+            Ok(Value::Null)
+        });
+
+        self.functions.insert("native_show_cursor".to_string(), |_args| {
+            print!("\x1B[?25h");
+            let _ = io::stdout().flush();
+            Ok(Value::Null)
+        });
+
+        self.functions.insert("native_reset_style".to_string(), |_args| {
+            print!("\x1B[0m");
+            let _ = io::stdout().flush();
+            Ok(Value::Null)
+        });
+
+        // Funções de cores ANSI
+        self.functions.insert("ansi_red".to_string(), |args| {
+            if args.len() != 1 {
+                return Err(DryadError::new(3004, "ansi_red espera 1 argumento (text)"));
+            }
+            let text = args[0].to_string();
+            Ok(Value::String(format!("\x1B[31m{}\x1B[0m", text)))
+        });
+
+        self.functions.insert("ansi_green".to_string(), |args| {
+            if args.len() != 1 {
+                return Err(DryadError::new(3004, "ansi_green espera 1 argumento (text)"));
+            }
+            let text = args[0].to_string();
+            Ok(Value::String(format!("\x1B[32m{}\x1B[0m", text)))
+        });
+
+        self.functions.insert("ansi_yellow".to_string(), |args| {
+            if args.len() != 1 {
+                return Err(DryadError::new(3004, "ansi_yellow espera 1 argumento (text)"));
+            }
+            let text = args[0].to_string();
+            Ok(Value::String(format!("\x1B[33m{}\x1B[0m", text)))
+        });
+
+        self.functions.insert("ansi_blue".to_string(), |args| {
+            if args.len() != 1 {
+                return Err(DryadError::new(3004, "ansi_blue espera 1 argumento (text)"));
+            }
+            let text = args[0].to_string();
+            Ok(Value::String(format!("\x1B[34m{}\x1B[0m", text)))
+        });
+    }
+
+    // === MÓDULO: Date/Time ===
+    fn register_date_time_functions(&mut self) {
+        self.functions.insert("native_now".to_string(), |_args| {
+            match SystemTime::now().duration_since(UNIX_EPOCH) {
+                Ok(duration) => Ok(Value::Number(duration.as_secs_f64())),
+                Err(_) => Err(DryadError::new(5008, "Erro ao obter timestamp atual")),
+            }
+        });
+
+        self.functions.insert("native_timestamp".to_string(), |_args| {
+            match SystemTime::now().duration_since(UNIX_EPOCH) {
+                Ok(duration) => Ok(Value::Number(duration.as_secs() as f64)),
+                Err(_) => Err(DryadError::new(5008, "Erro ao obter timestamp unix")),
+            }
+        });
+
+        self.functions.insert("native_sleep".to_string(), |args| {
+            if args.len() != 1 {
+                return Err(DryadError::new(3004, "native_sleep espera 1 argumento (ms)"));
+            }
+            
+            let ms = match &args[0] {
+                Value::Number(n) => *n as u64,
+                _ => return Err(DryadError::new(3002, "Tempo deve ser um número")),
+            };
+
+            thread::sleep(std::time::Duration::from_millis(ms));
+            Ok(Value::Null)
+        });
+
+        self.functions.insert("native_uptime".to_string(), |_args| {
+            // Para simplicidade, vamos simular o uptime
+            // Em uma implementação real, poderíamos usar uma referência global ao tempo de início
+            Ok(Value::Number(0.0))
+        });
+
+        self.functions.insert("current_timestamp".to_string(), |_args| {
+            match SystemTime::now().duration_since(UNIX_EPOCH) {
+                Ok(duration) => Ok(Value::Number(duration.as_secs_f64())),
+                Err(_) => Err(DryadError::new(5008, "Erro ao obter timestamp atual")),
+            }
+        });
+    }
+
+    // === MÓDULO: System Environment ===
+    fn register_system_env_functions(&mut self) {
+        self.functions.insert("native_platform".to_string(), |_args| {
+            let platform = if cfg!(target_os = "windows") {
+                "windows"
+            } else if cfg!(target_os = "macos") {
+                "macos"
+            } else if cfg!(target_os = "linux") {
+                "linux"
+            } else {
+                "unknown"
+            };
+            Ok(Value::String(platform.to_string()))
+        });
+
+        self.functions.insert("native_arch".to_string(), |_args| {
+            let arch = if cfg!(target_arch = "x86_64") {
+                "x86_64"
+            } else if cfg!(target_arch = "aarch64") {
+                "aarch64"
+            } else if cfg!(target_arch = "x86") {
+                "x86"
+            } else {
+                "unknown"
+            };
+            Ok(Value::String(arch.to_string()))
+        });
+
+        self.functions.insert("native_env".to_string(), |args| {
+            if args.len() != 1 {
+                return Err(DryadError::new(3004, "native_env espera 1 argumento (key)"));
+            }
+            
+            let key = match &args[0] {
+                Value::String(s) => s,
+                _ => return Err(DryadError::new(3002, "Chave deve ser uma string")),
+            };
+
+            match env::var(key) {
+                Ok(value) => Ok(Value::String(value)),
+                Err(_) => Ok(Value::Null),
+            }
+        });
+
+        self.functions.insert("native_set_env".to_string(), |args| {
+            if args.len() != 2 {
+                return Err(DryadError::new(3004, "native_set_env espera 2 argumentos (key, value)"));
+            }
+            
+            let key = match &args[0] {
+                Value::String(s) => s,
+                _ => return Err(DryadError::new(3002, "Chave deve ser uma string")),
+            };
+
+            let value = args[1].to_string();
+            env::set_var(key, value);
+            Ok(Value::Bool(true))
+        });
+
+        self.functions.insert("native_exec".to_string(), |args| {
+            if args.len() != 1 {
+                return Err(DryadError::new(3004, "native_exec espera 1 argumento (cmd)"));
+            }
+            
+            let cmd = match &args[0] {
+                Value::String(s) => s,
+                _ => return Err(DryadError::new(3002, "Comando deve ser uma string")),
+            };
+
+            #[cfg(target_os = "windows")]
+            let output = Command::new("cmd").args(&["/C", cmd]).output();
+            
+            #[cfg(not(target_os = "windows"))]
+            let output = Command::new("sh").args(&["-c", cmd]).output();
+
+            match output {
+                Ok(result) => Ok(Value::Number(result.status.code().unwrap_or(-1) as f64)),
+                Err(_) => Err(DryadError::new(5009, &format!("Erro ao executar comando: {}", cmd))),
+            }
+        });
+
+        self.functions.insert("native_exec_output".to_string(), |args| {
+            if args.len() != 1 {
+                return Err(DryadError::new(3004, "native_exec_output espera 1 argumento (cmd)"));
+            }
+            
+            let cmd = match &args[0] {
+                Value::String(s) => s,
+                _ => return Err(DryadError::new(3002, "Comando deve ser uma string")),
+            };
+
+            #[cfg(target_os = "windows")]
+            let output = Command::new("cmd").args(&["/C", cmd]).output();
+            
+            #[cfg(not(target_os = "windows"))]
+            let output = Command::new("sh").args(&["-c", cmd]).output();
+
+            match output {
+                Ok(result) => Ok(Value::String(String::from_utf8_lossy(&result.stdout).to_string())),
+                Err(_) => Err(DryadError::new(5009, &format!("Erro ao executar comando: {}", cmd))),
+            }
+        });
+
+        self.functions.insert("native_pid".to_string(), |_args| {
+            Ok(Value::Number(std::process::id() as f64))
+        });
+
+        self.functions.insert("native_exit".to_string(), |args| {
+            let code = if args.is_empty() {
+                0
+            } else {
+                match &args[0] {
+                    Value::Number(n) => *n as i32,
+                    _ => 0,
+                }
+            };
+            std::process::exit(code);
+        });
+
+        self.functions.insert("get_current_dir".to_string(), |_args| {
+            match env::current_dir() {
+                Ok(path) => Ok(Value::String(path.to_string_lossy().to_string())),
+                Err(_) => Err(DryadError::new(5010, "Erro ao obter diretório atual")),
+            }
+        });
+
+        self.functions.insert("native_current_dir".to_string(), |_args| {
+            match env::current_dir() {
+                Ok(path) => Ok(Value::String(path.to_string_lossy().to_string())),
+                Err(_) => Err(DryadError::new(5010, "Erro ao obter diretório atual")),
+            }
+        });
+    }
+
+    // === MÓDULO: Debug ===
+    fn register_debug_functions(&mut self) {
+        self.functions.insert("debug".to_string(), |args| {
+            if args.is_empty() {
+                println!("[DEBUG]");
+            } else {
+                println!("[DEBUG] {:?}", args[0]);
+            }
+            Ok(Value::Null)
+        });
+
+        self.functions.insert("native_log".to_string(), |args| {
+            if args.is_empty() {
+                println!("[DEBUG]");
+            } else {
+                println!("[DEBUG] {:?}", args[0]);
+            }
+            Ok(Value::Null)
+        });
+
+        self.functions.insert("native_typeof".to_string(), |args| {
+            if args.is_empty() {
+                return Ok(Value::String("undefined".to_string()));
+            }
+            
+            let type_name = match &args[0] {
+                Value::Number(_) => "number",
+                Value::String(_) => "string", 
+                Value::Bool(_) => "boolean",
+                Value::Null => "null",
+                Value::Array(_) => "array",
+                Value::Tuple(_) => "tuple",
+                Value::Function { .. } => "function",
+                Value::Exception(_) => "exception",
+                Value::Lambda { .. } => "lambda",
+                Value::Class { .. } => "class",
+                Value::Instance { .. } => "instance",
+                Value::Object { .. } => "object",
+            };
+            
+            Ok(Value::String(type_name.to_string()))
+        });
+
+        self.functions.insert("native_memory_usage".to_string(), |_args| {
+            // Simulação simples - em uma implementação real usaríamos bibliotecas de sistema
+            Ok(Value::Number(0.0))
+        });
+    }
+
+    // === MÓDULO: Crypto (básico) ===
+    fn register_crypto_functions(&mut self) {
+        self.functions.insert("native_uuid".to_string(), |_args| {
+            // Implementação simples de UUID v4
+            use std::collections::hash_map::DefaultHasher;
+            use std::hash::{Hash, Hasher};
+            use std::time::SystemTime;
+            
+            let mut hasher = DefaultHasher::new();
+            SystemTime::now().hash(&mut hasher);
+            std::thread::current().id().hash(&mut hasher);
+            let hash = hasher.finish();
+            
+            Ok(Value::String(format!("{:x}-{:x}-{:x}-{:x}", 
+                hash & 0xFFFF, 
+                (hash >> 16) & 0xFFFF, 
+                (hash >> 32) & 0xFFFF, 
+                (hash >> 48) & 0xFFFF
+            )))
+        });
+
+        self.functions.insert("sha256".to_string(), |args| {
+            if args.len() != 1 {
+                return Err(DryadError::new(3004, "sha256 espera 1 argumento (data)"));
+            }
+            
+            let data = args[0].to_string();
+            
+            // Implementação simples usando hash padrão
+            use std::collections::hash_map::DefaultHasher;
+            use std::hash::{Hash, Hasher};
+            
+            let mut hasher = DefaultHasher::new();
+            data.hash(&mut hasher);
+            let hash = hasher.finish();
+            
+            Ok(Value::String(format!("{:016x}", hash)))
+        });
+
+        // Outras funções de crypto serão implementadas com bibliotecas apropriadas
+    }
+
+    // === MÓDULO: Binary I/O ===
+    fn register_binary_io_functions(&mut self) {
+        self.functions.insert("native_read_bytes".to_string(), |args| {
+            if args.len() != 1 {
+                return Err(DryadError::new(3004, "native_read_bytes espera 1 argumento (path)"));
+            }
+            
+            let path = match &args[0] {
+                Value::String(s) => s,
+                _ => return Err(DryadError::new(3002, "Caminho deve ser uma string")),
+            };
+
+            match fs::read(path) {
+                Ok(bytes) => {
+                    // Converter bytes para array de números
+                    let values: Vec<Value> = bytes.into_iter().map(|b| Value::Number(b as f64)).collect();
+                    Ok(Value::Array(values))
+                }
+                Err(_) => Err(DryadError::new(5003, &format!("Erro ao ler bytes do arquivo: {}", path))),
+            }
+        });
+
+        self.functions.insert("native_write_bytes".to_string(), |args| {
+            if args.len() != 2 {
+                return Err(DryadError::new(3004, "native_write_bytes espera 2 argumentos (path, bytes)"));
+            }
+            
+            let path = match &args[0] {
+                Value::String(s) => s,
+                _ => return Err(DryadError::new(3002, "Caminho deve ser uma string")),
+            };
+
+            let bytes = match &args[1] {
+                Value::Array(arr) => {
+                    let mut byte_vec = Vec::new();
+                    for val in arr {
+                        match val {
+                            Value::Number(n) => byte_vec.push(*n as u8),
+                            _ => return Err(DryadError::new(3002, "Array deve conter apenas números")),
+                        }
+                    }
+                    byte_vec
+                }
+                _ => return Err(DryadError::new(3002, "Segundo argumento deve ser um array")),
+            };
+
+            match fs::write(path, bytes) {
+                Ok(_) => Ok(Value::Bool(true)),
+                Err(_) => Err(DryadError::new(5004, &format!("Erro ao escrever bytes no arquivo: {}", path))),
+            }
+        });
+
+        self.functions.insert("native_file_size".to_string(), |args| {
+            if args.len() != 1 {
+                return Err(DryadError::new(3004, "native_file_size espera 1 argumento (path)"));
+            }
+            
+            let path = match &args[0] {
+                Value::String(s) => s,
+                _ => return Err(DryadError::new(3002, "Caminho deve ser uma string")),
+            };
+
+            match fs::metadata(path) {
+                Ok(metadata) => Ok(Value::Number(metadata.len() as f64)),
+                Err(_) => Err(DryadError::new(5003, &format!("Erro ao obter tamanho do arquivo: {}", path))),
+            }
+        });
+
+        self.functions.insert("to_hex".to_string(), |args| {
+            if args.len() != 1 {
+                return Err(DryadError::new(3004, "to_hex espera 1 argumento (number)"));
+            }
+            
+            let num = match &args[0] {
+                Value::Number(n) => *n as u64,
+                _ => return Err(DryadError::new(3002, "Argumento deve ser um número")),
+            };
+
+            Ok(Value::String(format!("{:x}", num)))
+        });
+
+        self.functions.insert("from_hex".to_string(), |args| {
+            if args.len() != 1 {
+                return Err(DryadError::new(3004, "from_hex espera 1 argumento (hex_string)"));
+            }
+            
+            let hex = match &args[0] {
+                Value::String(s) => s,
+                _ => return Err(DryadError::new(3002, "Argumento deve ser uma string")),
+            };
+
+            match u64::from_str_radix(hex, 16) {
+                Ok(num) => Ok(Value::Number(num as f64)),
+                Err(_) => Err(DryadError::new(3002, "String hexadecimal inválida")),
+            }
+        });
+
+        self.functions.insert("native_read_binary".to_string(), |args| {
+            if args.len() != 1 {
+                return Err(DryadError::new(3004, "native_read_binary espera 1 argumento (path)"));
+            }
+            
+            let path = match &args[0] {
+                Value::String(s) => s,
+                _ => return Err(DryadError::new(3002, "Caminho deve ser uma string")),
+            };
+
+            // Para demonstração, vamos ler como string mesmo
+            // Em produção, seria melhor ter um tipo de dados binary
+            match fs::read_to_string(path) {
+                Ok(content) => Ok(Value::String(content)),
+                Err(_) => {
+                    // Se falhar como texto, tentar como bytes e converter para string
+                    match fs::read(path) {
+                        Ok(bytes) => {
+                            // Converter bytes para string (assumindo UTF-8 ou criando representação)
+                            let content = String::from_utf8_lossy(&bytes).to_string();
+                            Ok(Value::String(content))
+                        },
+                        Err(_) => Err(DryadError::new(5003, &format!("Erro ao ler arquivo: {}", path))),
+                    }
+                }
+            }
+        });
+
+        self.functions.insert("native_file_mime_type".to_string(), |args| {
+            if args.len() != 1 {
+                return Err(DryadError::new(3004, "native_file_mime_type espera 1 argumento (path)"));
+            }
+            
+            let path = match &args[0] {
+                Value::String(s) => s,
+                _ => return Err(DryadError::new(3002, "Caminho deve ser uma string")),
+            };
+
+            let mime_type = match Path::new(path).extension() {
+                Some(ext) => match ext.to_str() {
+                    Some("html") | Some("htm") => "text/html; charset=utf-8",
+                    Some("css") => "text/css",
+                    Some("js") => "application/javascript",
+                    Some("json") => "application/json",
+                    Some("png") => "image/png",
+                    Some("jpg") | Some("jpeg") => "image/jpeg",
+                    Some("gif") => "image/gif",
+                    Some("svg") => "image/svg+xml",
+                    Some("pdf") => "application/pdf",
+                    Some("txt") => "text/plain",
+                    Some("xml") => "application/xml",
+                    _ => "application/octet-stream",
+                },
+                None => "application/octet-stream",
+            };
+
+            Ok(Value::String(mime_type.to_string()))
+        });
+    }
+
+    // === MÓDULO: WebServer ===
+    fn register_webserver_functions(&mut self) {
+        // Create server
+        self.functions.insert("webserver_create".to_string(), |args| {
+            if args.len() != 1 {
+                return Err(DryadError::new(3004, "webserver_create espera 1 argumento (port)"));
+            }
+            
+            let port = match &args[0] {
+                Value::Number(n) => *n as u16,
+                _ => return Err(DryadError::new(3002, "Porta deve ser um número")),
+            };
+
+            let server_id = format!("webserver_{}", port);
+            
+            // Armazenar dados do servidor
+            {
+                let mut servers = REAL_SERVERS.lock().unwrap();
+                servers.insert(server_id.clone(), ServerData {
+                    port,
+                    is_running: false,
+                });
+            }
+
+            // Inicializar armazenamento de conteúdo para este servidor
+            {
+                let mut content = SERVER_CONTENT.lock().unwrap();
+                content.insert(server_id.clone(), HashMap::new());
+            }
+            
+            println!("🌐 WebServer real criado: {} (porta {})", server_id, port);
+            Ok(Value::String(server_id))
+        });
+
+        // Start server
+        self.functions.insert("webserver_start".to_string(), |args| {
+            if args.len() != 1 {
+                return Err(DryadError::new(3004, "webserver_start espera 1 argumento (server_id)"));
+            }
+            
+            let server_id = match &args[0] {
+                Value::String(s) => s.clone(),
+                _ => return Err(DryadError::new(3002, "ID do servidor deve ser uma string")),
+            };
+
+            // Obter dados do servidor
+            let port = {
+                let mut servers = REAL_SERVERS.lock().unwrap();
+                if let Some(server_data) = servers.get_mut(&server_id) {
+                    if server_data.is_running {
+                        return Err(DryadError::new(3005, "Servidor já está rodando"));
+                    }
+                    server_data.is_running = true;
+                    server_data.port
+                } else {
+                    return Err(DryadError::new(3006, "Servidor não encontrado"));
+                }
+            };
+
+            // Iniciar servidor em thread separada
+            let server_id_clone = server_id.clone();
+            std::thread::spawn(move || {
+                let rt = tokio::runtime::Runtime::new().unwrap();
+                rt.block_on(async {
+                    start_real_server(port, server_id_clone).await;
+                });
+            });
+
+            println!("▶️  WebServer real iniciado: {} na porta {}", server_id, port);
+            Ok(Value::Bool(true))
+        });
+
+        // Stop server
+        self.functions.insert("webserver_stop".to_string(), |args| {
+            if args.len() != 1 {
+                return Err(DryadError::new(3004, "webserver_stop espera 1 argumento (server_id)"));
+            }
+            
+            let server_id = match &args[0] {
+                Value::String(s) => s,
+                _ => return Err(DryadError::new(3002, "ID do servidor deve ser uma string")),
+            };
+
+            println!("⏹️  WebServer simulado parado: {}", server_id);
+            Ok(Value::Bool(true))
+        });
+
+        // Add route
+        self.functions.insert("webserver_route".to_string(), |args| {
+            if args.len() != 3 {
+                return Err(DryadError::new(3004, "webserver_route espera 3 argumentos (server_id, method, path)"));
+            }
+            
+            let server_id = match &args[0] {
+                Value::String(s) => s,
+                _ => return Err(DryadError::new(3002, "ID do servidor deve ser uma string")),
+            };
+
+            let method = match &args[1] {
+                Value::String(s) => s,
+                _ => return Err(DryadError::new(3002, "Método HTTP deve ser uma string")),
+            };
+
+            let path = match &args[2] {
+                Value::String(s) => s,
+                _ => return Err(DryadError::new(3002, "Caminho deve ser uma string")),
+            };
+
+            let route_id = format!("{}:{}:{}", server_id, method, path);
+            println!("📍 Rota simulada configurada: {} {} {}", method, path, server_id);
+            Ok(Value::String(route_id))
+        });
+
+        // Serve static files
+        self.functions.insert("webserver_static".to_string(), |args| {
+            if args.len() != 3 {
+                return Err(DryadError::new(3004, "webserver_static espera 3 argumentos (server_id, route_path, directory)"));
+            }
+            
+            let server_id = match &args[0] {
+                Value::String(s) => s,
+                _ => return Err(DryadError::new(3002, "ID do servidor deve ser uma string")),
+            };
+
+            let route_path = match &args[1] {
+                Value::String(s) => s,
+                _ => return Err(DryadError::new(3002, "Caminho da rota deve ser uma string")),
+            };
+
+            let directory = match &args[2] {
+                Value::String(s) => s,
+                _ => return Err(DryadError::new(3002, "Diretório deve ser uma string")),
+            };
+
+            let static_id = format!("static_{}_{}", server_id, route_path);
+            println!("📁 Arquivos estáticos simulados configurados: {} -> {} ({})", route_path, directory, server_id);
+            Ok(Value::String(static_id))
+        });
+
+        // Set middleware
+        self.functions.insert("webserver_middleware".to_string(), |args| {
+            if args.len() != 2 {
+                return Err(DryadError::new(3004, "webserver_middleware espera 2 argumentos (server_id, middleware_name)"));
+            }
+            
+            let server_id = match &args[0] {
+                Value::String(s) => s,
+                _ => return Err(DryadError::new(3002, "ID do servidor deve ser uma string")),
+            };
+
+            let middleware_name = match &args[1] {
+                Value::String(s) => s,
+                _ => return Err(DryadError::new(3002, "Nome do middleware deve ser uma string")),
+            };
+
+            let middleware_id = format!("middleware_{}_{}", server_id, middleware_name);
+            println!("🔧 Middleware simulado configurado: {} ({})", middleware_name, server_id);
+            Ok(Value::String(middleware_id))
+        });
+
+        // Set custom content for routes
+        self.functions.insert("webserver_set_content".to_string(), |args| {
+            if args.len() != 4 {
+                return Err(DryadError::new(3004, "webserver_set_content espera 4 argumentos (server_id, path, content_type, content)"));
+            }
+            
+            let server_id = match &args[0] {
+                Value::String(s) => s.clone(),
+                _ => return Err(DryadError::new(3002, "ID do servidor deve ser uma string")),
+            };
+
+            let path = match &args[1] {
+                Value::String(s) => s.clone(),
+                _ => return Err(DryadError::new(3002, "Caminho deve ser uma string")),
+            };
+
+            let content_type = match &args[2] {
+                Value::String(s) => s.clone(),
+                _ => return Err(DryadError::new(3002, "Tipo de conteúdo deve ser uma string")),
+            };
+
+            let content = match &args[3] {
+                Value::String(s) => s.clone(),
+                _ => return Err(DryadError::new(3002, "Conteúdo deve ser uma string")),
+            };
+
+            // Armazenar conteúdo real
+            {
+                let mut content_map = SERVER_CONTENT.lock().unwrap();
+                if let Some(server_content) = content_map.get_mut(&server_id) {
+                    server_content.insert(path.clone(), ContentData {
+                        content,
+                        content_type: content_type.clone(),
+                    });
+                }
+            }
+
+            println!("📝 Conteúdo real definido: {} ({}) - {}", path, content_type, server_id);
+            Ok(Value::Bool(true))
+        });
+
+        // Set HTML page content
+        self.functions.insert("webserver_set_html".to_string(), |args| {
+            if args.len() != 3 {
+                return Err(DryadError::new(3004, "webserver_set_html espera 3 argumentos (server_id, path, html_content)"));
+            }
+            
+            let server_id = match &args[0] {
+                Value::String(s) => s.clone(),
+                _ => return Err(DryadError::new(3002, "ID do servidor deve ser uma string")),
+            };
+
+            let path = match &args[1] {
+                Value::String(s) => s.clone(),
+                _ => return Err(DryadError::new(3002, "Caminho deve ser uma string")),
+            };
+
+            let html_content = match &args[2] {
+                Value::String(s) => s.clone(),
+                _ => return Err(DryadError::new(3002, "Conteúdo HTML deve ser uma string")),
+            };
+
+            // Armazenar conteúdo HTML real
+            {
+                let mut content_map = SERVER_CONTENT.lock().unwrap();
+                if let Some(server_content) = content_map.get_mut(&server_id) {
+                    server_content.insert(path.clone(), ContentData {
+                        content: html_content,
+                        content_type: "text/html; charset=utf-8".to_string(),
+                    });
+                }
+            }
+
+            println!("📝 Conteúdo HTML real definido: {} (text/html) - {}", path, server_id);
+            Ok(Value::Bool(true))
+        });
+
+        // Set JSON response content
+        self.functions.insert("webserver_set_json".to_string(), |args| {
+            if args.len() != 3 {
+                return Err(DryadError::new(3004, "webserver_set_json espera 3 argumentos (server_id, path, json_content)"));
+            }
+            
+            let server_id = match &args[0] {
+                Value::String(s) => s.clone(),
+                _ => return Err(DryadError::new(3002, "ID do servidor deve ser uma string")),
+            };
+
+            let path = match &args[1] {
+                Value::String(s) => s.clone(),
+                _ => return Err(DryadError::new(3002, "Caminho deve ser uma string")),
+            };
+
+            let json_content = match &args[2] {
+                Value::String(s) => s.clone(),
+                _ => return Err(DryadError::new(3002, "Conteúdo JSON deve ser uma string")),
+            };
+
+            // Armazenar conteúdo JSON real
+            {
+                let mut content_map = SERVER_CONTENT.lock().unwrap();
+                if let Some(server_content) = content_map.get_mut(&server_id) {
+                    server_content.insert(path.clone(), ContentData {
+                        content: json_content,
+                        content_type: "application/json".to_string(),
+                    });
+                }
+            }
+
+            println!("📝 Conteúdo JSON real definido: {} (application/json) - {}", path, server_id);
+            Ok(Value::Bool(true))
+        });
+    }
+}
+
+// Função para iniciar servidor HTTP real
+async fn start_real_server(port: u16, server_id: String) {
+    let addr = format!("127.0.0.1:{}", port);
+    
+    let listener = match TcpListener::bind(&addr).await {
+        Ok(listener) => listener,
+        Err(e) => {
+            eprintln!("❌ Erro ao iniciar servidor na porta {}: {}", port, e);
+            return;
+        }
+    };
+
+    println!("🚀 Servidor HTTP real iniciado em http://{}", addr);
+
+    loop {
+        let (stream, _) = match listener.accept().await {
+            Ok(connection) => connection,
+            Err(e) => {
+                eprintln!("❌ Erro ao aceitar conexão: {}", e);
+                continue;
+            }
+        };
+
+        let io = TokioIo::new(stream);
+        let server_id_clone = server_id.clone();
+
+        tokio::task::spawn(async move {
+            if let Err(err) = http1::Builder::new()
+                .serve_connection(io, service_fn(move |req| {
+                    handle_request(req, server_id_clone.clone())
+                }))
+                .await
+            {
+                eprintln!("❌ Erro ao servir conexão: {:?}", err);
+            }
+        });
+    }
+}
+
+// Função para lidar com requisições HTTP
+async fn handle_request(
+    req: Request<hyper::body::Incoming>,
+    server_id: String,
+) -> Result<Response<Full<Bytes>>, Infallible> {
+    let path = req.uri().path();
+    let method = req.method().as_str();
+
+    println!("📝 Requisição recebida: {} {}", method, path);
+
+    // Verificar se temos conteúdo para este caminho
+    let content_data = {
+        let content_map = SERVER_CONTENT.lock().unwrap();
+        if let Some(server_content) = content_map.get(&server_id) {
+            server_content.get(path).cloned()
+        } else {
+            None
+        }
+    };
+
+    if let Some(data) = content_data {
+        // Servir conteúdo definido pelo usuário
+        Ok(Response::builder()
+            .status(StatusCode::OK)
+            .header("Content-Type", data.content_type)
+            .header("Access-Control-Allow-Origin", "*")
+            .body(Full::new(Bytes::from(data.content)))
+            .unwrap())
+    } else {
+        // Página 404 padrão
+        let not_found_html = format!(
+            r#"<!DOCTYPE html>
+<html>
+<head>
+    <title>404 - Página Não Encontrada</title>
+    <style>
+        body {{ font-family: Arial, sans-serif; text-align: center; margin: 50px; }}
+        .error {{ color: #e74c3c; }}
+    </style>
+</head>
+<body>
+    <h1 class="error">404 - Página Não Encontrada</h1>
+    <p>O caminho <strong>{}</strong> não foi encontrado neste servidor.</p>
+    <p>Servidor: {}</p>
+    <hr>
+    <small>Dryad WebServer</small>
+</body>
+</html>"#,
+            path, server_id
+        );
+
+        Ok(Response::builder()
+            .status(StatusCode::NOT_FOUND)
+            .header("Content-Type", "text/html; charset=utf-8")
+            .header("Access-Control-Allow-Origin", "*")
+            .body(Full::new(Bytes::from(not_found_html)))
+            .unwrap())
+    }
+}
+
+impl PartialEq for NativeModule {
+    fn eq(&self, other: &Self) -> bool {
+        std::mem::discriminant(self) == std::mem::discriminant(other)
+    }
+}

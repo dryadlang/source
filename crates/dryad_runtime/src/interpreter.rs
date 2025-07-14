@@ -1,7 +1,7 @@
 // crates/dryad_runtime/src/interpreter.rs
 use dryad_parser::ast::{Expr, Literal, Stmt, Program, ClassMember, Visibility, ObjectProperty};
 use dryad_errors::DryadError;
-use crate::native_functions::{NativeFunctionRegistry, NativeModule};
+use crate::native_modules::NativeModuleManager;
 use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
@@ -16,7 +16,7 @@ pub enum FlowControl {
 
 pub struct Interpreter {
     variables: HashMap<String, Value>,
-    native_functions: NativeFunctionRegistry,
+    native_modules: NativeModuleManager, // Gerenciador de módulos nativos
     classes: HashMap<String, Value>, // Para armazenar definições de classe
     current_instance: Option<Value>, // Para contexto de 'this'
     imported_modules: HashMap<String, HashMap<String, Value>>, // Módulos importados com seus namespaces
@@ -142,21 +142,11 @@ impl Interpreter {
     pub fn new() -> Self {
         Interpreter {
             variables: HashMap::new(),
-            native_functions: NativeFunctionRegistry::new(),
+            native_modules: NativeModuleManager::new(),
             classes: HashMap::new(),
             current_instance: None,
             imported_modules: HashMap::new(),
             current_file_path: None,
-        }
-    }
-
-    pub fn enable_native_module(&mut self, module: NativeModule) {
-        self.native_functions.enable_module(module);
-    }
-
-    pub fn enable_native_modules(&mut self, modules: Vec<NativeModule>) {
-        for module in modules {
-            self.native_functions.enable_module(module);
         }
     }
 
@@ -193,11 +183,15 @@ impl Interpreter {
     pub fn execute_statement(&mut self, stmt: &Stmt) -> Result<Value, DryadError> {
         match stmt {
             Stmt::NativeDirective(module_name) => {
-                if let Some(module) = NativeModule::from_str(module_name) {
-                    self.enable_native_module(module);
-                    Ok(Value::Null)
-                } else {
-                    Err(DryadError::new(6001, &format!("Módulo nativo desconhecido: {}", module_name)))
+                // Usar exclusivamente o novo sistema modular
+                match self.activate_native_category(module_name) {
+                    Ok(_) => {
+                        println!("📦 Categoria nativa carregada: {}", module_name);
+                        Ok(Value::Null)
+                    }
+                    Err(err) => {
+                        Err(DryadError::new(6001, &format!("Categoria nativa desconhecida: {} ({})", module_name, err)))
+                    }
                 }
             }
             Stmt::Expression(expr) => self.evaluate(expr),
@@ -556,14 +550,20 @@ impl Interpreter {
             return self.eval_class_instantiation(name, args);
         }
         
-        // Segundo verificar se é uma função nativa
-        if self.native_functions.is_native_function(name) {
-            // Avaliar argumentos
+        // Segundo verificar se é uma função nativa do novo sistema modular
+        if let Some(_) = self.native_modules.get_function(name) {
+            // Avaliar argumentos primeiro
             let mut arg_values = Vec::new();
             for arg in args {
                 arg_values.push(self.evaluate(arg)?);
             }
-            return self.native_functions.call_native_function(name, &arg_values);
+            // Agora obter a função e chamar
+            if let Some(native_func) = self.native_modules.get_function(name) {
+                // Converter RuntimeError para DryadError
+                return native_func(&arg_values).map_err(|e| {
+                    DryadError::new(3005, &format!("Erro na função nativa '{}': {}", name, e))
+                });
+            }
         }
 
         match name {
@@ -1955,6 +1955,33 @@ impl Interpreter {
             Err(DryadError::Runtime(3014, format!("Módulo '{}' não encontrado nos módulos importados", module_key)))
         }
     }
+
+    // === MÉTODOS PARA NOVO SISTEMA DE MÓDULOS NATIVOS ===
+    
+    /// Ativa uma categoria de funções nativas através de diretiva #<categoria>
+    pub fn activate_native_category(&mut self, category: &str) -> Result<(), String> {
+        self.native_modules.activate_category(category)
+    }
+    
+    /// Desativa uma categoria de funções nativas
+    pub fn deactivate_native_category(&mut self, category: &str) {
+        self.native_modules.deactivate_category(category);
+    }
+    
+    /// Verifica se uma categoria está ativa
+    pub fn is_native_category_active(&self, category: &str) -> bool {
+        self.native_modules.is_category_active(category)
+    }
+    
+    /// Lista todas as categorias ativas
+    pub fn list_active_native_categories(&self) -> Vec<String> {
+        self.native_modules.list_active_categories()
+    }
+    
+    /// Lista todas as funções nativas ativas
+    pub fn list_active_native_functions(&self) -> Vec<String> {
+        self.native_modules.list_active_functions()
+    }
 }
 
 impl PartialEq for Value {
@@ -1979,3 +2006,6 @@ impl PartialEq for Value {
         }
     }
 }
+
+/// Alias para compatibilidade com módulos nativos
+pub type RuntimeValue = Value;

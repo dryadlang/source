@@ -1,0 +1,148 @@
+#<system_env>
+#<console_io>
+#<file_io>
+#<time>
+
+// Demonstração avançada do módulo system_env
+native_println("=== 🚀 SYSTEM_ENV - Demonstração Avançada ===");
+native_println("");
+
+// Coletando informações do sistema
+let platform = native_platform();
+let arch = native_arch();
+let pid = native_pid();
+let timestamp = native_now();
+let date_time = native_format_date("YYYY-MM-DD HH:mm:ss");
+
+// Criando relatório do sistema
+let system_report = "";
+system_report = system_report + "=== RELATÓRIO DO SISTEMA ===\n";
+system_report = system_report + "Data/Hora: " + date_time + "\n";
+system_report = system_report + "Timestamp: " + timestamp + "\n";
+system_report = system_report + "Plataforma: " + platform + "\n";
+system_report = system_report + "Arquitetura: " + arch + "\n";
+system_report = system_report + "PID: " + pid + "\n\n";
+
+// Coletando variáveis de ambiente importantes
+system_report = system_report + "=== VARIÁVEIS DE AMBIENTE ===\n";
+
+let env_vars = ["PATH", "HOME", "USERPROFILE", "USER", "USERNAME", "SHELL", "LANG", "OS"];
+let i = 0;
+while i < 8 {
+    let var_name = env_vars[i];
+    let var_value = native_env(var_name);
+    if var_value != null {
+        if var_name == "PATH" {
+            // Truncar PATH para não ocupar muito espaço
+            if var_value != null && var_value != "" {
+                system_report = system_report + var_name + ": " + var_value + "...\n";
+            }
+        } else {
+            system_report = system_report + var_name + ": " + var_value + "\n";
+        }
+    }
+    i = i + 1;
+}
+
+// Executando comandos específicos por plataforma
+system_report = system_report + "\n=== INFORMAÇÕES DO SISTEMA ===\n";
+
+if platform == "windows" {
+    let computer_name = native_exec_output("echo %COMPUTERNAME%");
+    let processor = native_exec_output("echo %PROCESSOR_IDENTIFIER%");
+    
+    system_report = system_report + "Nome do computador: " + computer_name + "\n";
+    system_report = system_report + "Processador: " + processor + "\n";
+    
+} else {
+    let hostname = native_exec_output("hostname");
+    let cpu_info = native_exec_output("uname -p");
+    
+    system_report = system_report + "Hostname: " + hostname + "\n";
+    system_report = system_report + "CPU: " + cpu_info + "\n";
+}
+
+// Definindo variáveis de ambiente do Dryad
+native_println("📝 Configurando ambiente Dryad...");
+native_set_env("DRYAD_RUNTIME_VERSION", "0.1.1");
+native_set_env("DRYAD_PLATFORM", platform);
+native_set_env("DRYAD_ARCH", arch);
+native_set_env("DRYAD_PID", pid + "");  // Convertendo para string
+native_set_env("DRYAD_START_TIME", timestamp + "");  // Convertendo para string
+
+system_report = system_report + "\n=== VARIÁVEIS DRYAD ===\n";
+system_report = system_report + "DRYAD_RUNTIME_VERSION: " + native_env("DRYAD_RUNTIME_VERSION") + "\n";
+system_report = system_report + "DRYAD_PLATFORM: " + native_env("DRYAD_PLATFORM") + "\n";
+system_report = system_report + "DRYAD_ARCH: " + native_env("DRYAD_ARCH") + "\n";
+system_report = system_report + "DRYAD_PID: " + native_env("DRYAD_PID") + "\n";
+system_report = system_report + "DRYAD_START_TIME: " + native_env("DRYAD_START_TIME") + "\n";
+
+// Salvando relatório
+native_write_file("system_report.txt", system_report);
+native_println("💾 Relatório salvo em system_report.txt");
+
+// Demonstração de execução de comandos úteis
+native_println("");
+native_println("=== 🔧 Comandos Úteis ===");
+
+if platform == "windows" {
+    native_println("Windows detectado - executando comandos Windows:");
+    
+    let disk_usage = native_exec_output("dir /s");
+    native_println("📂 Comando dir executado (verificar output para detalhes)");
+    
+    let date_cmd = native_exec_output("date /t");
+    native_println("📅 Data do sistema: " + date_cmd);
+    
+    let time_cmd = native_exec_output("time /t");
+    native_println("🕐 Hora do sistema: " + time_cmd);
+    
+} else {
+    native_println("Unix/Linux detectado - executando comandos Unix:");
+    
+    let disk_usage = native_exec_output("df -h .");
+    native_println("💽 Uso do disco: " + disk_usage);
+    
+    let uptime = native_exec_output("uptime");
+    native_println("⏰ Uptime do sistema: " + uptime);
+    
+    let memory = native_exec_output("free -h");
+    native_println("🧠 Memória: " + memory);
+}
+
+// Teste de detecção de recursos do sistema
+native_println("");
+native_println("=== 🎯 Detecção de Recursos ===");
+
+let has_git = native_exec("git --version");
+if has_git == 0 {
+    native_println("Git disponível: Sim");
+} else {
+    native_println("Git disponível: Não");
+}
+
+let has_node = native_exec("node --version");
+if has_node == 0 {
+    native_println("Node.js disponível: Sim");
+} else {
+    native_println("Node.js disponível: Não");
+}
+
+let has_python = native_exec("python --version");
+if has_python == 0 {
+    native_println("Python disponível: Sim");
+} else {
+    native_println("Python disponível: Não");
+}
+
+// Informações finais
+native_println("");
+native_println("=== 📊 Resumo ===");
+native_println("Sistema: " + platform + " " + arch);
+native_println("Processo: PID " + pid);
+native_println("Relatório salvo: system_report.txt");
+native_println("Variáveis Dryad configuradas: 5");
+
+native_println("");
+native_println("✅ Demonstração avançada do SYSTEM_ENV concluída!");
+native_println("🔍 Verifique o arquivo system_report.txt para informações detalhadas.");

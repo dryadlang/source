@@ -1,0 +1,10 @@
+E:\git\source\target\release\deps\anstyle_wincon-3fbba08807a9b618.d: C:\Users\pedro.DESKTOP-EI6JCR4\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\anstyle-wincon-3.0.9\src\lib.rs C:\Users\pedro.DESKTOP-EI6JCR4\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\anstyle-wincon-3.0.9\src\ansi.rs C:\Users\pedro.DESKTOP-EI6JCR4\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\anstyle-wincon-3.0.9\src\stream.rs C:\Users\pedro.DESKTOP-EI6JCR4\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\anstyle-wincon-3.0.9\src\windows.rs
+
+E:\git\source\target\release\deps\libanstyle_wincon-3fbba08807a9b618.rlib: C:\Users\pedro.DESKTOP-EI6JCR4\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\anstyle-wincon-3.0.9\src\lib.rs C:\Users\pedro.DESKTOP-EI6JCR4\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\anstyle-wincon-3.0.9\src\ansi.rs C:\Users\pedro.DESKTOP-EI6JCR4\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\anstyle-wincon-3.0.9\src\stream.rs C:\Users\pedro.DESKTOP-EI6JCR4\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\anstyle-wincon-3.0.9\src\windows.rs
+
+E:\git\source\target\release\deps\libanstyle_wincon-3fbba08807a9b618.rmeta: C:\Users\pedro.DESKTOP-EI6JCR4\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\anstyle-wincon-3.0.9\src\lib.rs C:\Users\pedro.DESKTOP-EI6JCR4\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\anstyle-wincon-3.0.9\src\ansi.rs C:\Users\pedro.DESKTOP-EI6JCR4\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\anstyle-wincon-3.0.9\src\stream.rs C:\Users\pedro.DESKTOP-EI6JCR4\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\anstyle-wincon-3.0.9\src\windows.rs
+
+C:\Users\pedro.DESKTOP-EI6JCR4\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\anstyle-wincon-3.0.9\src\lib.rs:
+C:\Users\pedro.DESKTOP-EI6JCR4\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\anstyle-wincon-3.0.9\src\ansi.rs:
+C:\Users\pedro.DESKTOP-EI6JCR4\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\anstyle-wincon-3.0.9\src\stream.rs:
+C:\Users\pedro.DESKTOP-EI6JCR4\.cargo\registry\src\index.crates.io-1949cf8c6b5b557f\anstyle-wincon-3.0.9\src\windows.rs:

@@ -1,0 +1,153 @@
+#<system_env>
+#<console_io>
+
+// Demonstração completa do módulo system_env
+native_println("=== 🧠 Demonstração do Módulo SYSTEM_ENV ===");
+native_println("");
+
+// 1. Informações do sistema
+native_println("=== 🖥️ Informações do Sistema ===");
+let platform = native_platform();
+let architecture = native_arch();
+let process_id = native_pid();
+
+native_println("Sistema operacional: " + platform);
+native_println("Arquitetura: " + architecture);
+native_println("ID do processo: " + process_id);
+
+// 2. Variáveis de ambiente comuns
+native_println("");
+native_println("=== 🌍 Variáveis de Ambiente ===");
+
+// Testando variáveis comuns em diferentes sistemas
+let path_var = native_env("PATH");
+if path_var != null {
+    native_println("PATH encontrado (primeiros 100 chars): " + path_var);
+} else {
+    native_println("PATH não encontrado");
+}
+
+let home_var = native_env("HOME");
+if home_var != null {
+    native_println("HOME: " + home_var);
+} else {
+    // No Windows, tentar USERPROFILE
+    let userprofile = native_env("USERPROFILE");
+    if userprofile != null {
+        native_println("USERPROFILE (Windows): " + userprofile);
+    } else {
+        native_println("Diretório home não encontrado");
+    }
+}
+
+let user_var = native_env("USER");
+if user_var != null {
+    native_println("USER: " + user_var);
+} else {
+    // No Windows, tentar USERNAME
+    let username = native_env("USERNAME");
+    if username != null {
+        native_println("USERNAME (Windows): " + username);
+    } else {
+        native_println("Nome de usuário não encontrado");
+    }
+}
+
+// 3. Definindo variáveis de ambiente personalizadas
+native_println("");
+native_println("=== ⚙️ Definindo Variáveis Personalizadas ===");
+
+native_set_env("DRYAD_TEST", "Funcionando perfeitamente!");
+native_set_env("DRYAD_VERSION", "0.1.1");
+native_set_env("DRYAD_AUTHOR", "Dryad Lang Team");
+
+let test_var = native_env("DRYAD_TEST");
+let version_var = native_env("DRYAD_VERSION");
+let author_var = native_env("DRYAD_AUTHOR");
+
+native_println("DRYAD_TEST: " + test_var);
+native_println("DRYAD_VERSION: " + version_var);
+native_println("DRYAD_AUTHOR: " + author_var);
+
+// 4. Execução de comandos do sistema
+native_println("");
+native_println("=== 💻 Execução de Comandos ===");
+
+// Comando simples que funciona em diferentes sistemas
+let cmd_output = "";
+let cmd_status = 0;
+
+if platform == "windows" {
+    native_println("Executando comando Windows...");
+    cmd_output = native_exec_output("echo Olá do Windows!");
+    cmd_status = native_exec("echo Status do comando Windows");
+} else {
+    native_println("Executando comando Unix/Linux...");
+    cmd_output = native_exec_output("echo 'Olá do Unix/Linux!'");
+    cmd_status = native_exec("echo 'Status do comando Unix'");
+}
+
+native_println("Saída do comando: " + cmd_output);
+native_println("Status do comando: " + cmd_status);
+
+// 5. Comandos específicos por plataforma
+native_println("");
+native_println("=== 🔧 Comandos Específicos da Plataforma ===");
+
+if platform == "windows" {
+    let system_info = native_exec_output("systeminfo | findstr /C:\"OS Name\"");
+    native_println("Info do Windows: " + system_info);
+    
+    let current_dir = native_exec_output("cd");
+    native_println("Diretório atual: " + current_dir);
+    
+} else if platform == "linux" || platform == "macos" {
+    let system_info = native_exec_output("uname -a");
+    native_println("Info do Unix: " + system_info);
+    
+    let current_dir = native_exec_output("pwd");
+    native_println("Diretório atual: " + current_dir);
+    
+    let whoami = native_exec_output("whoami");
+    native_println("Usuário atual: " + whoami);
+}
+
+// 6. Listando algumas variáveis interessantes
+native_println("");
+native_println("=== 📋 Outras Variáveis de Ambiente ===");
+
+let vars_to_check = ["LANG", "SHELL", "TERM", "OS", "PROCESSOR_ARCHITECTURE"];
+let i = 0;
+while i < 5 {
+    let var_name = vars_to_check[i];
+    let var_value = native_env(var_name);
+    if var_value != null {
+        native_println(var_name + ": " + var_value);
+    } else {
+        native_println(var_name + ": não definida");
+    }
+    i = i + 1;
+}
+
+// 7. Demonstração de detecção de plataforma
+native_println("");
+native_println("=== 🎯 Detecção de Plataforma ===");
+
+if platform == "windows" {
+    native_println("🪟 Executando no Windows!");
+    native_println("Arquivos comuns: C:\\Windows\\System32");
+} else if platform == "linux" {
+    native_println("🐧 Executando no Linux!");
+    native_println("Arquivos comuns: /usr/bin, /etc");
+} else if platform == "macos" {
+    native_println("🍎 Executando no macOS!");
+    native_println("Arquivos comuns: /Applications, /System");
+} else {
+    native_println("❓ Sistema desconhecido: " + platform);
+}
+
+native_println("");
+native_println("✅ Demonstração do módulo SYSTEM_ENV concluída!");
+native_println("📝 Nota: O programa continua executando normalmente.");
+
+// Nota: native_exit() não é chamado aqui para permitir que o programa termine naturalmente

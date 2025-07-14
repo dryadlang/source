@@ -1,0 +1,85 @@
+#<time>
+#<console_io>
+
+// Demonstração completa do módulo time
+native_println("=== 🕓 Demonstração do Módulo TIME ===");
+native_println("");
+
+// 1. Timestamp atual em milissegundos
+let timestamp_ms = native_now();
+native_println("📅 Timestamp atual (ms): " + timestamp_ms);
+
+// 2. Timestamp atual em segundos
+let timestamp_s = native_timestamp();
+native_println("⏱️ Timestamp atual (s): " + timestamp_s);
+
+// 3. Data atual
+let data_atual = native_date();
+native_println("📆 Data atual: " + data_atual);
+
+// 4. Hora atual
+let hora_atual = native_time();
+native_println("🕐 Hora atual: " + hora_atual);
+
+// 5. Formatação personalizada de data
+native_println("");
+native_println("=== 🎨 Formatação Personalizada ===");
+
+let formato1 = native_format_date("DD/MM/YYYY");
+native_println("Formato brasileiro: " + formato1);
+
+let formato2 = native_format_date("YYYY-MM-DD HH:mm:ss");
+native_println("Formato ISO: " + formato2);
+
+let formato3 = native_format_date("DD de MM de YYYY às HH:mm");
+native_println("Formato descritivo: " + formato3);
+
+let formato4 = native_format_date("hh:mm A");
+native_println("Formato 12h: " + formato4);
+
+// 6. Uptime do programa
+let uptime = native_uptime();
+native_println("");
+native_println("⚡ Uptime do programa: " + uptime + " ms");
+
+// 7. Demonstração de sleep
+native_println("");
+native_println("💤 Demonstrando pause de 2 segundos...");
+native_sleep(2000);
+native_println("✅ Pause concluída!");
+
+// 8. Medindo tempo de execução
+let inicio = native_now();
+native_println("");
+native_println("⏳ Medindo tempo de uma operação...");
+
+// Simular alguma operação
+let contador = 0;
+while contador < 1000000 {
+    contador = contador + 1;
+}
+
+let fim = native_now();
+let duracao = fim - inicio;
+native_println("✨ Operação concluída em: " + duracao + " ms");
+
+// 9. Mostrando diferentes formatos
+native_println("");
+native_println("=== 🌍 Diferentes Formatos de Data/Hora ===");
+
+let us_format = native_format_date("MM/DD/YYYY hh:mm A");
+native_println("🇺🇸 Formato americano: " + us_format);
+
+let eu_format = native_format_date("DD.MM.YYYY HH:mm");
+native_println("🇪🇺 Formato europeu: " + eu_format);
+
+let iso_format = native_format_date("YYYY-MM-DD HH:mm:ss");
+native_println("🌐 Formato ISO 8601: " + iso_format);
+
+// 10. Uptime final
+let uptime_final = native_uptime();
+native_println("");
+native_println("🏁 Tempo total de execução: " + uptime_final + " ms");
+
+native_println("");
+native_println("✅ Demonstração do módulo TIME concluída!");

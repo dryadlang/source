@@ -10,22 +10,22 @@ pub mod file_io;
 pub mod time;
 pub mod system_env;
 pub mod encode_decode;
+pub mod crypto;
+pub mod debug;
 
 // Módulos futuros:
-// pub mod crypto;
-// pub mod debug;
 // pub mod http;
 // pub mod websocket;
 // pub mod tcp;
 // pub mod udp;
 // pub mod web_server;
 
-use crate::interpreter::RuntimeValue;
+use crate::interpreter::Value;
 use crate::errors::RuntimeError;
 use std::collections::HashMap;
 
 /// Tipo para funções nativas
-pub type NativeFunction = fn(&[RuntimeValue]) -> Result<RuntimeValue, RuntimeError>;
+pub type NativeFunction = fn(&[Value]) -> Result<Value, RuntimeError>;
 
 /// Gerenciador de módulos nativos
 pub struct NativeModuleManager {
@@ -83,6 +83,16 @@ impl NativeModuleManager {
         let mut encode_decode_functions = HashMap::new();
         encode_decode::register_encode_decode_functions(&mut encode_decode_functions);
         self.categories.insert("encode_decode".to_string(), encode_decode_functions);
+        
+        // Registra crypto
+        let mut crypto_functions = HashMap::new();
+        crypto::register_crypto_functions(&mut crypto_functions);
+        self.categories.insert("crypto".to_string(), crypto_functions);
+        
+        // Registra debug
+        let mut debug_functions = HashMap::new();
+        debug::register_debug_functions(&mut debug_functions);
+        self.categories.insert("debug".to_string(), debug_functions);
         
         // Futuramente adicionar outras categorias aqui
     }

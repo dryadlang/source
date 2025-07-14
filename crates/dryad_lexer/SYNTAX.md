@@ -450,6 +450,7 @@ exemplo de diretiva:
 #<encode_decode>
 #<crypto>
 #<debug>
+#<utils>
 #<http>
 #<websocket>
 #<tcp>
@@ -1000,85 +1001,536 @@ retorna: um objeto com as chaves pública e privada.
 */
 
 
-🧪 Debug e Diagnóstico
+🧪 Debug e Diagnóstico e Testes #<debug>
 
 native_log(value);              // imprime valor bruto (sem print formatado)
+/*
+Imprime o valor bruto no console, útil para depuração.
+Entrada: qualquer tipo de dado (string, número, objeto, etc.).
+retorna: nenhum
+*/
+
 native_typeof(value);           // tipo como string
+/*
+Retorna o tipo de dado de uma variável como uma string.
+Entrada: qualquer tipo de dado (string, número, objeto, etc.).
+retorna: uma string representando o tipo (ex: "string", "number", "object").
+*/
+
 native_memory_usage();          // bytes usados
+/*
+Retorna a quantidade de memória usada pelo programa em bytes.
+Entrada: nenhum
+retorna: um número inteiro representando a memória usada.
+*/
+
 native_stack_trace();           // stack trace atual
+/*
+Retorna o stack trace atual do programa.
+Entrada: nenhum
+retorna: uma string representando o stack trace.
+*/
+
 native_perf_start(name);        // inicia timer customizado
+/*
+Inicia um timer para medir o desempenho de uma seção do código.
+Entrada: uma string representando o nome do timer.
+retorna: nenhum
+*/
+
 native_perf_end(name);          // encerra e mostra tempo decorrido
+/*
+Encerra o timer iniciado com `native_perf_start` e imprime o tempo decorrido.
+Entrada: uma string representando o nome do timer.
+retorna: nenhum
+*/
 
-🧠 Manipulação de Dados Estruturados (futuro)
+native_assert(condition, message); // verifica condição
+/*
+Verifica uma condição e lança um erro se for falsa.
+Entrada: uma expressão booleana (condition) e uma string (message) para o erro.
+retorna: nenhum
+*/
 
-native_json_parse(json_str);    // converte para objeto
-native_json_stringify(obj);     // objeto para string
-native_csv_parse(csv_str);      // string CSV para array
-native_csv_stringify(array);    // array para CSV.
-native_xml_parse(xml_str);      // converte XML para objeto
-native_xml_stringify(obj);      // objeto para XML string
-native_yaml_parse(yaml_str);    // converte YAML para objeto
-native_yaml_stringify(obj);     // objeto para YAML string
-native_toml_parse(toml_str);    // converte TOML para objeto
-native_toml_stringify(obj);     // objeto para TOML string
+native_assert_equal(actual, expected, message); // compara valores
+/*
+Compara dois valores e lança um erro se forem diferentes.
+Entrada: dois valores (actual e expected) e uma string (message) para o erro.
+retorna: nenhum
+*/
 
-🧬 Outros Interessantes / Experimentais
+native_assert_not_equal(actual, expected, message); // compara valores diferentes
+/*
+Compara dois valores e lança um erro se forem iguais.
+Entrada: dois valores (actual e expected) e uma string (message) para o erro.
+retorna: nenhum
+*/
+
+native_assert_true(value, message); // verifica se é verdadeiro
+/*
+Verifica se um valor é verdadeiro e lança um erro se não for.
+Entrada: um valor (value) e uma string (message) para o erro.
+retorna: nenhum
+*/
+
+native_assert_false(value, message); // verifica se é falso
+/*
+Verifica se um valor é falso e lança um erro se não for.
+Entrada: um valor (value) e uma string (message) para o erro.
+retorna: nenhum
+*/
+
+native_assert_type(value, expected_type, message); // verifica tipo
+/*
+Verifica se o tipo de um valor corresponde ao tipo esperado e lança um erro se não corresponder.
+Entrada: um valor (value), uma string representando o tipo esperado (expected_type) e uma string (message) para o erro.
+retorna: nenhum
+*/
+
+native_test_regex(pattern, string, message); // testa regex
+/*
+Testa uma expressão regular em uma string e lança um erro se não corresponder.
+Entrada: uma string representando o padrão da regex (pattern), uma string (string) para testar e uma string (message) para o erro.
+retorna: nenhum
+*/
+
+🧬 Outros Interessantes / Experimentais #<utils>
 
 native_eval(code);              // executa código Dryad dinâmico
-native_clone(obj);              // cópia profunda de objeto
-native_watch_file(path);        // observa mudanças em tempo real
-native_prompt(message);         // input no terminal
-native_random_int(min, max);    // inteiro aleatório
-native_random_float(min, max);  // float aleatório
-native_random_string(length);   // string aleatória
-native_random_bytes(length);    // bytes aleatórios
-native_random_seed(seed);       // semente para gerador aleatório
+/*
+Executa um código Dryad dinâmico passado como string.
+Entrada: uma string contendo o código Dryad a ser executado.
+retorna: o resultado da execução do código.
+*/
 
-🧭 HTTP (Cliente)
+native_clone(obj);              // cópia profunda de objeto
+/*
+Cria uma cópia profunda de um objeto Dryad.
+Entrada: um objeto Dryad.
+retorna: uma nova instância do objeto com os mesmos dados.
+*/
+
+native_watch_file(path);        // observa mudanças em tempo real
+/*
+Observa um arquivo para mudanças em tempo real e executa uma função de callback quando o arquivo é modificado.
+Entrada: um caminho de arquivo (string) e uma função de callback que será chamada com o novo conteúdo do arquivo.
+retorna: um ID de observação que pode ser usado para parar a observação.
+*/
+
+native_random_int(min, max);    // inteiro aleatório
+/*
+Gera um número inteiro aleatório entre os valores mínimo e máximo especificados.
+Entrada: dois números inteiros representando o mínimo e o máximo.
+retorna: um número inteiro aleatório entre o mínimo e o máximo.
+*/
+
+native_random_float(min, max);  // float aleatório
+/*
+Gera um número de ponto flutuante aleatório entre os valores mínimo e máximo especificados.
+Entrada: dois números representando o mínimo e o máximo.
+retorna: um número de ponto flutuante aleatório entre o mínimo e o máximo.
+*/
+
+native_random_string(length, charset);   // string aleatória
+/*
+Gera uma string aleatória de um determinado comprimento usando um conjunto de caracteres especificado.
+Entrada: um número inteiro representando o comprimento da string e uma string com os caracteres permitidos.
+retorna: uma string aleatória gerada a partir do conjunto de caracteres.
+*/
+
+native_random_bytes(length);    // bytes aleatórios
+/*
+Gera um array de bytes aleatórios de um determinado comprimento.
+Entrada: um número inteiro representando o comprimento do array.
+retorna: um array de bytes aleatórios.
+*/
+
+native_random_seed(seed);       // semente para gerador aleatório
+/*
+Define uma semente para o gerador de números aleatórios.
+Entrada: um valor que pode ser um número inteiro ou uma string.
+retorna: nenhum
+*/
+
+native_regex_match(pattern, string); // verifica correspondência de regex
+/*
+Verifica se uma expressão regular corresponde a uma string e retorna os grupos capturados.
+Entrada: uma string representando o padrão da regex (pattern) e uma string (string) para testar.
+retorna: um array com os grupos capturados ou null se não houver correspondência.
+*/
+
+native_regex_replace(pattern, replacement, string); // substitui regex
+/*
+Substitui todas as ocorrências de uma expressão regular em uma string por um valor de substituição.
+Entrada: uma string representando o padrão da regex (pattern), uma string de substituição (
+replacement) e uma string (string) para testar.
+retorna: uma nova string com as substituições feitas.
+*/
+
+native_regex_split(pattern, string); // divide string por regex
+/*
+Divide uma string em um array usando uma expressão regular como delimitador.
+Entrada: uma string representando o padrão da regex (pattern) e uma string (string)
+para dividir.
+retorna: um array de strings resultantes da divisão.
+*/
+
+native_regex_test(pattern, string); // testa regex sem captura
+/*
+Testa se uma expressão regular corresponde a uma string sem capturar grupos.
+Entrada: uma string representando o padrão da regex (pattern) e uma string (string)
+para testar.
+retorna: um booleano (true se houver correspondência, false caso contrário).
+*/
+
+🧭 HTTP (Cliente) #<http>
 
 native_http_get(url);                   // GET simples, retorna string
-native_http_post(url, body);            // POST, com string no corpo
-native_http_headers(url);               // retorna headers
-native_http_download(url, path);        // salva conteúdo em arquivo
-native_http_status(url);                // retorna status HTTP (200, 404...)
-native_http_json(url);                 // retorna JSON como objeto
-native_http_set_timeout(url, ms);       // define timeout para requisições
-native_http_set_headers(url, headers); // define headers customizados
-native_http_set_user_agent(url, agent); // define User-Agent customizado
-native_http_set_proxy(url, proxy); // define proxy para requisições
-native_http_set_auth(url, username, password); // define autenticação básica
-native_http_set_follow_redirects(url, enable); // segue redirecionamentos
-native_http_set_cache(url, enable); // ativa/desativa cache
-native_http_set_compression(url, enable); // ativa/desativa compressão
-native_http_set_max_redirects(url, count); // define máximo de redirecionamentos
-native_http_set_retry(url, count); // define número de tentativas em falhas
-native_http_set_cookies(url, cookies); // define cookies para requisição
-native_http_set_timeout(url, ms); // define timeout para requisições
-native_http_set_keepalive(url, enable); // ativa/desativa keepalive
-native_http_set_reuseaddr(url, enable); // ativa/desativa reuseaddr
-native_http_set_nodelay(url, enable); // desativa Nagle's algorithm
-native_http_set_ssl_verify(url, enable); // ativa/desativa verificação SSL
-native_http_set_ssl_cert(url, cert_path); // define certificado SSL
-native_http_set_ssl_key(url, key_path); // define chave SSL
-native_http_set_ssl_ca(url, ca_path); // define CA SSL
-native_http_set_ssl_sni(url, sni); // define SNI para SSL
-native_http_set_ssl_protocols(url, protocols); // define protocolos SSL permitidos
-native_http_set_ssl_ciphers(url, ciphers); // define cifras SSL permitidas
-native_http_set_ssl_session(url, session); // define sessão SSL
+/*
+Realiza uma requisição HTTP GET para a URL especificada e retorna o conteúdo como uma string.
+Entrada: uma string representando a URL.
+retorna: uma string com o conteúdo da resposta.
+*/
 
-📡 WebSocket (Cliente)
+native_http_post(url, body);            // POST, com string no corpo
+/*
+Realiza uma requisição HTTP POST para a URL especificada com um corpo de string.
+Entrada: uma string representando a URL e uma string com o corpo da requisição.
+retorna: uma string com o conteúdo da resposta.
+*/
+
+native_http_headers(url);               // retorna headers
+/*
+Retorna os cabeçalhos HTTP da resposta para a URL especificada.
+Entrada: uma string representando a URL.
+retorna: um objeto com os cabeçalhos HTTP.
+*/
+
+native_http_download(url, path);        // salva conteúdo em arquivo
+/*
+Realiza uma requisição HTTP GET para a URL especificada e salva o conteúdo em um arquivo.
+Entrada: uma string representando a URL e uma string com o caminho do arquivo onde o conteúdo será salvo.
+retorna: nenhum
+*/
+
+native_http_status(url);                // retorna status HTTP (200, 404...)
+/*
+Retorna o código de status HTTP da resposta para a URL especificada.
+Entrada: uma string representando a URL.
+retorna: um número inteiro representando o código de status HTTP.
+*/
+
+native_http_json(url);                 // retorna JSON como objeto
+/*
+Realiza uma requisição HTTP GET para a URL especificada e retorna o conteúdo como um objeto JSON.
+Entrada: uma string representando a URL.
+retorna: um objeto representando os dados JSON da resposta.
+*/
+
+native_http_set_timeout(url, ms);       // define timeout para requisições
+/*
+Define o tempo limite para requisições HTTP.
+Entrada: uma string representando a URL e um número inteiro representando o tempo limite em milissegundos.
+retorna: nenhum
+*/
+
+native_http_set_headers(url, headers); // define headers customizados
+/*
+Define cabeçalhos HTTP personalizados para a requisição.
+Entrada: uma string representando a URL e um objeto com os cabeçalhos HTTP.
+retorna: nenhum
+*/
+
+native_http_set_user_agent(url, agent); // define User-Agent customizado
+/*
+Define o cabeçalho User-Agent para a requisição HTTP.
+Entrada: uma string representando a URL e uma string com o User-Agent.
+retorna: nenhum
+*/
+
+native_http_set_proxy(url, proxy); // define proxy para requisições
+/*
+Define um proxy para as requisições HTTP.
+Entrada: uma string representando a URL e uma string com o endereço do proxy (ex:
+"http://proxy.example.com:8080").
+retorna: nenhum
+*/
+
+native_http_set_auth(url, username, password); // define autenticação básica
+/*
+Define autenticação básica para a requisição HTTP.
+Entrada: uma string representando a URL, uma string com o nome de usuário e uma string com a senha.
+retorna: nenhum
+*/
+
+native_http_set_follow_redirects(url, enable); // segue redirecionamentos
+/*
+Ativa ou desativa o seguimento automático de redirecionamentos HTTP.
+Entrada: uma string representando a URL e um booleano (true para ativar, false para desativar).
+retorna: nenhum
+*/
+
+native_http_set_cache(url, enable); // ativa/desativa cache
+/*
+Ativa ou desativa o cache para as requisições HTTP.
+Entrada: uma string representando a URL e um booleano (true para ativar, false para desativar).
+retorna: nenhum
+*/
+
+native_http_set_compression(url, enable); // ativa/desativa compressão
+/*
+Ativa ou desativa a compressão de resposta HTTP (ex: gzip).
+Entrada: uma string representando a URL e um booleano (true para ativar, false para desativar).
+retorna: nenhum
+*/
+
+native_http_set_max_redirects(url, count); // define máximo de redirecionamentos
+/*
+Define o número máximo de redirecionamentos HTTP a seguir.
+Entrada: uma string representando a URL e um número inteiro representando o máximo de redirecionamentos.
+retorna: nenhum
+*/
+
+native_http_set_retry(url, count); // define número de tentativas em falhas
+/*
+Define o número de tentativas em caso de falha na requisição HTTP.
+Entrada: uma string representando a URL e um número inteiro representando o número de tentativas.
+retorna: nenhum
+*/
+
+native_http_set_cookies(url, cookies); // define cookies para requisição
+/*
+Define cookies para a requisição HTTP.
+Entrada: uma string representando a URL e um objeto com os cookies (nome: valor).
+retorna: nenhum
+*/
+
+native_http_set_timeout(url, ms); // define timeout para requisições
+/*
+Define o tempo limite para requisições HTTP.
+Entrada: uma string representando a URL e um número inteiro representando o tempo limite em milissegundos.
+retorna: nenhum
+*/
+
+native_http_set_keepalive(url, enable); // ativa/desativa keepalive
+/*
+Ativa ou desativa o uso de conexões persistentes (keepalive) para requisições HTTP.
+Entrada: uma string representando a URL e um booleano (true para ativar, false para desativar).
+retorna: nenhum
+*/
+
+native_http_set_reuseaddr(url, enable); // ativa/desativa reuseaddr
+/*
+Ativa ou desativa o uso de endereços reutilizáveis (reuseaddr) para conexões HTTP.
+Entrada: uma string representando a URL e um booleano (true para ativar, false para desativar).
+retorna: nenhum
+*/
+
+native_http_set_nodelay(url, enable); // desativa Nagle's algorithm
+/*
+Desativa o algoritmo de Nagle para conexões HTTP, melhorando a latência em conexões de baixa latência.
+Entrada: uma string representando a URL e um booleano (true para desativar, false para ativar).
+retorna: nenhum
+*/
+
+native_http_set_ssl_verify(url, enable); // ativa/desativa verificação SSL
+/*
+Ativa ou desativa a verificação de certificados SSL para conexões HTTPS.
+Entrada: uma string representando a URL e um booleano (true para ativar, false para desativar).
+retorna: nenhum
+*/
+
+native_http_set_ssl_cert(url, cert_path); // define certificado SSL
+/*
+Define o caminho para o certificado SSL a ser usado na conexão HTTPS.
+Entrada: uma string representando a URL e uma string com o caminho do certificado SSL.
+retorna: nenhum
+*/
+
+native_http_set_ssl_key(url, key_path); // define chave SSL
+/*
+Define o caminho para a chave privada SSL a ser usada na conexão HTTPS.
+Entrada: uma string representando a URL e uma string com o caminho da chave privada SSL.
+retorna: nenhum
+*/
+
+native_http_set_ssl_ca(url, ca_path); // define CA SSL
+/*
+Define o caminho para o certificado da autoridade certificadora (CA) SSL a ser usado na conexão HTTPS.
+Entrada: uma string representando a URL e uma string com o caminho do certificado CA SSL.
+retorna: nenhum
+*/
+
+native_http_set_ssl_sni(url, sni); // define SNI para SSL
+/*
+Define o nome do servidor virtual (SNI) para conexões SSL/TLS.
+Entrada: uma string representando a URL e uma string com o nome do servidor virtual (SNI).
+retorna: nenhum
+*/
+
+native_http_set_ssl_protocols(url, protocols); // define protocolos SSL permitidos
+/*
+Define os protocolos SSL/TLS permitidos para a conexão HTTPS.
+Entrada: uma string representando a URL e uma string com os protocolos permitidos (ex: "TLSv1.2,TLSv1.3").
+retorna: nenhum
+*/
+
+native_http_set_ssl_ciphers(url, ciphers); // define cifras SSL permitidas
+/*
+Define as cifras criptográficas permitidas para a conexão HTTPS.
+Entrada: uma string representando a URL e uma string com as cifras permitidas (ex:
+"ECDHE-RSA-AES128-GCM-SHA256,ECDHE-RSA-AES256-GCM-SHA384").
+retorna: nenhum
+*/
+
+native_http_set_ssl_session(url, session); // define sessão SSL
+/*
+Define uma sessão SSL para reutilização em conexões HTTPS.
+Entrada: uma string representando a URL e uma string com os dados da sessão SSL.
+retorna: nenhum
+*/
+
+📡 WebSocket (Cliente/Servidor) #<websocket>
 
     Ideal para integração com sistemas reativos (ex: live data, chats)
 
-native_ws_connect(url);                // conecta e retorna ID
-native_ws_send(socket_id, message);   // envia mensagem
-native_ws_recv(socket_id);            // recebe próxima mensagem
-native_ws_close(socket_id);           // encerra conexão
-native_ws_is_connected(socket_id);   // verifica se está conectado
+// Server WebSocket
+native_ws_listen(port);                // inicia servidor WebSocket e retorna ID
+/*
+Inicia um servidor WebSocket na porta especificada e retorna um ID de socket.
+Entrada: um número inteiro representando a porta do servidor WebSocket.
+retorna: um número inteiro representando o ID do socket do servidor.
+*/
+
+native_ws_accept(socket_id);          // aceita conexão e retorna ID do cliente
+/*
+Aceita uma conexão de cliente no servidor WebSocket especificado e retorna o ID do socket do cliente.
+Entrada: um número inteiro representando o ID do socket do servidor WebSocket.
+retorna: um número inteiro representando o ID do socket do cliente.
+*/
+
+native_ws_send_all(socket_id, message); // envia mensagem para todos os clientes
+/*
+Envia uma mensagem para todos os clientes conectados ao servidor WebSocket especificado.
+Entrada: um número inteiro representando o ID do socket do servidor WebSocket e uma string ou array de bytes com a mensagem a ser enviada.
+retorna: nenhum
+*/
+
+native_ws_broadcast(message);        // envia mensagem para todos os clientes conectados
+/*
+Envia uma mensagem para todos os clientes conectados ao servidor WebSocket.
+Entrada: uma string ou array de bytes com a mensagem a ser enviada.
+retorna: nenhum
+*/
+
+native_ws_broadcast_except(socket_id, message); // envia para todos menos um
+/*
+Envia uma mensagem para todos os clientes conectados ao servidor WebSocket, exceto para o cliente especificado.
+Entrada: um número inteiro representando o ID do socket do cliente a ser excluído e uma string ou array de bytes com a mensagem a ser enviada.
+retorna: nenhum
+*/
+
+native_ws_close_all();              // encerra todas as conexões
+/*
+Encerra todas as conexões de clientes no servidor WebSocket.
+Entrada: nenhum
+retorna: nenhum
+*/
+
+native_ws_close_client(socket_id); // encerra conexão de um cliente
+/*
+Encerra a conexão de um cliente específico no servidor WebSocket.
+Entrada: um número inteiro representando o ID do socket do cliente a ser encerrado.
+retorna: nenhum
+*/
+
+native_ws_is_connected_client(socket_id); // verifica se cliente está conectado
+/*
+Verifica se um cliente específico está conectado ao servidor WebSocket.
+Entrada: um número inteiro representando o ID do socket do cliente.
+retorna: um booleano (true se o cliente estiver conectado, false caso contrário).
+*/
+
 native_ws_set_timeout(socket_id, ms); // define timeout para recv
+/*
+Define o tempo limite para receber mensagens de um cliente específico no servidor WebSocket.
+Entrada: um número inteiro representando o ID do socket do cliente e um número inteiro representando o tempo limite em milissegundos.
+retorna: nenhum
+*/
+
+native_ws_get_clients(); // retorna lista de clientes conectados
+/*
+Retorna uma lista de IDs de sockets dos clientes conectados ao servidor WebSocket.
+Entrada: nenhum
+retorna: um array de números inteiros representando os IDs dos sockets dos clientes conectados.
+*/
+
+// Cliente WebSocket
+native_ws_connect(url, protocols);                // conecta e retorna 
+/*
+Conecta a um servidor WebSocket na URL especificada e retorna um ID de socket.
+Entrada: uma string representando a URL do servidor WebSocket. (pode ser "ws://" ou "wss://" ou "http://",
+ou até mesmo 0.0.0.0:port se for um servidor local deve sempe ter a porta definida ex: "ws://localhost:8080",
+ou "wss://localhost:8080" para conexões seguras).
+retorna: um número inteiro representando o ID do socket.
+*/
+
+native_ws_send(socket_id, message);   // envia mensagem
+/*
+Envia uma mensagem através do socket WebSocket especificado.
+Entrada: um número inteiro representando o ID do socket e uma string ou array de bytes com
+a mensagem a ser enviada.
+retorna: nenhum
+*/
+
+native_ws_recv(socket_id);            // recebe próxima mensagem
+/*
+Recebe a próxima mensagem do socket WebSocket especificado.
+Entrada: um número inteiro representando o ID do socket.
+retorna: uma string ou array de bytes com a mensagem recebida, ou null se não houver mensagem.
+*/
+
+native_ws_close(socket_id);           // encerra conexão
+/*
+Encerra a conexão do socket WebSocket especificado.
+Entrada: um número inteiro representando o ID do socket.
+retorna: nenhum
+*/
+
+native_ws_is_connected(socket_id);   // verifica se está conectado
+/*
+Verifica se o socket WebSocket especificado está conectado.
+Entrada: um número inteiro representando o ID do socket.
+retorna: um booleano (true se estiver conectado, false caso contrário).
+*/
+
+native_ws_set_timeout(socket_id, ms); // define timeout para recv
+/*
+Define o tempo limite para receber mensagens do socket WebSocket especificado.
+Entrada: um número inteiro representando o ID do socket e um número inteiro representando o tempo limite em milissegundos.
+retorna: nenhum
+*/
+
 native_ws_set_nodelay(socket_id);      // desativa Nagle's algorithm
+/*
+Desativa o algoritmo de Nagle para o socket WebSocket especificado, melhorando a latência em conexões de baixa latência.
+Entrada: um número inteiro representando o ID do socket.
+retorna: nenhum
+*/
+
 native_ws_set_keepalive(socket_id, enable); // ativa/desativa keepalive
+/*
+Ativa ou desativa o uso de conexões persistentes (keepalive) para o socket WebSocket especificado.
+Entrada: um número inteiro representando o ID do socket e um booleano (true para ativar, false para desativar).
+retorna: nenhum
+*/
+
 native_ws_set_reuseaddr(socket_id, enable); // ativa/desativa reuseaddr
+/*
+Ativa ou desativa o uso de endereços reutilizáveis (reuseaddr) para o socket WebSocket especificado.
+Entrada: um número inteiro representando o ID do socket e um booleano (true para ativar, false para desativar).
+retorna: nenhum
+*/
 
 🌍 TCP (Cliente e Servidor)
 

@@ -1,3 +1,0 @@
-#<console_io>
-
-native_println("Hello World from console_io!");

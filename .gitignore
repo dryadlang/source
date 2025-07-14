@@ -1,0 +1,88 @@
+# Rust - Arquivos de compilação e dependências
+/target/
+**/*.rs.bk
+*.pdb
+
+# Cargo
+Cargo.lock
+
+# IDEs e Editores
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Sistema Operacional
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Linux
+*~
+
+# Arquivos de log
+*.log
+logs/
+
+# Arquivos temporários
+*.tmp
+*.temp
+*.bak
+*.orig
+
+# Arquivos de teste criados durante desenvolvimento
+test_*.dryad
+teste_*.dryad
+debug_*.dryad
+*_test.dryad
+*_teste.dryad
+
+# Arquivos de output e relatórios
+REPORTS/
+reports/
+*.out
+*.output
+
+# Cache e arquivos temporários do sistema
+.cache/
+cache/
+tmp/
+temp/
+
+# Arquivos de ambiente e configuração local
+.env
+.env.local
+.env.*.local
+
+# Documentação gerada
+doc/
+docs/generated/
+
+# Profiling e debugging
+*.prof
+*.trace
+perf.data*
+
+# Arquivos específicos do projeto Dryad
+projeto-completo/oak_modules/
+oak_modules/
+node_modules/
+*.oak
+*.lock
+oaklock.json
+*.benchmark
+benchmark_results/
+
+# Arquivos de exemplo que não devem ser versionados
+examples/temp/
+examples/test/
+exemplos/temp/
+exemplos/teste/

@@ -186,7 +186,7 @@ impl Interpreter {
                 // Usar exclusivamente o novo sistema modular
                 match self.activate_native_category(module_name) {
                     Ok(_) => {
-                        println!("📦 Categoria nativa carregada: {}", module_name);
+                        // println!("📦 Categoria nativa carregada: {}", module_name);
                         Ok(Value::Null)
                     }
                     Err(err) => {

@@ -26,7 +26,7 @@ tower-http = { version = "0.5", features = ["fs", "cors"] }
 tokio-tungstenite = "0.21"
 tungstenite = "0.21"
 # HTTP client dependencies
-reqwest = { version = "0.11", features = ["json"] }
+reqwest = { version = "0.11", features = ["json", "blocking"] }
 # Date and time handling
 chrono = { version = "0.4", features = ["serde"] }
 # Async runtime for blocking calls
@@ -47,6 +47,8 @@ rand_chacha = "0.3"
 regex = "1.10"
 sysinfo = "0.30"
 backtrace = "0.3"
+# File system notification
+notify = "6.0"
 
 # Terminal ANSI dependencies (cross-platform)
 [target.'cfg(unix)'.dependencies]

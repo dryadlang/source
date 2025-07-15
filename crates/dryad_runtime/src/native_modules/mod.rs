@@ -12,9 +12,11 @@ pub mod system_env;
 pub mod encode_decode;
 pub mod crypto;
 pub mod debug;
+pub mod utils; 
+pub mod http;
+pub mod websocket;
 
 // Módulos futuros:
-// pub mod http;
 // pub mod websocket;
 // pub mod tcp;
 // pub mod udp;
@@ -93,6 +95,22 @@ impl NativeModuleManager {
         let mut debug_functions = HashMap::new();
         debug::register_debug_functions(&mut debug_functions);
         self.categories.insert("debug".to_string(), debug_functions);
+
+        // Registra utils
+        let mut utils_functions = HashMap::new();
+        utils::register_utils_functions(&mut utils_functions);
+        self.categories.insert("utils".to_string(), utils_functions);
+
+        // Registra http
+        let mut http_functions = HashMap::new();
+        http::register_http_functions(&mut http_functions);
+        self.categories.insert("http".to_string(), http_functions);
+       
+        // Registra websocket
+        let mut websocket_functions = HashMap::new();
+        websocket::register_websocket_functions(&mut websocket_functions);
+        self.categories.insert("websocket".to_string(), websocket_functions);
+        
         
         // Futuramente adicionar outras categorias aqui
     }

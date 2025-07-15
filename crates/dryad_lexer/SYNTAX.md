@@ -1564,7 +1564,7 @@ native_udp_send(ip, port, data);        // envia datagrama
 native_udp_recv();                      // espera e retorna pacote (ip, port, data)
 native_udp_close();                     // encerra socket UDP
 
-🕸️ Web Server (mínimo)
+🕸️ Web Server (mínimo) #<webserver>
 
 Para facilitar criação de APIs locais:
 

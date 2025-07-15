@@ -197,7 +197,7 @@ fn runtime_value_to_json(value: &RuntimeValue) -> Result<Value, RuntimeError> {
     }
 }
 
-fn json_to_runtime_value(value: &Value) -> RuntimeValue {
+pub fn json_to_runtime_value(value: &Value) -> RuntimeValue {
     match value {
         Value::Number(n) => RuntimeValue::Number(n.as_f64().unwrap_or(0.0)),
         Value::String(s) => RuntimeValue::String(s.clone()),

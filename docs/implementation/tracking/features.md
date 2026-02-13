@@ -49,7 +49,7 @@ order: 2
 
 ## 2. Ecossistema e Ferramentas
 
-### 2.1 Package Manager (Seed)
+### 2.1 Package Manager (Seed) (Rejeitado - Já )
 
 **Descrição**: Criar gerenciador de pacotes oficial `seed`.
 **Requisitos**:

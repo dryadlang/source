@@ -1,0 +1,67 @@
+// 🔄 Exemplos de Estruturas de Controle (Padrão C)
+#<console_io>
+
+println("=== Estruturas IF/ELSE ===");
+let idade = 18;
+
+if (idade >= 18) {
+    println("Maior de idade");
+} else {
+    println("Menor de idade");
+}
+
+// If aninhado
+let nota = 85;
+if (nota >= 90) {
+    println("Conceito A");
+} else if (nota >= 80) {
+    println("Conceito B");
+} else if (nota >= 70) {
+    println("Conceito C");
+} else {
+    println("Conceito D");
+}
+
+println("\n=== Loop WHILE ===");
+let i = 1;
+while (i <= 5) {
+    println("Contagem: " + i);
+    i++;
+}
+
+println("\n=== Loop DO-WHILE ===");
+let j = 1;
+do {
+    println("Do-While: " + j);
+    j++;
+} while (j <= 3);
+
+println("\n=== Loop FOR (Padrão C) ===");
+for (let k = 1; k <= 5; k++) {
+    println("For loop: " + k);
+}
+
+// For com step personalizado
+println("\nContagem regressiva:");
+for (let countdown = 10; countdown >= 0; countdown -= 2) {
+    println("T-" + countdown);
+}
+
+println("\n=== BREAK e CONTINUE ===");
+for (let n = 1; n <= 10; n++) {
+    if (n == 3) {
+        continue; // Pula o 3
+    }
+    if (n == 8) {
+        break; // Para no 8
+    }
+    println("Número: " + n);
+}
+
+println("\n=== Loops Aninhados ===");
+for (let linha = 1; linha <= 3; linha++) {
+    for (let coluna = 1; coluna <= 3; coluna++) {
+        print("[" + linha + "," + coluna + "] ");
+    }
+    println(""); // Nova linha
+}

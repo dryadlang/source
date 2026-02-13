@@ -1,0 +1,28 @@
+🔍 Procurando pacote 'dryad-stdlib'...
+✓ Encontrado no registry 'official'
+ℹ ⬇️ Baixando dryad-stdlib@0.1.0 de official...
+Cloning into 'oak_modules\dryad-stdlib'...
+warning: --depth is ignored in local clones; use file:// instead.
+done.
+Note: switching to '152eb48c99ef8f4855e0550b8e86d9acdb3e7b8d'.
+
+You are in 'detached HEAD' state. You can look around, make experimental
+changes and commit them, and you can discard any commits you make in this
+state without impacting any branches by switching back to a branch.
+
+If you want to create a new branch to retain commits you create, you may
+do so (now or later) by using -c with the switch command. Example:
+
+  git switch -c <new-branch-name>
+
+Or undo this operation with:
+
+  git switch -
+
+Turn off this advice by setting config variable advice.detachedHead to false
+
+ℹ 🛡️ Verificando integridade do pacote...
+✖ 🚨 ERRO DE SEGURANÇA: Checksum não coincide para o pacote 'dryad-stdlib'!
+✖    Esperado: 7aea2b515cf13a5d2851c0d102e3e7a15539834581ba99d5adabf71a18f46f1c1
+✖    Encontrado: 7aea2b515cf13a5d2851c0d102e3e7a1539834581ba99d5adabf71a18f46f1c1
+✖ Abortando instalação devido a falha no checksum

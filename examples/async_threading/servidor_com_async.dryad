@@ -1,0 +1,111 @@
+// Exemplo: HTTP Server com Async/Threading integrado
+// Demonstrando a solução do problema Tokio
+
+#<http_server>
+#<console_io>
+
+print("🌟 === HTTP Server + Async/Threading === 🌟");
+
+// Classe para gerenciar servidor
+class ServidorWeb {
+    function init(nome, porta) {
+        this.nome = nome;
+        this.porta = porta;
+        this.iniciado = false;
+    }
+    
+    function configurar() {
+        native_http_server_create(this.nome, "127.0.0.1", this.porta);
+        
+        // Configura rotas
+        native_http_server_get(this.nome, "/", 
+            "<h1>🚀 Dryad WebServer</h1>" +
+            "<p>Servidor HTTP nativo com threading!</p>" +
+            "<ul>" +
+            "<li><a href='/async'>Teste Async</a></li>" +
+            "<li><a href='/api/status'>API Status</a></li>" +
+            "</ul>"
+        );
+        
+        native_http_server_get(this.nome, "/async",
+            "<h2>⚡ Async/Threading Ativo</h2>" +
+            "<p>Este servidor roda com threads nativas, sem conflitos!</p>"
+        );
+        
+        native_http_server_json(this.nome, "/api/status",
+            '{"server": "Dryad", "threading": "native", "async": true}'
+        );
+        
+        print("✅ Servidor " + this.nome + " configurado na porta " + this.porta);
+    }
+    
+    async function iniciar() {
+        print("🔄 Iniciando servidor async...");
+        native_http_server_start(this.nome);
+        this.iniciado = true;
+        print("🚀 Servidor " + this.nome + " iniciado com sucesso!");
+        return "servidor_iniciado";
+    }
+    
+    function parar() {
+        if (this.iniciado) {
+            native_http_server_stop(this.nome);
+            this.iniciado = false;
+            print("🛑 Servidor " + this.nome + " parado");
+        }
+    }
+}
+
+// Thread function para monitorar servidor
+thread function monitorarServidor() {
+    print("👀 Thread de monitoramento iniciada");
+    print("📊 Servidor funcionando com threads nativas!");
+    return "monitoramento_ativo";
+}
+
+// Função async para coordenação
+async function coordenarServidor() {
+    print("🎯 Coordenador: Preparando ambiente...");
+    
+    // Cria mutex para sincronização
+    let lock = mutex();
+    print("🔒 Mutex criado para sincronização");
+    
+    // Inicia thread de monitoramento
+    let monitor = thread(monitorarServidor);
+    print("🧵 Thread de monitoramento ativa");
+    
+    return "coordenacao_completa";
+}
+
+// === EXECUÇÃO PRINCIPAL ===
+
+print("1. Criando servidor web...");
+let servidor = ServidorWeb("webapp", 9000);
+
+print("2. Configurando rotas...");
+servidor.configurar();
+
+print("3. Coordenando recursos async/threading...");
+let coordenacao = await coordenarServidor();
+print("Coordenação: " + coordenacao);
+
+print("4. Iniciando servidor async...");
+let resultado = await servidor.iniciar();
+print("Resultado: " + resultado);
+
+print("");
+print("🌐 Acesse: http://127.0.0.1:9000/");
+print("🔗 APIs: http://127.0.0.1:9000/api/status");
+print("");
+print("⏰ Rodando por 8 segundos...");
+
+// Aguarda
+native_sleep(8000);
+
+print("5. Finalizando...");
+servidor.parar();
+
+print("");
+print("✅ SUCESSO: HTTP Server integrado com Async/Threading!");
+print("🎉 Problema do Tokio resolvido com threads nativas!");

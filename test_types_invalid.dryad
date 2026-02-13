@@ -1,0 +1,7 @@
+// test_types_invalid.dryad - Invalid code
+let x: number = "texto";
+const Y: bool = 100;
+
+function fail(a: string): number {
+    return a;
+}

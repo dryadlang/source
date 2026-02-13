@@ -1,0 +1,146 @@
+
+// Greenleaf - Symbolic Algebra
+// Symbolic expression manipulation
+
+// Base class for expressions
+export class Expr {
+    evaluate(context) { return 0; }
+    derivative(v) { return new Number(0); }
+    to_string() { return ""; }
+}
+
+export class Number extends Expr {
+    value = 0;
+    constructor(val) {
+        this.value = val;
+    }
+    evaluate(context) { return this.value; }
+    derivative(v) { return new Number(0); }
+    to_string() { return "" + this.value; }
+}
+
+export class Symbol extends Expr {
+    name = "";
+    constructor(name) {
+        this.name = name;
+    }
+    evaluate(context) {
+        if (context[this.name] != null) return context[this.name];
+        // TODO: decide behavior if symbol not in context, maybe return self?
+        // For now, assume evaluation requires all symbols
+        println("Error: Symbol " + this.name + " not found in context");
+        return null;
+    }
+    derivative(v) {
+        if (this.name == v) return new Number(1);
+        return new Number(0);
+    }
+    to_string() { return this.name; }
+}
+
+export class Add extends Expr {
+    left = null;
+    right = null;
+    constructor(left, right) {
+        this.left = left;
+        this.right = right;
+    }
+    evaluate(context) {
+        return this.left.evaluate(context) + this.right.evaluate(context);
+    }
+    derivative(v) {
+        return new Add(this.left.derivative(v), this.right.derivative(v));
+    }
+    to_string() {
+        return "(" + this.left.to_string() + " + " + this.right.to_string() + ")";
+    }
+}
+
+export class Multiply extends Expr {
+    left = null;
+    right = null;
+    constructor(left, right) {
+        this.left = left;
+        this.right = right;
+    }
+    evaluate(context) {
+        return this.left.evaluate(context) * this.right.evaluate(context);
+    }
+    derivative(v) {
+        // Product rule: (f*g)' = f'g + fg'
+        return new Add(
+            new Multiply(this.left.derivative(v), this.right),
+            new Multiply(this.left, this.right.derivative(v))
+        );
+    }
+    to_string() {
+        return "(" + this.left.to_string() + " * " + this.right.to_string() + ")";
+    }
+}
+
+export class Power extends Expr {
+    base = null;
+    exponent = null;
+    constructor(base, exponent) {
+        this.base = base;
+        this.exponent = exponent;
+    }
+    evaluate(context) {
+         // Recursive power implementation for evaluating
+         // Assuming exponent evaluates to a number for now
+         let b = this.base.evaluate(context);
+         let e = this.exponent.evaluate(context);
+         
+         // simple int power impl
+         let res = 1;
+         for(let i=0; i<e; i++) res = res * b;
+         return res;
+    }
+    derivative(v) {
+        // Power rule: (x^n)' = n*x^(n-1) (if n is constant)
+        // General: (f^g)' = f^g * (g' ln f + g f'/f) -> Too complex for now
+        // Assume exponent is constant number
+        // (f^n)' = n * f^(n-1) * f'
+        
+        // This requires "Number" check or we construct a complex expression
+        return new Multiply(
+            new Multiply(
+                this.exponent,
+                new Power(this.base, new Add(this.exponent, new Number(-1)))
+            ),
+            this.base.derivative(v)
+        );
+    }
+    to_string() {
+        return "(" + this.base.to_string() + "^" + this.exponent.to_string() + ")";
+    }
+}
+
+// Helper functions
+
+export function symbol(name) { return new Symbol(name); }
+export function number(val) { return new Number(val); }
+export function add(l, r) { return new Add(l, r); }
+export function multiply(l, r) { return new Multiply(l, r); }
+export function power(b, e) { return new Power(b, e); }
+
+// Solvers helpers
+
+export function solve_linear(a, b) {
+     // ax + b = 0 -> x = -b/a
+     return -b/a;
+}
+
+export function factor_quadratic(a, b, c) {
+    // ax^2 + bx + c
+    // Roots: (-b +/- sqrt(b^2 - 4ac)) / 2a
+    // Since we don't return list yet, return formatted string
+    let delta = b*b - 4*a*c;
+    // ... logic for sqrt ... 
+    return "Roots logic not fully implemented"; 
+}
+
+export function simplify(expr) {
+    // TODO: Implement recursive simplification (folding constants)
+    return expr;
+}

@@ -1,0 +1,74 @@
+// 📝 Exemplos de Funções
+#<console_io>
+
+println("=== Declaração de Funções ===");
+
+// Função simples
+function somar(a, b) {
+    return a + b;
+}
+
+let resultado = somar(5, 3);
+println("5 + 3 = " + resultado);
+
+// Função com múltiplos parâmetros
+function calcular_media(nota1, nota2, nota3) {
+    let soma = nota1 + nota2 + nota3;
+    return soma / 3;
+}
+
+let media = calcular_media(8.5, 7.2, 9.1);
+println("Média: " + media);
+
+// Função recursiva
+function fatorial(n) {
+    if (n <= 1) {
+        return 1;
+    }
+    return n * fatorial(n - 1);
+}
+
+println("Fatorial de 5: " + fatorial(5));
+
+// Função que chama outras funções
+function processo_completo(x, y) {
+    let soma = somar(x, y);
+    let produto = x * y;
+    println("Soma: " + soma + ", Produto: " + produto);
+    return soma > produto;
+}
+
+let comparacao = processo_completo(3, 4);
+println("Soma > Produto: " + comparacao);
+
+println("\n=== Funções com Validação ===");
+function dividir_seguro(dividendo, divisor) {
+    if (divisor == 0) {
+        println("Erro: Divisão por zero!");
+        return null;
+    }
+    return dividendo / divisor;
+}
+
+let divisao1 = dividir_seguro(10, 2);
+let divisao2 = dividir_seguro(10, 0);
+println("10 / 2 = " + divisao1);
+println("10 / 0 = " + divisao2);
+
+println("\n=== Função como Calculadora ===");
+function calculadora(operacao, a, b) {
+    if (operacao == "soma") {
+        return a + b;
+    } else if (operacao == "subtracao") {
+        return a - b;
+    } else if (operacao == "multiplicacao") {
+        return a * b;
+    } else if (operacao == "divisao") {
+        return dividir_seguro(a, b);
+    } else {
+        return "Operação inválida";
+    }
+}
+
+println("Calculadora(soma, 15, 7): " + calculadora("soma", 15, 7));
+println("Calculadora(multiplicacao, 6, 8): " + calculadora("multiplicacao", 6, 8));

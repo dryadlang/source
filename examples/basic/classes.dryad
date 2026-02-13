@@ -1,0 +1,98 @@
+// 🎯 Exemplo Completo de Classes
+#<console_io>
+
+println("=== Definição e Uso de Classes ===");
+
+// Classe básica
+class Pessoa {
+    // Construtor
+    constructor(nome, idade) {
+        this.nome = nome;
+        this.idade = idade;
+    }
+    
+    // Métodos
+    function apresentar() {
+        println("Olá, eu sou " + this.nome + " e tenho " + this.idade + " anos.");
+    }
+    
+    function envelhecer() {
+        this.idade++;
+        println(this.nome + " agora tem " + this.idade + " anos.");
+    }
+    
+    function eh_maior_idade() {
+        return this.idade >= 18;
+    }
+}
+
+// Criando objetos
+let pessoa1 = new Pessoa("Ana", 25);
+let pessoa2 = new Pessoa("João", 17);
+
+pessoa1.apresentar();
+pessoa2.apresentar();
+
+println("\nVerificando maioridade:");
+println(pessoa1.nome + " é maior de idade: " + pessoa1.eh_maior_idade());
+println(pessoa2.nome + " é maior de idade: " + pessoa2.eh_maior_idade());
+
+println("\nEnvelhecendo João:");
+pessoa2.envelhecer();
+println("Agora João é maior de idade: " + pessoa2.eh_maior_idade());
+
+println("\n=== Classe mais Complexa ===");
+
+class ContaBancaria {
+    constructor(titular, saldo_inicial) {
+        this.titular = titular;
+        this.saldo = saldo_inicial;
+        this.historico = "Conta criada com saldo: " + saldo_inicial;
+    }
+    
+    function depositar(valor) {
+        if (valor > 0) {
+            this.saldo += valor;
+            this.historico += "\nDepósito: +" + valor + " (Saldo: " + this.saldo + ")";
+            println("Depósito de " + valor + " realizado. Saldo atual: " + this.saldo);
+        } else {
+            println("Valor de depósito deve ser positivo!");
+        }
+    }
+    
+    function sacar(valor) {
+        if (valor > 0 && valor <= this.saldo) {
+            this.saldo -= valor;
+            this.historico += "\nSaque: -" + valor + " (Saldo: " + this.saldo + ")";
+            println("Saque de " + valor + " realizado. Saldo atual: " + this.saldo);
+        } else if (valor > this.saldo) {
+            println("Saldo insuficiente! Saldo atual: " + this.saldo);
+        } else {
+            println("Valor de saque deve ser positivo!");
+        }
+    }
+    
+    function consultar_saldo() {
+        println("Titular: " + this.titular + " | Saldo: " + this.saldo);
+        return this.saldo;
+    }
+    
+    function extrato() {
+        println("=== EXTRATO ===");
+        println("Titular: " + this.titular);
+        println(this.historico);
+        println("Saldo final: " + this.saldo);
+    }
+}
+
+// Usando a classe ContaBancaria
+let conta = new ContaBancaria("Maria Silva", 1000);
+conta.consultar_saldo();
+
+conta.depositar(500);
+conta.sacar(200);
+conta.sacar(1500); // Tentativa de saque com saldo insuficiente
+conta.depositar(-100); // Tentativa de depósito inválido
+
+println("\nExtrato final:");
+conta.extrato();

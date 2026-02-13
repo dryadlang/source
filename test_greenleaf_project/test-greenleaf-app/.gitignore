@@ -1,0 +1,14 @@
+# Oak
+oaklock.json
+oak_modules/
+
+# Logs
+*.log
+
+# Temporários
+*.tmp
+*.temp
+
+# Sistema
+.DS_Store
+Thumbs.db

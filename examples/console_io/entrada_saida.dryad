@@ -1,0 +1,77 @@
+// 🖥️ Exemplos de Console I/O
+#<console_io>
+
+println("=== Console I/O Básico ===");
+
+// Saída básica
+print("Olá ");
+print("mundo ");
+println("!");
+
+println("Esta é uma linha completa");
+
+// Entrada básica
+println("\n=== Entrada do Usuário ===");
+print("Digite seu nome: ");
+let nome = input();
+println("Olá, " + nome + "!");
+
+print("Digite sua idade: ");
+let idade_str = input();
+let idade = idade_str; // Em Dryad, conversão automática
+println("Você tem " + idade + " anos");
+
+println("\n=== Entrada com Prompt ===");
+// Input com timeout (demonstração)
+println("Você tem 5 segundos para digitar algo...");
+let resposta_rapida = input_timeout(5000); // 5000ms = 5s
+if (resposta_rapida != null) {
+    println("Você digitou: " + resposta_rapida);
+} else {
+    println("Timeout! Nenhuma entrada recebida.");
+}
+
+println("\n=== Entrada de Caractere Único ===");
+println("Pressione qualquer tecla...");
+let tecla = input_char();
+println("Você pressionou: '" + tecla + "'");
+
+println("\n=== Flush e Controle de Saída ===");
+print("Carregando");
+for (let i = 0; i < 5; i++) {
+    print(".");
+    flush(); // Força a saída imediata
+    // Simula delay (em implementação real usaria sleep)
+}
+println(" Concluído!");
+
+println("\n=== Exemplo Interativo: Mini Menu ===");
+function mostrar_menu() {
+    println("\n=== MENU ===");
+    println("1. Cumprimentar");
+    println("2. Calcular quadrado");
+    println("3. Sair");
+    print("Escolha uma opção: ");
+}
+
+let continuar = true;
+while (continuar) {
+    mostrar_menu();
+    let opcao = input();
+    
+    if (opcao == "1") {
+        print("Digite seu nome: ");
+        let nome_usuario = input();
+        println("Olá, " + nome_usuario + "! Muito prazer!");
+    } else if (opcao == "2") {
+        print("Digite um número: ");
+        let numero = input();
+        let quadrado = numero * numero;
+        println("O quadrado de " + numero + " é " + quadrado);
+    } else if (opcao == "3") {
+        println("Até logo!");
+        continuar = false;
+    } else {
+        println("Opção inválida! Tente novamente.");
+    }
+}

@@ -1,0 +1,39 @@
+
+// Test script for Greenleaf DataFrame
+import { DataFrame, from_dict, merge } from "../src/data/frames.dryad";
+
+println("Running DataFrame Tests...");
+
+let d = {
+    "id": [1, 2, 3],
+    "val": [10, 20, 30]
+};
+
+let df = from_dict(d);
+println("DF Created:\n" + df.to_string());
+
+let col = df.get_column("val");
+println("Col 'val': " + col);
+if (col[0] != 10) println("FAIL: col[0] should be 10");
+
+let row = df.get_row(1);
+println("Row 1: " + row);
+// row should be [2, 20] depending on col order (id, val)
+
+df.add_row([4, 40]);
+println("DF after add_row:\n" + df.to_string());
+
+let filtered = df.filter( (r) => r[1] > 20 ); // Assuming val is index 1
+println("Filtered (val > 20):\n" + filtered.to_string());
+// Should contain rows for 30 and 40
+
+let df2 = from_dict({
+    "id": [1, 3],
+    "name": ["A", "B"]
+});
+
+let merged = merge(df, df2, "id");
+println("Merged DF:\n" + merged.to_string());
+// Should have id 1 (10, A) and 3 (30, B)
+
+println("DataFrame Tests Completed.");

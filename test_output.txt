@@ -1,0 +1,115 @@
+warning: unused variable: `index_expr`
+   --> crates\dryad_parser\src\parser.rs:171:33
+    |
+171 | ... let index_expr = sel...
+    |         ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_index_expr`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `dryad_parser` (lib) generated 1 warning (run `cargo fix --lib -p dryad_parser` to apply 1 suggestion)
+warning: unused import: `Value as JsonValue`
+ --> crates\dryad_runtime\src\interpreter.rs:8:24
+  |
+8 | use serde_json::{self, Value as JsonValue};
+  |                        ^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `std::fs`
+ --> crates\dryad_runtime\src\resolver.rs:3:5
+  |
+3 | use std::fs;
+  |     ^^^^^^^
+
+warning: unused import: `rsa::signature::SignatureEncoding`
+  --> crates\dryad_runtime\src\native_modules\crypto.rs:12:5
+   |
+12 | use rsa::signature::SignatureEncoding;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `aes::cipher::KeyInit`
+  --> crates\dryad_runtime\src\native_modules\crypto.rs:11:5
+   |
+11 | use aes::cipher::KeyInit;
+   |     ^^^^^^^^^^^^^^^^^^^^
+
+warning: unused variable: `location`
+   --> crates\dryad_runtime\src\interpreter.rs:850:128
+    |
+850 | ...ues: Vec<Value>, location: &SourceLocation) -> Resul...
+    |                     ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_location`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `id`
+    --> crates\dryad_runtime\src\interpreter.rs:2071:30
+     |
+2071 | ...se { id, resolved: true, value: Some(val) } => Ok(*...
+     |         ^^ help: try ignoring the field: `id: _`
+
+warning: unused variable: `id`
+    --> crates\dryad_runtime\src\interpreter.rs:2072:30
+     |
+2072 | ...se { id, resolved: false, .. } => {
+     |         ^^ help: try ignoring the field: `id: _`
+
+warning: variable does not need to be mutable
+    --> crates\dryad_runtime\src\interpreter.rs:2455:25
+     |
+2455 | ...   if let Some(mut val) = self.variables.remove(nam...
+     |                   ----^^^
+     |                   |
+     |                   help: remove this `mut`
+     |
+     = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: variable does not need to be mutable
+    --> crates\dryad_runtime\src\interpreter.rs:2680:21
+     |
+2680 |                 let mut idx = if start_index >= 0 { 
+     |                     ----^^^
+     |                     |
+     |                     help: remove this `mut`
+
+warning: unused variable: `buffer`
+   --> crates\dryad_runtime\src\native_modules\tcp.rs:102:9
+    |
+102 |     let buffer = [0; 1024];
+    |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_buffer`
+
+warning: field `next_promise_id` is never read
+  --> crates\dryad_runtime\src\interpreter.rs:30:5
+   |
+20 | pub struct Interpreter {
+   |            ----------- field in this struct
+...
+30 |     next_promise_id: u64,
+   |     ^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: fields `method`, `path`, and `response_headers` are never read
+  --> crates\dryad_runtime\src\native_modules\http_server.rs:30:5
+   |
+29 | struct RouteHandler {
+   |        ------------ fields in this struct
+30 |     method: String,
+   |     ^^^^^^
+31 |     path: String,
+   |     ^^^^
+32 |     response_body: String,
+33 |     response_headers: HashMap<String, String>,
+   |     ^^^^^^^^^^^^^^^^
+   |
+   = note: `RouteHandler` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+
+warning: `dryad_runtime` (lib) generated 12 warnings (run `cargo fix --lib -p dryad_runtime` to apply 8 suggestions)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.32s
+warning: the following packages contain code that will be rejected by a future version of Rust: num-bigint-dig v0.8.4
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 2`
+     Running `target\debug\dryad.exe run array_methods_test.dryad`
+Erro: 
+🚨 E2072: Erro Sintático - Esperado identificador ou string como chave da propriedade
+   📍 Local: linha 0, coluna 0
+
+error: process didn't exit successfully: `target\debug\dryad.exe run array_methods_test.dryad` (exit code: 1)

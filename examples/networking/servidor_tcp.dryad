@@ -1,0 +1,129 @@
+// 🌐 Exemplo de Servidor TCP Simples
+#<tcp>
+#<console_io>
+
+println("=== Servidor TCP Echo ===");
+
+// Configurações do servidor
+let porta_servidor = 8888;
+
+println("Criando servidor TCP na porta " + porta_servidor + "...");
+
+// Verificar se porta está disponível
+if (!tcp_port_available(porta_servidor)) {
+    println("❌ Porta " + porta_servidor + " já está em uso!");
+    println("Tente uma porta diferente ou feche o processo que está usando esta porta.");
+    return;
+}
+
+// Criar servidor
+let servidor = tcp_server_create(porta_servidor);
+if (servidor == null) {
+    println("❌ Erro ao criar servidor TCP");
+    return;
+}
+
+println("✅ Servidor TCP criado!");
+println("Servidor Echo rodando na porta " + porta_servidor);
+println("Para testar, use: telnet localhost " + porta_servidor);
+println("Ou: nc localhost " + porta_servidor);
+println("");
+
+// Função para lidar com cliente conectado
+function lidar_com_cliente(cliente_socket) {
+    println("📞 Novo cliente conectado!");
+    
+    // Enviar mensagem de boas-vindas
+    let mensagem_boas_vindas = "Bem-vindo ao Servidor Echo Dryad!\n";
+    mensagem_boas_vindas += "Digite algo e pressione Enter (digite 'sair' para desconectar)\n";
+    mensagem_boas_vindas += "> ";
+    
+    tcp_server_send(cliente_socket, mensagem_boas_vindas);
+    
+    // Loop de echo
+    let continuar = true;
+    while (continuar) {
+        // Receber dados do cliente
+        let dados_recebidos = tcp_server_receive(cliente_socket);
+        
+        if (dados_recebidos == null) {
+            println("Cliente desconectado");
+            break;
+        }
+        
+        // Remover quebra de linha
+        let comando = dados_recebidos; // trim seria útil aqui
+        println("Cliente enviou: '" + comando + "'");
+        
+        // Verificar comando de saída
+        if (comando == "sair" || comando == "exit" || comando == "quit") {
+            let despedida = "Tchau! Desconectando...\n";
+            tcp_server_send(cliente_socket, despedida);
+            continuar = false;
+        } else if (comando == "info") {
+            let info = "Servidor: Dryad TCP Echo Server v1.0\n";
+            info += "Porta: " + porta_servidor + "\n";
+            info += "Status: Ativo\n> ";
+            tcp_server_send(cliente_socket, info);
+        } else if (comando == "hora") {
+            let resposta_hora = "Servidor em funcionamento\n> ";
+            tcp_server_send(cliente_socket, resposta_hora);
+        } else {
+            // Echo simples
+            let echo = "Echo: " + dados_recebidos + "> ";
+            tcp_server_send(cliente_socket, echo);
+        }
+    }
+    
+    // Desconectar cliente
+    tcp_server_disconnect(cliente_socket);
+    println("Cliente desconectado com sucesso");
+}
+
+// Função principal do servidor
+function executar_servidor() {
+    println("Aguardando conexões...");
+    println("(Pressione Ctrl+C para parar o servidor)");
+    
+    // Em implementação real, isto seria um loop infinito
+    // aguardando clientes
+    
+    let cliente = tcp_server_accept(servidor);
+    if (cliente != null) {
+        lidar_com_cliente(cliente);
+    } else {
+        println("Erro ao aceitar conexão de cliente");
+    }
+    
+    // Encerrar servidor
+    tcp_server_close(servidor);
+    println("Servidor encerrado");
+}
+
+// Função para demonstração (sem loop infinito)
+function demonstracao_servidor() {
+    println("\n=== Demonstração do Servidor TCP ===");
+    println("Em um ambiente real, o servidor ficaria em loop aguardando conexões.");
+    println("");
+    println("Para testar este servidor:");
+    println("1. Execute este script");
+    println("2. Em outro terminal, conecte com:");
+    println("   telnet localhost " + porta_servidor);
+    println("   ou");
+    println("   nc localhost " + porta_servidor);
+    println("");
+    println("Comandos especiais do servidor:");
+    println("- 'info': Mostra informações do servidor");
+    println("- 'hora': Mostra que o servidor está ativo");
+    println("- 'sair': Desconecta do servidor");
+    println("- Qualquer outra coisa: Echo de volta");
+    println("");
+    println("Para executar o servidor real, descomente a chamada abaixo:");
+    println("// executar_servidor();");
+}
+
+// Para demonstração, apenas mostramos as instruções
+// Em ambiente real, descomente a linha abaixo:
+// executar_servidor();
+
+demonstracao_servidor();

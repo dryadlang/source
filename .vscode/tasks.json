@@ -1,0 +1,14 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Testar oak (cargo test oak)",
+			"type": "shell",
+			"command": "cargo test -p oak",
+			"problemMatcher": [
+				"$rustc"
+			],
+			"group": "test"
+		}
+	]
+}

@@ -1,0 +1,21 @@
+// test_import_namespace.dryad - Teste de importação namespace
+
+print("=== Teste 2: Import Namespace * as M ===");
+
+// Importar tudo sob um namespace
+import * as Math from "./math_utils.dryad";
+
+// Acessar através do namespace
+let pi = Math.PI;
+print("Math.PI = " + pi);
+
+let e = Math.E;
+print("Math.E = " + e);
+
+let result = Math.sum(10, 20);
+print("Math.sum(10, 20) = " + result);
+
+let sq = Math.square(5);
+print("Math.square(5) = " + sq);
+
+print("✅ Teste Namespace Import concluído!");

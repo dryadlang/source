@@ -1,0 +1,53 @@
+// ➕ Exemplos de Operadores Aritméticos
+#<console_io>
+
+println("=== Operadores Básicos ===");
+let a = 10;
+let b = 3;
+
+println("Soma: " + a + " + " + b + " = " + (a + b));
+println("Subtração: " + a + " - " + b + " = " + (a - b));
+println("Multiplicação: " + a + " * " + b + " = " + (a * b));
+println("Divisão: " + a + " / " + b + " = " + (a / b));
+println("Módulo: " + a + " % " + b + " = " + (a % b));
+
+println("\n=== Operadores Avançados ===");
+println("Exponenciação: " + a + " ** " + b + " = " + (a ** b));
+println("Módulo Seguro: " + a + " %% " + b + " = " + (a %% b));
+println("Raiz Enésima: 27 ^^ (1/3) = " + (27 ^^ (1/3)));
+println("Potência Base 10: 10 ## 3 = " + (10 ## 3));
+
+println("\n=== Incremento/Decremento ===");
+let contador = 5;
+println("Contador inicial: " + contador);
+contador++;
+println("Após contador++: " + contador);
+contador--;
+println("Após contador--: " + contador);
+
+println("\n=== Operadores de Atribuição ===");
+let x = 10;
+println("x inicial: " + x);
+x += 5;
+println("x += 5: " + x);
+x -= 3;
+println("x -= 3: " + x);
+x *= 2;
+println("x *= 2: " + x);
+x /= 4;
+println("x /= 4: " + x);
+
+println("\n=== Operadores Lógicos ===");
+let verdadeiro = true;
+let falso = false;
+println("true && false = " + (verdadeiro && falso));
+println("true || false = " + (verdadeiro || falso));
+println("!true = " + (!verdadeiro));
+
+println("\n=== Operadores de Comparação ===");
+println("10 == 10: " + (10 == 10));
+println("10 != 5: " + (10 != 5));
+println("10 > 5: " + (10 > 5));
+println("10 < 5: " + (10 < 5));
+println("10 >= 10: " + (10 >= 10));
+println("10 <= 5: " + (10 <= 5));

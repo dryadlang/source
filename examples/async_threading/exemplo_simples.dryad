@@ -1,0 +1,91 @@
+// Exemplo Dryad: Async/Threading Funcional
+// Demonstra as novas funcionalidades implementadas
+
+print("=== Exemplo Dryad: Async/Threading ===");
+
+// ===== FUNÇÕES ASSÍNCRONAS =====
+
+async function buscarDados() {
+    print("Buscando dados do servidor...");
+    return "dados_importantes";
+}
+
+async function processarDados(dados) {
+    print("Processando: " + dados);
+    return "dados_processados";
+}
+
+// ===== FUNÇÕES PARA THREADING =====
+
+thread function calcularPesado() {
+    print("Thread: Iniciando cálculo pesado...");
+    let resultado = 42 * 1000;
+    print("Thread: Cálculo concluído!");
+    return resultado;
+}
+
+thread function monitorarSistema() {
+    print("Thread: Monitorando sistema...");
+    print("Thread: Sistema OK");
+    return "sistema_saudavel";
+}
+
+// ===== PROGRAMA PRINCIPAL =====
+
+// 1. Testando Async/Await
+print("1. Testando Async/Await:");
+let dados = await buscarDados();
+print("Dados recebidos: " + dados);
+
+let processados = await processarDados(dados);
+print("Dados processados: " + processados);
+
+// 2. Testando Threading
+print("2. Testando Threading:");
+let worker1 = thread(calcularPesado);
+let worker2 = thread(monitorarSistema);
+print("Threads iniciadas em paralelo!");
+
+// 3. Testando Mutex
+print("3. Testando Mutex:");
+let lock = mutex();
+print("Mutex criado com sucesso!");
+
+// 4. Exemplo com variáveis e operações básicas
+print("4. Operações básicas:");
+let numero = 10;
+let texto = "Dryad";
+let booleano = true;
+
+print("Número: " + numero);
+print("Texto: " + texto);
+print("Booleano: " + booleano);
+
+// 5. Arrays básicos
+print("5. Arrays:");
+let numeros = [1, 2, 3, 4, 5];
+print("Primeiro elemento: " + numeros[0]);
+print("Segundo elemento: " + numeros[1]);
+
+// 6. Função normal
+function somar(a, b) {
+    return a + b;
+}
+
+let soma = somar(5, 3);
+print("Soma 5 + 3 = " + soma);
+
+// 7. Coordenação async + threading
+async function coordenar() {
+    print("Coordenador: Iniciando...");
+    let t1 = thread(calcularPesado);
+    let sharedLock = mutex();
+    print("Coordenador: Tarefas organizadas!");
+    return "coordenacao_ok";
+}
+
+let resultado = await coordenar();
+print("Resultado da coordenação: " + resultado);
+
+print("");
+print("🎉 Dryad com Async/Threading funcionando! 🎉");

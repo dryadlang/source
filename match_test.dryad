@@ -1,0 +1,65 @@
+// Test literal matching
+let x = 10;
+let res1 = match x {
+    10 => "ten",
+    20 => "twenty",
+    _ => "other"
+};
+println("Match Literal: " + res1); // Expected: ten
+
+// Test variable binding
+let y = "hello";
+let res2 = match y {
+    "world" => "not this",
+    val => "Got: " + val
+};
+println("Match Binding: " + res2); // Expected: Got: hello
+
+// Test array destructuring
+let arr = [1, 2, 3];
+let res3 = match arr {
+    [1, 2] => "two elements",
+    [1, 2, 3] => "three elements",
+    _ => "none"
+};
+println("Match Array: " + res3); // Expected: three elements
+
+// Test array destructuring with bindings
+let res4 = match arr {
+    [a, b, c] => a + b + c,
+    _ => 0
+};
+println("Match Array Bindings: " + (res4 + "")); // force string concat if needed
+
+// Test object destructuring
+let obj = { name: "Dryad", version: 1 };
+let res5 = match obj {
+    { name: n } => "Name: " + n,
+    _ => "not found"
+};
+println("Match Object: " + res5); // Expected: Name: Dryad
+
+// Test tuple destructuring
+let t = (1, "a");
+let res6 = match t {
+    (1, x) => "Matched tuple with: " + x,
+    _ => "no match"
+};
+println("Match Tuple: " + res6); // Expected: Matched tuple with: a
+
+// Test guards
+let z = 5;
+let res7 = match z {
+    val if val > 10 => "greater than 10",
+    val if val < 10 => "less than 10",
+    _ => "ten"
+};
+println("Match Guard: " + res7); // Expected: less than 10
+
+// Test exhaustive/nesting
+let complex = [[1], {x: 10}];
+let res8 = match complex {
+    [[a], {x: b}] if a + b == 11 => "Perfect Match",
+    _ => "mismatch"
+};
+println("Match Complex: " + res8); // Expected: Perfect Match

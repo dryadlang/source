@@ -1,0 +1,111 @@
+// 🔌 Exemplo de Cliente TCP
+#<tcp>
+#<console_io>
+
+println("=== Cliente TCP ===");
+
+// Configurações de conexão
+let servidor_host = "httpbin.org";
+let servidor_porta = 80;
+
+println("Conectando ao servidor TCP...");
+println("Host: " + servidor_host + ":" + servidor_porta);
+
+// Conectar ao servidor
+let conexao = tcp_client_connect(servidor_host, servidor_porta);
+if (conexao == null) {
+    println("❌ Erro ao conectar ao servidor");
+    return;
+}
+
+println("✅ Conectado com sucesso!");
+
+// Verificar status da conexão
+let status = tcp_client_status(conexao);
+println("Status da conexão: " + status);
+
+// Configurar timeout
+tcp_client_set_timeout(conexao, 10000); // 10 segundos
+println("Timeout configurado para 10 segundos");
+
+// Enviar requisição HTTP manual via TCP
+let requisicao = "GET / HTTP/1.1\r\n";
+requisicao += "Host: " + servidor_host + "\r\n";
+requisicao += "User-Agent: Dryad-TCP-Client/1.0\r\n";
+requisicao += "Connection: close\r\n";
+requisicao += "\r\n";
+
+println("\n=== Enviando Dados ===");
+println("Enviando requisição HTTP...");
+let bytes_enviados = tcp_client_send(conexao, requisicao);
+if (bytes_enviados > 0) {
+    println("✅ " + bytes_enviados + " bytes enviados");
+} else {
+    println("❌ Erro ao enviar dados");
+}
+
+// Receber resposta
+println("\n=== Recebendo Dados ===");
+let resposta = tcp_client_receive(conexao);
+if (resposta != null) {
+    println("✅ Resposta recebida!");
+    println("Primeiros 200 caracteres da resposta:");
+    println("---");
+    // Em implementação real, você limitaria a exibição
+    println(resposta);
+    println("---");
+} else {
+    println("❌ Erro ao receber dados ou timeout");
+}
+
+// Desconectar
+println("\n=== Encerrando Conexão ===");
+tcp_client_disconnect(conexao);
+println("✅ Conexão encerrada");
+
+println("\n=== Utilitários TCP ===");
+
+// Resolver hostname
+println("Resolvendo hostname: " + servidor_host);
+let ip_resolvido = tcp_resolve_hostname(servidor_host);
+if (ip_resolvido != null) {
+    println("IP resolvido: " + ip_resolvido);
+} else {
+    println("Erro ao resolver hostname");
+}
+
+// Verificar IP local
+let ip_local = tcp_get_local_ip();
+if (ip_local != null) {
+    println("IP local: " + ip_local);
+}
+
+// Verificar disponibilidade de porta
+let porta_teste = 8080;
+let porta_disponivel = tcp_port_available(porta_teste);
+if (porta_disponivel) {
+    println("Porta " + porta_teste + " está disponível");
+} else {
+    println("Porta " + porta_teste + " está em uso");
+}
+
+// Função utilitária para teste de conectividade
+function testar_conectividade_tcp(host, porta) {
+    println("\nTestando conectividade TCP para " + host + ":" + porta);
+    
+    let conn = tcp_client_connect(host, porta);
+    if (conn != null) {
+        println("✅ Conexão TCP bem-sucedida");
+        tcp_client_disconnect(conn);
+        return true;
+    } else {
+        println("❌ Falha na conexão TCP");
+        return false;
+    }
+}
+
+// Testes de conectividade
+println("\n=== Testes de Conectividade ===");
+testar_conectividade_tcp("google.com", 80);
+testar_conectividade_tcp("github.com", 443);
+testar_conectividade_tcp("localhost", 22);

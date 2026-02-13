@@ -1,0 +1,18 @@
+#<console_io>
+
+let HashMap = {
+    "nome": "Alice",
+    "idade": 30,
+    "cidade": "Lisboa"
+};
+
+let nome = HashMap["nome"]; // "Alice"
+HashMap["idade"] = 31; // Atualiza idade
+HashMap["profissao"] = "Engenheira"; // Adiciona nova chave-valor
+let idade = HashMap["idade"]; // 31
+let profissao = HashMap["profissao"]; // "Engenheira"
+
+print("Nome: " + nome);
+print("Idade: " + idade);
+print("Profissao: " + profissao);
+print("Cidade: " + HashMap["cidade"]);

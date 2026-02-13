@@ -1,0 +1,30 @@
+
+// Test script for Greenleaf Symbolic Algebra
+import { symbol, number, add, multiply, power } from "../src/symbolic/algebra.dryad";
+
+println("Running Symbolic Algebra Tests...");
+
+let x = symbol("x");
+let two = number(2);
+let three = number(3);
+
+// f(x) = 2x + 3
+let f = add(multiply(two, x), three);
+println("Function: " + f.to_string());
+
+// Eval at x=5
+let ctx = {"x": 5};
+let res = f.evaluate(ctx);
+println("f(5): " + res);
+if (res != 13) println("FAIL: f(5) should be 13");
+
+// Derivative f'(x) = 2
+let df = f.derivative("x");
+println("f'(x): " + df.to_string());
+// Note: derivative output might be unsimplified: (0*x + 2*1) + 0
+// We verify by evaluation
+let dres = df.evaluate(ctx);
+println("f'(5): " + dres);
+if (dres != 2) println("FAIL: f'(5) should be 2");
+
+println("Algebra Tests Completed.");

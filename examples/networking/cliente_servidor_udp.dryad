@@ -1,0 +1,181 @@
+// Exemplo Completo UDP - Echo Server
+// Demonstra UDP Server e Client com datagramas
+
+#<udp>
+#<console_io>
+#<time>
+
+print("🌐 === Exemplo UDP Server/Client === 🌐");
+print("");
+
+// ===== CONFIGURAÇÃO DO SERVIDOR =====
+
+print("📋 1. Configurando UDP Server...");
+
+// Verificar se porta está disponível
+let porta = 8070;
+let porta_livre = udp_port_available(porta);
+
+if (!porta_livre) {
+    print("❌ Porta " + porta + " não está disponível!");
+    return;
+} else {
+    print("✅ Porta " + porta + " está disponível");
+}
+
+// Criar servidor UDP
+udp_server_create("datagram_server", "127.0.0.1", porta);
+
+// Verificar status inicial
+let status_inicial = udp_server_status("datagram_server");
+print("✅ Servidor criado: " + status_inicial.server_id);
+print("   Host: " + status_inicial.host);
+print("   Porta: " + status_inicial.port);
+if (status_inicial.is_running) {
+    print("   Status: RODANDO");
+} else {
+    print("   Status: PARADO");
+}
+
+print("");
+
+// ===== INICIANDO SERVIDOR =====
+
+print("🚀 2. Iniciando UDP Server...");
+udp_server_start("datagram_server");
+
+// Aguardar inicialização
+native_sleep(500);
+
+let status_rodando = udp_server_status("datagram_server");
+print("✅ Status após iniciar: " + (status_rodando.is_running));
+
+print("");
+
+// ===== CONFIGURAÇÃO DO CLIENTE =====
+
+print("📱 3. Configurando UDP Client...");
+
+// Obter IP local
+let ip_local = udp_get_local_ip();
+print("🌐 IP local detectado: " + ip_local);
+
+// Resolver hostname local
+let ip_resolvido = udp_resolve_hostname("localhost");
+print("🔍 Localhost resolvido para: " + ip_resolvido);
+
+// Criar cliente UDP
+udp_client_create("cliente_datagram", "127.0.0.1", porta);
+
+// Configurar timeout do cliente
+udp_client_set_timeout("cliente_datagram", 10);
+
+// Verificar status do cliente
+let status_cliente = udp_client_status("cliente_datagram");
+print("✅ Cliente criado: " + status_cliente.client_id);
+print("   Servidor: " + status_cliente.host + ":" + status_cliente.port);
+print("   Timeout: " + status_cliente.timeout_secs + "s");
+if (status_cliente.is_bound) {
+    print("   Status: VINCULADO");
+} else {
+    print("   Status: NÃO VINCULADO");
+}
+
+print("");
+
+// ===== VINCULANDO CLIENTE =====
+
+print("🔗 4. Vinculando UDP Client...");
+let vinculado = udp_client_bind("cliente_datagram", 0);
+
+if (vinculado) {
+    print("✅ Cliente vinculado com sucesso!");
+    
+    // Enviar mensagem de teste
+    let msg = "Olá UDP Server! Testando datagramas.";
+    
+    print("");
+    print("📤 5. Enviando mensagem:");
+    print("   Dados: " + msg);
+    
+    let enviado = udp_client_send("cliente_datagram", msg);
+    
+    if (enviado) {
+        print("   ✅ Enviado com sucesso");
+        
+        // Aguardar um pouco
+        native_sleep(100);
+        
+        // Tentar receber resposta
+        print("");
+        print("📥 6. Recebendo resposta:");
+        let resposta = udp_client_receive("cliente_datagram");
+        if (resposta != "") {
+            print("   📦 Resposta: " + resposta);
+        } else {
+            print("   ⚠️ Nenhuma resposta recebida");
+        }
+    } else {
+        print("   ❌ Falha ao enviar");
+    }
+    
+    print("");
+    print("📡 7. Teste de Send To (endereço específico):");
+    
+    // Testar envio para endereço específico
+    let msg2 = "Mensagem via send_to";
+    let enviado_to = udp_client_send_to("cliente_datagram", msg2, "127.0.0.1", porta);
+    
+    if (enviado_to) {
+        print("   ✅ Send-to realizado com sucesso");
+        
+        native_sleep(100);
+        
+        // Testar recebimento com informações do sender
+        let resposta_from = udp_client_receive_from("cliente_datagram");
+        if (resposta_from.data != "") {
+            print("   📦 Dados: " + resposta_from.data);
+            print("   📍 Remetente: " + resposta_from.sender);
+        } else {
+            print("   ⚠️ Nenhum dado recebido do remetente");
+        }
+    }
+    
+    print("");
+    print("👋 8. Fechando cliente...");
+    udp_client_close("cliente_datagram");
+    print("   ✅ Cliente fechado");
+    
+} else {
+    print("❌ Falha ao vincular cliente");
+}
+
+print("");
+
+// ===== FINALIZANDO SERVIDOR =====
+
+print("🛑 9. Finalizando servidor...");
+udp_server_stop("datagram_server");
+
+// Aguardar finalização
+native_sleep(200);
+
+let status_final = udp_server_status("datagram_server");
+if (status_final.is_running) {
+    print("🛑 Servidor parado: AINDA RODANDO");
+} else {
+    print("🛑 Servidor parado: PARADO");
+}
+
+print("");
+print("✅ Exemplo UDP finalizado com sucesso!");
+
+// ===== ESTATÍSTICAS =====
+
+print("");
+print("📊 === Estatísticas do Teste ===");
+print("Servidor: " + status_inicial.server_id);
+print("Porta utilizada: " + porta);
+print("IP local: " + ip_local);
+print("Protocolo: UDP (Datagramas)");
+print("Teste concluído!");

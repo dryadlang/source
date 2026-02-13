@@ -1,0 +1,7 @@
+[package]
+name = "dryad_errors"
+version = "0.1.0"
+edition = "2021"
+description = "Sistema de erros padronizado para a linguagem Dryad"
+
+[dependencies]

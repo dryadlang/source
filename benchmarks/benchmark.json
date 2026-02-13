@@ -1,0 +1,72 @@
+[
+  {
+    "name": "simple_arithmetic",
+    "duration": {
+      "secs": 0,
+      "nanos": 12640
+    },
+    "timestamp": "2025-07-13T00:57:31.789293200Z",
+    "memory_usage": null,
+    "success": true,
+    "error_message": null,
+    "iterations": 10,
+    "throughput": 79113.92405063291,
+    "metadata": {}
+  },
+  {
+    "name": "string_literals",
+    "duration": {
+      "secs": 0,
+      "nanos": 7140
+    },
+    "timestamp": "2025-07-13T00:57:31.792282800Z",
+    "memory_usage": null,
+    "success": true,
+    "error_message": null,
+    "iterations": 10,
+    "throughput": 140056.0224089636,
+    "metadata": {}
+  },
+  {
+    "name": "while_loop",
+    "duration": {
+      "secs": 0,
+      "nanos": 384690
+    },
+    "timestamp": "2025-07-13T00:57:31.801998200Z",
+    "memory_usage": null,
+    "success": true,
+    "error_message": null,
+    "iterations": 10,
+    "throughput": 2599.4956978346204,
+    "metadata": {}
+  },
+  {
+    "name": "function_definition",
+    "duration": {
+      "secs": 0,
+      "nanos": 13240
+    },
+    "timestamp": "2025-07-13T00:57:31.803783800Z",
+    "memory_usage": null,
+    "success": true,
+    "error_message": null,
+    "iterations": 10,
+    "throughput": 75528.70090634441,
+    "metadata": {}
+  },
+  {
+    "name": "variable_assignment",
+    "duration": {
+      "secs": 0,
+      "nanos": 15360
+    },
+    "timestamp": "2025-07-13T00:57:31.805282100Z",
+    "memory_usage": null,
+    "success": true,
+    "error_message": null,
+    "iterations": 10,
+    "throughput": 65104.16666666667,
+    "metadata": {}
+  }
+]

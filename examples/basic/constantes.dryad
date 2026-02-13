@@ -1,0 +1,83 @@
+// ===================================================
+// DEMONSTRAÇÃO COMPLETA DE CONSTANTES EM DRYAD
+// ===================================================
+
+// 1. CONSTANTES MATEMÁTICAS
+const PI = 3.14159265359;
+const E = 2.71828182846;
+const GOLDEN_RATIO = 1.61803398875;
+
+// 2. CONSTANTES DE CONFIGURAÇÃO
+const MAX_CONNECTIONS = 1000;
+const TIMEOUT_MS = 5000;
+const BUFFER_SIZE = 4096;
+
+// 3. CONSTANTES DE TEXTO
+const APP_NAME = "Dryad Language Interpreter";
+const VERSION = "1.0.0";
+const AUTHOR = "Dryad Development Team";
+const COPYRIGHT = "© 2024 Dryad Lang";
+
+// 4. CONSTANTES BOOLEANAS
+const DEBUG_ENABLED = true;
+const PRODUCTION_MODE = false;
+const LOGGING_ACTIVE = true;
+
+// 5. CONSTANTES DERIVADAS (EXPRESSÕES)
+const CIRCLE_AREA_RADIUS_5 = PI * 5 * 5;
+const COMPOUND_GROWTH = 1000 * E;
+const MAX_TIMEOUT_SECONDS = TIMEOUT_MS / 1000;
+
+// 6. CONSTANTES COM ARRAYS
+const FIBONACCI_START = [0, 1, 1, 2, 3, 5, 8, 13];
+const RGB_RED = [255, 0, 0];
+const STATUS_CODES = [200, 404, 500];
+
+// ===================================================
+// DEMONSTRAÇÃO DE USO
+// ===================================================
+
+print("=== INFORMAÇÕES DA APLICAÇÃO ===");
+print("Nome: " + APP_NAME);
+print("Versão: " + VERSION);
+print("Autor: " + AUTHOR);
+print("Copyright: " + COPYRIGHT);
+
+print("\n=== CONSTANTES MATEMÁTICAS ===");
+print("π (PI) = " + PI);
+print("e (Euler) = " + E);
+print("φ (Golden Ratio) = " + GOLDEN_RATIO);
+
+print("\n=== CONFIGURAÇÕES ===");
+print("Máximo de conexões: " + MAX_CONNECTIONS);
+print("Timeout: " + TIMEOUT_MS + "ms (" + MAX_TIMEOUT_SECONDS + "s)");
+print("Tamanho do buffer: " + BUFFER_SIZE + " bytes");
+
+print("\n=== ESTADOS BOOLEANOS ===");
+print("Debug habilitado: " + DEBUG_ENABLED);
+print("Modo produção: " + PRODUCTION_MODE);
+print("Logging ativo: " + LOGGING_ACTIVE);
+
+print("\n=== CÁLCULOS COM CONSTANTES ===");
+print("Área de círculo (raio 5): " + CIRCLE_AREA_RADIUS_5);
+print("Crescimento composto: " + COMPOUND_GROWTH);
+
+// Usando constantes em variáveis
+let custom_radius = 7.0;
+let custom_area = PI * custom_radius * custom_radius;
+print("Área customizada (raio 7): " + custom_area);
+
+print("\n=== ARRAYS CONSTANTES ===");
+print("Sequência Fibonacci: " + FIBONACCI_START);
+print("Cor vermelha (RGB): " + RGB_RED);
+print("Códigos de status HTTP: " + STATUS_CODES);
+
+// Demonstração de imutabilidade através de comentários
+print("\n=== DEMONSTRAÇÃO DE IMUTABILIDADE ===");
+print("✓ Constantes não podem ser redeclaradas");
+print("✓ Constantes não podem ser modificadas");
+print("✓ Constantes devem ter valor inicial");
+print("✓ Constantes são avaliadas no momento da declaração");
+
+print("\n🎉 Demonstração completa de constantes concluída com sucesso!");
+print("📝 Total de constantes declaradas: 18");

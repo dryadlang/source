@@ -1,0 +1,4 @@
+// my_app/main.dryad
+// Projeto Dryad gerado pelo Oak
+
+print("Hello World from my_app!");

@@ -1,0 +1,23 @@
+// Exemplo Básico Dryad: Async/Threading
+// Testando funcionalidades implementadas passo a passo
+
+print("=== Teste Dryad Async/Threading ===");
+
+// 1. Declaração de função async
+async function minhaFuncaoAsync() {
+    print("Função async executada!");
+    return "async_ok";
+}
+
+// 2. Declaração de função thread  
+thread function minhaFuncaoThread() {
+    print("Função thread executada!");
+    return "thread_ok";
+}
+
+// 3. Testando mutex
+print("Criando mutex...");
+let meuMutex = mutex();
+print("Mutex criado com sucesso!");
+
+print("Teste concluído!");

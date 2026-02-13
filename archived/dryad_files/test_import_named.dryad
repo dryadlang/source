@@ -1,0 +1,14 @@
+// test_import_named.dryad - Teste de importação seletiva
+
+print("=== Teste 1: Import Named { x, y } ===");
+
+// Importar apenas funções específicas
+import { sum, multiply } from "./math_utils.dryad";
+
+let result1 = sum(5, 3);
+print("sum(5, 3) = " + result1);
+
+let result2 = multiply(4, 7);
+print("multiply(4, 7) = " + result2);
+
+print("✅ Teste Named Import concluído!");

@@ -1,0 +1,159 @@
+// Exemplo Completo TCP - Servidor Echo
+// Demonstra TCP Server e Client integrados
+
+#<tcp>
+#<console_io>
+#<time>
+
+print("🌍 === Exemplo TCP Server/Client === 🌍");
+print("");
+
+// ===== CONFIGURAÇÃO DO SERVIDOR =====
+
+print("📋 1. Configurando TCP Server...");
+
+// Verificar se porta está disponível
+let porta = 8090;
+let porta_livre = tcp_port_available(porta);
+
+if (!porta_livre) {
+    print("❌ Porta " + porta + " está em uso!");
+    porta = porta + 1;
+    print("🔄 Tentando porta " + porta);
+}
+
+// Criar servidor TCP
+tcp_server_create("echo_server", "127.0.0.1", porta, 5);
+
+// Configurar máximo de clientes
+tcp_server_set_max_clients("echo_server", 10);
+
+// Verificar status inicial
+let status_inicial = tcp_server_status("echo_server");
+print("✅ Servidor criado: " + status_inicial.server_id);
+print("   Host: " + status_inicial.host);
+print("   Porta: " + status_inicial.port);
+print("   Max clientes: " + status_inicial.max_clients);
+if (status_inicial.is_running) {
+    print("   Status: RODANDO");
+} else {
+    print("   Status: PARADO");
+}
+
+print("");
+
+// ===== INICIANDO SERVIDOR =====
+
+print("🚀 2. Iniciando TCP Server...");
+tcp_server_start("echo_server");
+
+// Aguardar servidor inicializar
+// Aguardar inicialização
+native_sleep(500);
+
+let status_rodando = tcp_server_status("echo_server");
+print("✅ Status após iniciar: " + (status_rodando.is_running));
+
+print("");
+
+// ===== CONFIGURAÇÃO DO CLIENTE =====
+
+print("📱 3. Configurando TCP Client...");
+
+// Obter IP local
+let ip_local = tcp_get_local_ip();
+print("🌐 IP local detectado: " + ip_local);
+
+// Resolver hostname local
+let ip_resolvido = tcp_resolve_hostname("localhost");
+print("🔍 Localhost resolvido para: " + ip_resolvido);
+
+// Criar cliente TCP
+tcp_client_create("cliente_echo", "127.0.0.1", porta);
+
+// Configurar timeout
+tcp_client_set_timeout("cliente_echo", 15);
+
+let status_cliente = tcp_client_status("cliente_echo");
+print("✅ Cliente criado: " + status_cliente.client_id);
+print("   Servidor: " + status_cliente.host + ":" + status_cliente.port);
+print("   Timeout: " + status_cliente.timeout_secs + "s");
+if (status_cliente.is_connected) {
+    print("   Status: CONECTADO");
+} else {
+    print("   Status: DESCONECTADO");
+}
+
+print("");
+
+// ===== TESTE DE COMUNICAÇÃO =====
+
+print("🔗 4. Testando comunicação TCP...");
+
+// Conectar ao servidor
+let conectado = tcp_client_connect("cliente_echo");
+
+if (conectado) {
+    print("✅ Cliente conectado com sucesso!");
+    
+    // Enviar mensagem de teste
+    let msg = "Olá TCP Server!";
+    
+    print("📤 Enviando: " + msg);
+    let enviado = tcp_client_send("cliente_echo", msg);
+    
+    if (enviado) {
+        print("   ✅ Enviado com sucesso");
+        
+        // Aguardar um pouco
+        native_sleep(200);
+        
+        // Tentar receber resposta
+        let resposta = tcp_client_receive("cliente_echo");
+        if (resposta != "") {
+            print("📥 Resposta: " + resposta);
+        } else {
+            print("   ⚠️ Nenhuma resposta recebida");
+        }
+    } else {
+        print("   ❌ Falha ao enviar");
+    }
+    
+    print("");
+    
+    // Desconectar cliente
+    tcp_client_disconnect("cliente_echo");
+    print("👋 Cliente desconectado");
+    
+} else {
+    print("❌ Falha ao conectar cliente");
+}
+
+print("");
+
+// ===== LIMPEZA =====
+
+print("🧹 5. Finalizando...");
+
+// Parar servidor
+tcp_server_stop("echo_server");
+
+let status_final = tcp_server_status("echo_server");
+if (status_final.is_running) {
+    print("🛑 Servidor parado: AINDA RODANDO");
+} else {
+    print("🛑 Servidor parado: PARADO");
+}
+
+print("");
+print("✅ Exemplo TCP finalizado com sucesso!");
+
+// ===== ESTATÍSTICAS =====
+
+print("");
+print("📊 === Estatísticas do Teste ===");
+print("Servidor: " + status_inicial.server_id);
+print("Porta utilizada: " + porta);
+print("Cliente: " + status_cliente.client_id);
+print("IP local: " + ip_local);
+print("Teste concluído!");

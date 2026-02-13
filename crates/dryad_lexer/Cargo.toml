@@ -1,0 +1,8 @@
+[package]
+name = "dryad_lexer"
+version = "0.1.0"
+edition = "2021"
+description = "Lexer (análise léxica) para a linguagem Dryad"
+
+[dependencies]
+dryad_errors = { workspace = true }

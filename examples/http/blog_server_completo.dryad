@@ -1,0 +1,330 @@
+// Exemplo prático: Sistema de Blog simples com HTTP Server
+// Arquivo: blog_server_example.dryad
+
+#<http_server>
+#<console_io>
+#<time>
+#<file_io>
+
+native_println("🌳 Iniciando Blog Server Dryad...");
+
+// Cria servidor para o blog
+native_http_server_create("blog", "127.0.0.1", 3000);
+
+// ========================
+// Homepage do Blog
+// ========================
+native_http_server_html("blog", "/", 
+"<!DOCTYPE html>
+<html lang='pt-BR'>
+<head>
+    <meta charset='UTF-8'>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <title>Blog Dryad</title>
+    <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            margin: 0; 
+            padding: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container { 
+            max-width: 800px; 
+            margin: 0 auto; 
+            padding: 20px;
+            background: white;
+            margin-top: 50px;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        header { 
+            text-align: center; 
+            margin-bottom: 40px;
+        }
+        h1 { 
+            color: #333; 
+            font-size: 2.5em;
+            margin: 0;
+        }
+        .tagline { 
+            color: #666; 
+            font-style: italic;
+            margin: 10px 0;
+        }
+        .post { 
+            background: #f8f9fa; 
+            padding: 20px; 
+            margin: 20px 0; 
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+        .post h2 { 
+            color: #333;
+            margin-top: 0;
+        }
+        .post-meta { 
+            color: #666; 
+            font-size: 0.9em;
+            margin-bottom: 15px;
+        }
+        .nav { 
+            text-align: center; 
+            margin: 30px 0;
+        }
+        .nav a { 
+            color: #667eea; 
+            text-decoration: none; 
+            margin: 0 15px;
+            font-weight: bold;
+        }
+        .nav a:hover { 
+            text-decoration: underline;
+        }
+        footer {
+            text-align: center;
+            margin-top: 50px;
+            padding: 20px;
+            color: #666;
+            border-top: 1px solid #eee;
+        }
+    </style>
+</head>
+<body>
+    <div class='container'>
+        <header>
+            <h1>🌳 Blog Dryad</h1>
+            <p class='tagline'>Explorando a programação moderna</p>
+        </header>
+        
+        <nav class='nav'>
+            <a href='/'>Home</a>
+            <a href='/about'>Sobre</a>
+            <a href='/api/posts'>API</a>
+            <a href='/admin'>Admin</a>
+        </nav>
+        
+        <main>
+            <article class='post'>
+                <h2>Bem-vindos ao Blog Dryad!</h2>
+                <div class='post-meta'>Publicado em 28 de Setembro, 2025</div>
+                <p>Este é um exemplo de blog criado com a linguagem de programação Dryad e seu servidor HTTP nativo.</p>
+                <p>Dryad oferece uma sintaxe moderna e expressiva, ideal para desenvolvimento web rápido e eficiente.</p>
+            </article>
+            
+            <article class='post'>
+                <h2>Recursos do Servidor HTTP Dryad</h2>
+                <div class='post-meta'>Publicado em 27 de Setembro, 2025</div>
+                <p>O servidor HTTP do Dryad suporta:</p>
+                <ul>
+                    <li>Rotas dinâmicas (GET, POST, PUT, DELETE)</li>
+                    <li>Conteúdo estático e HTML customizado</li>
+                    <li>Múltiplas instâncias simultâneas</li>
+                    <li>APIs REST com JSON</li>
+                    <li>Sistema de templates integrado</li>
+                </ul>
+            </article>
+            
+            <article class='post'>
+                <h2>Começando com Dryad</h2>
+                <div class='post-meta'>Publicado em 26 de Setembro, 2025</div>
+                <p>Para começar a usar Dryad, você precisa apenas:</p>
+                <pre style='background: #f4f4f4; padding: 15px; border-radius: 5px; overflow-x: auto;'>
+#&lt;http_server&gt;
+
+// Cria um servidor
+native_http_server_create(\"meu_blog\", \"127.0.0.1\", 3000);
+
+// Define uma rota
+native_http_server_get(\"meu_blog\", \"/\", \"&lt;h1&gt;Meu Blog&lt;/h1&gt;\");
+
+// Inicia o servidor
+native_http_server_start(\"meu_blog\");
+                </pre>
+            </article>
+        </main>
+        
+        <footer>
+            <p>Powered by Dryad Language • <a href='https://github.com/dryad-lang' style='color: #667eea;'>GitHub</a></p>
+        </footer>
+    </div>
+</body>
+</html>");
+
+// ========================
+// Página Sobre
+// ========================
+native_http_server_html("blog", "/about",
+"<!DOCTYPE html>
+<html lang='pt-BR'>
+<head>
+    <meta charset='UTF-8'>
+    <title>Sobre - Blog Dryad</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; line-height: 1.6; }
+        .container { max-width: 600px; margin: 0 auto; }
+        h1 { color: #2c3e50; }
+        .back-link { margin-bottom: 20px; }
+        .back-link a { color: #667eea; text-decoration: none; }
+    </style>
+</head>
+<body>
+    <div class='container'>
+        <div class='back-link'><a href='/'>← Voltar ao Blog</a></div>
+        <h1>Sobre o Blog Dryad</h1>
+        <p>Este blog foi criado como demonstração das capacidades do servidor HTTP nativo da linguagem Dryad.</p>
+        <p><strong>Características técnicas:</strong></p>
+        <ul>
+            <li>Servidor HTTP assíncrono</li>
+            <li>Roteamento dinâmico</li>
+            <li>Templates HTML integrados</li>
+            <li>APIs REST nativas</li>
+            <li>Suporte a múltiplos servidores</li>
+        </ul>
+        <p><strong>Desenvolvido com:</strong> Dryad Language v0.1.0</p>
+    </div>
+</body>
+</html>");
+
+// ========================
+// API REST
+// ========================
+native_http_server_json("blog", "/api/posts",
+'{
+    "posts": [
+        {
+            "id": 1,
+            "title": "Bem-vindos ao Blog Dryad!",
+            "content": "Este é um exemplo de blog criado com Dryad.",
+            "date": "2025-09-28",
+            "author": "Dryad Team"
+        },
+        {
+            "id": 2,
+            "title": "Recursos do Servidor HTTP Dryad",
+            "content": "O servidor HTTP do Dryad suporta rotas dinâmicas...",
+            "date": "2025-09-27",
+            "author": "Dryad Team"
+        },
+        {
+            "id": 3,
+            "title": "Começando com Dryad",
+            "content": "Para começar a usar Dryad, você precisa apenas...",
+            "date": "2025-09-26",
+            "author": "Dryad Team"
+        }
+    ],
+    "total": 3,
+    "server": "dryad-http-server",
+    "version": "0.1.0"
+}');
+
+// ========================
+// API de Status
+// ========================
+native_http_server_json("blog", "/api/status",
+'{
+    "status": "online",
+    "server": "dryad-blog-server",
+    "version": "0.1.0",
+    "uptime": "running",
+    "features": [
+        "http-server",
+        "json-api",
+        "html-templates",
+        "static-content"
+    ]
+}');
+
+// ========================
+// Área de Administração
+// ========================
+native_http_server_html("blog", "/admin",
+"<!DOCTYPE html>
+<html lang='pt-BR'>
+<head>
+    <meta charset='UTF-8'>
+    <title>Admin - Blog Dryad</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .admin-section { background: #f8f9fa; padding: 20px; margin: 20px 0; border-radius: 8px; }
+        .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; }
+        .stat-card { background: white; padding: 15px; border-radius: 5px; text-align: center; }
+        .back-link a { color: #667eea; text-decoration: none; }
+        button { background: #667eea; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <div class='container'>
+        <div class='back-link'><a href='/'>← Voltar ao Blog</a></div>
+        <h1>🛠️ Painel de Administração</h1>
+        
+        <div class='admin-section'>
+            <h2>Estatísticas do Servidor</h2>
+            <div class='stats'>
+                <div class='stat-card'>
+                    <h3>Posts</h3>
+                    <p style='font-size: 2em; margin: 0;'>3</p>
+                </div>
+                <div class='stat-card'>
+                    <h3>Rotas Ativas</h3>
+                    <p style='font-size: 2em; margin: 0;'>6</p>
+                </div>
+                <div class='stat-card'>
+                    <h3>Status</h3>
+                    <p style='font-size: 1.5em; margin: 0; color: green;'>✅ Online</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class='admin-section'>
+            <h2>Rotas Configuradas</h2>
+            <ul>
+                <li><strong>GET</strong> / → Homepage do blog</li>
+                <li><strong>GET</strong> /about → Página sobre</li>
+                <li><strong>GET</strong> /api/posts → Lista de posts (JSON)</li>
+                <li><strong>GET</strong> /api/status → Status do servidor (JSON)</li>
+                <li><strong>GET</strong> /admin → Este painel</li>
+            </ul>
+        </div>
+        
+        <div class='admin-section'>
+            <h2>Ações do Servidor</h2>
+            <p>Controles do servidor seriam implementados aqui:</p>
+            <button onclick='alert(\"Funcionalidade em desenvolvimento!\")'>Reiniciar Servidor</button>
+            <button onclick='alert(\"Logs seriam exibidos aqui!\")'>Ver Logs</button>
+            <button onclick='window.open(\"/api/status\", \"_blank\")'>Status JSON</button>
+        </div>
+    </div>
+</body>
+</html>");
+
+// ========================
+// Inicialização do Servidor
+// ========================
+native_http_server_start("blog");
+
+native_println("✅ Blog Server iniciado com sucesso!");
+native_println("");
+native_println("🌐 Acesse as páginas:");
+native_println("   • Homepage: http://127.0.0.1:3000/");
+native_println("   • Sobre:    http://127.0.0.1:3000/about");
+native_println("   • Admin:    http://127.0.0.1:3000/admin");
+native_println("");
+native_println("🔌 APIs disponíveis:");
+native_println("   • Posts:    http://127.0.0.1:3000/api/posts");
+native_println("   • Status:   http://127.0.0.1:3000/api/status");
+native_println("");
+native_println("Pressione Ctrl+C para parar o servidor...");
+
+// native_sleep(300000);
+
+// Mantém o servidor rodando infinitamente
+while (true) {
+    native_sleep(1000);
+}
+
+// Para o servidor
+native_http_server_stop("blog");
+native_println("🛑 Servidor parado!");

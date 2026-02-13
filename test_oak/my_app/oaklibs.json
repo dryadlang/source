@@ -1,0 +1,16 @@
+{
+  "name": "my_app",
+  "version": "0.1.0",
+  "description": null,
+  "author": null,
+  "license": "MIT",
+  "type": "project",
+  "main": "main.dryad",
+  "dependencies": {
+    "dryad-stdlib": "0.1.0"
+  },
+  "scripts": {
+    "start": "oak exec main.dryad",
+    "test": "oak exec tests/test.dryad"
+  }
+}

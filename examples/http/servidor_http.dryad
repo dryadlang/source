@@ -1,0 +1,114 @@
+// 🌐 Exemplo de Servidor HTTP Simples
+#<http_server>
+#<console_io>
+
+println("=== Servidor HTTP Básico ===");
+
+// Função para servir página inicial
+function pagina_inicial(request) {
+    let html = "<html><head><title>Servidor Dryad</title></head>";
+    html += "<body><h1>Bem-vindo ao Servidor Dryad!</h1>";
+    html += "<p>Este servidor está rodando na linguagem Dryad.</p>";
+    html += "<ul>";
+    html += "<li><a href='/sobre'>Sobre</a></li>";
+    html += "<li><a href='/api/status'>Status API</a></li>";
+    html += "<li><a href='/api/info'>Informações</a></li>";
+    html += "</ul></body></html>";
+    
+    return html;
+}
+
+// Função para página sobre
+function pagina_sobre(request) {
+    let html = "<html><head><title>Sobre - Servidor Dryad</title></head>";
+    html += "<body><h1>Sobre o Servidor Dryad</h1>";
+    html += "<p>Este é um exemplo de servidor HTTP implementado em Dryad.</p>";
+    html += "<p>Versão: 1.0</p>";
+    html += "<p><a href='/'>Voltar</a></p>";
+    html += "</body></html>";
+    
+    return html;
+}
+
+// Função para API de status
+function api_status(request) {
+    let json_resposta = '{"status": "online", "servidor": "Dryad HTTP Server", "timestamp": "2024-01-01T12:00:00Z"}';
+    return json_resposta;
+}
+
+// Função para API de informações
+function api_info(request) {
+    let json_resposta = '{"linguagem": "Dryad", "versao": "1.0", "recursos": ["HTTP Server", "File I/O", "TCP/UDP", "Crypto"]}';
+    return json_resposta;
+}
+
+// Função principal do servidor
+function iniciar_servidor() {
+    println("Criando servidor HTTP na porta 8080...");
+    
+    let servidor = create_server();
+    if (servidor == null) {
+        println("❌ Erro ao criar servidor");
+        return;
+    }
+    
+    println("✅ Servidor criado!");
+    
+    // Configurar rotas
+    println("Configurando rotas...");
+    
+    // Rota principal
+    server_route(servidor, "GET", "/", pagina_inicial);
+    
+    // Rota sobre
+    server_route(servidor, "GET", "/sobre", pagina_sobre);
+    
+    // Rotas API
+    server_route(servidor, "GET", "/api/status", api_status);
+    server_route(servidor, "GET", "/api/info", api_info);
+    
+    // Iniciar servidor
+    println("Iniciando servidor na porta 8080...");
+    println("Acesse: http://localhost:8080");
+    println("Pressione Ctrl+C para parar o servidor");
+    
+    let resultado = listen(servidor, 8080);
+    if (resultado) {
+        println("✅ Servidor iniciado com sucesso!");
+        println("Aguardando conexões...");
+        
+        // Em implementação real, o servidor ficaria em loop
+        // aguardando requisições aqui
+        
+    } else {
+        println("❌ Erro ao iniciar servidor na porta 8080");
+    }
+}
+
+// Função para demonstrar cliente e servidor juntos
+function testar_servidor_local() {
+    println("\n=== Teste do Servidor Local ===");
+    
+    // Note: Em um ambiente real, você iniciaria o servidor em uma thread
+    // e então faria requisições para ele
+    
+    println("Para testar manualmente:");
+    println("1. Execute este script para iniciar o servidor");
+    println("2. Abra http://localhost:8080 no navegador");
+    println("3. Ou use curl:");
+    println("   curl http://localhost:8080");
+    println("   curl http://localhost:8080/api/status");
+    println("   curl http://localhost:8080/api/info");
+}
+
+// Executar exemplo
+println("Exemplo de Servidor HTTP em Dryad");
+println("Escolha uma opção:");
+println("1. Iniciar servidor (comentado para demonstração)");
+println("2. Mostrar instruções de teste");
+
+// Para demonstração, mostramos as instruções
+// Em ambiente real, descomente a linha abaixo:
+// iniciar_servidor();
+
+testar_servidor_local();

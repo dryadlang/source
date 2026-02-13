@@ -1,0 +1,247 @@
+
+// Greenleaf - Math Arrays
+// Multidimensional array support
+
+export class Array {
+    data = [];
+    shape = [];
+    size = 0;
+
+    constructor(data, shape) {
+        if (shape == null) {
+            // Infer shape from data (assuming 1D for simple list)
+            // TODO: Implement recursive shape inference for nested lists
+            this.shape = [data.length];
+        } else {
+            this.shape = shape;
+        }
+        
+        // Flatten data if needed or verify size
+        // For simplicity in v0.1, we assume data is a flat list matching shape size
+        this.data = data;
+        
+        let s = 1;
+        for (let i = 0; i < this.shape.length; i++) {
+            s = s * this.shape[i];
+        }
+        this.size = s;
+        
+        if (this.data.length != this.size) {
+            // In a real implementation we would throw an error here
+            println("Error: Data length does not match shape size.");
+        }
+    }
+
+    sum() {
+        let s = 0;
+        for (let i = 0; i < this.data.length; i++) {
+            s = s + this.data[i];
+        }
+        return s;
+    }
+
+    mean() {
+        if (this.size == 0) return 0;
+        return this.sum() / this.size;
+    }
+
+    min() {
+        if (this.size == 0) return null;
+        let m = this.data[0];
+        for (let i = 1; i < this.data.length; i++) {
+            if (this.data[i] < m) {
+                m = this.data[i];
+            }
+        }
+        return m;
+    }
+
+    max() {
+        if (this.size == 0) return null;
+        let m = this.data[0];
+        for (let i = 1; i < this.data.length; i++) {
+            if (this.data[i] > m) {
+                m = this.data[i];
+            }
+        }
+        return m;
+    }
+
+    // Index calculation for multidimensional access
+    _get_index(indices) {
+        let idx = 0;
+        let stride = 1;
+        // Row-major order (last index varies fastest)
+        // index = i*dim1*dim2... + j*dim2... + ...
+        // Actually for [i, j, k] with shape [D0, D1, D2]
+        // index = i*(D1*D2) + j*(D2) + k
+        
+        let current_stride = 1;
+        for (let i = this.shape.length - 1; i >= 0; i--) {
+            idx = idx + indices[i] * current_stride;
+            current_stride = current_stride * this.shape[i];
+        }
+        return idx;
+    }
+
+    get(indices) {
+        let idx = this._get_index(indices);
+        if (idx >= 0 && idx < this.data.length) {
+            return this.data[idx];
+        }
+        return null;
+    }
+
+    set(indices, value) {
+        let idx = this._get_index(indices);
+        if (idx >= 0 && idx < this.data.length) {
+            this.data[idx] = value;
+        }
+    }
+    
+    to_string() {
+        // Simple string representation
+        return "Array(shape=" + this.shape + ", data=" + this.data + ")";
+    }
+}
+
+// Creation functions
+
+export function zeros(shape) {
+    let size = 1;
+    for (let i = 0; i < shape.length; i++) {
+        size = size * shape[i];
+    }
+    
+    let data = [];
+    for (let i = 0; i < size; i++) {
+        data = data + [0]; // Append 0
+    }
+    
+    return new Array(data, shape);
+}
+
+export function ones(shape) {
+    let size = 1;
+    for (let i = 0; i < shape.length; i++) {
+        size = size * shape[i];
+    }
+    
+    let data = [];
+    for (let i = 0; i < size; i++) {
+        data = data + [1];
+    }
+    
+    return new Array(data, shape);
+}
+
+export function arange(start, stop, step) {
+    let data = [];
+    let current = start;
+    while (current < stop) {
+        data = data + [current];
+        current = current + step;
+    }
+    // Shape is 1D: [length]
+    let shape = [data.length];
+    return new Array(data, shape);
+}
+
+export function eye(n) {
+    let size = n * n;
+    let data = [];
+    for (let i = 0; i < n; i++) {
+        for (let j = 0; j < n; j++) {
+            if (i == j) {
+                data = data + [1];
+            } else {
+                data = data + [0];
+            }
+        }
+    }
+    return new Array(data, [n, n]);
+}
+
+// Operations
+
+export function add_arrays(a, b) {
+    if (a.size != b.size) {
+        println("Error: Array sizes do not match for addition");
+        return null;
+    }
+    
+    let result_data = [];
+    for (let i = 0; i < a.data.length; i++) {
+        result_data = result_data + [a.data[i] + b.data[i]];
+    }
+    
+    return new Array(result_data, a.shape);
+}
+
+export function multiply_arrays(a, b) {
+    if (a.size != b.size) {
+        println("Error: Array sizes do not match for multiplication");
+        return null;
+    }
+    
+    let result_data = [];
+    for (let i = 0; i < a.data.length; i++) {
+        result_data = result_data + [a.data[i] * b.data[i]];
+    }
+    
+    return new Array(result_data, a.shape);
+}
+
+export function dot(a, b) {
+    // Basic dot product for 1D arrays
+    // For matrices, it's matrix multiplication
+    
+    if (a.shape.length == 1 && b.shape.length == 1) {
+        if (a.size != b.size) {
+             println("Error: vector lengths differ for dot product");
+             return null;
+        }
+        let s = 0;
+        for (let i = 0; i < a.size; i++) {
+            s = s + (a.data[i] * b.data[i]);
+        }
+        return s;
+    }
+    
+    // Matrix multiplication
+    // A: (m x n), B: (n x p) -> Result: (m x p)
+    if (a.shape.length == 2 && b.shape.length == 2) {
+        let m = a.shape[0];
+        let n = a.shape[1];
+        let n_b = b.shape[0];
+        let p = b.shape[1];
+        
+        if (n != n_b) {
+            println("Error: Inner dimensions must match for matrix multiplication");
+            return null;
+        }
+        
+        let res_data = [];
+        let res_shape = [m, p];
+        
+        // initialize with zeros
+        for(let k=0; k < m * p; k++) { res_data = res_data + [0]; }
+        let res = new Array(res_data, res_shape);
+        
+        for (let i = 0; i < m; i++) {
+            for (let j = 0; j < p; j++) {
+                let sum = 0;
+                for (let k = 0; k < n; k++) {
+                     let val_a = a.get([i, k]);
+                     let val_b = b.get([k, j]);
+                     sum = sum + val_a * val_b;
+                }
+                res.set([i, j], sum);
+            }
+        }
+        return res;
+    }
+    
+    println("Error: dot product currently only supports 1D vectors and 2D matrices");
+    return null;
+}

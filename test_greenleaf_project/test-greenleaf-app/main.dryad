@@ -1,0 +1,6 @@
+// test-greenleaf-app/main.dryad
+// Projeto Dryad gerado pelo Oak
+
+#<console_io>
+
+print("Hello World from test-greenleaf-app!");

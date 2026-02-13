@@ -1,0 +1,235 @@
+
+// Greenleaf - Math Statistics
+// Statistical analysis tools
+
+import { PI, sqrt, exp, pow } from "../scientific/functions"; // Assuming these will be implemented
+
+export class Statistics {
+    data = [];
+    n = 0;
+    _sorted = null;
+
+    constructor(data) {
+        this.data = data;
+        this.n = data.length;
+    }
+
+    mean() {
+        if (this.n == 0) return 0;
+        let sum = 0;
+        for (let i = 0; i < this.n; i++) {
+            sum = sum + this.data[i];
+        }
+        return sum / this.n;
+    }
+
+    _sort_data() {
+        if (this._sorted != null) return this._sorted;
+        
+        // Simple bubble sort for now
+        let arr = [];
+        for(let i=0; i<this.n; i++) arr = arr + [this.data[i]]; // Copy
+        
+        for (let i = 0; i < this.n; i++) {
+            for (let j = 0; j < this.n - i - 1; j++) {
+                if (arr[j] > arr[j + 1]) {
+                    let temp = arr[j];
+                    arr[j] = arr[j + 1];
+                    arr[j + 1] = temp;
+                }
+            }
+        }
+        this._sorted = arr;
+        return arr;
+    }
+
+    median() {
+        if (this.n == 0) return 0;
+        let sorted = this._sort_data();
+        let mid = this.n / 2; // integer division? Dryad numbers are floats.
+        // need integer casting or floor. 
+        // Assuming integer division/floor not available directly? 
+        // Let's implement floor manually if needed or assume int conversion logic
+        
+        let mid_idx = 0;
+        // Hacky floor
+        for(let i=0; i<=mid; i++) mid_idx = i;
+        
+        if (this.n % 2 == 0) {
+           // Even number of elements
+           return (sorted[mid_idx - 1] + sorted[mid_idx]) / 2.0;
+        } else {
+           return sorted[mid_idx];
+        }
+    }
+
+    mode() {
+        if (this.n == 0) return null;
+        let counts = {};
+        let max_count = 0;
+        let mode_val = this.data[0];
+
+        for (let i = 0; i < this.n; i++) {
+            let val = this.data[i];
+            let key = "" + val; // force string key
+            if (counts[key] == null) {
+                counts[key] = 0;
+            }
+            counts[key] = counts[key] + 1;
+            
+            if (counts[key] > max_count) {
+                max_count = counts[key];
+                mode_val = val;
+            }
+        }
+        return mode_val;
+    }
+
+    variance() {
+        if (this.n < 2) return 0;
+        let m = this.mean();
+        let sum_sq_diff = 0;
+        for (let i = 0; i < this.n; i++) {
+            let diff = this.data[i] - m;
+            sum_sq_diff = sum_sq_diff + (diff * diff);
+        }
+        return sum_sq_diff / (this.n - 1); // Sample variance
+    }
+
+    std_dev() {
+        return sqrt(this.variance());
+    }
+
+    min() {
+        if (this.n == 0) return null;
+        let m = this.data[0];
+        for (let i = 1; i < this.n; i++) {
+            if (this.data[i] < m) m = this.data[i];
+        }
+        return m;
+    }
+
+    max() {
+        if (this.n == 0) return null;
+        let m = this.data[0];
+        for (let i = 1; i < this.n; i++) {
+            if (this.data[i] > m) m = this.data[i];
+        }
+        return m;
+    }
+    
+    quartile(q) {
+        // q is 0.25, 0.5, 0.75
+        let sorted = this._sort_data();
+        let pos = (this.n - 1) * q;
+        let base = 0; 
+        for(let i=0; i<=pos; i++) base = i; // floor
+        let rest = pos - base;
+        
+        if ((base + 1) < this.n) {
+            return sorted[base] + rest * (sorted[base + 1] - sorted[base]);
+        } else {
+            return sorted[base];
+        }
+    }
+    
+    iqr() {
+        return this.quartile(0.75) - this.quartile(0.25);
+    }
+}
+
+// Functions
+
+export function correlation(x, y) {
+    if (x.length != y.length) {
+        println("Error: Arrays must have same length for correlation");
+        return 0;
+    }
+    
+    let sx = new Statistics(x);
+    let sy = new Statistics(y);
+    
+    let mx = sx.mean();
+    let my = sy.mean();
+    
+    let numerator = 0;
+    let denom_x = 0;
+    let denom_y = 0;
+    
+    for (let i = 0; i < x.length; i++) {
+        let dx = x[i] - mx;
+        let dy = y[i] - my;
+        numerator = numerator + (dx * dy);
+        denom_x = denom_x + (dx * dx);
+        denom_y = denom_y + (dy * dy);
+    }
+    
+    if (denom_x == 0 || denom_y == 0) return 0;
+    
+    return numerator / sqrt(denom_x * denom_y);
+}
+
+export function covariance(x, y) {
+    if (x.length != y.length) return 0;
+    let sx = new Statistics(x);
+    let sy = new Statistics(y);
+    let mx = sx.mean();
+    let my = sy.mean();
+    
+    let sum = 0;
+    for (let i = 0; i < x.length; i++) {
+        sum = sum + ((x[i] - mx) * (y[i] - my));
+    }
+    return sum / (x.length - 1);
+}
+
+export function normal_pdf(x, mean, std) {
+    let variance = std * std;
+    let exponent = -((x - mean) * (x - mean)) / (2 * variance);
+    return (1 / (std * sqrt(2 * PI))) * exp(exponent);
+}
+
+// Approximation of Error Function for CDF
+function erf(x) {
+    // Save the sign of x
+    let sign = 1;
+    if (x < 0) sign = -1;
+    x = Math.abs(x); // Need abs... let's implement if not available
+    if (x < 0) x = -x; // simple abs
+
+    // Constants
+    let a1 =  0.254829592;
+    let a2 = -0.284496736;
+    let a3 =  1.421413741;
+    let a4 = -1.453152027;
+    let a5 =  1.061405429;
+    let p  =  0.3275911;
+
+    let t = 1.0 / (1.0 + p * x);
+    let y = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * exp(-x * x);
+
+    return sign * y;
+}
+
+export function normal_cdf(x, mean, std) {
+    return 0.5 * (1 + erf((x - mean) / (std * sqrt(2))));
+}
+
+export function t_test(sample1, sample2) {
+    let s1 = new Statistics(sample1);
+    let s2 = new Statistics(sample2);
+    
+    let m1 = s1.mean();
+    let m2 = s2.mean();
+    
+    let v1 = s1.variance();
+    let v2 = s2.variance();
+    
+    let n1 = sample1.length;
+    let n2 = sample2.length;
+    
+    let pooled_std = sqrt(v1/n1 + v2/n2);
+    if (pooled_std == 0) return 0;
+    
+    return (m1 - m2) / pooled_std;
+}

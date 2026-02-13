@@ -1,0 +1,12 @@
+[package]
+name = "dryad_parser"
+version = "0.1.0"
+edition = "2021"
+description = "Parser (análise sintática) para a linguagem Dryad"
+
+[dependencies]
+dryad_errors = { workspace = true }
+dryad_lexer = { workspace = true }
+
+[dev-dependencies]
+dryad_lexer = { workspace = true }

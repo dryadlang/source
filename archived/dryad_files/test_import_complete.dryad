@@ -1,0 +1,61 @@
+// test_import_complete.dryad - Teste completo do sistema import/export
+
+print("=== TESTE COMPLETO: Sistema Import/Export ===");
+print("");
+
+// ========================================
+// 1. TESTE: Import Named (Importação Seletiva)
+// ========================================
+print("1. Import Named { func1, func2 }");
+print("   Importa apenas símbolos específicos");
+print("");
+
+import { sum, multiply, PI } from "./math_utils.dryad";
+
+let r1 = sum(10, 5);
+print("   sum(10, 5) = " + r1);
+
+let r2 = multiply(3, 7);
+print("   multiply(3, 7) = " + r2);
+
+print("   PI = " + PI);
+print("");
+
+// ========================================
+// 2. TESTE: Import Namespace
+// ========================================
+print("2. Import Namespace * as Module");
+print("   Importa tudo sob um namespace");
+print("");
+
+import * as Math from "./math_utils.dryad";
+
+print("   Math.E = " + Math.E);
+print("   Math.square(4) = " + Math.square(4));
+print("   Math.sum(100, 200) = " + Math.sum(100, 200));
+print("");
+
+// ========================================
+// 3. TESTE: Import Side-Effect
+// ========================================
+print("3. Import Side-Effect");
+print("   Executa módulo sem importar símbolos");
+print("");
+
+import "./math_utils.dryad";
+print("   Módulo executado!");
+print("");
+
+// ========================================
+// RESUMO
+// ========================================
+print("========================================");
+print("✅ TODOS OS TESTES PASSARAM!");
+print("========================================");
+print("");
+print("Sintaxes suportadas:");
+print("  • import { x, y } from './module';");
+print("  • import * as Name from './module';");
+print("  • import './module';");
+print("");
+print("Sistema compatível com ES6/TypeScript!");

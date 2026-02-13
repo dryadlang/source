@@ -1,0 +1,110 @@
+// 🌐 Exemplo de Cliente HTTP
+#<http_client>
+#<console_io>
+
+println("=== Cliente HTTP ===");
+
+// Configurações globais do cliente HTTP
+println("Configurando cliente HTTP...");
+http_set_timeout(10000); // 10 segundos
+http_set_user_agent("Dryad-HTTP-Client/1.0");
+
+// GET simples
+println("\n=== Requisição GET ===");
+let url_get = "https://httpbin.org/get";
+println("Fazendo GET para: " + url_get);
+
+let resposta_get = http_get(url_get);
+if (resposta_get != null) {
+    println("✅ GET bem-sucedido!");
+    println("Resposta: " + resposta_get);
+} else {
+    println("❌ Erro na requisição GET");
+}
+
+// GET com parâmetros
+println("\n=== GET com Parâmetros ===");
+let url_params = "https://httpbin.org/get?nome=Dryad&versao=1.0";
+let resposta_params = http_get(url_params);
+if (resposta_params != null) {
+    println("✅ GET com parâmetros bem-sucedido!");
+} else {
+    println("❌ Erro na requisição GET com parâmetros");
+}
+
+// Verificar status da última requisição
+let status = http_status();
+println("Status da última requisição: " + status);
+
+// Headers customizados
+println("\n=== Headers Customizados ===");
+http_set_headers("Content-Type: application/json\nAuthorization: Bearer token123");
+let url_headers = "https://httpbin.org/headers";
+let resposta_headers = http_get(url_headers);
+if (resposta_headers != null) {
+    println("✅ GET com headers customizados!");
+} else {
+    println("❌ Erro na requisição com headers");
+}
+
+// POST com dados
+println("\n=== Requisição POST ===");
+let url_post = "https://httpbin.org/post";
+let dados_post = '{"nome": "Dryad", "tipo": "linguagem", "versao": "1.0"}';
+
+println("Fazendo POST para: " + url_post);
+println("Dados: " + dados_post);
+
+let resposta_post = http_post(url_post, dados_post);
+if (resposta_post != null) {
+    println("✅ POST bem-sucedido!");
+    println("Resposta: " + resposta_post);
+} else {
+    println("❌ Erro na requisição POST");
+}
+
+// Download de arquivo
+println("\n=== Download de Arquivo ===");
+let url_download = "https://httpbin.org/json";
+let arquivo_destino = "download_teste.json";
+
+println("Baixando: " + url_download);
+println("Destino: " + arquivo_destino);
+
+let sucesso_download = http_download(url_download, arquivo_destino);
+if (sucesso_download) {
+    println("✅ Download concluído!");
+} else {
+    println("❌ Erro no download");
+}
+
+// Tratamento de JSON
+println("\n=== Processamento de JSON ===");
+let url_json = "https://httpbin.org/json";
+let json_resposta = http_json(url_json);
+if (json_resposta != null) {
+    println("✅ JSON recebido e processado!");
+    println("Dados JSON: " + json_resposta);
+} else {
+    println("❌ Erro ao processar JSON");
+}
+
+// Função utilitária para testar conectividade
+function testar_conectividade(url) {
+    println("Testando conectividade para: " + url);
+    let resultado = http_get(url);
+    let status = http_status();
+    
+    if (resultado != null && status == 200) {
+        println("✅ Conectividade OK (Status: " + status + ")");
+        return true;
+    } else {
+        println("❌ Problema de conectividade (Status: " + status + ")");
+        return false;
+    }
+}
+
+println("\n=== Teste de Conectividade ===");
+testar_conectividade("https://httpbin.org/status/200");
+testar_conectividade("https://httpbin.org/status/404");
+testar_conectividade("https://httpbin.org/status/500");

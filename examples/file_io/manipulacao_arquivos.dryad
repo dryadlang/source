@@ -1,0 +1,101 @@
+// 📁 Exemplos de File I/O
+#<file_io>
+#<console_io>
+
+println("=== Operações Básicas com Arquivos ===");
+
+// Escrever arquivo
+let conteudo = "Este é um arquivo de exemplo criado pelo Dryad!\nLinha 2: Teste de escrita\nLinha 3: Data de criação: " + "2024";
+let arquivo = "exemplo.txt";
+
+println("Escrevendo arquivo: " + arquivo);
+write_file(arquivo, conteudo);
+
+if (file_exists(arquivo)) {
+    println("✅ Arquivo criado com sucesso!");
+} else {
+    println("❌ Erro ao criar arquivo");
+}
+
+// Ler arquivo
+println("\n=== Lendo Arquivo ===");
+if (file_exists(arquivo)) {
+    let conteudo_lido = read_file(arquivo);
+    println("Conteúdo do arquivo:");
+    println("---");
+    println(conteudo_lido);
+    println("---");
+} else {
+    println("Arquivo não encontrado!");
+}
+
+// Anexar conteúdo
+println("\n=== Anexando Conteúdo ===");
+let conteudo_adicional = "\nLinha anexada: Novo conteúdo!";
+append_file(arquivo, conteudo_adicional);
+println("Conteúdo anexado!");
+
+// Ler arquivo atualizado
+let conteudo_final = read_file(arquivo);
+println("Conteúdo final:");
+println("---");
+println(conteudo_final);
+println("---");
+
+// Informações do arquivo
+println("\n=== Informações do Arquivo ===");
+let info = get_file_info(arquivo);
+println("Informações de: " + arquivo);
+// Note: Em implementação real, info seria um objeto com propriedades
+
+// Operações de diretório
+println("\n=== Operações de Diretório ===");
+let dir_teste = "teste_dir";
+
+println("Criando diretório: " + dir_teste);
+mkdir(dir_teste);
+
+if (is_dir(dir_teste)) {
+    println("✅ Diretório criado!");
+} else {
+    println("❌ Erro ao criar diretório");
+}
+
+// Listar diretório atual
+println("\n=== Listando Diretório Atual ===");
+let arquivos = list_dir(".");
+println("Arquivos no diretório atual:");
+// Note: em implementação real, arquivos seria uma lista
+
+// Copiar arquivo
+println("\n=== Copiando Arquivo ===");
+let arquivo_copia = "exemplo_copia.txt";
+copy_file(arquivo, arquivo_copia);
+
+if (file_exists(arquivo_copia)) {
+    println("✅ Arquivo copiado para: " + arquivo_copia);
+} else {
+    println("❌ Erro ao copiar arquivo");
+}
+
+// Mover arquivo
+println("\n=== Movendo Arquivo ===");
+let arquivo_movido = "exemplo_movido.txt";
+move_file(arquivo_copia, arquivo_movido);
+
+if (file_exists(arquivo_movido) && !file_exists(arquivo_copia)) {
+    println("✅ Arquivo movido de " + arquivo_copia + " para " + arquivo_movido);
+} else {
+    println("❌ Erro ao mover arquivo");
+}
+
+// Limpeza
+println("\n=== Limpeza ===");
+delete_file(arquivo);
+delete_file(arquivo_movido);
+println("Arquivos removidos para limpeza");
+
+// Verificar diretório de trabalho
+println("\n=== Diretório de Trabalho ===");
+let dir_atual = getcwd();
+println("Diretório atual: " + dir_atual);

@@ -1,0 +1,156 @@
+function assert(cond, msg) {
+    if (!cond) {
+        print("FAIL: " + msg);
+    } else {
+        print("PASS: " + msg);
+    }
+}
+
+print("--- Testing Array Methods ---");
+
+// Basic
+print("\n[Basic Methods]");
+let arr = [1, 2, 3];
+assert(arr.length() == 3, "length initial");
+arr.push(4);
+assert(arr.length() == 4, "push length");
+assert(arr[3] == 4, "push value");
+let popped = arr.pop();
+assert(popped == 4, "pop value");
+assert(arr.length() == 3, "pop length");
+
+arr.unshift(0);
+assert(arr[0] == 0, "unshift value");
+assert(arr.length() == 4, "unshift length");
+let shifted = arr.shift();
+assert(shifted == 0, "shift value");
+assert(arr.length() == 3, "shift length");
+
+// Mapping & Filtering
+print("\n[Mapping & Filtering]");
+let arr2 = [1, 2, 3, 4];
+let mapped = arr2.map(x => x * 2);
+assert(mapped[0] == 2 && mapped[3] == 8, "map");
+
+let filtered = arr2.filter(x => x > 2);
+assert(filtered.length() == 2, "filter length");
+assert(filtered[0] == 3, "filter value");
+
+let sum = arr2.reduce((acc, x) => acc + x, 0);
+assert(sum == 10, "reduce sum");
+
+let sumRight = ["a", "b", "c"].reduceRight((acc, x) => acc + x, "");
+assert(sumRight == "cba", "reduceRight");
+
+// Search & Inspection
+print("\n[Search & Inspection]");
+let searchArr = [10, 20, 30, 20];
+assert(searchArr.includes(20), "includes true");
+assert(!searchArr.includes(40), "includes false");
+assert(searchArr.indexOf(20) == 1, "indexOf");
+assert(searchArr.lastIndexOf(20) == 3, "lastIndexOf");
+
+let found = searchArr.find(x => x > 25);
+assert(found == 30, "find");
+let foundIdx = searchArr.findIndex(x => x > 25);
+assert(foundIdx == 2, "findIndex");
+
+assert(searchArr.some(x => x > 25), "some true");
+assert(!searchArr.some(x => x > 100), "some false");
+assert(searchArr.every(x => x > 0), "every true");
+assert(!searchArr.every(x => x > 20), "every false");
+
+// Transformation & Ordering
+print("\n[Transformation & Ordering]");
+let sortArr = [3, 1, 4, 1, 5, 9];
+sortArr.sort();
+assert(sortArr[0] == 1 && sortArr[5] == 9, "sort default (numeric)");
+
+let sortArr2 = [10, 2];
+sortArr2.sort((a, b) => a - b); // Numeric sort
+assert(sortArr2[0] == 2, "sort callback numeric");
+
+let revArr = [1, 2, 3];
+revArr.reverse();
+assert(revArr[0] == 3, "reverse");
+
+let sliceArr = [1, 2, 3, 4, 5];
+let sliced = sliceArr.slice(1, 3);
+assert(sliced.length() == 2 && sliced[0] == 2 && sliced[1] == 3, "slice");
+
+let spliceArr = [1, 2, 3, 4, 5];
+let spliced = spliceArr.splice(1, 2); // remove 2, 3
+assert(spliced.length() == 2 && spliced[0] == 2, "splice removed");
+assert(spliceArr.length() == 3 && spliceArr[1] == 4, "splice remaining");
+
+let concatArr = [1].concat([2], 3);
+assert(concatArr.length() == 3 && concatArr[2] == 3, "concat");
+
+let joined = ["a", "b"].join("-");
+assert(joined == "a-b", "join");
+
+let fillArr = [1, 2, 3];
+fillArr.fill(0);
+assert(fillArr[0] == 0 && fillArr[2] == 0, "fill");
+
+// Advanced
+print("\n[Advanced]");
+let dupArr = [1, 2, 2, 3];
+let uniq = dupArr.unique();
+assert(uniq.length() == 3, "unique length");
+
+let flatArr = [1, [2, 3], [4, [5]]];
+let flattened = flatArr.flat();
+// [1, 2, 3, 4, [5]]
+assert(flattened.length() == 5, "flat depth 1");
+assert(flattened[0] == 1, "flat 0");
+// flattened[4] is [5].
+// Dryad array access. flattened[4][0] == 5?
+// assert(flattened[4][0] == 5, "flat nested"); // Index access on expr result? Parser supports expr[index].
+
+let deepFlat = flatArr.flat(2);
+assert(deepFlat.length() == 5, "flat depth 2"); 
+// flat(2) on [1, [2, 3], [4, [5]]] -> [1, 2, 3, 4, 5]
+// Wait.
+// flat(1) on [1, [2, 3], [4, [5]]]
+// 1 -> 1
+// [2, 3] -> 2, 3
+// [4, [5]] -> 4, [5]
+// Result: [1, 2, 3, 4, [5]]. Len 5.
+
+assert(deepFlat[4] == 5, "flat depth 2 value");
+
+let flatMapArr = [1, 2];
+let flatMapped = flatMapArr.flatMap(x => [x, x * 2]);
+// [1, 2, 2, 4]
+assert(flatMapped.length() == 4, "flatMap length");
+assert(flatMapped[3] == 4, "flatMap value");
+
+let atArr = [10, 20, 30];
+assert(atArr.at(0) == 10, "at pos");
+assert(atArr.at(-1) == 30, "at neg");
+
+// New tests for missing methods
+print("\n[Missing Advanced Methods]");
+let chunkArray = [1, 2, 3, 4, 5];
+let chunks = chunkArray.chunk(2);
+assert(chunks.length() == 3 && chunks[0].length() == 2 && chunks[2].length() == 1, "chunk");
+
+function getEvenOdd(n) {
+    if (n % 2 == 0) { return "even"; }
+    return "odd";
+}
+let groupByArray = [1, 2, 3, 4, 5, 6];
+let groups = groupByArray.groupBy(getEvenOdd);
+assert(groups["even"].length() == 3 && groups["odd"].length() == 3, "groupBy");
+
+let array1 = [1, 2, 3];
+let array2 = ["a", "b", "c"];
+let zipped = array1.zip(array2);
+assert(zipped.length() == 3 && zipped[0][0] == 1 && zipped[0][1] == "a", "zip");
+
+let revMapArray = [1, 2, 3];
+let revMapped = revMapArray.reverseMap(n => n * 2);
+assert(revMapped.length() == 3 && revMapped[0] == 6 && revMapped[2] == 2, "reverseMap");
+
+print("\nAll tests completed!");

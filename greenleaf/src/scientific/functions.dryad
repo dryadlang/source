@@ -1,0 +1,184 @@
+
+// Greenleaf - Scientific Functions
+// Pure Dryad implementation of mathematical functions
+
+// Constants
+export const PI = 3.141592653589793;
+export const E = 2.718281828459045;
+export const GOLDEN_RATIO = 1.618033988749895;
+export const EULER_GAMMA = 0.5772156649015329;
+
+// Basic Functions
+
+export function abs(x) {
+    if (x < 0) return -x;
+    return x;
+}
+
+export function pow(base, exponent) {
+    // Integer exponentiation for now, or use exp(y * ln(x)) for float
+    // If exponent is integer
+    if (exponent % 1 == 0) {
+        let res = 1;
+        for (let i = 0; i < abs(exponent); i++) {
+            res = res * base;
+        }
+        if (exponent < 0) return 1/res;
+        return res;
+    }
+    // Float exponent approximation: x^y = e^(y * ln(x))
+    return exp(exponent * ln(base));
+}
+
+export function sqrt(x) {
+    if (x < 0) return null; // NaN
+    if (x == 0) return 0;
+    
+    // Newton's method
+    let z = x;
+    for (let i = 0; i < 10; i++) {
+        z = z - (z*z - x) / (2*z);
+    }
+    return z;
+}
+
+export function factorial(n) {
+    if (n < 0) return null;
+    if (n == 0) return 1;
+    let res = 1;
+    for (let i = 1; i <= n; i++) {
+        res = res * i;
+    }
+    return res;
+}
+
+// Trigonometric Functions (Taylor Series)
+
+export function sin(x) {
+    // Normalize x to -PI to PI
+    // x = x % (2 * PI); // Modulo for floats?
+    // approximation
+    let term = x;
+    let sum = x;
+    let x2 = x * x;
+    
+    // Taylor series: x - x^3/3! + x^5/5! - ...
+    for (let i = 1; i < 10; i++) {
+        term = -term * x2 / ((2*i) * (2*i+1));
+        sum = sum + term;
+    }
+    return sum;
+}
+
+export function cos(x) {
+    // Taylor series: 1 - x^2/2! + x^4/4! - ...
+    let term = 1;
+    let sum = 1;
+    let x2 = x * x;
+    
+    for (let i = 1; i < 10; i++) {
+        term = -term * x2 / ((2*i-1) * (2*i));
+        sum = sum + term;
+    }
+    return sum;
+}
+
+export function tan(x) {
+    return sin(x) / cos(x);
+}
+
+// Exponential and Logarithmic
+
+export function exp(x) {
+    // Taylor series: 1 + x + x^2/2! + ...
+    let term = 1;
+    let sum = 1;
+    
+    for (let i = 1; i < 20; i++) {
+        term = term * x / i;
+        sum = sum + term;
+    }
+    return sum;
+}
+
+export function ln(x) {
+    if (x <= 0) return null;
+    
+    // Use series for (x-1)/(x+1) : ln(x) = 2 * (y + y^3/3 + y^5/5 + ...) where y = (x-1)/(x+1)
+    let y = (x - 1) / (x + 1);
+    let y2 = y * y;
+    let term = y;
+    let sum = y;
+    
+    for (let i = 1; i < 10; i++) {
+         term = term * y2;
+         sum = sum + term / (2*i + 1);
+    }
+    return 2 * sum;
+}
+
+export function log10(x) {
+    return ln(x) / ln(10);
+}
+
+// Hyperbolic
+
+export function sinh(x) {
+    return (exp(x) - exp(-x)) / 2;
+}
+
+export function cosh(x) {
+    return (exp(x) + exp(-x)) / 2;
+}
+
+export function tanh(x) {
+    return sinh(x) / cosh(x);
+}
+
+// Numerical Calculus
+
+export function integrate_numerical(f, a, b, n) {
+    // Trapezoidal rule
+    let h = (b - a) / n;
+    let sum = 0.5 * (f(a) + f(b));
+    for (let i = 1; i < n; i++) {
+        let x = a + i * h;
+        sum = sum + f(x);
+    }
+    return sum * h;
+}
+
+export function derivative_numerical(f, x, h) {
+    // Central difference
+    if (h == null) h = 0.0001;
+    return (f(x + h) - f(x - h)) / (2 * h);
+}
+
+export function find_root(f, a, b, tol) {
+    // Bisection method
+    // Assumes f(a) and f(b) have opposite signs
+    let fa = f(a);
+    let fb = f(b);
+    
+    if (fa * fb > 0) {
+        println("Error: f(a) and f(b) must have opposite signs");
+        return null;
+    }
+    
+    let mid = (a + b) / 2;
+    while ((b - a) / 2 > tol) {
+        mid = (a + b) / 2;
+        let fmid = f(mid);
+        
+        if (fmid == 0) return mid;
+        
+        if (fa * fmid < 0) {
+            b = mid;
+            fb = fmid;
+        } else {
+            a = mid;
+            fa = fmid;
+        }
+    }
+    return mid;
+}

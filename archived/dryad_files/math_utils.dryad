@@ -1,0 +1,21 @@
+// math_utils.dryad - Módulo de exemplo para testes de import/export
+
+export let PI = 3.14159;
+export let E = 2.71828;
+
+export function sum(a, b) {
+    return a + b;
+}
+
+export function multiply(a, b) {
+    return a * b;
+}
+
+export function square(x) {
+    return x * x;
+}
+
+// Esta função não é exportada
+function helper() {
+    return "helper interno";
+}

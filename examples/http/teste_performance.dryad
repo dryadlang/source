@@ -1,0 +1,270 @@
+// Teste de Performance: HTTP Client vs Server
+// Arquivo: http_performance_test.dryad
+
+#<http_client>
+#<http_server>
+#<console_io>
+#<time>
+
+native_println("⚡ TESTE DE PERFORMANCE HTTP");
+native_println("=============================");
+
+// Função para medir tempo
+fn measure_time(description, callback) {
+    let start_time = native_time_now();
+    callback();
+    let end_time = native_time_now();
+    let duration = end_time - start_time;
+    native_println("   ⏱️  " + description + ": " + duration + "ms");
+    return duration;
+}
+
+// ========================
+// PARTE 1: Configuração do Servidor de Teste
+// ========================
+
+native_println("\n🔧 PARTE 1: Configurando Servidor de Performance");
+
+// Cria servidor dedicado para testes
+native_http_server_create("perf_server", "127.0.0.1", 3999);
+
+// Endpoint simples para testes de latência
+native_http_server_json("perf_server", "/ping", '{"pong": true, "timestamp": 1632825600}');
+
+// Endpoint com dados pequenos
+native_http_server_json("perf_server", "/small", 
+'{
+    "id": 1,
+    "status": "ok",
+    "data": "small payload"
+}');
+
+// Endpoint com dados médios
+let medium_data = '{"users": [';
+for (let i = 1; i <= 100; i++) {
+    medium_data = medium_data + '{"id":' + i + ',"name":"User' + i + '","active":true}';
+    if (i < 100) medium_data = medium_data + ',';
+}
+medium_data = medium_data + '],"total":100}';
+native_http_server_json("perf_server", "/medium", medium_data);
+
+// Endpoint com dados grandes
+let large_data = '{"items": [';
+for (let i = 1; i <= 1000; i++) {
+    large_data = large_data + '{"id":' + i + ',"title":"Item ' + i + 
+                 '","description":"Esta é uma descrição mais longa para o item ' + i + 
+                 ' que contém mais texto para aumentar o payload","category":"test","price":' + 
+                 (i * 10.50) + ',"in_stock":true,"tags":["performance","test","data"]}';
+    if (i < 1000) large_data = large_data + ',';
+}
+large_data = large_data + '],"total":1000,"page_size":1000}';
+native_http_server_json("perf_server", "/large", large_data);
+
+// Endpoint que simula processamento lento
+native_http_server_json("perf_server", "/slow", '{"message": "processed after delay", "delay": "1000ms"}');
+
+native_http_server_start("perf_server");
+native_println("✅ Servidor de performance iniciado na porta 3999");
+
+// Aguarda inicialização
+native_sleep(500);
+
+// ========================
+// PARTE 2: Configuração do Cliente
+// ========================
+
+native_println("\n📡 PARTE 2: Configurando Cliente HTTP");
+
+// Configura cliente otimizado
+native_http_set_user_agent("http://127.0.0.1:3999", "Dryad-Performance-Test/1.0");
+native_http_set_timeout("http://127.0.0.1:3999", 10000);
+native_http_set_headers("http://127.0.0.1:3999", "Connection: keep-alive");
+
+// ========================
+// PARTE 3: Testes de Latência
+// ========================
+
+native_println("\n⚡ PARTE 3: Testes de Latência (múltiplas chamadas)");
+
+let ping_times = [];
+for (let i = 1; i <= 10; i++) {
+    let duration = measure_time("Ping #" + i, fn() {
+        let response = native_http_get("http://127.0.0.1:3999/ping");
+    });
+    ping_times.push(duration);
+}
+
+// Calcula estatísticas de latência
+let total_time = 0;
+let min_time = ping_times[0];
+let max_time = ping_times[0];
+
+for (let time in ping_times) {
+    total_time = total_time + time;
+    if (time < min_time) min_time = time;
+    if (time > max_time) max_time = time;
+}
+
+let avg_time = total_time / ping_times.length;
+
+native_println("\n📊 ESTATÍSTICAS DE LATÊNCIA:");
+native_println("   Mínimo:  " + min_time + "ms");
+native_println("   Máximo:  " + max_time + "ms");
+native_println("   Média:   " + avg_time + "ms");
+native_println("   Total:   " + total_time + "ms");
+
+// ========================
+// PARTE 4: Testes de Throughput
+// ========================
+
+native_println("\n📈 PARTE 4: Testes de Throughput (diferentes tamanhos)");
+
+// Teste com payload pequeno
+let small_duration = measure_time("Payload Pequeno (10 requests)", fn() {
+    for (let i = 1; i <= 10; i++) {
+        let response = native_http_get("http://127.0.0.1:3999/small");
+    }
+});
+
+// Teste com payload médio
+let medium_duration = measure_time("Payload Médio (5 requests)", fn() {
+    for (let i = 1; i <= 5; i++) {
+        let response = native_http_get("http://127.0.0.1:3999/medium");
+    }
+});
+
+// Teste com payload grande
+let large_duration = measure_time("Payload Grande (3 requests)", fn() {
+    for (let i = 1; i <= 3; i++) {
+        let response = native_http_get("http://127.0.0.1:3999/large");
+    }
+});
+
+// ========================
+// PARTE 5: Teste de Concorrência Simulada
+// ========================
+
+native_println("\n🚀 PARTE 5: Teste de Concorrência Simulada");
+
+let concurrent_duration = measure_time("20 requisições em sequência rápida", fn() {
+    for (let i = 1; i <= 20; i++) {
+        let response = native_http_get("http://127.0.0.1:3999/ping");
+        native_sleep(10); // Pequeno delay entre requisições
+    }
+});
+
+// ========================
+// PARTE 6: Teste com APIs Externas
+// ========================
+
+native_println("\n🌐 PARTE 6: Comparação com APIs Externas");
+
+// Configura para API externa
+native_http_set_timeout("https://httpbin.org", 5000);
+
+let external_duration = measure_time("API Externa (httpbin.org)", fn() {
+    let response = native_http_get("https://httpbin.org/json");
+});
+
+// ========================
+// PARTE 7: Teste de Different HTTP Methods
+// ========================
+
+native_println("\n🔄 PARTE 7: Performance de Diferentes Métodos HTTP");
+
+// Adiciona endpoint POST ao servidor
+native_http_server_post("perf_server", "/test-post", '{"received": true, "method": "POST"}');
+
+let get_duration = measure_time("GET requests (5x)", fn() {
+    for (let i = 1; i <= 5; i++) {
+        let response = native_http_get("http://127.0.0.1:3999/ping");
+    }
+});
+
+let post_duration = measure_time("POST requests (5x)", fn() {
+    native_http_set_headers("http://127.0.0.1:3999", "Content-Type: application/json");
+    for (let i = 1; i <= 5; i++) {
+        let response = native_http_post("http://127.0.0.1:3999/test-post", '{"test": true, "iteration": ' + i + '}');
+    }
+});
+
+// ========================
+// PARTE 8: Relatório de Performance
+// ========================
+
+native_println("\n📋 RELATÓRIO DE PERFORMANCE");
+native_println("============================");
+
+native_println("\n🎯 LATÊNCIA:");
+native_println("   • Resposta mais rápida: " + min_time + "ms");
+native_println("   • Resposta mais lenta:  " + max_time + "ms");
+native_println("   • Tempo médio:          " + avg_time + "ms");
+
+native_println("\n📊 THROUGHPUT:");
+native_println("   • Requests pequenos:    " + small_duration + "ms (10 requests)");
+native_println("   • Requests médios:      " + medium_duration + "ms (5 requests)");
+native_println("   • Requests grandes:     " + large_duration + "ms (3 requests)");
+
+native_println("\n🔄 MÉTODOS HTTP:");
+native_println("   • GET Performance:      " + get_duration + "ms");
+native_println("   • POST Performance:     " + post_duration + "ms");
+
+native_println("\n🌐 COMPARAÇÃO:");
+native_println("   • Servidor Local:       " + avg_time + "ms (média)");
+native_println("   • API Externa:          " + external_duration + "ms");
+
+// Calcula métricas de performance
+let local_rps = 10000 / avg_time; // Requests por segundo estimado
+let efficiency = (avg_time < 50) ? "Excelente" : (avg_time < 100) ? "Boa" : "Precisa otimização";
+
+native_println("\n⚡ MÉTRICAS CALCULADAS:");
+native_println("   • RPS Estimado:         " + local_rps + " req/seg");
+native_println("   • Eficiência:           " + efficiency);
+native_println("   • Overhead de Rede:     " + (external_duration - avg_time) + "ms");
+
+// ========================
+// PARTE 9: Recomendações
+// ========================
+
+native_println("\n💡 RECOMENDAÇÕES DE OTIMIZAÇÃO:");
+
+if (avg_time < 10) {
+    native_println("   ✅ Performance excelente! Sistema otimizado.");
+} else if (avg_time < 50) {
+    native_println("   ✅ Boa performance. Considere cache para melhores resultados.");
+} else {
+    native_println("   ⚠️  Performance pode ser melhorada:");
+    native_println("      • Verificar configurações de rede");
+    native_println("      • Implementar conexões persistentes");
+    native_println("      • Considerar compressão de dados");
+}
+
+if (large_duration > medium_duration * 3) {
+    native_println("   📦 Payloads grandes afetam significativamente a performance");
+    native_println("      • Considere paginação para dados grandes");
+    native_println("      • Implemente compressão GZIP");
+}
+
+if (post_duration > get_duration * 1.5) {
+    native_println("   🔄 POST requests são significativamente mais lentos");
+    native_println("      • Verifique processamento de dados");
+    native_println("      • Otimize validação de entrada");
+}
+
+// ========================
+// FINALIZAÇÃO
+// ========================
+
+native_println("\n⏰ Mantendo servidor ativo por 30 segundos para testes manuais...");
+native_println("   Teste manualmente: http://127.0.0.1:3999/ping");
+
+native_sleep(30000);
+
+native_http_server_stop("perf_server");
+native_println("\n🛑 Servidor de performance parado!");
+native_println("✨ Teste de performance concluído!");
+
+native_println("\n🎯 RESUMO FINAL:");
+native_println("   • Total de requisições testadas: ~50+");
+native_println("   • Tempo total de teste: ~" + (small_duration + medium_duration + large_duration + concurrent_duration + external_duration) + "ms");
+native_println("   • Performance geral: " + efficiency);

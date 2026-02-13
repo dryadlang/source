@@ -1,0 +1,32 @@
+[package]
+name = "oak"
+version = "0.1.0"
+edition = "2021"
+description = "Gestor de pacotes para a linguagem Dryad"
+
+[[bin]]
+name = "oak"
+path = "src/main.rs"
+
+[dependencies]
+# Dryad crates
+dryad_errors = { workspace = true }
+dryad_lexer = { workspace = true }
+dryad_parser = { workspace = true }
+dryad_runtime = { workspace = true }
+# External dependencies
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+clap = { version = "4.0", features = ["derive"] }
+reqwest = { version = "0.11", features = ["json", "blocking"] }
+tokio = { version = "1.0", features = ["full"] }
+sha2 = "0.10"
+zip = "0.6"
+tar = "0.4"
+flate2 = "1.0"
+url = "2.3"
+colored = "2.0"
+inquire = "0.7"
+dirs = "5.0"
+async-recursion = "1.0"
+

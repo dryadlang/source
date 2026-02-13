@@ -1,0 +1,15 @@
+// Greenleaf - Advanced Mathematics Library for Dryad
+// Entry point exporting all submodules
+
+// Modules are available for import directly:
+// import { Array } from "./math/arrays";
+// import { Statistics } from "./math/statistics";
+// import { sin, cos } from "./scientific/functions";
+// import { Symbol } from "./symbolic/algebra";
+// import { DataFrame } from "./data/frames";
+
+println("Greenleaf library module loaded.");
+println("Import submodules directly: math/arrays, math/statistics, scientific/functions, symbolic/algebra, data/frames");
+
+
+println("Greenleaf library loaded.");

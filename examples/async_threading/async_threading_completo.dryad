@@ -1,0 +1,154 @@
+// Exemplo prático de Multithreading e Async/Await em Dryad
+// Este exemplo demonstra as novas funcionalidades implementadas
+
+// ===== FUNÇÕES ASSÍNCRONAS =====
+
+// Função assíncrona para simular busca de dados
+async function buscarDados() {
+    print("Buscando dados do servidor...");
+    return "dados_importantes";
+}
+
+// Função assíncrona para processar dados
+async function processarDados(dados) {
+    print("Processando: " + dados);
+    return "dados_processados";
+}
+
+// ===== FUNÇÕES PARA THREADING =====
+
+// Função thread para processamento pesado
+thread function calcularPesado() {
+    print("Thread: Iniciando cálculo pesado...");
+    let resultado = 42 * 1000;
+    print("Thread: Cálculo concluído!");
+    return resultado;
+}
+
+// Função thread para monitoramento
+thread function monitorarSistema() {
+    print("Thread: Monitorando sistema...");
+    print("Thread: Sistema OK");
+    return "sistema_saudavel";
+}
+
+// Função thread com sincronização
+thread function tarefaSincronizada() {
+    print("Thread sincronizada: Aguardando mutex...");
+    // Simulação de trabalho que precisa de sincronização
+    print("Thread sincronizada: Trabalho concluído!");
+    return "trabalho_sincronizado";
+}
+
+// ===== PROGRAMA PRINCIPAL =====
+
+print("=== Exemplo Dryad: Async/Threading ===");
+print("");
+
+// 1. Demonstração de Async/Await
+print("1. Testando Async/Await:");
+let dados = await buscarDados();
+print("Dados recebidos: " + dados);
+
+let processados = await processarDados(dados);
+print("Dados processados: " + processados);
+print("");
+
+// 2. Demonstração de Threading
+print("2. Testando Threading:");
+let worker1 = thread(calcularPesado);
+let worker2 = thread(monitorarSistema);
+
+print("Threads iniciadas em paralelo!");
+print("");
+
+// 3. Demonstração de Mutex para sincronização
+print("3. Testando Mutex:");
+let lock = mutex();
+let workerSeguro = thread(tarefaSincronizada);
+
+print("Thread segura criada com mutex!");
+print("");
+
+// 4. Exemplo combinado - Async + Threading
+print("4. Exemplo combinado:");
+
+async function coordenarTrabalho() {
+    print("Coordenador: Iniciando coordenação...");
+    
+    // Criar múltiplas threads
+    let t1 = thread(calcularPesado);
+    let t2 = thread(monitorarSistema);
+    
+    // Criar mutex para sincronização
+    let sharedLock = mutex();
+    
+    print("Coordenador: Todas as tarefas iniciadas!");
+    return "coordenacao_completa";
+}
+
+let resultado = await coordenarTrabalho();
+print("Resultado final: " + resultado);
+
+print("");
+print("=== Exemplo concluído com sucesso! ===");
+
+// ===== DEMONSTRAÇÃO DE RECURSOS ADICIONAIS =====
+
+// Função para mostrar diferentes tipos de dados
+function exemploTipos() {
+    print("=== Tipos de dados suportados ===");
+    
+    // Arrays e operações
+    let numeros = [1, 2, 3, 4, 5];
+    print("Array: " + numeros[0]);
+    
+    // Tuplas
+    let coordenadas = (10, 20, 30);
+    print("Tupla: " + coordenadas.0);
+    
+    // Objetos
+    let pessoa = {
+        nome: "João",
+        idade: 30,
+        ativo: true
+    };
+    print("Objeto: " + pessoa.nome);
+    
+    return "tipos_demonstrados";
+}
+
+// Executar demonstração de tipos
+let tiposResult = exemploTipos();
+print("Demo tipos: " + tiposResult);
+
+// Exemplo com loops e controle de fluxo
+function exemploControleFluxo() {
+    print("=== Controle de fluxo ===");
+    
+    // For loop
+    for (let i = 0; i < 3; i++) {
+        print("Loop i: " + i);
+    }
+    
+    // While loop
+    let contador = 0;
+    while (contador < 2) {
+        print("While: " + contador);
+        contador++;
+    }
+    
+    // Foreach
+    let cores = ["vermelho", "verde", "azul"];
+    foreach (cor in cores) {
+        print("Cor: " + cor);
+    }
+    
+    return "controle_demonstrado";
+}
+
+let fluxoResult = exemploControleFluxo();
+print("Demo fluxo: " + fluxoResult);
+
+print("");
+print("🎉 Dryad está funcionando perfeitamente com async/threading! 🎉");

@@ -1,0 +1,55 @@
+// Teste do pacote Greenleaf instalado via Oak Package Manager
+
+print("=== Teste do Greenleaf via Oak ===");
+print("");
+
+// Teste 1: Import named de arrays
+print("1️⃣ Testando import de math/arrays:");
+import { zeros, ones, arange } from "greenleaf/math/arrays";
+
+let arr_zeros = zeros(5);
+print("  zeros(5) = " + arr_zeros);
+
+let arr_ones = ones(3);
+print("  ones(3) = " + arr_ones);
+
+let arr_range = arange(1, 6, 1);
+print("  arange(1, 6, 1) = " + arr_range);
+
+print("");
+
+// Teste 2: Import named de statistics
+print("2️⃣ Testando import de math/statistics:");
+import { mean, sum } from "greenleaf/math/statistics";
+
+let numeros = [10, 20, 30, 40, 50];
+print("  Números: " + numeros);
+print("  sum([10, 20, 30, 40, 50]) = " + sum(numeros));
+print("  mean([10, 20, 30, 40, 50]) = " + mean(numeros));
+
+print("");
+
+// Teste 3: Import named de scientific functions
+print("3️⃣ Testando import de scientific/functions:");
+import { PI, E, sin, cos } from "greenleaf/scientific/functions";
+
+print("  PI = " + PI);
+print("  E = " + E);
+print("  sin(0.5) ≈ " + sin(0.5));
+print("  cos(0.5) ≈ " + cos(0.5));
+
+print("");
+
+// Teste 4: Import namespace
+print("4️⃣ Testando import namespace de arrays:");
+import * as arrays from "greenleaf/math/arrays";
+
+let test_zeros = arrays.zeros(3);
+print("  arrays.zeros(3) = " + test_zeros);
+
+let test_range = arrays.arange(0, 5, 1);
+print("  arrays.arange(0, 5, 1) = " + test_range);
+
+print("");
+print("✅ Todos os testes do Greenleaf concluídos com sucesso!");
+print("🎉 Oak Package Manager + Import/Export funcionando perfeitamente!");

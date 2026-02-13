@@ -1,0 +1,1405 @@
+warning: unused variable: `index_expr`
+   --> crates\dryad_parser\src\parser.rs:171:33
+    |
+171 | ...                   let index_expr = self.expression()?;
+    |                           ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_index_expr`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `dryad_parser` (lib) generated 1 warning (run `cargo fix --lib -p dryad_parser` to apply 1 suggestion)
+    Checking dryad_runtime v0.1.0 (C:\Users\Pedro Jesus\Downloads\source-main\source-main\crates\dryad_runtime)
+warning: unused import: `Value as JsonValue`
+  --> crates\dryad_runtime\src\interpreter.rs:11:24
+   |
+11 | use serde_json::{self, Value as JsonValue};
+   |                        ^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `std::fs`
+ --> crates\dryad_runtime\src\resolver.rs:3:5
+  |
+3 | use std::fs;
+  |     ^^^^^^^
+
+warning: unused import: `Stmt`
+ --> crates\dryad_runtime\src\heap.rs:3:25
+  |
+3 | use dryad_parser::ast::{Stmt, Expr};
+  |                         ^^^^
+
+warning: unused import: `dryad_errors::SourceLocation`
+ --> crates\dryad_runtime\src\heap.rs:4:5
+  |
+4 | use dryad_errors::SourceLocation;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `Expr`
+ --> crates\dryad_runtime\src\value.rs:1:31
+  |
+1 | use dryad_parser::ast::{Stmt, Expr, Visibility};
+  |                               ^^^^
+
+warning: unused import: `std::collections::HashMap`
+ --> crates\dryad_runtime\src\value.rs:2:5
+  |
+2 | use std::collections::HashMap;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0308]: mismatched types
+    --> crates\dryad_runtime\src\interpreter.rs:2610:46
+     |
+2610 |                 let heap_obj = self.heap.get(id).ok_or_else(|| {
+     |                                          --- ^^ expected `usize`, found `&usize`
+     |                                          |
+     |                                          arguments to this method are incorrect
+     |
+note: method defined here
+    --> crates\dryad_runtime\src\heap.rs:53:12
+     |
+  53 |     pub fn get(&self, id: HeapId) -> Option<&ManagedObject> {
+     |            ^^^        ----------
+help: consider dereferencing the borrow
+     |
+2610 |                 let heap_obj = self.heap.get(*id).ok_or_else(|| {
+     |                                              +
+
+error[E0308]: mismatched types
+    --> crates\dryad_runtime\src\interpreter.rs:2711:96
+     |
+2711 | ...   let args = vec![element.clone(), Value::Number(index as f64), Value::Array(elements.clone())]; // Note: Passing clone of array to c...
+     |                                                                     ------------ ^^^^^^^^^^^^^^^^ expected `usize`, found `Vec<Value>`
+     |                                                                     |
+     |                                                                     arguments to this enum variant are incorrect
+     |
+     = note: expected type `usize`
+              found struct `Vec<value::Value>`
+note: tuple variant defined here
+    --> crates\dryad_runtime\src\value.rs:18:5
+     |
+  18 |     Array(HeapId),
+     |     ^^^^^
+
+error[E0308]: mismatched types
+    --> crates\dryad_runtime\src\interpreter.rs:2718:67
+     |
+2718 |                 if arg_values.is_empty() { return Ok(Value::Array(Vec::new())); }
+     |                                                      ------------ ^^^^^^^^^^ expected `usize`, found `Vec<_>`
+     |                                                      |
+     |                                                      arguments to this enum variant are incorrect
+     |
+     = note: expected type `usize`
+              found struct `Vec<_>`
+note: tuple variant defined here
+    --> crates\dryad_runtime\src\value.rs:18:5
+     |
+  18 |     Array(HeapId),
+     |     ^^^^^
+
+error[E0308]: mismatched types
+    --> crates\dryad_runtime\src\interpreter.rs:2722:96
+     |
+2722 |                     let args = vec![element.clone(), Value::Number(index as f64), Value::Array(elements.clone())];
+     |                                                                                   ------------ ^^^^^^^^^^^^^^^^ expected `usize`, found `Vec<Value>`
+     |                                                                                   |
+     |                                                                                   arguments to this enum variant are incorrect
+     |
+     = note: expected type `usize`
+              found struct `Vec<value::Value>`
+note: tuple variant defined here
+    --> crates\dryad_runtime\src\value.rs:18:5
+     |
+  18 |     Array(HeapId),
+     |     ^^^^^
+
+error[E0308]: mismatched types
+    --> crates\dryad_runtime\src\interpreter.rs:2726:33
+     |
+2726 |                 Ok(Value::Array(results))
+     |                    ------------ ^^^^^^^ expected `usize`, found `Vec<Value>`
+     |                    |
+     |                    arguments to this enum variant are incorrect
+     |
+     = note: expected type `usize`
+              found struct `Vec<value::Value>`
+note: tuple variant defined here
+    --> crates\dryad_runtime\src\value.rs:18:5
+     |
+  18 |     Array(HeapId),
+     |     ^^^^^
+
+error[E0308]: mismatched types
+    --> crates\dryad_runtime\src\interpreter.rs:2729:67
+     |
+2729 |                 if arg_values.is_empty() { return Ok(Value::Array(Vec::new())); }
+     |                                                      ------------ ^^^^^^^^^^ expected `usize`, found `Vec<_>`
+     |                                                      |
+     |                                                      arguments to this enum variant are incorrect
+     |
+     = note: expected type `usize`
+              found struct `Vec<_>`
+note: tuple variant defined here
+    --> crates\dryad_runtime\src\value.rs:18:5
+     |
+  18 |     Array(HeapId),
+     |     ^^^^^
+
+error[E0308]: mismatched types
+    --> crates\dryad_runtime\src\interpreter.rs:2733:96
+     |
+2733 |                     let args = vec![element.clone(), Value::Number(index as f64), Value::Array(elements.clone())];
+     |                                                                                   ------------ ^^^^^^^^^^^^^^^^ expected `usize`, found `Vec<Value>`
+     |                                                                                   |
+     |                                                                                   arguments to this enum variant are incorrect
+     |
+     = note: expected type `usize`
+              found struct `Vec<value::Value>`
+note: tuple variant defined here
+    --> crates\dryad_runtime\src\value.rs:18:5
+     |
+  18 |     Array(HeapId),
+     |     ^^^^^
+
+error[E0308]: mismatched types
+    --> crates\dryad_runtime\src\interpreter.rs:2739:33
+     |
+2739 |                 Ok(Value::Array(results))
+     |                    ------------ ^^^^^^^ expected `usize`, found `Vec<Value>`
+     |                    |
+     |                    arguments to this enum variant are incorrect
+     |
+     = note: expected type `usize`
+              found struct `Vec<value::Value>`
+note: tuple variant defined here
+    --> crates\dryad_runtime\src\value.rs:18:5
+     |
+  18 |     Array(HeapId),
+     |     ^^^^^
+
+error[E0308]: mismatched types
+    --> crates\dryad_runtime\src\interpreter.rs:2758:118
+     |
+2758 |                      let args = vec![accumulator.clone(), element.clone(), Value::Number(index as f64), Value::Array(elements.clone())];
+     |                                                                                                         ------------ ^^^^^^^^^^^^^^^^ expected `usize`, found `Vec<Value>`
+     |                                                                                                         |
+     |                                                                                                         arguments to this enum variant are incorrect
+     |
+     = note: expected type `usize`
+              found struct `Vec<value::Value>`
+note: tuple variant defined here
+    --> crates\dryad_runtime\src\value.rs:18:5
+     |
+  18 |     Array(HeapId),
+     |     ^^^^^
+
+error[E0308]: mismatched types
+    --> crates\dryad_runtime\src\interpreter.rs:2780:119
+     |
+2780 |                       let args = vec![accumulator.clone(), element.clone(), Value::Number(index as f64), Value::Array(elements.clone())];
+     |                                                                                                          ------------ ^^^^^^^^^^^^^^^^ expected `usize`, found `Vec<Value>`
+     |                                                                                                          |
+     |                                                                                                          arguments to this enum variant are incorrect
+     |
+     = note: expected type `usize`
+              found struct `Vec<value::Value>`
+note: tuple variant defined here
+    --> crates\dryad_runtime\src\value.rs:18:5
+     |
+  18 |     Array(HeapId),
+     |     ^^^^^
+
+error[E0308]: mismatched types
+   --> crates\dryad_runtime\src\native_modules\binary_io.rs:168:36
+    |
+168 |             Ok(RuntimeValue::Array(byte_values))
+    |                ------------------- ^^^^^^^^^^^ expected `usize`, found `Vec<Value>`
+    |                |
+    |                arguments to this enum variant are incorrect
+    |
+    = note: expected type `usize`
+             found struct `Vec<value::Value>`
+note: tuple variant defined here
+   --> crates\dryad_runtime\src\value.rs:18:5
+    |
+ 18 |     Array(HeapId),
+    |     ^^^^^
+
+error[E0308]: mismatched types
+   --> crates\dryad_runtime\src\native_modules\binary_io.rs:252:28
+    |
+252 |     Ok(RuntimeValue::Array(byte_values))
+    |        ------------------- ^^^^^^^^^^^ expected `usize`, found `Vec<Value>`
+    |        |
+    |        arguments to this enum variant are incorrect
+    |
+    = note: expected type `usize`
+             found struct `Vec<value::Value>`
+note: tuple variant defined here
+   --> crates\dryad_runtime\src\value.rs:18:5
+    |
+ 18 |     Array(HeapId),
+    |     ^^^^^
+
+error[E0599]: no method named `iter` found for reference `&usize` in the current scope
+   --> crates\dryad_runtime\src\native_modules\binary_io.rs:284:41
+    |
+284 |         RuntimeValue::Array(arr) => arr.iter().map(|v| {
+    |                                         ^^^^ method not found in `&usize`
+
+error[E0614]: type `f64` cannot be dereferenced
+   --> crates\dryad_runtime\src\native_modules\binary_io.rs:286:20
+    |
+286 |                 Ok(*n as u8)
+    |                    ^^ can't be dereferenced
+
+error[E0308]: mismatched types
+   --> crates\dryad_runtime\src\native_modules\file_io.rs:195:36
+    |
+195 |             Ok(RuntimeValue::Array(files))
+    |                ------------------- ^^^^^ expected `usize`, found `Vec<Value>`
+    |                |
+    |                arguments to this enum variant are incorrect
+    |
+    = note: expected type `usize`
+             found struct `Vec<value::Value>`
+note: tuple variant defined here
+   --> crates\dryad_runtime\src\value.rs:18:5
+    |
+ 18 |     Array(HeapId),
+    |     ^^^^^
+
+error[E0308]: mismatched types
+   --> crates\dryad_runtime\src\native_modules\file_io.rs:410:36
+    |
+410 |             Ok(RuntimeValue::Array(info))
+    |                ------------------- ^^^^ expected `usize`, found `Vec<Value>`
+    |                |
+    |                arguments to this enum variant are incorrect
+    |
+    = note: expected type `usize`
+             found struct `Vec<value::Value>`
+note: tuple variant defined here
+   --> crates\dryad_runtime\src\value.rs:18:5
+    |
+ 18 |     Array(HeapId),
+    |     ^^^^^
+
+error[E0277]: `&usize` is not an iterator
+  --> crates\dryad_runtime\src\native_modules\encode_decode.rs:74:20
+   |
+74 |         for row in data {
+   |                    ^^^^ `&usize` is not an iterator
+   |
+   = help: the trait `Iterator` is not implemented for `&usize`
+   = note: required for `&usize` to implement `IntoIterator`
+
+error[E0599]: no method named `iter` found for type `usize` in the current scope
+  --> crates\dryad_runtime\src\native_modules\encode_decode.rs:77:57
+   |
+77 |                     let string_cols: Vec<String> = cols.iter()
+   |                                                         ^^^^ method not found in `usize`
+
+error[E0308]: mismatched types
+   --> crates\dryad_runtime\src\native_modules\encode_decode.rs:119:41
+    |
+119 |         result.push(RuntimeValue::Array(row));
+    |                     ------------------- ^^^ expected `usize`, found `Vec<Value>`
+    |                     |
+    |                     arguments to this enum variant are incorrect
+    |
+    = note: expected type `usize`
+             found struct `Vec<value::Value>`
+note: tuple variant defined here
+   --> crates\dryad_runtime\src\value.rs:18:5
+    |
+ 18 |     Array(HeapId),
+    |     ^^^^^
+
+error[E0308]: mismatched types
+   --> crates\dryad_runtime\src\native_modules\encode_decode.rs:122:28
+    |
+122 |     Ok(RuntimeValue::Array(result))
+    |        ------------------- ^^^^^^ expected `usize`, found `Vec<Value>`
+    |        |
+    |        arguments to this enum variant are incorrect
+    |
+    = note: expected type `usize`
+             found struct `Vec<value::Value>`
+note: tuple variant defined here
+   --> crates\dryad_runtime\src\value.rs:18:5
+    |
+ 18 |     Array(HeapId),
+    |     ^^^^^
+
+error[E0769]: tuple variant `RuntimeValue::Object` written as struct variant
+   --> crates\dryad_runtime\src\native_modules\encode_decode.rs:190:9
+    |
+190 |         RuntimeValue::Object { properties, methods: _ } => {
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+help: use the tuple variant pattern syntax instead
+    |
+190 -         RuntimeValue::Object { properties, methods: _ } => {
+190 +         RuntimeValue::Object(_) => {
+    |
+
+error[E0599]: no method named `iter` found for reference `&usize` in the current scope
+   --> crates\dryad_runtime\src\native_modules\encode_decode.rs:185:53
+    |
+185 |             let json_array: Result<Vec<_>, _> = arr.iter()
+    |                                                     ^^^^ method not found in `&usize`
+
+error[E0282]: type annotations needed
+   --> crates\dryad_runtime\src\native_modules\encode_decode.rs:193:33
+    |
+193 |                 json_obj.insert(key.clone(), runtime_value_to_json(val)?);
+    |                                 ^^^ cannot infer type
+
+error[E0308]: mismatched types
+   --> crates\dryad_runtime\src\native_modules\encode_decode.rs:211:33
+    |
+211 |             RuntimeValue::Array(runtime_array)
+    |             ------------------- ^^^^^^^^^^^^^ expected `usize`, found `Vec<Value>`
+    |             |
+    |             arguments to this enum variant are incorrect
+    |
+    = note: expected type `usize`
+             found struct `Vec<value::Value>`
+note: tuple variant defined here
+   --> crates\dryad_runtime\src\value.rs:18:5
+    |
+ 18 |     Array(HeapId),
+    |     ^^^^^
+
+error[E0559]: variant `value::Value::Object` has no field named `properties`
+   --> crates\dryad_runtime\src\native_modules\encode_decode.rs:219:17
+    |
+219 |                 properties: runtime_obj, 
+    |                 ^^^^^^^^^^ field does not exist
+    |
+   ::: crates\dryad_runtime\src\value.rs:52:5
+    |
+ 52 |     Object(HeapId),
+    |     ------ `value::Value::Object` defined here
+    |
+help: `value::Value::Object` is a tuple variant, use the appropriate syntax
+    |
+218 -             RuntimeValue::Object { 
+219 -                 properties: runtime_obj, 
+220 -                 methods: HashMap::new() 
+221 -             }
+218 +             RuntimeValue::Object(/* usize */)
+    |
+
+error[E0559]: variant `value::Value::Object` has no field named `methods`
+   --> crates\dryad_runtime\src\native_modules\encode_decode.rs:220:17
+    |
+220 |                 methods: HashMap::new() 
+    |                 ^^^^^^^ field does not exist
+    |
+   ::: crates\dryad_runtime\src\value.rs:52:5
+    |
+ 52 |     Object(HeapId),
+    |     ------ `value::Value::Object` defined here
+    |
+help: `value::Value::Object` is a tuple variant, use the appropriate syntax
+    |
+218 -             RuntimeValue::Object { 
+219 -                 properties: runtime_obj, 
+220 -                 methods: HashMap::new() 
+221 -             }
+218 +             RuntimeValue::Object(/* usize */)
+    |
+
+error[E0769]: tuple variant `RuntimeValue::Object` written as struct variant
+   --> crates\dryad_runtime\src\native_modules\encode_decode.rs:286:9
+    |
+286 |         RuntimeValue::Object { properties, methods: _ } => {
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+help: use the tuple variant pattern syntax instead
+    |
+286 -         RuntimeValue::Object { properties, methods: _ } => {
+286 +         RuntimeValue::Object(_) => {
+    |
+
+error[E0599]: no method named `iter` found for reference `&usize` in the current scope
+   --> crates\dryad_runtime\src\native_modules\encode_decode.rs:280:34
+    |
+280 |             for (i, item) in arr.iter().enumerate() {
+    |                                  ^^^^ method not found in `&usize`
+
+error[E0559]: variant `value::Value::Object` has no field named `properties`
+   --> crates\dryad_runtime\src\native_modules\encode_decode.rs:332:13
+    |
+332 |             properties: result, 
+    |             ^^^^^^^^^^ field does not exist
+    |
+   ::: crates\dryad_runtime\src\value.rs:52:5
+    |
+ 52 |     Object(HeapId),
+    |     ------ `value::Value::Object` defined here
+    |
+help: `value::Value::Object` is a tuple variant, use the appropriate syntax
+    |
+331 -         Ok(RuntimeValue::Object { 
+332 -             properties: result, 
+333 -             methods: HashMap::new() 
+334 -         })
+331 +         Ok(RuntimeValue::Object(/* usize */))
+    |
+
+error[E0559]: variant `value::Value::Object` has no field named `methods`
+   --> crates\dryad_runtime\src\native_modules\encode_decode.rs:333:13
+    |
+333 |             methods: HashMap::new() 
+    |             ^^^^^^^ field does not exist
+    |
+   ::: crates\dryad_runtime\src\value.rs:52:5
+    |
+ 52 |     Object(HeapId),
+    |     ------ `value::Value::Object` defined here
+    |
+help: `value::Value::Object` is a tuple variant, use the appropriate syntax
+    |
+331 -         Ok(RuntimeValue::Object { 
+332 -             properties: result, 
+333 -             methods: HashMap::new() 
+334 -         })
+331 +         Ok(RuntimeValue::Object(/* usize */))
+    |
+
+error[E0277]: `&usize` is not an iterator
+  --> crates\dryad_runtime\src\native_modules\crypto.rs:49:24
+   |
+49 |             for val in arr {
+   |                        ^^^ `&usize` is not an iterator
+   |
+   = help: the trait `Iterator` is not implemented for `&usize`
+   = note: required for `&usize` to implement `IntoIterator`
+
+error[E0614]: type `f64` cannot be dereferenced
+  --> crates\dryad_runtime\src\native_modules\crypto.rs:52:36
+   |
+52 |                         let byte = *n as u8;
+   |                                    ^^ can't be dereferenced
+
+error[E0277]: `&usize` is not an iterator
+  --> crates\dryad_runtime\src\native_modules\crypto.rs:81:24
+   |
+81 |             for val in arr {
+   |                        ^^^ `&usize` is not an iterator
+   |
+   = help: the trait `Iterator` is not implemented for `&usize`
+   = note: required for `&usize` to implement `IntoIterator`
+
+error[E0614]: type `f64` cannot be dereferenced
+  --> crates\dryad_runtime\src\native_modules\crypto.rs:84:36
+   |
+84 |                         let byte = *n as u8;
+   |                                    ^^ can't be dereferenced
+
+error[E0277]: `&usize` is not an iterator
+   --> crates\dryad_runtime\src\native_modules\crypto.rs:131:24
+    |
+131 |             for val in arr {
+    |                        ^^^ `&usize` is not an iterator
+    |
+    = help: the trait `Iterator` is not implemented for `&usize`
+    = note: required for `&usize` to implement `IntoIterator`
+
+error[E0614]: type `f64` cannot be dereferenced
+   --> crates\dryad_runtime\src\native_modules\crypto.rs:134:36
+    |
+134 |                         let byte = *n as u8;
+    |                                    ^^ can't be dereferenced
+
+error[E0308]: mismatched types
+   --> crates\dryad_runtime\src\native_modules\crypto.rs:169:44
+    |
+169 |                     Ok(RuntimeValue::Array(runtime_bytes))
+    |                        ------------------- ^^^^^^^^^^^^^ expected `usize`, found `Vec<Value>`
+    |                        |
+    |                        arguments to this enum variant are incorrect
+    |
+    = note: expected type `usize`
+             found struct `Vec<value::Value>`
+note: tuple variant defined here
+   --> crates\dryad_runtime\src\value.rs:18:5
+    |
+ 18 |     Array(HeapId),
+    |     ^^^^^
+
+error[E0277]: `&usize` is not an iterator
+   --> crates\dryad_runtime\src\native_modules\crypto.rs:187:24
+    |
+187 |             for val in arr {
+    |                        ^^^ `&usize` is not an iterator
+    |
+    = help: the trait `Iterator` is not implemented for `&usize`
+    = note: required for `&usize` to implement `IntoIterator`
+
+error[E0614]: type `f64` cannot be dereferenced
+   --> crates\dryad_runtime\src\native_modules\crypto.rs:190:36
+    |
+190 |                         let byte = *n as u8;
+    |                                    ^^ can't be dereferenced
+
+error[E0308]: mismatched types
+   --> crates\dryad_runtime\src\native_modules\crypto.rs:225:44
+    |
+225 |                     Ok(RuntimeValue::Array(runtime_bytes))
+    |                        ------------------- ^^^^^^^^^^^^^ expected `usize`, found `Vec<Value>`
+    |                        |
+    |                        arguments to this enum variant are incorrect
+    |
+    = note: expected type `usize`
+             found struct `Vec<value::Value>`
+note: tuple variant defined here
+   --> crates\dryad_runtime\src\value.rs:18:5
+    |
+ 18 |     Array(HeapId),
+    |     ^^^^^
+
+error[E0308]: mismatched types
+   --> crates\dryad_runtime\src\native_modules\crypto.rs:260:28
+    |
+260 |     Ok(RuntimeValue::Array(runtime_bytes))
+    |        ------------------- ^^^^^^^^^^^^^ expected `usize`, found `Vec<Value>`
+    |        |
+    |        arguments to this enum variant are incorrect
+    |
+    = note: expected type `usize`
+             found struct `Vec<value::Value>`
+note: tuple variant defined here
+   --> crates\dryad_runtime\src\value.rs:18:5
+    |
+ 18 |     Array(HeapId),
+    |     ^^^^^
+
+error[E0277]: `&usize` is not an iterator
+   --> crates\dryad_runtime\src\native_modules\crypto.rs:312:24
+    |
+312 |             for val in arr {
+    |                        ^^^ `&usize` is not an iterator
+    |
+    = help: the trait `Iterator` is not implemented for `&usize`
+    = note: required for `&usize` to implement `IntoIterator`
+
+error[E0614]: type `f64` cannot be dereferenced
+   --> crates\dryad_runtime\src\native_modules\crypto.rs:315:36
+    |
+315 |                         let byte = *n as u8;
+    |                                    ^^ can't be dereferenced
+
+error[E0599]: no method named `iter` found for reference `&usize` in the current scope
+   --> crates\dryad_runtime\src\native_modules\crypto.rs:347:49
+    |
+347 |             let bytes: Result<Vec<u8>, _> = arr.iter().map(|v| match v {
+    |                                                 ^^^^ method not found in `&usize`
+
+error[E0614]: type `f64` cannot be dereferenced
+   --> crates\dryad_runtime\src\native_modules\crypto.rs:348:47
+    |
+348 |                 RuntimeValue::Number(n) => Ok(*n as u8),
+    |                                               ^^ can't be dereferenced
+
+error[E0308]: mismatched types
+   --> crates\dryad_runtime\src\native_modules\crypto.rs:371:28
+    |
+371 |     Ok(RuntimeValue::Array(runtime_bytes))
+    |        ------------------- ^^^^^^^^^^^^^ expected `usize`, found `Vec<Value>`
+    |        |
+    |        arguments to this enum variant are incorrect
+    |
+    = note: expected type `usize`
+             found struct `Vec<value::Value>`
+note: tuple variant defined here
+   --> crates\dryad_runtime\src\value.rs:18:5
+    |
+ 18 |     Array(HeapId),
+    |     ^^^^^
+
+error[E0599]: no method named `iter` found for reference `&usize` in the current scope
+   --> crates\dryad_runtime\src\native_modules\crypto.rs:383:49
+    |
+383 |             let bytes: Result<Vec<u8>, _> = arr.iter().map(|v| match v {
+    |                                                 ^^^^ method not found in `&usize`
+
+error[E0614]: type `f64` cannot be dereferenced
+   --> crates\dryad_runtime\src\native_modules\crypto.rs:384:47
+    |
+384 |                 RuntimeValue::Number(n) => Ok(*n as u8),
+    |                                               ^^ can't be dereferenced
+
+error[E0599]: no method named `iter` found for reference `&usize` in the current scope
+   --> crates\dryad_runtime\src\native_modules\crypto.rs:422:49
+    |
+422 |             let bytes: Result<Vec<u8>, _> = arr.iter().map(|v| match v {
+    |                                                 ^^^^ method not found in `&usize`
+
+error[E0614]: type `f64` cannot be dereferenced
+   --> crates\dryad_runtime\src\native_modules\crypto.rs:423:47
+    |
+423 |                 RuntimeValue::Number(n) => Ok(*n as u8),
+    |                                               ^^ can't be dereferenced
+
+error[E0308]: mismatched types
+   --> crates\dryad_runtime\src\native_modules\crypto.rs:446:28
+    |
+446 |     Ok(RuntimeValue::Array(runtime_bytes))
+    |        ------------------- ^^^^^^^^^^^^^ expected `usize`, found `Vec<Value>`
+    |        |
+    |        arguments to this enum variant are incorrect
+    |
+    = note: expected type `usize`
+             found struct `Vec<value::Value>`
+note: tuple variant defined here
+   --> crates\dryad_runtime\src\value.rs:18:5
+    |
+ 18 |     Array(HeapId),
+    |     ^^^^^
+
+error[E0599]: no method named `iter` found for reference `&usize` in the current scope
+   --> crates\dryad_runtime\src\native_modules\crypto.rs:458:49
+    |
+458 |             let bytes: Result<Vec<u8>, _> = arr.iter().map(|v| match v {
+    |                                                 ^^^^ method not found in `&usize`
+
+error[E0614]: type `f64` cannot be dereferenced
+   --> crates\dryad_runtime\src\native_modules\crypto.rs:459:47
+    |
+459 |                 RuntimeValue::Number(n) => Ok(*n as u8),
+    |                                               ^^ can't be dereferenced
+
+error[E0599]: no method named `iter` found for reference `&usize` in the current scope
+   --> crates\dryad_runtime\src\native_modules\crypto.rs:492:49
+    |
+492 |             let bytes: Result<Vec<u8>, _> = arr.iter().map(|v| match v {
+    |                                                 ^^^^ method not found in `&usize`
+
+error[E0614]: type `f64` cannot be dereferenced
+   --> crates\dryad_runtime\src\native_modules\crypto.rs:493:47
+    |
+493 |                 RuntimeValue::Number(n) => Ok(*n as u8),
+    |                                               ^^ can't be dereferenced
+
+error[E0308]: mismatched types
+   --> crates\dryad_runtime\src\native_modules\crypto.rs:516:28
+    |
+516 |     Ok(RuntimeValue::Array(runtime_bytes))
+    |        ------------------- ^^^^^^^^^^^^^ expected `usize`, found `Vec<Value>`
+    |        |
+    |        arguments to this enum variant are incorrect
+    |
+    = note: expected type `usize`
+             found struct `Vec<value::Value>`
+note: tuple variant defined here
+   --> crates\dryad_runtime\src\value.rs:18:5
+    |
+ 18 |     Array(HeapId),
+    |     ^^^^^
+
+error[E0599]: no method named `iter` found for reference `&usize` in the current scope
+   --> crates\dryad_runtime\src\native_modules\crypto.rs:528:49
+    |
+528 |             let bytes: Result<Vec<u8>, _> = arr.iter().map(|v| match v {
+    |                                                 ^^^^ method not found in `&usize`
+
+error[E0614]: type `f64` cannot be dereferenced
+   --> crates\dryad_runtime\src\native_modules\crypto.rs:529:47
+    |
+529 |                 RuntimeValue::Number(n) => Ok(*n as u8),
+    |                                               ^^ can't be dereferenced
+
+error[E0599]: no method named `iter` found for reference `&usize` in the current scope
+   --> crates\dryad_runtime\src\native_modules\crypto.rs:539:49
+    |
+539 |             let bytes: Result<Vec<u8>, _> = arr.iter().map(|v| match v {
+    |                                                 ^^^^ method not found in `&usize`
+
+error[E0614]: type `f64` cannot be dereferenced
+   --> crates\dryad_runtime\src\native_modules\crypto.rs:540:47
+    |
+540 |                 RuntimeValue::Number(n) => Ok(*n as u8),
+    |                                               ^^ can't be dereferenced
+
+error[E0559]: variant `value::Value::Object` has no field named `properties`
+   --> crates\dryad_runtime\src\native_modules\crypto.rs:589:9
+    |
+589 |         properties: keypair,
+    |         ^^^^^^^^^^ field does not exist
+    |
+   ::: crates\dryad_runtime\src\value.rs:52:5
+    |
+ 52 |     Object(HeapId),
+    |     ------ `value::Value::Object` defined here
+    |
+help: `value::Value::Object` is a tuple variant, use the appropriate syntax
+    |
+588 -     Ok(RuntimeValue::Object {
+589 -         properties: keypair,
+590 -         methods: HashMap::new(),
+591 -     })
+588 +     Ok(RuntimeValue::Object(/* usize */))
+    |
+
+error[E0559]: variant `value::Value::Object` has no field named `methods`
+   --> crates\dryad_runtime\src\native_modules\crypto.rs:590:9
+    |
+590 |         methods: HashMap::new(),
+    |         ^^^^^^^ field does not exist
+    |
+   ::: crates\dryad_runtime\src\value.rs:52:5
+    |
+ 52 |     Object(HeapId),
+    |     ------ `value::Value::Object` defined here
+    |
+help: `value::Value::Object` is a tuple variant, use the appropriate syntax
+    |
+588 -     Ok(RuntimeValue::Object {
+589 -         properties: keypair,
+590 -         methods: HashMap::new(),
+591 -     })
+588 +     Ok(RuntimeValue::Object(/* usize */))
+    |
+
+error[E0769]: tuple variant `RuntimeValue::Object` written as struct variant
+   --> crates\dryad_runtime\src\native_modules\utils.rs:147:9
+    |
+147 |         RuntimeValue::Object { properties, methods } => {
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+help: use the tuple variant pattern syntax instead
+    |
+147 -         RuntimeValue::Object { properties, methods } => {
+147 +         RuntimeValue::Object(_) => {
+    |
+
+error[E0769]: tuple variant `RuntimeValue::Instance` written as struct variant
+   --> crates\dryad_runtime\src\native_modules\utils.rs:157:9
+    |
+157 |         RuntimeValue::Instance { class_name, properties } => {
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+help: use the tuple variant pattern syntax instead
+    |
+157 -         RuntimeValue::Instance { class_name, properties } => {
+157 +         RuntimeValue::Instance(_) => {
+    |
+
+error[E0599]: no method named `iter` found for reference `&usize` in the current scope
+   --> crates\dryad_runtime\src\native_modules\utils.rs:136:55
+    |
+136 |             let cloned_array: Vec<RuntimeValue> = arr.iter()
+    |                                                       ^^^^ method not found in `&usize`
+
+error[E0599]: no method named `iter` found for reference `&usize` in the current scope
+   --> crates\dryad_runtime\src\native_modules\utils.rs:142:57
+    |
+142 |             let cloned_tuple: Vec<RuntimeValue> = tuple.iter()
+    |                                                         ^^^^ method not found in `&usize`
+
+error[E0282]: type annotations needed
+   --> crates\dryad_runtime\src\native_modules\utils.rs:150:42
+    |
+150 |                 cloned_properties.insert(key.clone(), deep_clone(val));
+    |                                          ^^^ cannot infer type
+
+error[E0559]: variant `value::Value::Object` has no field named `properties`
+   --> crates\dryad_runtime\src\native_modules\utils.rs:153:17
+    |
+153 |                 properties: cloned_properties,
+    |                 ^^^^^^^^^^ field does not exist
+    |
+   ::: crates\dryad_runtime\src\value.rs:52:5
+    |
+ 52 |     Object(HeapId),
+    |     ------ `value::Value::Object` defined here
+    |
+help: `value::Value::Object` is a tuple variant, use the appropriate syntax
+    |
+152 -             RuntimeValue::Object {
+153 -                 properties: cloned_properties,
+154 -                 methods: methods.clone(), // Métodos são copiados como referência
+155 -             }
+152 +             RuntimeValue::Object(/* usize */)
+    |
+
+error[E0559]: variant `value::Value::Object` has no field named `methods`
+   --> crates\dryad_runtime\src\native_modules\utils.rs:154:17
+    |
+154 |                 methods: methods.clone(), // Métodos são copiados como referência
+    |                 ^^^^^^^ field does not exist
+    |
+   ::: crates\dryad_runtime\src\value.rs:52:5
+    |
+ 52 |     Object(HeapId),
+    |     ------ `value::Value::Object` defined here
+    |
+help: `value::Value::Object` is a tuple variant, use the appropriate syntax
+    |
+152 -             RuntimeValue::Object {
+153 -                 properties: cloned_properties,
+154 -                 methods: methods.clone(), // Métodos são copiados como referência
+155 -             }
+152 +             RuntimeValue::Object(/* usize */)
+    |
+
+error[E0282]: type annotations needed
+   --> crates\dryad_runtime\src\native_modules\utils.rs:160:42
+    |
+160 |                 cloned_properties.insert(key.clone(), deep_clone(val));
+    |                                          ^^^ cannot infer type
+
+error[E0559]: variant `value::Value::Instance` has no field named `class_name`
+   --> crates\dryad_runtime\src\native_modules\utils.rs:163:17
+    |
+163 |                 class_name: class_name.clone(),
+    |                 ^^^^^^^^^^ field does not exist
+    |
+   ::: crates\dryad_runtime\src\value.rs:51:5
+    |
+ 51 |     Instance(HeapId),
+    |     -------- `value::Value::Instance` defined here
+    |
+help: `value::Value::Instance` is a tuple variant, use the appropriate syntax
+    |
+162 -             RuntimeValue::Instance {
+163 -                 class_name: class_name.clone(),
+164 -                 properties: cloned_properties,
+165 -             }
+162 +             RuntimeValue::Instance(/* usize */)
+    |
+
+error[E0559]: variant `value::Value::Instance` has no field named `properties`
+   --> crates\dryad_runtime\src\native_modules\utils.rs:164:17
+    |
+164 |                 properties: cloned_properties,
+    |                 ^^^^^^^^^^ field does not exist
+    |
+   ::: crates\dryad_runtime\src\value.rs:51:5
+    |
+ 51 |     Instance(HeapId),
+    |     -------- `value::Value::Instance` defined here
+    |
+help: `value::Value::Instance` is a tuple variant, use the appropriate syntax
+    |
+162 -             RuntimeValue::Instance {
+163 -                 class_name: class_name.clone(),
+164 -                 properties: cloned_properties,
+165 -             }
+162 +             RuntimeValue::Instance(/* usize */)
+    |
+
+error[E0308]: mismatched types
+   --> crates\dryad_runtime\src\native_modules\utils.rs:351:28
+    |
+351 |     Ok(RuntimeValue::Array(runtime_bytes))
+    |        ------------------- ^^^^^^^^^^^^^ expected `usize`, found `Vec<Value>`
+    |        |
+    |        arguments to this enum variant are incorrect
+    |
+    = note: expected type `usize`
+             found struct `Vec<value::Value>`
+note: tuple variant defined here
+   --> crates\dryad_runtime\src\value.rs:18:5
+    |
+ 18 |     Array(HeapId),
+    |     ^^^^^
+
+error[E0308]: mismatched types
+   --> crates\dryad_runtime\src\native_modules\utils.rs:421:40
+    |
+421 |                 Ok(RuntimeValue::Array(groups))
+    |                    ------------------- ^^^^^^ expected `usize`, found `Vec<Value>`
+    |                    |
+    |                    arguments to this enum variant are incorrect
+    |
+    = note: expected type `usize`
+             found struct `Vec<value::Value>`
+note: tuple variant defined here
+   --> crates\dryad_runtime\src\value.rs:18:5
+    |
+ 18 |     Array(HeapId),
+    |     ^^^^^
+
+error[E0308]: mismatched types
+   --> crates\dryad_runtime\src\native_modules\utils.rs:483:36
+    |
+483 |             Ok(RuntimeValue::Array(parts))
+    |                ------------------- ^^^^^ expected `usize`, found `Vec<Value>`
+    |                |
+    |                arguments to this enum variant are incorrect
+    |
+    = note: expected type `usize`
+             found struct `Vec<value::Value>`
+note: tuple variant defined here
+   --> crates\dryad_runtime\src\value.rs:18:5
+    |
+ 18 |     Array(HeapId),
+    |     ^^^^^
+
+error[E0559]: variant `value::Value::Object` has no field named `properties`
+   --> crates\dryad_runtime\src\native_modules\http_client.rs:158:39
+    |
+158 |             Ok(RuntimeValue::Object { properties: headers_map, methods: HashMap::new() })
+    |                                       ^^^^^^^^^^ field does not exist
+    |
+   ::: crates\dryad_runtime\src\value.rs:52:5
+    |
+ 52 |     Object(HeapId),
+    |     ------ `value::Value::Object` defined here
+    |
+help: `value::Value::Object` is a tuple variant, use the appropriate syntax
+    |
+158 -             Ok(RuntimeValue::Object { properties: headers_map, methods: HashMap::new() })
+158 +             Ok(RuntimeValue::Object(/* usize */))
+    |
+
+error[E0559]: variant `value::Value::Object` has no field named `methods`
+   --> crates\dryad_runtime\src\native_modules\http_client.rs:158:64
+    |
+158 |             Ok(RuntimeValue::Object { properties: headers_map, methods: HashMap::new() })
+    |                                                                ^^^^^^^ field does not exist
+    |
+   ::: crates\dryad_runtime\src\value.rs:52:5
+    |
+ 52 |     Object(HeapId),
+    |     ------ `value::Value::Object` defined here
+    |
+help: `value::Value::Object` is a tuple variant, use the appropriate syntax
+    |
+158 -             Ok(RuntimeValue::Object { properties: headers_map, methods: HashMap::new() })
+158 +             Ok(RuntimeValue::Object(/* usize */))
+    |
+
+error[E0026]: variant `value::Value::Object` does not have a field named `properties`
+   --> crates\dryad_runtime\src\native_modules\http_client.rs:239:32
+    |
+239 |         RuntimeValue::Object { properties, .. } => properties,
+    |                                ^^^^^^^^^^
+    |                                |
+    |                                variant `value::Value::Object` does not have this field
+    |                                help: `value::Value::Object` has a field named `0`
+
+error[E0282]: type annotations needed
+   --> crates\dryad_runtime\src\native_modules\http_client.rs:245:28
+    |
+245 |             headers.insert(k.clone(), val.clone());
+    |                            ^ cannot infer type
+
+error[E0026]: variant `value::Value::Object` does not have a field named `properties`
+   --> crates\dryad_runtime\src\native_modules\http_client.rs:312:32
+    |
+312 |         RuntimeValue::Object { properties, .. } => properties,
+    |                                ^^^^^^^^^^
+    |                                |
+    |                                variant `value::Value::Object` does not have this field
+    |                                help: `value::Value::Object` has a field named `0`
+
+error[E0282]: type annotations needed
+   --> crates\dryad_runtime\src\native_modules\http_client.rs:318:28
+    |
+318 |             cookies.insert(k.clone(), val.clone());
+    |                            ^ cannot infer type
+
+error[E0559]: variant `value::Value::Object` has no field named `properties`
+   --> crates\dryad_runtime\src\native_modules\tcp.rs:302:13
+    |
+302 |             properties: status,
+    |             ^^^^^^^^^^ field does not exist
+    |
+   ::: crates\dryad_runtime\src\value.rs:52:5
+    |
+ 52 |     Object(HeapId),
+    |     ------ `value::Value::Object` defined here
+    |
+help: `value::Value::Object` is a tuple variant, use the appropriate syntax
+    |
+301 -         Ok(Value::Object {
+302 -             properties: status,
+303 -             methods: HashMap::new(),
+304 -         })
+301 +         Ok(Value::Object(/* usize */))
+    |
+
+error[E0559]: variant `value::Value::Object` has no field named `methods`
+   --> crates\dryad_runtime\src\native_modules\tcp.rs:303:13
+    |
+303 |             methods: HashMap::new(),
+    |             ^^^^^^^ field does not exist
+    |
+   ::: crates\dryad_runtime\src\value.rs:52:5
+    |
+ 52 |     Object(HeapId),
+    |     ------ `value::Value::Object` defined here
+    |
+help: `value::Value::Object` is a tuple variant, use the appropriate syntax
+    |
+301 -         Ok(Value::Object {
+302 -             properties: status,
+303 -             methods: HashMap::new(),
+304 -         })
+301 +         Ok(Value::Object(/* usize */))
+    |
+
+error[E0559]: variant `value::Value::Object` has no field named `properties`
+   --> crates\dryad_runtime\src\native_modules\tcp.rs:560:13
+    |
+560 |             properties: status,
+    |             ^^^^^^^^^^ field does not exist
+    |
+   ::: crates\dryad_runtime\src\value.rs:52:5
+    |
+ 52 |     Object(HeapId),
+    |     ------ `value::Value::Object` defined here
+    |
+help: `value::Value::Object` is a tuple variant, use the appropriate syntax
+    |
+559 -         Ok(Value::Object {
+560 -             properties: status,
+561 -             methods: HashMap::new(),
+562 -         })
+559 +         Ok(Value::Object(/* usize */))
+    |
+
+error[E0559]: variant `value::Value::Object` has no field named `methods`
+   --> crates\dryad_runtime\src\native_modules\tcp.rs:561:13
+    |
+561 |             methods: HashMap::new(),
+    |             ^^^^^^^ field does not exist
+    |
+   ::: crates\dryad_runtime\src\value.rs:52:5
+    |
+ 52 |     Object(HeapId),
+    |     ------ `value::Value::Object` defined here
+    |
+help: `value::Value::Object` is a tuple variant, use the appropriate syntax
+    |
+559 -         Ok(Value::Object {
+560 -             properties: status,
+561 -             methods: HashMap::new(),
+562 -         })
+559 +         Ok(Value::Object(/* usize */))
+    |
+
+error[E0559]: variant `value::Value::Object` has no field named `properties`
+   --> crates\dryad_runtime\src\native_modules\udp.rs:253:32
+    |
+253 |             Ok(Value::Object { properties: status, methods: HashMap::new() })
+    |                                ^^^^^^^^^^ field does not exist
+    |
+   ::: crates\dryad_runtime\src\value.rs:52:5
+    |
+ 52 |     Object(HeapId),
+    |     ------ `value::Value::Object` defined here
+    |
+help: `value::Value::Object` is a tuple variant, use the appropriate syntax
+    |
+253 -             Ok(Value::Object { properties: status, methods: HashMap::new() })
+253 +             Ok(Value::Object(/* usize */))
+    |
+
+error[E0559]: variant `value::Value::Object` has no field named `methods`
+   --> crates\dryad_runtime\src\native_modules\udp.rs:253:52
+    |
+253 |             Ok(Value::Object { properties: status, methods: HashMap::new() })
+    |                                                    ^^^^^^^ field does not exist
+    |
+   ::: crates\dryad_runtime\src\value.rs:52:5
+    |
+ 52 |     Object(HeapId),
+    |     ------ `value::Value::Object` defined here
+    |
+help: `value::Value::Object` is a tuple variant, use the appropriate syntax
+    |
+253 -             Ok(Value::Object { properties: status, methods: HashMap::new() })
+253 +             Ok(Value::Object(/* usize */))
+    |
+
+error[E0559]: variant `value::Value::Object` has no field named `properties`
+   --> crates\dryad_runtime\src\native_modules\udp.rs:515:44
+    |
+515 |                         Ok(Value::Object { properties: result, methods: HashMap::new() })
+    |                                            ^^^^^^^^^^ field does not exist
+    |
+   ::: crates\dryad_runtime\src\value.rs:52:5
+    |
+ 52 |     Object(HeapId),
+    |     ------ `value::Value::Object` defined here
+    |
+help: `value::Value::Object` is a tuple variant, use the appropriate syntax
+    |
+515 -                         Ok(Value::Object { properties: result, methods: HashMap::new() })
+515 +                         Ok(Value::Object(/* usize */))
+    |
+
+error[E0559]: variant `value::Value::Object` has no field named `methods`
+   --> crates\dryad_runtime\src\native_modules\udp.rs:515:64
+    |
+515 |                         Ok(Value::Object { properties: result, methods: HashMap::new() })
+    |                                                                ^^^^^^^ field does not exist
+    |
+   ::: crates\dryad_runtime\src\value.rs:52:5
+    |
+ 52 |     Object(HeapId),
+    |     ------ `value::Value::Object` defined here
+    |
+help: `value::Value::Object` is a tuple variant, use the appropriate syntax
+    |
+515 -                         Ok(Value::Object { properties: result, methods: HashMap::new() })
+515 +                         Ok(Value::Object(/* usize */))
+    |
+
+error[E0559]: variant `value::Value::Object` has no field named `properties`
+   --> crates\dryad_runtime\src\native_modules\udp.rs:521:44
+    |
+521 |                         Ok(Value::Object { properties: result, methods: HashMap::new() })
+    |                                            ^^^^^^^^^^ field does not exist
+    |
+   ::: crates\dryad_runtime\src\value.rs:52:5
+    |
+ 52 |     Object(HeapId),
+    |     ------ `value::Value::Object` defined here
+    |
+help: `value::Value::Object` is a tuple variant, use the appropriate syntax
+    |
+521 -                         Ok(Value::Object { properties: result, methods: HashMap::new() })
+521 +                         Ok(Value::Object(/* usize */))
+    |
+
+error[E0559]: variant `value::Value::Object` has no field named `methods`
+   --> crates\dryad_runtime\src\native_modules\udp.rs:521:64
+    |
+521 |                         Ok(Value::Object { properties: result, methods: HashMap::new() })
+    |                                                                ^^^^^^^ field does not exist
+    |
+   ::: crates\dryad_runtime\src\value.rs:52:5
+    |
+ 52 |     Object(HeapId),
+    |     ------ `value::Value::Object` defined here
+    |
+help: `value::Value::Object` is a tuple variant, use the appropriate syntax
+    |
+521 -                         Ok(Value::Object { properties: result, methods: HashMap::new() })
+521 +                         Ok(Value::Object(/* usize */))
+    |
+
+error[E0559]: variant `value::Value::Object` has no field named `properties`
+   --> crates\dryad_runtime\src\native_modules\udp.rs:528:44
+    |
+528 |                         Ok(Value::Object { properties: result, methods: HashMap::new() })
+    |                                            ^^^^^^^^^^ field does not exist
+    |
+   ::: crates\dryad_runtime\src\value.rs:52:5
+    |
+ 52 |     Object(HeapId),
+    |     ------ `value::Value::Object` defined here
+    |
+help: `value::Value::Object` is a tuple variant, use the appropriate syntax
+    |
+528 -                         Ok(Value::Object { properties: result, methods: HashMap::new() })
+528 +                         Ok(Value::Object(/* usize */))
+    |
+
+error[E0559]: variant `value::Value::Object` has no field named `methods`
+   --> crates\dryad_runtime\src\native_modules\udp.rs:528:64
+    |
+528 |                         Ok(Value::Object { properties: result, methods: HashMap::new() })
+    |                                                                ^^^^^^^ field does not exist
+    |
+   ::: crates\dryad_runtime\src\value.rs:52:5
+    |
+ 52 |     Object(HeapId),
+    |     ------ `value::Value::Object` defined here
+    |
+help: `value::Value::Object` is a tuple variant, use the appropriate syntax
+    |
+528 -                         Ok(Value::Object { properties: result, methods: HashMap::new() })
+528 +                         Ok(Value::Object(/* usize */))
+    |
+
+error[E0559]: variant `value::Value::Object` has no field named `properties`
+   --> crates\dryad_runtime\src\native_modules\udp.rs:561:32
+    |
+561 |             Ok(Value::Object { properties: status, methods: HashMap::new() })
+    |                                ^^^^^^^^^^ field does not exist
+    |
+   ::: crates\dryad_runtime\src\value.rs:52:5
+    |
+ 52 |     Object(HeapId),
+    |     ------ `value::Value::Object` defined here
+    |
+help: `value::Value::Object` is a tuple variant, use the appropriate syntax
+    |
+561 -             Ok(Value::Object { properties: status, methods: HashMap::new() })
+561 +             Ok(Value::Object(/* usize */))
+    |
+
+error[E0559]: variant `value::Value::Object` has no field named `methods`
+   --> crates\dryad_runtime\src\native_modules\udp.rs:561:52
+    |
+561 |             Ok(Value::Object { properties: status, methods: HashMap::new() })
+    |                                                    ^^^^^^^ field does not exist
+    |
+   ::: crates\dryad_runtime\src\value.rs:52:5
+    |
+ 52 |     Object(HeapId),
+    |     ------ `value::Value::Object` defined here
+    |
+help: `value::Value::Object` is a tuple variant, use the appropriate syntax
+    |
+561 -             Ok(Value::Object { properties: status, methods: HashMap::new() })
+561 +             Ok(Value::Object(/* usize */))
+    |
+
+warning: unused import: `rsa::signature::SignatureEncoding`
+  --> crates\dryad_runtime\src\native_modules\crypto.rs:12:5
+   |
+12 | use rsa::signature::SignatureEncoding;
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `aes::cipher::KeyInit`
+  --> crates\dryad_runtime\src\native_modules\crypto.rs:11:5
+   |
+11 | use aes::cipher::KeyInit;
+   |     ^^^^^^^^^^^^^^^^^^^^
+
+warning: unused variable: `is_async`
+   --> crates\dryad_runtime\src\interpreter.rs:419:70
+    |
+419 |                         ClassMember::Method { visibility, is_static, is_async, name: method_name, params, body, .. } => {
+    |                                                                      ^^^^^^^^ help: try ignoring the field: `is_async: _`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `location`
+   --> crates\dryad_runtime\src\interpreter.rs:805:128
+    |
+805 | ...>, arg_values: Vec<Value>, location: &SourceLocation) -> Result<Value, DryadError> {
+    |                               ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_location`
+
+error[E0502]: cannot borrow `*self` as mutable because it is also borrowed as immutable
+    --> crates\dryad_runtime\src\interpreter.rs:1642:45
+     |
+1619 |                 let heap_obj = self.heap.get(id).ok_or_else(|| {
+     |                                --------- immutable borrow occurs here
+...
+1642 |                             arg_values.push(self.evaluate(arg)?);
+     |                                             ^^^^^^^^^^^^^^^^^^ mutable borrow occurs here
+...
+1645 |                         if arg_values.len() != method.params.len() {
+     |                                                ------------- immutable borrow later used here
+
+error[E0502]: cannot borrow `*self` as mutable because it is also borrowed as immutable
+    --> crates\dryad_runtime\src\interpreter.rs:1660:44
+     |
+1619 |                 let heap_obj = self.heap.get(id).ok_or_else(|| {
+     |                                --------- immutable borrow occurs here
+...
+1660 |                         let result = match self.execute_statement(&method.body) {
+     |                                            ^^^^^-----------------^^^^^^^^^^^^^^
+     |                                            |    |
+     |                                            |    immutable borrow later used by call
+     |                                            mutable borrow occurs here
+
+error[E0502]: cannot borrow `*self` as mutable because it is also borrowed as immutable
+    --> crates\dryad_runtime\src\interpreter.rs:1706:53
+     |
+1691 |                         let class_obj = self.heap.get(cid).ok_or_else(|| {
+     |                                         --------- immutable borrow occurs here
+...
+1706 |                                     arg_values.push(self.evaluate(arg)?);
+     |                                                     ^^^^^^^^^^^^^^^^^^ mutable borrow occurs here
+...
+1709 |                                 if arg_values.len() != method.params.len() {
+     |                                                        ------------- immutable borrow later used here
+
+error[E0502]: cannot borrow `*self` as mutable because it is also borrowed as immutable
+    --> crates\dryad_runtime\src\interpreter.rs:1725:52
+     |
+1691 |                         let class_obj = self.heap.get(cid).ok_or_else(|| {
+     |                                         --------- immutable borrow occurs here
+...
+1725 |                                 let result = match self.execute_statement(&method.body) {
+     |                                                    ^^^^^-----------------^^^^^^^^^^^^^^
+     |                                                    |    |
+     |                                                    |    immutable borrow later used by call
+     |                                                    mutable borrow occurs here
+
+error[E0502]: cannot borrow `*self` as mutable because it is also borrowed as immutable
+    --> crates\dryad_runtime\src\interpreter.rs:1803:53
+     |
+1753 |                 let heap_obj = self.heap.get(id).ok_or_else(|| {
+     |                                --------- immutable borrow occurs here
+...
+1803 |                                     arg_values.push(self.evaluate(arg)?);
+     |                                                     ^^^^^^^^^^^^^^^^^^ mutable borrow occurs here
+...
+1806 |                                 if arg_values.len() != params.len() {
+     |                                                        ------ immutable borrow later used here
+
+error[E0502]: cannot borrow `*self` as mutable because it is also borrowed as immutable
+    --> crates\dryad_runtime\src\interpreter.rs:1819:52
+     |
+1753 |                 let heap_obj = self.heap.get(id).ok_or_else(|| {
+     |                                --------- immutable borrow occurs here
+...
+1819 |                                 let result = match self.execute_statement(body) {
+     |                                                    ^^^^^-----------------^^^^^^
+     |                                                    |    |
+     |                                                    |    immutable borrow later used by call
+     |                                                    mutable borrow occurs here
+
+warning: unused variable: `properties`
+    --> crates\dryad_runtime\src\interpreter.rs:1688:25
+     |
+1688 |                     let properties = properties.clone();
+     |                         ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_properties`
+
+warning: unused variable: `properties`
+    --> crates\dryad_runtime\src\interpreter.rs:1760:29
+     |
+1760 |                         let properties = properties.clone();
+     |                             ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_properties`
+
+warning: unused variable: `methods`
+    --> crates\dryad_runtime\src\interpreter.rs:1761:29
+     |
+1761 |                         let methods = methods.clone();
+     |                             ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_methods`
+
+warning: unused variable: `location`
+    --> crates\dryad_runtime\src\interpreter.rs:2075:64
+     |
+2075 |     fn eval_match(&mut self, target: &Expr, arms: &[MatchArm], location: &SourceLocation) -> Result<Value, DryadError> {
+     |                                                                ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_location`
+
+warning: unused variable: `id`
+    --> crates\dryad_runtime\src\interpreter.rs:2225:30
+     |
+2225 |             Value::Promise { id, resolved: true, value: Some(val) } => Ok(*val),
+     |                              ^^ help: try ignoring the field: `id: _`
+
+warning: unused variable: `buffer`
+   --> crates\dryad_runtime\src\native_modules\tcp.rs:102:9
+    |
+102 |     let buffer = [0; 1024];
+    |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_buffer`
+
+error[E0502]: cannot borrow `*self` as immutable because it is also borrowed as mutable
+  --> crates\dryad_runtime\src\heap.rs:74:21
+   |
+70 |             if let Some((obj, mark)) = self.objects.get_mut(&id) {
+   |                                        ------------ mutable borrow occurs here
+...
+74 |                     self.trace_object(obj, &mut worklist);
+   |                     ^^^^              --- mutable borrow later used here
+   |                     |
+   |                     immutable borrow occurs here
+
+Some errors have detailed explanations: E0026, E0277, E0282, E0308, E0502, E0559, E0599, E0614, E0769.
+For more information about an error, try `rustc --explain E0026`.
+warning: `dryad_runtime` (lib) generated 16 warnings
+error: could not compile `dryad_runtime` (lib) due to 102 previous errors; 16 warnings emitted

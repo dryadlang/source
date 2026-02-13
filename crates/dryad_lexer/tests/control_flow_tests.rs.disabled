@@ -1,0 +1,156 @@
+use dryad_lexer::{Lexer, Token};
+
+#[test]
+fn test_tokenize_if_keyword() {
+    let mut lexer = Lexer::new("if");
+    let token = lexer.next_token().unwrap();
+    assert!(matches!(token, Token::If));
+    
+    let token = lexer.next_token().unwrap();
+    assert!(matches!(token, Token::Eof));
+}
+
+#[test]
+fn test_tokenize_else_keyword() {
+    let mut lexer = Lexer::new("else");
+    let token = lexer.next_token().unwrap();
+    assert!(matches!(token, Token::Else));
+    
+    let token = lexer.next_token().unwrap();
+    assert!(matches!(token, Token::Eof));
+}
+
+#[test]
+fn test_if_else_together() {
+    let mut lexer = Lexer::new("if else");
+    let token1 = lexer.next_token().unwrap();
+    assert!(matches!(token1, Token::If));
+    
+    let token2 = lexer.next_token().unwrap();
+    assert!(matches!(token2, Token::Else));
+    
+    let token3 = lexer.next_token().unwrap();
+    assert!(matches!(token3, Token::Eof));
+}
+
+#[test]
+fn test_simple_if_statement() {
+    let mut lexer = Lexer::new("if idade >= 18 { print(\"Maior de idade\"); }");
+    let tokens = collect_tokens(&mut lexer);
+    
+    assert!(matches!(tokens[0], Token::If));
+    assert!(matches!(tokens[1], Token::Identifier(_)));
+    assert!(matches!(tokens[2], Token::GreaterEqual));
+    assert!(matches!(tokens[3], Token::Number(_)));
+    assert!(matches!(tokens[4], Token::LeftBrace));
+    assert!(matches!(tokens[5], Token::Identifier(_))); // print
+    assert!(matches!(tokens[6], Token::LeftParen));
+    assert!(matches!(tokens[7], Token::String(_)));
+    assert!(matches!(tokens[8], Token::RightParen));
+    assert!(matches!(tokens[9], Token::Semicolon));
+    assert!(matches!(tokens[10], Token::RightBrace));
+}
+
+#[test]
+fn test_if_else_statement() {
+    let mut lexer = Lexer::new("if nota >= 7.0 { print(\"Aprovado\"); } else { print(\"Reprovado\"); }");
+    let tokens = collect_tokens(&mut lexer);
+    
+    assert!(matches!(tokens[0], Token::If));
+    assert!(matches!(tokens[1], Token::Identifier(_))); // nota
+    assert!(matches!(tokens[2], Token::GreaterEqual));
+    assert!(matches!(tokens[3], Token::Number(_))); // 7.0
+    assert!(matches!(tokens[4], Token::LeftBrace));
+    // ... statements inside if block
+    let else_pos = tokens.iter().position(|t| matches!(t, Token::Else)).unwrap();
+    assert!(matches!(tokens[else_pos], Token::Else));
+    assert!(matches!(tokens[else_pos + 1], Token::LeftBrace));
+}
+
+#[test] 
+fn test_else_if_statement() {
+    let mut lexer = Lexer::new("if x > 90 { } else if x > 80 { } else { }");
+    let tokens = collect_tokens(&mut lexer);
+    
+    assert!(matches!(tokens[0], Token::If));
+    
+    // Find first else
+    let first_else = tokens.iter().position(|t| matches!(t, Token::Else)).unwrap();
+    assert!(matches!(tokens[first_else], Token::Else));
+    assert!(matches!(tokens[first_else + 1], Token::If));
+    
+    // Find second else
+    let second_else = tokens.iter().skip(first_else + 1).position(|t| matches!(t, Token::Else)).unwrap() + first_else + 1;
+    assert!(matches!(tokens[second_else], Token::Else));
+}
+
+#[test]
+fn test_nested_if_statements() {
+    let mut lexer = Lexer::new("if x > 0 { if y > 0 { } }");
+    let tokens = collect_tokens(&mut lexer);
+    
+    // Should have two If tokens
+    let if_count = tokens.iter().filter(|t| matches!(t, Token::If)).count();
+    assert_eq!(if_count, 2);
+}
+
+#[test]
+fn test_if_with_complex_conditions() {
+    let mut lexer = Lexer::new("if (idade >= 18 && tem_carteira) || admin { }");
+    let tokens = collect_tokens(&mut lexer);
+    
+    assert!(matches!(tokens[0], Token::If));
+    assert!(matches!(tokens[1], Token::LeftParen));
+    // Complex boolean expression
+    assert!(tokens.iter().any(|t| matches!(t, Token::LogicalAnd)));
+    assert!(tokens.iter().any(|t| matches!(t, Token::LogicalOr)));
+    assert!(matches!(tokens[tokens.len() - 2], Token::RightBrace));
+}
+
+#[test]
+fn test_differentiate_if_from_identifier() {
+    let mut lexer = Lexer::new("if_statement = true; if x { }");
+    let tokens = collect_tokens(&mut lexer);
+    
+    // First should be identifier, second should be if keyword
+    assert!(matches!(tokens[0], Token::Identifier(_)));
+    let if_pos = tokens.iter().position(|t| matches!(t, Token::If)).unwrap();
+    assert!(matches!(tokens[if_pos], Token::If));
+}
+
+#[test]
+fn test_exact_syntax_md_examples() {
+    // Test exact examples from SYNTAX.md
+    
+    // If simples
+    let mut lexer = Lexer::new("let idade = 18; if idade >= 18 { print(\"Maior de idade\"); }");
+    let tokens = collect_tokens(&mut lexer);
+    assert!(tokens.iter().any(|t| matches!(t, Token::If)));
+    
+    // If-else
+    let mut lexer = Lexer::new("let nota = 7.5; if nota >= 7.0 { print(\"Aprovado\"); } else { print(\"Reprovado\"); }");
+    let tokens = collect_tokens(&mut lexer);
+    assert!(tokens.iter().any(|t| matches!(t, Token::If)));
+    assert!(tokens.iter().any(|t| matches!(t, Token::Else)));
+    
+    // If-else encadeado
+    let mut lexer = Lexer::new("if pontuacao >= 90 { print(\"Excelente\"); } else if pontuacao >= 80 { print(\"Bom\"); }");
+    let tokens = collect_tokens(&mut lexer);
+    let if_count = tokens.iter().filter(|t| matches!(t, Token::If)).count();
+    let else_count = tokens.iter().filter(|t| matches!(t, Token::Else)).count();
+    assert!(if_count >= 2); // if + else if
+    assert!(else_count >= 1); // else
+}
+
+fn collect_tokens(lexer: &mut Lexer) -> Vec<Token> {
+    let mut tokens = Vec::new();
+    loop {
+        let token = lexer.next_token().unwrap();
+        if matches!(token, Token::Eof) {
+            tokens.push(token);
+            break;
+        }
+        tokens.push(token);
+    }
+    tokens
+}

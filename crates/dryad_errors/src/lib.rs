@@ -2,9 +2,9 @@
 use std::fmt;
 use std::path::PathBuf;
 
+pub mod error_urls;
 #[cfg(test)]
 mod tests;
-pub mod error_urls;
 
 /// Informações de localização no código fonte
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -26,12 +26,12 @@ impl SourceLocation {
             source_line: None,
         }
     }
-    
+
     pub fn with_source_line(mut self, source_line: String) -> Self {
         self.source_line = Some(source_line);
         self
     }
-    
+
     pub fn unknown() -> Self {
         Self {
             file: None,
@@ -59,7 +59,7 @@ impl StackFrame {
             context: None,
         }
     }
-    
+
     pub fn with_context(mut self, context: String) -> Self {
         self.context = Some(context);
         self
@@ -76,13 +76,19 @@ impl StackTrace {
     pub fn new() -> Self {
         Self { frames: Vec::new() }
     }
-    
+
     pub fn push_frame(&mut self, frame: StackFrame) {
         self.frames.push(frame);
     }
-    
+
     pub fn from_frames(frames: Vec<StackFrame>) -> Self {
         Self { frames }
+    }
+}
+
+impl Default for StackTrace {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -90,9 +96,9 @@ impl StackTrace {
 #[derive(Debug, Clone, PartialEq)]
 pub struct DebugContext {
     pub variables: Option<std::collections::HashMap<String, String>>, // Variáveis locais
-    pub suggestions: Vec<String>, // Sugestões para correção
-    pub help_url: Option<String>, // Link para documentação
-    pub related_code: Vec<String>, // Código relacionado ao erro
+    pub suggestions: Vec<String>,                                     // Sugestões para correção
+    pub help_url: Option<String>,                                     // Link para documentação
+    pub related_code: Vec<String>,                                    // Código relacionado ao erro
 }
 
 impl DebugContext {
@@ -104,20 +110,26 @@ impl DebugContext {
             related_code: Vec::new(),
         }
     }
-    
+
     pub fn with_variables(mut self, variables: std::collections::HashMap<String, String>) -> Self {
         self.variables = Some(variables);
         self
     }
-    
+
     pub fn with_suggestion(mut self, suggestion: String) -> Self {
         self.suggestions.push(suggestion);
         self
     }
-    
+
     pub fn with_help_url(mut self, url: String) -> Self {
         self.help_url = Some(url);
         self
+    }
+}
+
+impl Default for DebugContext {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -200,12 +212,24 @@ pub enum DryadError {
 impl fmt::Display for DryadError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            DryadError::Lexer { code, message, location, debug_context } => {
+            DryadError::Lexer {
+                code,
+                message,
+                location,
+                debug_context,
+            } => {
                 writeln!(f, "\n🚨 E{}: Erro Léxico - {}", code, message)?;
                 write_location_info(f, location)?;
                 write_debug_context(f, debug_context.as_ref())?;
-            },
-            DryadError::Parser { code, message, location, expected, found, debug_context } => {
+            }
+            DryadError::Parser {
+                code,
+                message,
+                location,
+                expected,
+                found,
+                debug_context,
+            } => {
                 writeln!(f, "\n🚨 E{}: Erro Sintático - {}", code, message)?;
                 write_location_info(f, location)?;
                 if !expected.is_empty() {
@@ -215,21 +239,41 @@ impl fmt::Display for DryadError {
                     writeln!(f, "   ❌ Encontrado: {}", found)?;
                 }
                 write_debug_context(f, debug_context.as_ref())?;
-            },
-            DryadError::Runtime { code, message, location, stack_trace, debug_context } => {
+            }
+            DryadError::Runtime {
+                code,
+                message,
+                location,
+                stack_trace,
+                debug_context,
+            } => {
                 writeln!(f, "\n🚨 E{}: Erro de Runtime - {}", code, message)?;
                 write_location_info(f, location)?;
                 write_stack_trace(f, stack_trace)?;
                 write_debug_context(f, debug_context.as_ref())?;
-            },
-            DryadError::Type { code, message, location, expected_type, found_type, debug_context } => {
+            }
+            DryadError::Type {
+                code,
+                message,
+                location,
+                expected_type,
+                found_type,
+                debug_context,
+            } => {
                 writeln!(f, "\n🚨 E{}: Erro de Tipo - {}", code, message)?;
                 write_location_info(f, location)?;
                 writeln!(f, "   📝 Tipo esperado: {}", expected_type)?;
                 writeln!(f, "   ❌ Tipo encontrado: {}", found_type)?;
                 write_debug_context(f, debug_context.as_ref())?;
-            },
-            DryadError::Io { code, message, location, operation, path, debug_context } => {
+            }
+            DryadError::Io {
+                code,
+                message,
+                location,
+                operation,
+                path,
+                debug_context,
+            } => {
                 writeln!(f, "\n🚨 E{}: Erro de I/O - {}", code, message)?;
                 write_location_info(f, location)?;
                 writeln!(f, "   🔧 Operação: {}", operation)?;
@@ -237,22 +281,40 @@ impl fmt::Display for DryadError {
                     writeln!(f, "   📁 Arquivo: {}", path.display())?;
                 }
                 write_debug_context(f, debug_context.as_ref())?;
-            },
-            DryadError::Module { code, message, location, module_name, debug_context } => {
+            }
+            DryadError::Module {
+                code,
+                message,
+                location,
+                module_name,
+                debug_context,
+            } => {
                 writeln!(f, "\n🚨 E{}: Erro de Módulo - {}", code, message)?;
                 write_location_info(f, location)?;
                 writeln!(f, "   📦 Módulo: {}", module_name)?;
                 write_debug_context(f, debug_context.as_ref())?;
-            },
-            DryadError::Syntax { code, message, location, syntax_help, debug_context } => {
+            }
+            DryadError::Syntax {
+                code,
+                message,
+                location,
+                syntax_help,
+                debug_context,
+            } => {
                 writeln!(f, "\n🚨 E{}: Erro de Sintaxe - {}", code, message)?;
                 write_location_info(f, location)?;
                 if let Some(help) = syntax_help {
                     writeln!(f, "   💡 Dica: {}", help)?;
                 }
                 write_debug_context(f, debug_context.as_ref())?;
-            },
-            DryadError::Warning { code, message, location, severity, debug_context } => {
+            }
+            DryadError::Warning {
+                code,
+                message,
+                location,
+                severity,
+                debug_context,
+            } => {
                 let icon = match severity {
                     WarningSeverity::Low => "⚠️",
                     WarningSeverity::Medium => "🟡",
@@ -261,15 +323,21 @@ impl fmt::Display for DryadError {
                 writeln!(f, "\n{} W{}: Aviso - {}", icon, code, message)?;
                 write_location_info(f, location)?;
                 write_debug_context(f, debug_context.as_ref())?;
-            },
-            DryadError::System { code, message, location, system_info, debug_context } => {
+            }
+            DryadError::System {
+                code,
+                message,
+                location,
+                system_info,
+                debug_context,
+            } => {
                 writeln!(f, "\n🚨 E{}: Erro de Sistema - {}", code, message)?;
                 write_location_info(f, location)?;
                 if let Some(info) = system_info {
                     writeln!(f, "   🖥️  Sistema: {}", info)?;
                 }
                 write_debug_context(f, debug_context.as_ref())?;
-            },
+            }
         }
         Ok(())
     }
@@ -277,20 +345,30 @@ impl fmt::Display for DryadError {
 
 fn write_location_info(f: &mut fmt::Formatter<'_>, location: &SourceLocation) -> fmt::Result {
     if let Some(file) = &location.file {
-        writeln!(f, "   📍 Local: {}:{}:{}", file.display(), location.line, location.column)?;
+        writeln!(
+            f,
+            "   📍 Local: {}:{}:{}",
+            file.display(),
+            location.line,
+            location.column
+        )?;
     } else {
-        writeln!(f, "   📍 Local: linha {}, coluna {}", location.line, location.column)?;
+        writeln!(
+            f,
+            "   📍 Local: linha {}, coluna {}",
+            location.line, location.column
+        )?;
     }
-    
+
     if let Some(source_line) = &location.source_line {
         writeln!(f, "   📄 Código:")?;
         writeln!(f, "      {}", source_line)?;
-        
+
         // Mostrar ponteiro visual para o erro
         let pointer = format!("{:width$}^", "", width = location.column.saturating_sub(1));
         writeln!(f, "      {}", pointer)?;
     }
-    
+
     Ok(())
 }
 
@@ -300,13 +378,23 @@ fn write_stack_trace(f: &mut fmt::Formatter<'_>, stack_trace: &StackTrace) -> fm
         for (i, frame) in stack_trace.frames.iter().enumerate() {
             let prefix = if i == 0 { "   ┌─" } else { "   ├─" };
             write!(f, "{} {}", prefix, frame.function_name)?;
-            
+
             if let Some(file) = &frame.location.file {
-                write!(f, " ({}:{}:{})", file.display(), frame.location.line, frame.location.column)?;
+                write!(
+                    f,
+                    " ({}:{}:{})",
+                    file.display(),
+                    frame.location.line,
+                    frame.location.column
+                )?;
             } else {
-                write!(f, " (linha {}:{})", frame.location.line, frame.location.column)?;
+                write!(
+                    f,
+                    " (linha {}:{})",
+                    frame.location.line, frame.location.column
+                )?;
             }
-            
+
             if let Some(context) = &frame.context {
                 write!(f, " - {}", context)?;
             }
@@ -316,7 +404,10 @@ fn write_stack_trace(f: &mut fmt::Formatter<'_>, stack_trace: &StackTrace) -> fm
     Ok(())
 }
 
-fn write_debug_context(f: &mut fmt::Formatter<'_>, debug_context: Option<&DebugContext>) -> fmt::Result {
+fn write_debug_context(
+    f: &mut fmt::Formatter<'_>,
+    debug_context: Option<&DebugContext>,
+) -> fmt::Result {
     if let Some(ctx) = debug_context {
         if let Some(variables) = &ctx.variables {
             writeln!(f, "   🔍 Variáveis locais:")?;
@@ -324,18 +415,18 @@ fn write_debug_context(f: &mut fmt::Formatter<'_>, debug_context: Option<&DebugC
                 writeln!(f, "      {} = {}", name, value)?;
             }
         }
-        
+
         if !ctx.suggestions.is_empty() {
             writeln!(f, "   💡 Sugestões:")?;
             for suggestion in &ctx.suggestions {
                 writeln!(f, "      • {}", suggestion)?;
             }
         }
-        
+
         if let Some(help_url) = &ctx.help_url {
             writeln!(f, "   📖 Documentação: {}", help_url)?;
         }
-        
+
         if !ctx.related_code.is_empty() {
             writeln!(f, "   🔗 Código relacionado:")?;
             for code in &ctx.related_code {
@@ -420,7 +511,7 @@ impl DryadError {
             },
         }
     }
-    
+
     // Métodos específicos para criação de erros com contexto
     pub fn lexer(code: u16, message: &str, location: SourceLocation) -> Self {
         DryadError::Lexer {
@@ -430,8 +521,14 @@ impl DryadError {
             debug_context: None,
         }
     }
-    
-    pub fn parser(code: u16, message: &str, location: SourceLocation, expected: Vec<String>, found: String) -> Self {
+
+    pub fn parser(
+        code: u16,
+        message: &str,
+        location: SourceLocation,
+        expected: Vec<String>,
+        found: String,
+    ) -> Self {
         DryadError::Parser {
             code,
             message: message.into(),
@@ -441,8 +538,13 @@ impl DryadError {
             debug_context: None,
         }
     }
-    
-    pub fn runtime(code: u16, message: &str, location: SourceLocation, stack_trace: StackTrace) -> Self {
+
+    pub fn runtime(
+        code: u16,
+        message: &str,
+        location: SourceLocation,
+        stack_trace: StackTrace,
+    ) -> Self {
         DryadError::Runtime {
             code,
             message: message.into(),
@@ -451,8 +553,14 @@ impl DryadError {
             debug_context: None,
         }
     }
-    
-    pub fn type_error(code: u16, message: &str, location: SourceLocation, expected_type: String, found_type: String) -> Self {
+
+    pub fn type_error(
+        code: u16,
+        message: &str,
+        location: SourceLocation,
+        expected_type: String,
+        found_type: String,
+    ) -> Self {
         DryadError::Type {
             code,
             message: message.into(),
@@ -462,8 +570,14 @@ impl DryadError {
             debug_context: None,
         }
     }
-    
-    pub fn io_error(code: u16, message: &str, location: SourceLocation, operation: String, path: Option<PathBuf>) -> Self {
+
+    pub fn io_error(
+        code: u16,
+        message: &str,
+        location: SourceLocation,
+        operation: String,
+        path: Option<PathBuf>,
+    ) -> Self {
         DryadError::Io {
             code,
             message: message.into(),
@@ -476,77 +590,96 @@ impl DryadError {
 
     pub fn code(&self) -> u16 {
         match self {
-            DryadError::Lexer { code, .. } |
-            DryadError::Parser { code, .. } |
-            DryadError::Runtime { code, .. } |
-            DryadError::Type { code, .. } |
-            DryadError::Io { code, .. } |
-            DryadError::Module { code, .. } |
-            DryadError::Syntax { code, .. } |
-            DryadError::Warning { code, .. } |
-            DryadError::System { code, .. } => *code,
+            DryadError::Lexer { code, .. }
+            | DryadError::Parser { code, .. }
+            | DryadError::Runtime { code, .. }
+            | DryadError::Type { code, .. }
+            | DryadError::Io { code, .. }
+            | DryadError::Module { code, .. }
+            | DryadError::Syntax { code, .. }
+            | DryadError::Warning { code, .. }
+            | DryadError::System { code, .. } => *code,
         }
     }
 
     pub fn message(&self) -> &str {
         match self {
-            DryadError::Lexer { message, .. } |
-            DryadError::Parser { message, .. } |
-            DryadError::Runtime { message, .. } |
-            DryadError::Type { message, .. } |
-            DryadError::Io { message, .. } |
-            DryadError::Module { message, .. } |
-            DryadError::Syntax { message, .. } |
-            DryadError::Warning { message, .. } |
-            DryadError::System { message, .. } => message,
+            DryadError::Lexer { message, .. }
+            | DryadError::Parser { message, .. }
+            | DryadError::Runtime { message, .. }
+            | DryadError::Type { message, .. }
+            | DryadError::Io { message, .. }
+            | DryadError::Module { message, .. }
+            | DryadError::Syntax { message, .. }
+            | DryadError::Warning { message, .. }
+            | DryadError::System { message, .. } => message,
         }
     }
-    
+
     pub fn location(&self) -> &SourceLocation {
         match self {
-            DryadError::Lexer { location, .. } |
-            DryadError::Parser { location, .. } |
-            DryadError::Runtime { location, .. } |
-            DryadError::Type { location, .. } |
-            DryadError::Io { location, .. } |
-            DryadError::Module { location, .. } |
-            DryadError::Syntax { location, .. } |
-            DryadError::Warning { location, .. } |
-            DryadError::System { location, .. } => location,
+            DryadError::Lexer { location, .. }
+            | DryadError::Parser { location, .. }
+            | DryadError::Runtime { location, .. }
+            | DryadError::Type { location, .. }
+            | DryadError::Io { location, .. }
+            | DryadError::Module { location, .. }
+            | DryadError::Syntax { location, .. }
+            | DryadError::Warning { location, .. }
+            | DryadError::System { location, .. } => location,
         }
     }
-    
+
     // Adiciona contexto de debug ao erro
     pub fn with_debug_context(mut self, debug_context: DebugContext) -> Self {
         match &mut self {
-            DryadError::Lexer { debug_context: ctx, .. } |
-            DryadError::Parser { debug_context: ctx, .. } |
-            DryadError::Runtime { debug_context: ctx, .. } |
-            DryadError::Type { debug_context: ctx, .. } |
-            DryadError::Io { debug_context: ctx, .. } |
-            DryadError::Module { debug_context: ctx, .. } |
-            DryadError::Syntax { debug_context: ctx, .. } |
-            DryadError::Warning { debug_context: ctx, .. } |
-            DryadError::System { debug_context: ctx, .. } => {
+            DryadError::Lexer {
+                debug_context: ctx, ..
+            }
+            | DryadError::Parser {
+                debug_context: ctx, ..
+            }
+            | DryadError::Runtime {
+                debug_context: ctx, ..
+            }
+            | DryadError::Type {
+                debug_context: ctx, ..
+            }
+            | DryadError::Io {
+                debug_context: ctx, ..
+            }
+            | DryadError::Module {
+                debug_context: ctx, ..
+            }
+            | DryadError::Syntax {
+                debug_context: ctx, ..
+            }
+            | DryadError::Warning {
+                debug_context: ctx, ..
+            }
+            | DryadError::System {
+                debug_context: ctx, ..
+            } => {
                 *ctx = Some(debug_context);
             }
         }
         self
     }
-    
+
     /// Adiciona automaticamente sugestões e URL de documentação baseadas no código do erro
     pub fn with_auto_context(self) -> Self {
         let code = self.code();
         let suggestions = crate::error_urls::get_error_suggestions(code);
         let help_url = crate::error_urls::get_error_documentation_url(code);
-        
-        let debug_context = DebugContext::new()
-            .with_help_url(help_url);
-            
-        let debug_context = suggestions.into_iter().fold(debug_context, |ctx, suggestion| {
-            ctx.with_suggestion(suggestion)
-        });
-        
+
+        let debug_context = DebugContext::new().with_help_url(help_url);
+
+        let debug_context = suggestions
+            .into_iter()
+            .fold(debug_context, |ctx, suggestion| {
+                ctx.with_suggestion(suggestion)
+            });
+
         self.with_debug_context(debug_context)
     }
 }

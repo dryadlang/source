@@ -3,7 +3,7 @@
 /// Gera URLs de documentação baseadas no código do erro
 pub fn get_error_documentation_url(error_code: u16) -> String {
     let base_url = "https://dryadlang.org/errors";
-    
+
     match error_code {
         // ✅ Erros Léxicos Implementados (1000-1999)
         1001 => format!("{}#e1001-unexpected-character", base_url),
@@ -12,18 +12,18 @@ pub fn get_error_documentation_url(error_code: u16) -> String {
         1004 => format!("{}#e1004-invalid-number-format", base_url),
         1005 => format!("{}#e1005-invalid-escape-sequence", base_url),
         1006 => format!("{}#e1006-invalid-native-directive", base_url),
-        
-        // ✅ Erros de Parser Implementados (2000-2999)  
+
+        // ✅ Erros de Parser Implementados (2000-2999)
         2001 => format!("{}#e2001-unexpected-token", base_url),
         2003 => format!("{}#e2003-missing-semicolon", base_url),
         2005 => format!("{}#e2005-missing-closing-parenthesis", base_url),
         2011 => format!("{}#e2011-invalid-variable-declaration", base_url),
-        
+
         // 🟡 Erros de Parser Esperados (2000-2999)
         2017 => format!("{}#e2017-missing-function-parameters", base_url),
         2018 => format!("{}#e2018-missing-while-condition", base_url),
         2019 => format!("{}#e2019-missing-for-components", base_url),
-        
+
         // ✅ Erros de Runtime Implementados (3000-3999)
         3001 => format!("{}#e3001-undefined-variable", base_url),
         3005 => format!("{}#e3005-invalid-arithmetic-operation", base_url),
@@ -38,31 +38,31 @@ pub fn get_error_documentation_url(error_code: u16) -> String {
         3023 => format!("{}#e3023-super-not-implemented", base_url),
         3034 => format!("{}#e3034-invalid-property-assignment", base_url),
         3040 => format!("{}#e3040-stack-overflow", base_url),
-        
+
         // 🟡 Erros de Tipo Planejados (4000-4999)
         4001 => format!("{}#e4001-incompatible-types", base_url),
         4002 => format!("{}#e4002-invalid-conversion", base_url),
-        
+
         // 🟡 Erros de I/O Planejados (5000-5999)
         5001 => format!("{}#e5001-file-not-found", base_url),
         5002 => format!("{}#e5002-permission-denied", base_url),
-        
+
         // ✅ Erros de Módulo Implementados (6000-6999)
         6001 => format!("{}#e6001-unknown-native-module", base_url),
         6002 => format!("{}#e6002-import-circular", base_url),
-        
+
         // 🟡 Erros de Sintaxe Planejados (7000-7999)
         7001 => format!("{}#e7001-invalid-syntax-declaration", base_url),
-        
+
         // 🟡 Warnings Planejados (8000-8999)
         8001 => format!("{}#w8001-unused-variable", base_url),
         8002 => format!("{}#w8002-deprecated-function", base_url),
         8003 => format!("{}#w8003-potential-memory-leak", base_url),
-        
+
         // 🟡 Erros de Sistema Planejados (9000-9999)
         9001 => format!("{}#e9001-insufficient-memory", base_url),
         9002 => format!("{}#e9002-stack-overflow", base_url),
-        
+
         // URL genérica para códigos não mapeados
         _ => {
             let category = error_code / 1000;
@@ -117,8 +117,8 @@ pub fn get_error_suggestions(error_code: u16) -> Vec<String> {
             "Módulos válidos: console_io, file_io, http, crypto, etc.".to_string(),
             "Use apenas caracteres alfanuméricos e underscore".to_string(),
         ],
-        
-        // ✅ Erros de Parser Implementados  
+
+        // ✅ Erros de Parser Implementados
         2001 => vec![
             "Verifique se parênteses e chaves estão balanceados".to_string(),
             "Adicione tokens em falta (vírgulas, operadores, etc.)".to_string(),
@@ -139,7 +139,7 @@ pub fn get_error_suggestions(error_code: u16) -> Vec<String> {
             "Nome da variável deve começar com letra ou _".to_string(),
             "Não use números no início do nome da variável".to_string(),
         ],
-        
+
         // 🟡 Erros de Parser Esperados
         2017 => vec![
             "Adicione () após o nome da função".to_string(),
@@ -153,7 +153,7 @@ pub fn get_error_suggestions(error_code: u16) -> Vec<String> {
             "Use: for (init; condicao; incremento) { ... }".to_string(),
             "Todos os componentes são opcionais mas ; são obrigatórios".to_string(),
         ],
-        
+
         // ✅ Erros de Runtime Implementados
         3001 => vec![
             "Declare a variável: let nome_variavel = valor;".to_string(),
@@ -208,26 +208,26 @@ pub fn get_error_suggestions(error_code: u16) -> Vec<String> {
             "Aumente o limite de recursão se necessário (configuração do runtime)".to_string(),
             "Tente converter recursão para iteração (loops)".to_string(),
         ],
-        
+
         // ✅ Erros de Módulo Implementados
         6001 => vec![
             "Verifique se o módulo existe".to_string(),
             "Módulos disponíveis: console_io, file_io, http, crypto, etc.".to_string(),
             "Use #<nome_modulo> no início do arquivo".to_string(),
         ],
-        
+
         // 🟡 Warnings Planejados
         8001 => vec![
             "Remova a variável se não for necessária".to_string(),
             "Use a variável no código".to_string(),
             "Prefixe com _ se for intencional: let _variavel = valor;".to_string(),
         ],
-        
+
         // Sugestões genéricas
         _ => vec![
             "Consulte o guia de erros para mais informações".to_string(),
             "Verifique o contexto e stack trace do erro".to_string(),
             "Revise a sintaxe oficial no arquivo SYNTAX.md".to_string(),
-        ]
+        ],
     }
 }

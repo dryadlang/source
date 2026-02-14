@@ -1,0 +1,12 @@
+[package]
+name = "dryad_aot"
+version = "0.1.0"
+edition = "2021"
+description = "Compilador AOT (Ahead-of-Time) para a linguagem Dryad"
+
+[dependencies]
+dryad_bytecode = { workspace = true }
+dryad_parser = { workspace = true }
+
+[dev-dependencies]
+# Testes serão adicionados

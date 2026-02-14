@@ -1,0 +1,31 @@
+# Teste do Bytecode VM
+
+# Teste 1: Aritmética básica
+print 1 + 2;
+print 10 - 3;
+print 4 * 5;
+print 20 / 4;
+
+# Teste 2: Variáveis
+var x = 100;
+var y = 200;
+print x + y;
+
+# Teste 3: Comparacoes
+print 5 > 3;
+print 5 < 3;
+print 5 == 5;
+
+# Teste 4: If/else
+if (true) {
+    print "verdadeiro";
+} else {
+    print "falso";
+}
+
+# Teste 5: While
+var contador = 0;
+while (contador < 5) {
+    print contador;
+    contador = contador + 1;
+}

@@ -7,6 +7,7 @@ use crate::native_registry::NativeRegistry;
 pub use crate::value::{
     ClassGetter, ClassMethod, ClassProperty, ClassSetter, FlowControl, ObjectMethod, Value,
 };
+use dryad_bytecode::{Chunk, Compiler, InterpretResult as BytecodeInterpretResult, VM};
 use dryad_errors::{DryadError, SourceLocation, StackFrame, StackTrace};
 use dryad_parser::ast::{
     ClassMember, Expr, ImportKind, InterfaceMember, Literal, MatchArm, ObjectProperty, Pattern,
@@ -102,6 +103,11 @@ impl Interpreter {
     }
 
     pub fn execute(&mut self, program: &Program) -> Result<String, DryadError> {
+        // Se modo bytecode estiver ativado, usar o compilador de bytecode
+        if self.compile_mode {
+            return self.execute_bytecode(program);
+        }
+
         // Adicionar frame inicial do programa principal
         let main_location = SourceLocation {
             file: self.current_file_path.clone(),
@@ -123,6 +129,84 @@ impl Interpreter {
         self.current_stack_trace.frames.pop();
 
         Ok(last_value.to_string())
+    }
+
+    /// Executa o programa usando bytecode VM
+    fn execute_bytecode(&mut self, program: &Program) -> Result<String, DryadError> {
+        use dryad_bytecode::DebugChunk;
+
+        // Compila o programa para bytecode
+        let mut compiler = Compiler::new();
+        let chunk = match compiler.compile(program.clone()) {
+            Ok(chunk) => chunk,
+            Err(e) => {
+                return Err(DryadError::Runtime(
+                    dryad_errors::ErrorLocation::new(1, 1),
+                    format!("Erro de compilação bytecode: {}", e),
+                ));
+            }
+        };
+
+        // Debug: mostra bytecode se variável de ambiente estiver definida
+        if std::env::var("DRYAD_DEBUG_BYTECODE").is_ok() {
+            println!("\n=== BYTECODE ===");
+            chunk.disassemble("script");
+            println!();
+        }
+
+        // Executa na VM
+        let mut vm = VM::new();
+        
+        // Configura modo de debug se necessário
+        if std::env::var("DRYAD_DEBUG_VM").is_ok() {
+            vm.set_debug_mode(true);
+        }
+
+        // Transfere variáveis globais do interpreter para a VM
+        for (name, value) in &self.env.variables {
+            if let Ok(bc_value) = self.value_to_bytecode_value(value) {
+                vm.define_global(name.clone(), bc_value);
+            }
+        }
+
+        match vm.interpret(chunk) {
+            BytecodeInterpretResult::Ok => {
+                // Retorna string vazia (ou valor do topo da pilha se houver)
+                Ok(String::new())
+            }
+            BytecodeInterpretResult::CompileError => {
+                Err(DryadError::Runtime(
+                    dryad_errors::ErrorLocation::new(1, 1),
+                    "Erro de compilação bytecode".to_string(),
+                ))
+            }
+            BytecodeInterpretResult::RuntimeError => {
+                Err(DryadError::Runtime(
+                    dryad_errors::ErrorLocation::new(1, 1),
+                    "Erro em tempo de execução bytecode".to_string(),
+                ))
+            }
+        }
+    }
+
+    /// Converte um Value do runtime para Value da bytecode VM
+    fn value_to_bytecode_value(&self, value: &Value) -> Result<dryad_bytecode::Value, String> {
+        match value {
+            Value::Null => Ok(dryad_bytecode::Value::Nil),
+            Value::Boolean(b) => Ok(dryad_bytecode::Value::Boolean(*b)),
+            Value::Number(n) => Ok(dryad_bytecode::Value::Number(*n)),
+            Value::String(s) => Ok(dryad_bytecode::Value::String(s.clone())),
+            Value::Array(arr) => {
+                // Converte array de runtime para array de bytecode
+                let mut bc_values = Vec::new();
+                for v in arr {
+                    bc_values.push(self.value_to_bytecode_value(v)?);
+                }
+                // Cria um objeto array no heap da VM
+                Ok(dryad_bytecode::Value::Object(dryad_bytecode::HeapId(0))) // Placeholder
+            }
+            _ => Err(format!("Tipo de valor não suportado em bytecode: {:?}", value)),
+        }
     }
 
     pub fn execute_and_return_value(&mut self, program: &Program) -> Result<Value, DryadError> {

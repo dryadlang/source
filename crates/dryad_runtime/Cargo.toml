@@ -8,6 +8,7 @@ description = "Runtime e interpretador para a linguagem Dryad"
 dryad_errors = { workspace = true }
 dryad_parser = { workspace = true }
 dryad_lexer = { workspace = true }
+dryad_bytecode = { workspace = true }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 csv = "1.3"

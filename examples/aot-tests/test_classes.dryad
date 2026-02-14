@@ -1,0 +1,100 @@
+# Teste de Classes - Bytecode
+# Execute com: dryad run test_classes.dryad --compile
+
+# ============================================
+# Classes Básicas
+# ============================================
+
+print "=== Classes Básicas ===";
+
+class Pessoa {
+    var nome = "";
+    var idade = 0;
+    
+    fn init(n, i) {
+        this.nome = n;
+        this.idade = i;
+    }
+    
+    fn apresentar() {
+        print "Ola, meu nome é " + this.nome;
+        print "Tenho " + this.idade + " anos";
+    }
+}
+
+# Criando instâncias
+var joao = Pessoa("Joao", 25);
+joao.apresentar();
+
+var maria = Pessoa("Maria", 30);
+maria.apresentar();
+
+# ============================================
+# Classes com Métodos
+# ============================================
+
+print "\n=== Classe Calculadora ===";
+
+class Calculadora {
+    fn somar(a, b) {
+        return a + b;
+    }
+    
+    fn subtrair(a, b) {
+        return a - b;
+    }
+    
+    fn multiplicar(a, b) {
+        return a * b;
+    }
+}
+
+var calc = Calculadora();
+print calc.somar(10, 5);
+print calc.subtrair(10, 5);
+print calc.multiplicar(10, 5);
+
+# ============================================
+# Classes com Estado
+# ============================================
+
+print "\n=== Classe Contador ===";
+
+class Contador {
+    var valor = 0;
+    
+    fn incrementar() {
+        this.valor = this.valor + 1;
+    }
+    
+    fn getValor() {
+        return this.valor;
+    }
+}
+
+var c = Contador();
+c.incrementar();
+c.incrementar();
+c.incrementar();
+print c.getValor();  # Deve imprimir 3
+
+# ============================================
+# Herança (quando implementado)
+# ============================================
+
+# class Animal {
+#     fn falar() {
+#         print "Som genérico";
+#     }
+# }
+# 
+# class Cachorro extends Animal {
+#     fn falar() {
+#         print "Au au!";
+#     }
+# }
+# 
+# var dog = Cachorro();
+# dog.falar();
+
+print "\n=== Testes de Classes Concluídos ===";

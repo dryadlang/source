@@ -1,0 +1,102 @@
+# Teste de Try/Catch/Finally - Bytecode
+# Execute com: dryad run test_exceptions.dryad --compile
+
+# ============================================
+# Try/Catch Básico
+# ============================================
+
+print "=== Try/Catch Básico ===";
+
+try {
+    print "Dentro do try";
+    throw "Erro de teste!";
+    print "Isso nunca será executado";
+} catch (e) {
+    print "Capturado: " + e;
+}
+
+print "Continuando após o catch";
+
+# ============================================
+# Try/Catch/Finally
+# ============================================
+
+print "\n=== Try/Catch/Finally ===";
+
+try {
+    print "Executando try";
+    throw "Outro erro";
+} catch (e) {
+    print "Erro capturado: " + e;
+} finally {
+    print "Finally sempre executa!";
+}
+
+# ============================================
+# Try sem exceção
+# ============================================
+
+print "\n=== Try sem erro ===";
+
+try {
+    print "Tudo certo aqui!";
+} catch (e) {
+    print "Não vai entrar aqui";
+} finally {
+    print "Finally executa mesmo sem erro";
+}
+
+# ============================================
+# Exceções aninhadas
+# ============================================
+
+print "\n=== Exceções Aninhadas ===";
+
+try {
+    print "Try externo";
+    try {
+        print "Try interno";
+        throw "Erro interno";
+    } catch (e) {
+        print "Catch interno: " + e;
+    }
+    print "Depois do try interno";
+} catch (e) {
+    print "Catch externo: " + e;
+}
+
+# ============================================
+# Exceção em função
+# ============================================
+
+print "\n=== Exceção em Função ===";
+
+fn funcaoPerigosa() {
+    print "Função vai lançar exceção";
+    throw "Erro na função!";
+}
+
+try {
+    funcaoPerigosa();
+} catch (e) {
+    print "Capturado da função: " + e;
+}
+
+# ============================================
+# Re-lançar exceção
+# ============================================
+
+print "\n=== Re-lançar Exceção ===";
+
+try {
+    try {
+        throw "Erro original";
+    } catch (e) {
+        print "Tratando: " + e;
+        throw e;  # Re-lança
+    }
+} catch (e) {
+    print "Capturado novamente: " + e;
+}
+
+print "\n=== Todos os testes concluídos! ===";

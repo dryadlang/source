@@ -1,0 +1,94 @@
+# Teste de Arrays e Coleções - Bytecode
+# Execute com: dryad run test_arrays.dryad --compile
+
+# ============================================
+# Arrays
+# ============================================
+
+# Criação de array
+print "=== Arrays ===";
+var numeros = [10, 20, 30, 40, 50];
+print numeros;
+
+# Indexação
+print "Primeiro elemento:";
+print numeros[0];
+
+print "Último elemento:";
+print numeros[4];
+
+# Array de strings
+var frutas = ["maca", "banana", "laranja"];
+print frutas[1];
+
+# Array misto
+var misto = [1, "dois", true, 4.5];
+print misto;
+
+# ============================================
+# Modificação de Arrays
+# ============================================
+
+print "\n=== Modificação de Arrays ===";
+var arr = [1, 2, 3];
+print "Antes:";
+print arr[0];
+
+arr[0] = 100;
+print "Depois:";
+print arr[0];
+
+# ============================================
+# Arrays com expressões
+# ============================================
+
+print "\n=== Arrays com Expressões ===";
+var x = 5;
+var y = 10;
+var calculado = [x + y, x * y, x - y];
+print calculado[0];  # 15
+print calculado[1];  # 50
+print calculado[2];  # -5
+
+# ============================================
+# Arrays vazios e grandes
+# ============================================
+
+print "\n=== Arrays de Teste ===";
+var vazio = [];
+var grande = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+print grande[9];  # 10
+
+# ============================================
+# Tuples
+# ============================================
+
+print "\n=== Tuples ===";
+var coord = (10, 20);
+print coord.0;  # 10
+print coord.1;  # 20
+
+var pessoa = ("Joao", 25, true);
+print pessoa.0;  # "Joao"
+print pessoa.1;  # 25
+
+# ============================================
+# Arrays e Funções
+# ============================================
+
+print "\n=== Arrays em Funções ===";
+
+fn somaArray(arr) {
+    var total = 0;
+    var i = 0;
+    while (i < 3) {
+        total = total + arr[i];
+        i = i + 1;
+    }
+    return total;
+}
+
+var nums = [10, 20, 30];
+print somaArray(nums);  # 60
+
+print "\n=== Testes Concluídos ===";

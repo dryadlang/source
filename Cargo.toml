@@ -6,6 +6,8 @@ members = [
     "crates/dryad_runtime",
     "crates/dryad_cli",
     "crates/dryad_benchmark",
+    "crates/dryad_bytecode",
+    "crates/dryad_aot",
     "crates/oak"
 , "crates/dryad_checker"]
 resolver = "2"
@@ -16,3 +18,5 @@ dryad_lexer = { path = "crates/dryad_lexer" }
 dryad_parser = { path = "crates/dryad_parser" }
 dryad_runtime = { path = "crates/dryad_runtime" }
 dryad_checker = { path = "crates/dryad_checker" }
+dryad_bytecode = { path = "crates/dryad_bytecode" }
+dryad_aot = { path = "crates/dryad_aot" }

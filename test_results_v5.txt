@@ -1,0 +1,721 @@
+warning: unused variable: `index_expr`
+   --> crates\dryad_parser\src\parser.rs:171:33
+    |
+171 | ...                   let index_expr = self.expression()?;
+    |                           ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_index_expr`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `dryad_parser` (lib) generated 1 warning (run `cargo fix --lib -p dryad_parser` to apply 1 suggestion)
+   Compiling dryad_runtime v0.1.0 (C:\Users\Pedro Jesus\Downloads\source-main\source-main\crates\dryad_runtime)
+warning: unused import: `Value as JsonValue`
+  --> crates\dryad_runtime\src\interpreter.rs:11:24
+   |
+11 | use serde_json::{self, Value as JsonValue};
+   |                        ^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused imports: `Arc` and `Mutex`
+  --> crates\dryad_runtime\src\interpreter.rs:12:17
+   |
+12 | use std::sync::{Arc, Mutex};
+   |                 ^^^  ^^^^^
+
+warning: unused import: `HeapId`
+ --> crates\dryad_runtime\src\native_modules\encode_decode.rs:4:40
+  |
+4 | use crate::heap::{Heap, ManagedObject, HeapId};
+  |                                        ^^^^^^
+
+warning: unused import: `HeapId`
+  --> crates\dryad_runtime\src\native_modules\mod.rs:24:25
+   |
+24 | use crate::heap::{Heap, HeapId};
+   |                         ^^^^^^
+
+warning: unused import: `std::fs`
+ --> crates\dryad_runtime\src\resolver.rs:3:5
+  |
+3 | use std::fs;
+  |     ^^^^^^^
+
+warning: unused import: `Expr`
+ --> crates\dryad_runtime\src\value.rs:1:31
+  |
+1 | use dryad_parser::ast::{Stmt, Expr, Visibility};
+  |                               ^^^^
+
+warning: unused import: `std::collections::HashMap`
+ --> crates\dryad_runtime\src\value.rs:2:5
+  |
+2 | use std::collections::HashMap;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::value::Value`
+ --> crates\dryad_runtime\src\debug.rs:4:5
+  |
+4 | use crate::value::Value;
+  |     ^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::net::SocketAddr`
+ --> crates\dryad_runtime\src\debug_server.rs:1:5
+  |
+1 | use std::net::SocketAddr;
+  |     ^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::sync::Arc`
+ --> crates\dryad_runtime\src\debug_server.rs:2:5
+  |
+2 | use std::sync::Arc;
+  |     ^^^^^^^^^^^^^^
+
+warning: unused import: `AsyncReadExt`
+ --> crates\dryad_runtime\src\debug_server.rs:4:17
+  |
+4 | use tokio::io::{AsyncReadExt, AsyncWriteExt};
+  |                 ^^^^^^^^^^^^
+
+warning: unused import: `DebugEvent`
+ --> crates\dryad_runtime\src\debug_server.rs:5:52
+  |
+5 | use crate::debug::{SharedDebugState, DebugCommand, DebugEvent};
+  |                                                    ^^^^^^^^^^
+
+warning: unused variable: `is_async`
+   --> crates\dryad_runtime\src\interpreter.rs:576:70
+    |
+576 |                         ClassMember::Method { visibility, is_static, is_async, name: method_name, params, body, .. } => {
+    |                                                                      ^^^^^^^^ help: try ignoring the field: `is_async: _`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `location`
+   --> crates\dryad_runtime\src\interpreter.rs:967:128
+    |
+967 | ...>, arg_values: Vec<Value>, location: &SourceLocation) -> Result<Value, DryadError> {
+    |                               ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_location`
+
+warning: unused variable: `properties`
+    --> crates\dryad_runtime\src\interpreter.rs:1850:62
+     |
+1850 |                 if let ManagedObject::Instance { class_name, properties } = heap_obj {
+     |                                                              ^^^^^^^^^^ help: try ignoring the field: `properties: _`
+
+warning: unused variable: `properties`
+    --> crates\dryad_runtime\src\interpreter.rs:1923:29
+     |
+1923 |                         let properties = properties.clone();
+     |                             ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_properties`
+
+warning: unused variable: `methods`
+    --> crates\dryad_runtime\src\interpreter.rs:1924:29
+     |
+1924 |                         let methods = methods.clone();
+     |                             ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_methods`
+
+warning: unused variable: `location`
+    --> crates\dryad_runtime\src\interpreter.rs:2239:64
+     |
+2239 |     fn eval_match(&mut self, target: &Expr, arms: &[MatchArm], location: &SourceLocation) -> Result<Value, DryadError> {
+     |                                                                ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_location`
+
+warning: unused variable: `id`
+    --> crates\dryad_runtime\src\interpreter.rs:2390:30
+     |
+2390 |             Value::Promise { id, resolved: true, value: Some(val) } => Ok(*val),
+     |                              ^^ help: try ignoring the field: `id: _`
+
+warning: variable does not need to be mutable
+    --> crates\dryad_runtime\src\interpreter.rs:2991:21
+     |
+2991 |                 let mut idx = if start_index >= 0 { 
+     |                     ----^^^
+     |                     |
+     |                     help: remove this `mut`
+     |
+     = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `buffer`
+   --> crates\dryad_runtime\src\native_modules\tcp.rs:102:9
+    |
+102 |     let buffer = [0; 1024];
+    |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_buffer`
+
+warning: fields `method`, `path`, and `response_headers` are never read
+  --> crates\dryad_runtime\src\native_modules\http_server.rs:30:5
+   |
+29 | struct RouteHandler {
+   |        ------------ fields in this struct
+30 |     method: String,
+   |     ^^^^^^
+31 |     path: String,
+   |     ^^^^
+32 |     response_body: String,
+33 |     response_headers: HashMap<String, String>,
+   |     ^^^^^^^^^^^^^^^^
+   |
+   = note: `RouteHandler` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `dryad_runtime` (lib test) generated 22 warnings (run `cargo fix --lib -p dryad_runtime --tests` to apply 21 suggestions)
+warning: `dryad_runtime` (lib) generated 22 warnings (22 duplicates)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1m 19s
+warning: the following packages contain code that will be rejected by a future version of Rust: num-bigint-dig v0.8.4
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 2`
+     Running unittests src\lib.rs (target\debug\deps\dryad_runtime-1bff2ec2ca9fc1a1.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\advanced_math_runtime_tests.rs (target\debug\deps\advanced_math_runtime_tests-4cde069e2e6d5abd.exe)
+
+running 22 tests
+test advanced_math_runtime_tests::test_complex_expression ... ok
+test advanced_math_runtime_tests::test_exponentiation_operator_negative ... ok
+test advanced_math_runtime_tests::test_modulo_operator_basic ... ok
+test advanced_math_runtime_tests::test_exponentiation_operator_zero ... ok
+test advanced_math_runtime_tests::test_mixed_with_existing_operators ... ok
+test advanced_math_runtime_tests::test_exponentiation_operator_basic ... ok
+test advanced_math_runtime_tests::test_chained_operations ... ok
+test advanced_math_runtime_tests::test_modulo_operator_negative ... ok
+test advanced_math_runtime_tests::test_nth_root_operator_basic ... ok
+test advanced_math_runtime_tests::test_modulo_operator_zero_remainder ... ok
+test advanced_math_runtime_tests::test_nth_root_operator_square ... ok
+test advanced_math_runtime_tests::test_operator_precedence_modulo ... ok
+test advanced_math_runtime_tests::test_operator_precedence_exponentiation ... ok
+test advanced_math_runtime_tests::test_exact_syntax_md_examples ... ok
+test advanced_math_runtime_tests::test_power_of_ten_operator_basic ... ok
+test advanced_math_runtime_tests::test_power_of_ten_operator_negative ... ok
+test advanced_math_runtime_tests::test_power_of_ten_operator_positive ... ok
+test advanced_math_runtime_tests::test_parentheses_override_precedence ... ok
+test advanced_math_runtime_tests::test_safe_modulo_operator_negative_dividend ... ok
+test advanced_math_runtime_tests::test_safe_modulo_operator_negative_divisor ... ok
+test advanced_math_runtime_tests::test_safe_modulo_operator_positive ... ok
+test advanced_math_runtime_tests::test_single_caret_operator ... ok
+
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests\array_runtime_tests.rs (target\debug\deps\array_runtime_tests-651e4af0efd6e537.exe)
+
+running 10 tests
+test test_empty_tuple ... ok
+test test_tuple_access ... ok
+test test_array_access_out_of_bounds ... ok
+test test_array_with_mixed_types ... ok
+test test_empty_array ... ok
+test test_array_access ... ok
+test test_tuple_access_out_of_bounds ... ok
+test test_nested_array ... ok
+test test_array_with_numbers ... ok
+test test_tuple_with_mixed_types ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests\assignment_runtime_tests.rs (target\debug\deps\assignment_runtime_tests-1883092631d85609.exe)
+
+running 20 tests
+test assignment_runtime_tests::test_assignment_error_undefined_variable ... ok
+test assignment_runtime_tests::test_assignment_returns_assigned_value ... ok
+test assignment_runtime_tests::test_assignment_precedence ... ok
+test assignment_runtime_tests::test_all_operators_sequence ... ok
+test assignment_runtime_tests::test_assignment_with_floating_point ... ok
+test assignment_runtime_tests::test_addition_assignment ... ok
+test assignment_runtime_tests::test_assignment_with_negative_numbers ... ok
+test assignment_runtime_tests::test_assignment_with_expression ... ok
+test assignment_runtime_tests::test_assignment_with_parentheses ... ok
+test assignment_runtime_tests::test_division_assignment ... ok
+test assignment_runtime_tests::test_complex_assignment_expressions ... ok
+test assignment_runtime_tests::test_division_by_zero_in_assignment ... ok
+test assignment_runtime_tests::test_chained_assignments ... ok
+test assignment_runtime_tests::test_assignment_with_variables ... ok
+test assignment_runtime_tests::test_multiple_variables_assignments ... ok
+test assignment_runtime_tests::test_exact_syntax_md_example ... ok
+test assignment_runtime_tests::test_multiplication_assignment ... ok
+test assignment_runtime_tests::test_simple_assignment ... ok
+test assignment_runtime_tests::test_subtraction_assignment ... ok
+test assignment_runtime_tests::test_step_by_step_calculation ... ok
+
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests\async_threading_runtime_tests.rs (target\debug\deps\async_threading_runtime_tests-c2aaa85b90c790de.exe)
+
+running 6 tests
+test test_simple_await ... ok
+test test_mutex_creation ... ok
+test test_async_function_declaration ... ok
+test test_thread_function_declaration ... ok
+test test_mutex_and_thread_combo ... ok
+test test_thread_instantiation ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests\bitwise_operators_runtime_tests.rs (target\debug\deps\bitwise_operators_runtime_tests-4b2a148551633734.exe)
+
+running 18 tests
+test test_bitwise_or_operator_evaluation ... ok
+test test_bitwise_and_operator_evaluation ... ok
+test test_complex_bitwise_expression ... ok
+test test_bitwise_xor_operator_evaluation ... ok
+test test_bitwise_operators_with_parentheses ... ok
+test test_bitwise_operators_precedence ... ok
+test test_bitwise_operators_with_different_numbers ... ok
+test test_bitwise_operators_with_zero ... ok
+test test_left_shift_operator_evaluation ... ok
+test test_floating_point_bitwise_operations ... ok
+test test_large_numbers_bitwise ... ok
+test test_right_shift_operator_evaluation ... ok
+test test_symmetric_left_shift_operator_evaluation ... ok
+test test_mixed_operations_with_bitwise ... ok
+test test_symmetric_right_shift_operator_evaluation ... ok
+test test_shift_operators_with_zero ... ok
+test test_shift_operators_with_different_numbers ... ok
+test test_exact_syntax_md_examples ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests\block_structure_runtime_tests.rs (target\debug\deps\block_structure_runtime_tests-f6cb98d3e74ebaf8.exe)
+
+running 20 tests
+test test_block_variable_access ... ok
+test test_block_variable_shadowing ... ok
+test test_block_variable_modification ... ok
+test test_block_sequence_evaluation ... ok
+test test_block_with_boolean_logic ... ok
+test test_block_preserves_outer_scope ... ok
+test test_block_variable_scoping ... ok
+test test_block_multiple_statements ... ok
+test test_block_with_expressions ... ok
+test test_block_with_complex_expressions ... ok
+test test_block_with_mathematical_sequence ... ok
+test test_block_with_string_operations ... ok
+test test_empty_block_runtime ... ok
+test test_deeply_nested_blocks ... ok
+test test_empty_statements_in_block ... ok
+test test_simple_block_with_variable ... ok
+test test_multiple_blocks_separate_scopes ... ok
+test test_mixed_nested_block_patterns ... ok
+test test_nested_block_scoping ... ok
+test test_syntax_md_block_patterns ... ok
+
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests\byte_operators_runtime_tests.rs (target\debug\deps\byte_operators_runtime_tests-475149740f70c80b.exe)
+
+running 17 tests
+test byte_operators_runtime_tests::test_binary_number_evaluation ... ok
+test byte_operators_runtime_tests::test_byte_numbers_mixed_operations ... ok
+test byte_operators_runtime_tests::test_byte_numbers_floating_operations ... ok
+test byte_operators_runtime_tests::test_byte_numbers_complex_expression ... ok
+test byte_operators_runtime_tests::test_byte_numbers_with_advanced_math ... ok
+test byte_operators_runtime_tests::test_byte_numbers_arithmetic ... ok
+test byte_operators_runtime_tests::test_byte_numbers_precedence ... ok
+test byte_operators_runtime_tests::test_byte_numbers_with_parentheses ... ok
+test byte_operators_runtime_tests::test_byte_numbers_with_modulo ... ok
+test byte_operators_runtime_tests::test_hexadecimal_number_evaluation ... ok
+test byte_operators_runtime_tests::test_octal_number_evaluation ... ok
+test byte_operators_runtime_tests::test_exact_syntax_md_examples ... ok
+test byte_operators_runtime_tests::test_large_byte_numbers ... ok
+test byte_operators_runtime_tests::test_binary_numbers_various_values ... ok
+test byte_operators_runtime_tests::test_hexadecimal_case_insensitive ... ok
+test byte_operators_runtime_tests::test_hexadecimal_numbers_various_values ... ok
+test byte_operators_runtime_tests::test_octal_numbers_various_values ... ok
+
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests\class_tests.rs (target\debug\deps\class_tests-dc62bdaaf00623cd.exe)
+
+running 6 tests
+test test_class_with_properties ... ok
+test test_method_with_parameters ... ok
+test test_method_call ... ok
+test test_property_access ... ok
+test test_class_instantiation ... ok
+test test_simple_class_declaration ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests\comparison_runtime_tests.rs (target\debug\deps\comparison_runtime_tests-480f28ce02703bb6.exe)
+
+running 13 tests
+test comparison_runtime_tests::test_comparison_with_expressions ... ok
+test comparison_runtime_tests::test_comparison_edge_cases ... ok
+test comparison_runtime_tests::test_comparison_precedence ... ok
+test comparison_runtime_tests::test_chained_comparisons_with_logical_operators ... ok
+test comparison_runtime_tests::test_exact_syntax_md_example ... ok
+test comparison_runtime_tests::test_mixed_type_comparisons ... ok
+test comparison_runtime_tests::test_floating_point_comparisons ... ok
+test comparison_runtime_tests::test_boolean_comparisons ... ok
+test comparison_runtime_tests::test_number_comparisons ... ok
+test comparison_runtime_tests::test_number_equality ... ok
+test comparison_runtime_tests::test_null_comparisons ... ok
+test comparison_runtime_tests::test_string_comparisons ... ok
+test comparison_runtime_tests::test_zero_and_negative_comparisons ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests\const_runtime_tests.rs (target\debug\deps\const_runtime_tests-2649f0b743178702.exe)
+
+running 9 tests
+test test_const_assignment_error ... ok
+test test_const_redeclaration_error ... ok
+test test_const_boolean_declaration ... ok
+test test_const_number_declaration ... ok
+test test_const_expression_evaluation ... ok
+test test_const_string_declaration ... ok
+test test_const_usage_in_expression ... ok
+test test_const_and_var_different_namespaces ... ok
+test test_multiple_const_declarations ... ok
+
+test result: ok. 9 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests\control_flow_runtime_tests.rs (target\debug\deps\control_flow_runtime_tests-ea0d510f7021cede.exe)
+
+running 17 tests
+test test_if_else_true_branch ... ok
+test test_if_else_false_branch ... ok
+test test_if_variable_shadowing ... ok
+test test_if_with_condition ... ok
+test test_if_scoping ... ok
+test test_if_with_complex_condition_false ... ok
+test test_if_else_scoping ... ok
+test test_if_with_complex_condition ... ok
+test test_if_with_condition_false ... ok
+test test_if_with_multiple_statements ... ok
+test test_nested_if_statements_false ... ok
+test test_nested_if_else_chain ... ok
+test test_simple_if_false ... ok
+test test_simple_if_true ... ok
+test test_nested_if_statements ... ok
+test test_nested_if_else_chain_different_branches ... ok
+test test_syntax_md_examples ... ok
+
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests\debug_if_runtime.rs (target\debug\deps\debug_if_runtime-f8dd3d4f011a08a2.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\debug_shadowing_test.rs (target\debug\deps\debug_shadowing_test-5a1eff5948589e43.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\do_while_loop_runtime_tests.rs (target\debug\deps\do_while_loop_runtime_tests-073a0b031e216a90.exe)
+
+running 15 tests
+test test_do_while_single_statement ... ok
+test test_do_while_empty_body ... ok
+test test_do_while_executes_at_least_once ... ok
+test test_do_while_scope_variables ... ok
+test test_do_while_with_break ... ok
+test test_do_while_boolean_literal_condition ... ok
+test test_do_while_variable_condition ... ok
+test test_do_while_with_complex_condition ... ok
+test test_do_while_with_continue ... ok
+test test_do_while_with_multiple_iterations ... ok
+test test_exact_syntax_md_example ... ok
+test test_do_while_with_if_else_inside ... ok
+test test_verify_variables_with_interpreter ... ok
+test test_nested_do_while_loops ... ok
+test test_simple_do_while_execution ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests\exception_runtime_tests.rs (target\debug\deps\exception_runtime_tests-224931d1fb575654.exe)
+
+running 10 tests
+test exception_runtime_tests::test_exception_in_finally ... ok
+test exception_runtime_tests::test_throw_variable ... ok
+test exception_runtime_tests::test_nested_try_catch ... ok
+test exception_runtime_tests::test_throw_string ... ok
+test exception_runtime_tests::test_try_catch_basic ... ok
+test exception_runtime_tests::test_catch_variable_access ... ok
+test exception_runtime_tests::test_try_catch_finally_no_exception ... ok
+test exception_runtime_tests::test_try_catch_finally_with_exception ... ok
+test exception_runtime_tests::test_try_catch_no_exception ... ok
+test exception_runtime_tests::test_try_finally ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests\for_loop_runtime_tests.rs (target\debug\deps\for_loop_runtime_tests-c76385ec8b21de5a.exe)
+
+running 10 tests
+test test_for_loop_with_empty_init ... ok
+test test_for_loop_all_empty_components ... ok
+test test_for_loop_empty_body ... ok
+test test_for_loop_with_continue ... ok
+test test_for_loop_variable_scope ... ok
+test test_for_loop_with_variable_condition ... ok
+test test_for_loop_with_break ... ok
+test test_for_loop_complex_condition ... ok
+test test_simple_for_loop_execution ... ok
+test test_nested_for_loops ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests\foreach_runtime_tests.rs (target\debug\deps\foreach_runtime_tests-bb3b1615a8ad87f1.exe)
+
+running 13 tests
+test test_foreach_empty_array ... ok
+test test_foreach_array_variable ... ok
+test test_foreach_array_index_access ... ok
+test test_foreach_array_basic ... ok
+test test_foreach_empty_tuple ... ok
+test test_foreach_nested_loops ... ok
+test test_foreach_non_iterable_error ... ok
+test test_foreach_tuple_basic ... ok
+test test_foreach_mixed_types_tuple ... ok
+test test_foreach_variable_scope ... ok
+test test_foreach_string_iteration ... ok
+test test_foreach_with_continue ... ok
+test test_foreach_with_break ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests\function_runtime_tests.rs (target\debug\deps\function_runtime_tests-127fb13dc0b9b8e5.exe)
+
+running 13 tests
+test test_function_call_error_wrong_arguments ... ok
+test test_function_scope_isolation ... ok
+test test_function_with_multiple_parameters ... ok
+test test_function_early_return ... ok
+test test_function_with_parameters ... ok
+test test_function_with_expression_arguments ... ok
+test test_function_calling_another_function ... ok
+test test_function_with_local_variables ... ok
+test test_function_with_string_concatenation ... ok
+test test_function_without_return ... ok
+test test_simple_function_declaration_and_call ... ok
+test test_undefined_function_call ... ok
+test test_recursive_function ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests\functions_as_values_tests.rs (target\debug\deps\functions_as_values_tests-f2a7c7696ba59e1f.exe)
+
+running 15 tests
+test test_error_calling_non_function_variable ... ok
+test test_function_as_value_with_local_variables ... ok
+test test_function_assignment_and_call ... ok
+test test_function_variable_multiple_calls ... ok
+test test_function_variable_no_parameters ... ok
+test test_function_assignment_in_block ... ok
+test test_function_assignment_basic ... ok
+test test_function_reassignment ... ok
+test test_function_variable_with_complex_expressions ... ok
+test test_multiple_function_variables ... ok
+test test_function_variable_with_conditionals ... ok
+test test_function_variable_with_string_operations ... ok
+test test_function_with_return_early ... ok
+test test_function_variable_scope ... ok
+test test_function_variable_recursive ... ok
+
+test result: ok. 15 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests\http_client_tests.rs (target\debug\deps\http_client_tests-f10117b1cbc1b8e7.exe)
+
+running 6 tests
+test test_http_download_functionality ... ignored, Soft block - travando execução dos testes
+test test_http_headers_configuration ... ok
+test test_http_timeout_configuration ... ok
+test test_http_json_response ... ok
+test test_http_post_request ... ok
+test test_http_get_request ... ok
+
+test result: ok. 5 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.36s
+
+     Running tests\http_server_tests.rs (target\debug\deps\http_server_tests-7b683b002207b124.exe)
+
+running 8 tests
+test test_http_server_html_content ... ok
+test test_http_server_multiple_instances ... ok
+test test_http_server_json_content ... ok
+test test_http_server_basic_operations ... ok
+test test_http_server_creation ... ok
+test test_http_server_route_configuration ... ok
+test test_http_server_status ... ok
+test test_http_server_static_content ... ok
+
+test result: ok. 8 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests\increment_decrement_runtime_tests.rs (target\debug\deps\increment_decrement_runtime_tests-64dcd8d965fb88af.exe)
+
+running 20 tests
+test increment_decrement_runtime_tests::test_exact_syntax_md_example ... ok
+test increment_decrement_runtime_tests::test_increment_decrement_error_non_number ... ok
+test increment_decrement_runtime_tests::test_double_increment_different_variables ... ok
+test increment_decrement_runtime_tests::test_chained_operations ... ok
+test increment_decrement_runtime_tests::test_increment_decrement_error_undefined_variable ... ok
+test increment_decrement_runtime_tests::test_floating_point_increment_decrement ... ok
+test increment_decrement_runtime_tests::test_difference_between_pre_and_post ... ok
+test increment_decrement_runtime_tests::test_multiple_increments_decrements ... ok
+test increment_decrement_runtime_tests::test_increment_decrement_with_parentheses ... ok
+test increment_decrement_runtime_tests::test_complex_expression_with_increment_decrement ... ok
+test increment_decrement_runtime_tests::test_increment_decrement_with_multiplication ... ok
+test increment_decrement_runtime_tests::test_increment_decrement_in_expressions ... ok
+test increment_decrement_runtime_tests::test_increment_in_assignment ... ok
+test increment_decrement_runtime_tests::test_negative_number_increment_decrement ... ok
+test increment_decrement_runtime_tests::test_post_decrement ... ok
+test increment_decrement_runtime_tests::test_post_increment ... ok
+test increment_decrement_runtime_tests::test_pre_decrement ... ok
+test increment_decrement_runtime_tests::test_pre_increment ... ok
+test increment_decrement_runtime_tests::test_precedence_increment_vs_arithmetic ... ok
+test increment_decrement_runtime_tests::test_step_by_step_counter ... ok
+
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests\integration_foreach_complete.rs (target\debug\deps\integration_foreach_complete-3e1fd03ff07210b8.exe)
+
+running 7 tests
+test test_foreach_tuple_mixed_types ... ok
+test test_foreach_string_iteration ... ok
+test test_foreach_empty_collections ... ok
+test test_foreach_with_break_continue ... ok
+test test_foreach_nested_arrays ... ok
+test test_foreach_array_sum ... ok
+test test_foreach_vs_traditional_for ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests\integration_function_complete.rs (target\debug\deps\integration_function_complete-3da1679182dfa6f2.exe)
+
+running 7 tests
+test test_integration_function_parameters_expressions ... ok
+test test_integration_function_early_returns ... ok
+test test_integration_function_with_control_flow ... ok
+test test_integration_functions_with_scoping ... ok
+test test_integration_complete_function_system ... ok
+test test_integration_function_as_calculator ... ok
+test test_integration_recursive_fibonacci ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests\integration_functions_as_values.rs (target\debug\deps\integration_functions_as_values-40253718ec247b27.exe)
+
+running 7 tests
+test test_integration_function_selection_system ... ok
+test test_integration_function_array_simulation ... ok
+test test_integration_conditional_function_assignment ... ok
+test test_integration_function_chain_operations ... ok
+test test_integration_function_calculator ... ok
+test test_integration_recursive_function_as_value ... ok
+test test_integration_complex_function_composition ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests\interpreter_tests.rs (target\debug\deps\interpreter_tests-6fc9b3ad5685022a.exe)
+
+running 30 tests
+test interpreter_tests::test_eval_boolean ... ok
+test interpreter_tests::test_boolean_equality_with_numbers ... ok
+test interpreter_tests::test_eval_division_by_zero ... ok
+test interpreter_tests::test_complex_arithmetic ... ok
+test interpreter_tests::test_eval_addition ... ok
+test interpreter_tests::test_complex_logical ... ok
+test interpreter_tests::test_eval_division ... ok
+test interpreter_tests::test_equality ... ok
+test interpreter_tests::test_eval_null ... ok
+test interpreter_tests::test_floating_point_precision ... ok
+test interpreter_tests::test_invalid_comparison_types ... ok
+test interpreter_tests::test_eval_number ... ok
+test interpreter_tests::test_eval_multiplication ... ok
+test interpreter_tests::test_eval_subtraction ... ok
+test interpreter_tests::test_eval_string ... ok
+test interpreter_tests::test_invalid_subtraction_types ... ok
+test interpreter_tests::test_invalid_multiplication_types ... ok
+test interpreter_tests::test_inequality ... ok
+test interpreter_tests::test_logical_not ... ok
+test interpreter_tests::test_large_numbers ... ok
+test interpreter_tests::test_logical_and ... ok
+test interpreter_tests::test_logical_or ... ok
+test interpreter_tests::test_mixed_type_concatenation ... ok
+test interpreter_tests::test_negative_numbers ... ok
+test interpreter_tests::test_mixed_operations ... ok
+test interpreter_tests::test_parentheses_precedence ... ok
+test interpreter_tests::test_operator_precedence ... ok
+test interpreter_tests::test_string_concatenation ... ok
+test interpreter_tests::test_numeric_comparison ... ok
+test interpreter_tests::test_truthiness_in_logical_ops ... ok
+
+test result: ok. 30 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s
+
+     Running tests\lambda_runtime_tests.rs (target\debug\deps\lambda_runtime_tests-eb92f55da03cbb9d.exe)
+
+running 12 tests
+test test_lambda_error_not_function ... ok
+test test_lambda_immediate_invocation ... ok
+test test_lambda_with_multiple_params ... ok
+test test_lambda_return_lambda ... ok
+test test_lambda_error_wrong_arity ... ok
+test test_lambda_as_parameter ... ok
+test test_lambda_assignment_and_call ... ok
+test test_lambda_scope ... ok
+test test_lambda_with_string_concatenation ... ok
+test test_lambda_with_zero_params ... ok
+test test_simple_lambda ... ok
+test test_nested_lambda_calls ... ok
+
+test result: ok. 12 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests\native_functions_tests.rs (target\debug\deps\native_functions_tests-ef8c324b8c1a8373.exe)
+
+running 14 tests
+test test_error_unknown_native_module ... ok
+test test_error_native_function_without_directive ... ok
+test test_native_directive_date_time ... ok
+test test_native_directive_console_io ... ok
+test test_native_directive_crypto ... ok
+test test_multiple_native_directives ... ok
+test test_native_directive_debug ... ok
+test test_native_directive_file_io ... ok
+test test_native_directive_system_env ... ok
+test test_native_print_with_expression ... ok
+test test_native_functions_with_variables ... ok
+test test_native_sleep_function ... ok
+test test_native_typeof_all_types ... ok
+test test_native_uptime_function ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests\native_runtime_tests.rs (target\debug\deps\native_runtime_tests-08cf2a0700a97728.exe)
+
+running 12 tests
+test test_date_time_directive ... ok
+test test_call_function_without_directive ... ok
+test test_console_io_directive ... ok
+test test_binary_io_directive ... ok
+test test_multiple_directives ... ok
+test test_directive_with_regular_code ... ok
+test test_crypto_directive ... ok
+test test_file_io_directive ... FAILED
+test test_native_function_call ... ok
+test test_unknown_module_directive ... ok
+test test_system_env_directive ... ok
+test test_terminal_ansi_directive ... FAILED
+
+failures:
+
+---- test_file_io_directive stdout ----
+
+thread 'test_file_io_directive' (13188) panicked at crates\dryad_runtime\tests\native_runtime_tests.rs:84:5:
+Failed to execute file_io directive: Some(Runtime { code: 3003, message: "Função 'file_exists' não definida", location: SourceLocation { file: None, line: 0, column: 0, position: 0, source_line: None }, stack_trace: StackTrace { frames: [] }, debug_context: None })
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- test_terminal_ansi_directive stdout ----
+
+thread 'test_terminal_ansi_directive' (3800) panicked at crates\dryad_runtime\tests\native_runtime_tests.rs:107:5:
+Failed to execute terminal_ansi directive: Some(Runtime { code: 3003, message: "Função 'print' não definida", location: SourceLocation { file: None, line: 0, column: 0, position: 0, source_line: None }, stack_trace: StackTrace { frames: [] }, debug_context: None })
+
+
+failures:
+    test_file_io_directive
+    test_terminal_ansi_directive
+
+test result: FAILED. 10 passed; 2 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+error: test failed, to rerun pass `-p dryad_runtime --test native_runtime_tests`

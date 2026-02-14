@@ -155,7 +155,7 @@ pub fn register_tcp_functions(functions: &mut HashMap<String, NativeFunction>) {
 
 /// native_tcp_server_create(server_id, host?, port?, max_clients?) -> null
 /// Cria uma nova instância de servidor TCP
-fn native_tcp_server_create(args: &[Value], _manager: &crate::native_modules::NativeModuleManager) -> Result<Value, RuntimeError> {
+fn native_tcp_server_create(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.is_empty() {
         return Err(RuntimeError::ArgumentError("tcp_server_create() requer pelo menos server_id".to_string()));
     }
@@ -209,7 +209,7 @@ fn native_tcp_server_create(args: &[Value], _manager: &crate::native_modules::Na
 
 /// native_tcp_server_start(server_id) -> null
 /// Inicia o servidor TCP
-fn native_tcp_server_start(args: &[Value], _manager: &crate::native_modules::NativeModuleManager) -> Result<Value, RuntimeError> {
+fn native_tcp_server_start(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.is_empty() {
         return Err(RuntimeError::ArgumentError("tcp_server_start() requer server_id".to_string()));
     }
@@ -247,7 +247,7 @@ fn native_tcp_server_start(args: &[Value], _manager: &crate::native_modules::Nat
 
 /// native_tcp_server_stop(server_id) -> null
 /// Para o servidor TCP
-fn native_tcp_server_stop(args: &[Value], _manager: &crate::native_modules::NativeModuleManager) -> Result<Value, RuntimeError> {
+fn native_tcp_server_stop(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.is_empty() {
         return Err(RuntimeError::ArgumentError("tcp_server_stop() requer server_id".to_string()));
     }
@@ -279,7 +279,7 @@ fn native_tcp_server_stop(args: &[Value], _manager: &crate::native_modules::Nati
 
 /// native_tcp_server_status(server_id) -> object
 /// Retorna status do servidor TCP
-fn native_tcp_server_status(args: &[Value], _manager: &crate::native_modules::NativeModuleManager) -> Result<Value, RuntimeError> {
+fn native_tcp_server_status(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.is_empty() {
         return Err(RuntimeError::ArgumentError("tcp_server_status() requer server_id".to_string()));
     }
@@ -298,10 +298,12 @@ fn native_tcp_server_status(args: &[Value], _manager: &crate::native_modules::Na
         status.insert("is_running".to_string(), Value::Bool(server.is_running));
         status.insert("max_clients".to_string(), Value::Number(server.max_clients as f64));
         
-        Ok(Value::Object {
+        let id = _heap.allocate(crate::heap::ManagedObject::Object {
             properties: status,
             methods: HashMap::new(),
-        })
+        });
+        
+        Ok(Value::Object(id))
     } else {
         Err(RuntimeError::ArgumentError(format!("TCP Server '{}' não encontrado", server_id)))
     }
@@ -309,7 +311,7 @@ fn native_tcp_server_status(args: &[Value], _manager: &crate::native_modules::Na
 
 /// native_tcp_server_set_max_clients(server_id, max_clients) -> null
 /// Define o número máximo de clientes para um servidor TCP
-fn native_tcp_server_set_max_clients(args: &[Value], _manager: &crate::native_modules::NativeModuleManager) -> Result<Value, RuntimeError> {
+fn native_tcp_server_set_max_clients(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.len() < 2 {
         return Err(RuntimeError::ArgumentError("tcp_server_set_max_clients() requer server_id e max_clients".to_string()));
     }
@@ -344,7 +346,7 @@ fn native_tcp_server_set_max_clients(args: &[Value], _manager: &crate::native_mo
 
 /// native_tcp_client_create(client_id, host, port) -> null
 /// Cria uma nova instância de cliente TCP
-fn native_tcp_client_create(args: &[Value], _manager: &crate::native_modules::NativeModuleManager) -> Result<Value, RuntimeError> {
+fn native_tcp_client_create(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.len() < 3 {
         return Err(RuntimeError::ArgumentError("tcp_client_create() requer client_id, host e port".to_string()));
     }
@@ -380,7 +382,7 @@ fn native_tcp_client_create(args: &[Value], _manager: &crate::native_modules::Na
 
 /// native_tcp_client_connect(client_id) -> bool
 /// Conecta o cliente TCP ao servidor
-fn native_tcp_client_connect(args: &[Value], _manager: &crate::native_modules::NativeModuleManager) -> Result<Value, RuntimeError> {
+fn native_tcp_client_connect(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.is_empty() {
         return Err(RuntimeError::ArgumentError("tcp_client_connect() requer client_id".to_string()));
     }
@@ -416,7 +418,7 @@ fn native_tcp_client_connect(args: &[Value], _manager: &crate::native_modules::N
 
 /// native_tcp_client_disconnect(client_id) -> null
 /// Desconecta o cliente TCP
-fn native_tcp_client_disconnect(args: &[Value], _manager: &crate::native_modules::NativeModuleManager) -> Result<Value, RuntimeError> {
+fn native_tcp_client_disconnect(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.is_empty() {
         return Err(RuntimeError::ArgumentError("tcp_client_disconnect() requer client_id".to_string()));
     }
@@ -442,7 +444,7 @@ fn native_tcp_client_disconnect(args: &[Value], _manager: &crate::native_modules
 
 /// native_tcp_client_send(client_id, data) -> bool
 /// Envia dados através do cliente TCP
-fn native_tcp_client_send(args: &[Value], _manager: &crate::native_modules::NativeModuleManager) -> Result<Value, RuntimeError> {
+fn native_tcp_client_send(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.len() < 2 {
         return Err(RuntimeError::ArgumentError("tcp_client_send() requer client_id e data".to_string()));
     }
@@ -490,7 +492,7 @@ fn native_tcp_client_send(args: &[Value], _manager: &crate::native_modules::Nati
 
 /// native_tcp_client_receive(client_id) -> string
 /// Recebe dados através do cliente TCP
-fn native_tcp_client_receive(args: &[Value], _manager: &crate::native_modules::NativeModuleManager) -> Result<Value, RuntimeError> {
+fn native_tcp_client_receive(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.is_empty() {
         return Err(RuntimeError::ArgumentError("tcp_client_receive() requer client_id".to_string()));
     }
@@ -535,7 +537,7 @@ fn native_tcp_client_receive(args: &[Value], _manager: &crate::native_modules::N
 
 /// native_tcp_client_status(client_id) -> object
 /// Retorna status do cliente TCP
-fn native_tcp_client_status(args: &[Value], _manager: &crate::native_modules::NativeModuleManager) -> Result<Value, RuntimeError> {
+fn native_tcp_client_status(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.is_empty() {
         return Err(RuntimeError::ArgumentError("tcp_client_status() requer client_id".to_string()));
     }
@@ -552,14 +554,14 @@ fn native_tcp_client_status(args: &[Value], _manager: &crate::native_modules::Na
         status.insert("host".to_string(), Value::String(client.host.clone()));
         status.insert("port".to_string(), Value::Number(client.port as f64));
         status.insert("is_connected".to_string(), Value::Bool(client.is_connected));
-        status.insert("timeout_secs".to_string(), Value::Number(
-            client.timeout.map(|t| t.as_secs() as f64).unwrap_or(30.0)
-        ));
+        status.insert("timeout_secs".to_string(), Value::Number(client.timeout.map(|d| d.as_secs() as f64).unwrap_or(0.0)));
         
-        Ok(Value::Object {
+        let id = _heap.allocate(crate::heap::ManagedObject::Object {
             properties: status,
             methods: HashMap::new(),
-        })
+        });
+        
+        Ok(Value::Object(id))
     } else {
         Err(RuntimeError::ArgumentError(format!("TCP Client '{}' não encontrado", client_id)))
     }
@@ -567,7 +569,7 @@ fn native_tcp_client_status(args: &[Value], _manager: &crate::native_modules::Na
 
 /// native_tcp_client_set_timeout(client_id, timeout_secs) -> null
 /// Define timeout para operações do cliente TCP
-fn native_tcp_client_set_timeout(args: &[Value], _manager: &crate::native_modules::NativeModuleManager) -> Result<Value, RuntimeError> {
+fn native_tcp_client_set_timeout(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.len() < 2 {
         return Err(RuntimeError::ArgumentError("tcp_client_set_timeout() requer client_id e timeout_secs".to_string()));
     }
@@ -598,7 +600,7 @@ fn native_tcp_client_set_timeout(args: &[Value], _manager: &crate::native_module
 
 /// native_tcp_resolve_hostname(hostname) -> string
 /// Resolve um hostname para endereço IP
-fn native_tcp_resolve_hostname(args: &[Value], _manager: &crate::native_modules::NativeModuleManager) -> Result<Value, RuntimeError> {
+fn native_tcp_resolve_hostname(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.is_empty() {
         return Err(RuntimeError::ArgumentError("tcp_resolve_hostname() requer hostname".to_string()));
     }
@@ -626,7 +628,7 @@ fn native_tcp_resolve_hostname(args: &[Value], _manager: &crate::native_modules:
 
 /// native_tcp_get_local_ip() -> string
 /// Retorna o endereço IP local da máquina
-fn native_tcp_get_local_ip(_args: &[Value], _manager: &crate::native_modules::NativeModuleManager) -> Result<Value, RuntimeError> {
+fn native_tcp_get_local_ip(_args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     match std::net::UdpSocket::bind("0.0.0.0:0") {
         Ok(socket) => {
             match socket.connect("8.8.8.8:80") {
@@ -655,7 +657,7 @@ fn native_tcp_get_local_ip(_args: &[Value], _manager: &crate::native_modules::Na
 
 /// native_tcp_port_available(port) -> bool
 /// Verifica se uma porta está disponível para uso
-fn native_tcp_port_available(args: &[Value], _manager: &crate::native_modules::NativeModuleManager) -> Result<Value, RuntimeError> {
+fn native_tcp_port_available(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.is_empty() {
         return Err(RuntimeError::ArgumentError("tcp_port_available() requer port".to_string()));
     }

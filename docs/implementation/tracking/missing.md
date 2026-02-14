@@ -11,15 +11,15 @@ order: 4
 
 ### 1.1 Tipos e Estruturas
 
-- [ ] **Arrays Nativos**: Atualmente implementados como `Vec<Value>`, mas sem métodos como `.map()`, `.filter()`, `.reduce()`. Necessário migrar para `Vec<Value>` com protótipo de array completo.
+- [x] **Arrays Nativos**: Implementação completa de métodos como `.map()`, `.filter()`, `.reduce()`, `.push()`, `.pop()`, `.find()`, `.flat()`, `.zip()`, `.groupBy()`, etc.
 - [ ] **Objetos (Maps)**: Sintaxe `{}` implementada, mas métodos como `.keys()`, `.values()`, `.entries()` faltam.
 - [ ] **Destructuring**: `let { a, b } = obj` ou `let [x, y] = arr` (Ainda não parser/runtime support).
 - [ ] **Spread/Rest Operator**: `...args` em funções e arrays (não implementado).
-- [ ] **Template Strings**: Interpolação `${expr}` dentro de strings (parseia apenas literais de string).
+- [x] **Template Strings**: Interpolação `${expr}` dentro de backticks implementada via desaçucaramento para concatenação.
 
 ### 1.2 Controle de Fluxo
 
-- [ ] **Switch/Match**: Declaração `switch` ou pattern matching estilo Rust (parser não reconhece).
+- [x] **Switch/Match**: Declaração `match` (pattern matching estilo Rust) implementada com suporte a guards e desestruturação básica.
 - [ ] **Optional Chaining**: `obj?.prop` (não implementado).
 - [ ] **Nullish Coalescing**: `??` (não implementado).
 
@@ -50,7 +50,7 @@ order: 4
 ### 3.2 Sistema
 
 - [ ] **Process Management**: `fork`, `kill`, sinais de processo.
-- [ ] **Memory Management**: Garbage Collector (atualmente usa contagem de referência do Rust `Rc`, ciclos de memória podem vazar).
+- [x] **Memory Management**: Garbage Collector Mark-and-Sweep implementado (gerencia ciclos de memória no Heap).
 
 ## 4. Tooling
 

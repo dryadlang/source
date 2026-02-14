@@ -24,7 +24,7 @@ pub fn register_terminal_ansi_functions(functions: &mut HashMap<String, NativeFu
 }
 
 /// Limpa a tela do terminal, movendo o cursor para o início
-fn native_clear_screen(_args: &[Value], _manager: &crate::native_modules::NativeModuleManager) -> Result<Value, RuntimeError> {
+fn native_clear_screen(_args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     // ANSI escape sequence para limpar tela e mover cursor para home
     print!("\x1B[2J\x1B[H");
     io::stdout().flush().map_err(|e| RuntimeError::IoError(e.to_string()))?;
@@ -32,7 +32,7 @@ fn native_clear_screen(_args: &[Value], _manager: &crate::native_modules::Native
 }
 
 /// Move o cursor para uma posição específica (x, y)
-fn native_move_cursor(args: &[Value], _manager: &crate::native_modules::NativeModuleManager) -> Result<Value, RuntimeError> {
+fn native_move_cursor(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.len() != 2 {
         return Err(RuntimeError::ArgumentError(
             "native_move_cursor() requer exatamente 2 argumentos (x, y)".to_string()
@@ -62,7 +62,7 @@ fn native_move_cursor(args: &[Value], _manager: &crate::native_modules::NativeMo
 }
 
 /// Define a cor do texto e do fundo
-fn native_set_color(args: &[Value], _manager: &crate::native_modules::NativeModuleManager) -> Result<Value, RuntimeError> {
+fn native_set_color(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.len() != 2 {
         return Err(RuntimeError::ArgumentError(
             "native_set_color() requer exatamente 2 argumentos (foreground, background)".to_string()
@@ -93,7 +93,7 @@ fn native_set_color(args: &[Value], _manager: &crate::native_modules::NativeModu
 }
 
 /// Define o estilo do texto
-fn native_set_style(args: &[Value], _manager: &crate::native_modules::NativeModuleManager) -> Result<Value, RuntimeError> {
+fn native_set_style(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.len() != 1 {
         return Err(RuntimeError::ArgumentError(
             "native_set_style() requer exatamente 1 argumento (style)".to_string()
@@ -115,7 +115,7 @@ fn native_set_style(args: &[Value], _manager: &crate::native_modules::NativeModu
 }
 
 /// Reseta o estilo do texto para o padrão do terminal
-fn native_reset_style(_args: &[Value], _manager: &crate::native_modules::NativeModuleManager) -> Result<Value, RuntimeError> {
+fn native_reset_style(_args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     // ANSI escape sequence para reset completo
     print!("\x1B[0m");
     io::stdout().flush().map_err(|e| RuntimeError::IoError(e.to_string()))?;
@@ -123,7 +123,7 @@ fn native_reset_style(_args: &[Value], _manager: &crate::native_modules::NativeM
 }
 
 /// Oculta o cursor do terminal
-fn native_hide_cursor(_args: &[Value], _manager: &crate::native_modules::NativeModuleManager) -> Result<Value, RuntimeError> {
+fn native_hide_cursor(_args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     // ANSI escape sequence para ocultar cursor
     print!("\x1B[?25l");
     io::stdout().flush().map_err(|e| RuntimeError::IoError(e.to_string()))?;
@@ -131,7 +131,7 @@ fn native_hide_cursor(_args: &[Value], _manager: &crate::native_modules::NativeM
 }
 
 /// Mostra o cursor do terminal
-fn native_show_cursor(_args: &[Value], _manager: &crate::native_modules::NativeModuleManager) -> Result<Value, RuntimeError> {
+fn native_show_cursor(_args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     // ANSI escape sequence para mostrar cursor
     print!("\x1B[?25h");
     io::stdout().flush().map_err(|e| RuntimeError::IoError(e.to_string()))?;
@@ -139,7 +139,7 @@ fn native_show_cursor(_args: &[Value], _manager: &crate::native_modules::NativeM
 }
 
 /// Retorna o tamanho do terminal como uma tupla (colunas, linhas)
-fn native_terminal_size(_args: &[Value], _manager: &crate::native_modules::NativeModuleManager) -> Result<Value, RuntimeError> {
+fn native_terminal_size(_args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     // Usando crossterm para obter o tamanho do terminal de forma cross-platform
     #[cfg(unix)]
     {
@@ -263,7 +263,7 @@ fn style_to_ansi(style: &str) -> Result<u8, RuntimeError> {
 }
 
 /// Retorna o texto na cor vermelha ANSI
-fn native_ansi_red(args: &[Value], _manager: &crate::native_modules::NativeModuleManager) -> Result<Value, RuntimeError> {
+fn native_ansi_red(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.len() != 1 {
         return Err(RuntimeError::ArgumentError("ansi_red espera 1 argumento".to_string()));
     }

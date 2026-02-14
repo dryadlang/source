@@ -1,6 +1,7 @@
-use crate::interpreter::RuntimeValue;
+use crate::interpreter::Value;
 use crate::native_modules::NativeFunction;
 use crate::errors::RuntimeError;
+use crate::heap::{Heap, ManagedObject};
 use std::collections::HashMap;
 use std::fs::{File, OpenOptions};
 use std::io::{Read, Write, Seek, SeekFrom};
@@ -18,7 +19,7 @@ pub fn register_binary_io_functions(functions: &mut HashMap<String, NativeFuncti
 /// Escreve um array de bytes em um arquivo
 /// Entrada: path (string), bytes (array)
 /// Retorna: null
-fn native_write_bytes(args: &[RuntimeValue], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<RuntimeValue, RuntimeError> {
+fn native_write_bytes(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.len() != 2 {
         return Err(RuntimeError::ArgumentError(
             "native_write_bytes espera 2 argumentos: path, bytes".to_string()
@@ -26,16 +27,16 @@ fn native_write_bytes(args: &[RuntimeValue], _manager: &crate::native_modules::N
     }
     
     let path = match &args[0] {
-        RuntimeValue::String(s) => s,
+        Value::String(s) => s,
         _ => return Err(RuntimeError::TypeError(
             "Primeiro argumento deve ser uma string (caminho do arquivo)".to_string()
         ))
     };
     
-    let bytes = extract_bytes_from_value(&args[1])?;
+    let bytes = extract_bytes_from_value(&args[1], _heap)?;
     
     match std::fs::write(path, bytes) {
-        Ok(_) => Ok(RuntimeValue::Null),
+        Ok(_) => Ok(Value::Null),
         Err(e) => Err(RuntimeError::IoError(
             format!("Erro ao escrever arquivo '{}': {}", path, e)
         ))
@@ -44,19 +45,19 @@ fn native_write_bytes(args: &[RuntimeValue], _manager: &crate::native_modules::N
 
 /// To hex
 /// Converte um array de números (bytes) para uma string hexadecimal
-fn native_to_hex(args: &[RuntimeValue], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<RuntimeValue, RuntimeError> {
+fn native_to_hex(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.len() != 1 {
         return Err(RuntimeError::ArgumentError("native_to_hex espera 1 argumento".to_string()));
     }
-    let bytes = extract_bytes_from_value(&args[0])?;
+    let bytes = extract_bytes_from_value(&args[0], _heap)?;
     let hex_string: String = bytes.iter().map(|b| format!("{:02x}", b)).collect();
-    Ok(RuntimeValue::String(hex_string))
+    Ok(Value::String(hex_string))
 }
 
 /// Adiciona bytes ao final de um arquivo existente
 /// Entrada: path (string), bytes (array)
 /// Retorna: null
-fn native_append_bytes(args: &[RuntimeValue], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<RuntimeValue, RuntimeError> {
+fn native_append_bytes(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.len() != 2 {
         return Err(RuntimeError::ArgumentError(
             "native_append_bytes espera 2 argumentos: path, bytes".to_string()
@@ -64,13 +65,13 @@ fn native_append_bytes(args: &[RuntimeValue], _manager: &crate::native_modules::
     }
     
     let path = match &args[0] {
-        RuntimeValue::String(s) => s,
+        Value::String(s) => s,
         _ => return Err(RuntimeError::TypeError(
             "Primeiro argumento deve ser uma string (caminho do arquivo)".to_string()
         ))
     };
     
-    let bytes = extract_bytes_from_value(&args[1])?;
+    let bytes = extract_bytes_from_value(&args[1], _heap)?;
     
     let mut file = match OpenOptions::new().create(true).append(true).open(path) {
         Ok(f) => f,
@@ -80,7 +81,7 @@ fn native_append_bytes(args: &[RuntimeValue], _manager: &crate::native_modules::
     };
     
     match file.write_all(&bytes) {
-        Ok(_) => Ok(RuntimeValue::Null),
+        Ok(_) => Ok(Value::Null),
         Err(e) => Err(RuntimeError::IoError(
             format!("Erro ao adicionar bytes ao arquivo '{}': {}", path, e)
         ))
@@ -90,7 +91,7 @@ fn native_append_bytes(args: &[RuntimeValue], _manager: &crate::native_modules::
 /// Sobrescreve uma parte específica de um arquivo com bytes
 /// Entrada: path (string), offset (number), bytes (array)
 /// Retorna: null
-fn native_overwrite_chunk(args: &[RuntimeValue], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<RuntimeValue, RuntimeError> {
+fn native_overwrite_chunk(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.len() != 3 {
         return Err(RuntimeError::ArgumentError(
             "native_overwrite_chunk espera 3 argumentos: path, offset, bytes".to_string()
@@ -98,14 +99,14 @@ fn native_overwrite_chunk(args: &[RuntimeValue], _manager: &crate::native_module
     }
     
     let path = match &args[0] {
-        RuntimeValue::String(s) => s,
+        Value::String(s) => s,
         _ => return Err(RuntimeError::TypeError(
             "Primeiro argumento deve ser uma string (caminho do arquivo)".to_string()
         ))
     };
     
     let offset = match &args[1] {
-        RuntimeValue::Number(n) => {
+        Value::Number(n) => {
             if *n < 0.0 || n.fract() != 0.0 {
                 return Err(RuntimeError::ArgumentError(
                     "Offset deve ser um número inteiro não-negativo".to_string()
@@ -118,7 +119,7 @@ fn native_overwrite_chunk(args: &[RuntimeValue], _manager: &crate::native_module
         ))
     };
     
-    let bytes = extract_bytes_from_value(&args[2])?;
+    let bytes = extract_bytes_from_value(&args[2], _heap)?;
     
     let mut file = match OpenOptions::new().write(true).open(path) {
         Ok(f) => f,
@@ -135,7 +136,7 @@ fn native_overwrite_chunk(args: &[RuntimeValue], _manager: &crate::native_module
     }
     
     match file.write_all(&bytes) {
-        Ok(_) => Ok(RuntimeValue::Null),
+        Ok(_) => Ok(Value::Null),
         Err(e) => Err(RuntimeError::IoError(
             format!("Erro ao sobrescrever chunk no arquivo '{}': {}", path, e)
         ))
@@ -145,7 +146,7 @@ fn native_overwrite_chunk(args: &[RuntimeValue], _manager: &crate::native_module
 /// Lê o conteúdo de um arquivo como um array de bytes
 /// Entrada: path (string)
 /// Retorna: array de bytes
-fn native_read_bytes(args: &[RuntimeValue], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<RuntimeValue, RuntimeError> {
+fn native_read_bytes(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.len() != 1 {
         return Err(RuntimeError::ArgumentError(
             "native_read_bytes espera 1 argumento: path".to_string()
@@ -153,7 +154,7 @@ fn native_read_bytes(args: &[RuntimeValue], _manager: &crate::native_modules::Na
     }
     
     let path = match &args[0] {
-        RuntimeValue::String(s) => s,
+        Value::String(s) => s,
         _ => return Err(RuntimeError::TypeError(
             "Argumento deve ser uma string (caminho do arquivo)".to_string()
         ))
@@ -161,11 +162,12 @@ fn native_read_bytes(args: &[RuntimeValue], _manager: &crate::native_modules::Na
     
     match std::fs::read(path) {
         Ok(bytes) => {
-            // Converte bytes para array de RuntimeValues (números)
-            let byte_values: Vec<RuntimeValue> = bytes.into_iter()
-                .map(|b| RuntimeValue::Number(b as f64))
+            // Converte bytes para array de Values (números)
+            let byte_values: Vec<Value> = bytes.into_iter()
+                .map(|b| Value::Number(b as f64))
                 .collect();
-            Ok(RuntimeValue::Array(byte_values))
+            let id = _heap.allocate(ManagedObject::Array(byte_values));
+            Ok(Value::Array(id))
         },
         Err(e) => Err(RuntimeError::IoError(
             format!("Erro ao ler arquivo '{}': {}", path, e)
@@ -176,7 +178,7 @@ fn native_read_bytes(args: &[RuntimeValue], _manager: &crate::native_modules::Na
 /// Lê uma parte específica de um arquivo como um array de bytes
 /// Entrada: path (string), offset (number), size (number)
 /// Retorna: array de bytes
-fn native_read_chunk(args: &[RuntimeValue], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<RuntimeValue, RuntimeError> {
+fn native_read_chunk(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.len() != 3 {
         return Err(RuntimeError::ArgumentError(
             "native_read_chunk espera 3 argumentos: path, offset, size".to_string()
@@ -184,14 +186,14 @@ fn native_read_chunk(args: &[RuntimeValue], _manager: &crate::native_modules::Na
     }
     
     let path = match &args[0] {
-        RuntimeValue::String(s) => s,
+        Value::String(s) => s,
         _ => return Err(RuntimeError::TypeError(
             "Primeiro argumento deve ser uma string (caminho do arquivo)".to_string()
         ))
     };
     
     let offset = match &args[1] {
-        RuntimeValue::Number(n) => {
+        Value::Number(n) => {
             if *n < 0.0 || n.fract() != 0.0 {
                 return Err(RuntimeError::ArgumentError(
                     "Offset deve ser um número inteiro não-negativo".to_string()
@@ -205,7 +207,7 @@ fn native_read_chunk(args: &[RuntimeValue], _manager: &crate::native_modules::Na
     };
     
     let size = match &args[2] {
-        RuntimeValue::Number(n) => {
+        Value::Number(n) => {
             if *n < 0.0 || n.fract() != 0.0 {
                 return Err(RuntimeError::ArgumentError(
                     "Size deve ser um número inteiro não-negativo".to_string()
@@ -244,18 +246,18 @@ fn native_read_chunk(args: &[RuntimeValue], _manager: &crate::native_modules::Na
     // Ajusta o buffer para o número real de bytes lidos
     buffer.truncate(bytes_read);
     
-    // Converte bytes para array de RuntimeValues (números)
-    let byte_values: Vec<RuntimeValue> = buffer.into_iter()
-        .map(|b| RuntimeValue::Number(b as f64))
-        .collect();
-    
-    Ok(RuntimeValue::Array(byte_values))
+    // Converte bytes para array de Values (números)
+    let byte_values: Vec<Value> = buffer.into_iter()
+                .map(|b| Value::Number(b as f64))
+                .collect();
+    let id = _heap.allocate(ManagedObject::Array(byte_values));
+    Ok(Value::Array(id))
 }
 
 /// Retorna o tamanho de um arquivo em bytes
 /// Entrada: path (string)
 /// Retorna: número inteiro representando o tamanho do arquivo
-fn native_file_size(args: &[RuntimeValue], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<RuntimeValue, RuntimeError> {
+fn native_file_size(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.len() != 1 {
         return Err(RuntimeError::ArgumentError(
             "native_file_size espera 1 argumento: path".to_string()
@@ -263,33 +265,40 @@ fn native_file_size(args: &[RuntimeValue], _manager: &crate::native_modules::Nat
     }
     
     let path = match &args[0] {
-        RuntimeValue::String(s) => s,
+        Value::String(s) => s,
         _ => return Err(RuntimeError::TypeError(
             "Argumento deve ser uma string (caminho do arquivo)".to_string()
         ))
     };
     
     match std::fs::metadata(path) {
-        Ok(metadata) => Ok(RuntimeValue::Number(metadata.len() as f64)),
+        Ok(metadata) => Ok(Value::Number(metadata.len() as f64)),
         Err(e) => Err(RuntimeError::IoError(
             format!("Erro ao obter tamanho do arquivo '{}': {}", path, e)
         ))
     }
 }
 
-/// Função auxiliar para extrair bytes de um RuntimeValue
+/// Função auxiliar para extrair bytes de um Value
 /// Aceita tanto arrays de números quanto strings
-fn extract_bytes_from_value(value: &RuntimeValue) -> Result<Vec<u8>, RuntimeError> {
+fn extract_bytes_from_value(value: &Value, heap: &Heap) -> Result<Vec<u8>, RuntimeError> {
     match value {
-        RuntimeValue::Array(arr) => arr.iter().map(|v| {
-            if let RuntimeValue::Number(n) = v {
-                Ok(*n as u8)
+        Value::Array(id) => {
+            let obj = heap.get(*id).ok_or_else(|| RuntimeError::HeapError("Array reference not found".to_string()))?;
+            if let ManagedObject::Array(arr) = obj {
+                arr.iter().map(|v| {
+                    if let Value::Number(n) = v {
+                        Ok(*n as u8)
+                    } else {
+                        Err(RuntimeError::TypeError("Array deve conter apenas números".to_string()))
+                    }
+                }).collect()
             } else {
-                Err(RuntimeError::TypeError("Array deve conter apenas números".to_string()))
+                Err(RuntimeError::TypeError("Expected array in heap".to_string()))
             }
-        }).collect(),
-        RuntimeValue::String(s) => Ok(s.as_bytes().to_vec()),
-        RuntimeValue::Number(n) => Ok(vec![*n as u8]),
+        },
+        Value::String(s) => Ok(s.as_bytes().to_vec()),
+        Value::Number(n) => Ok(vec![*n as u8]),
         _ => Err(RuntimeError::TypeError("Bytes devem ser um array de números ou uma string".to_string())),
     }
 }

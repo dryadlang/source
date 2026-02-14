@@ -2,6 +2,7 @@
 // Arquivo: crates/dryad_runtime/tests/http_client_tests.rs
 
 use dryad_runtime::{Interpreter, Value};
+use dryad_runtime::heap::ManagedObject;
 use dryad_lexer::Lexer;
 use dryad_parser::Parser;
 
@@ -162,9 +163,14 @@ fn test_http_json_response() {
     let result = interpreter.execute_and_return_value(&program).expect("Execução falhou");
     
     match result {
-        Value::Object { properties, .. } => {
-            // Verifica se contém propriedades esperadas do JSONPlaceholder
-            assert!(properties.contains_key("id") || properties.contains_key("title") || properties.len() > 0, "JSON deve conter propriedades válidas");
+        Value::Object(id) => {
+            let obj = interpreter.heap.get(id).unwrap();
+            if let ManagedObject::Object { properties, .. } = obj {
+                // Verifica se contém propriedades esperadas do JSONPlaceholder
+                assert!(properties.contains_key("id") || properties.contains_key("title") || !properties.is_empty(), "JSON deve conter propriedades válidas");
+            } else {
+                panic!("Esperado ManagedObject::Object");
+            }
         }
         _ => panic!("Esperado Object (JSON parseado), recebido: {:?}", result),
     }

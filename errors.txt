@@ -1,13 +1,57 @@
 warning: unused variable: `index_expr`
    --> crates\dryad_parser\src\parser.rs:171:33
     |
-171 | ...                   let index_expr = self.expression()?;
-    |                           ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_index_expr`
+171 | ...       let index_expr = self.express...
+    |               ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_index_expr`
     |
     = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
 
 warning: `dryad_parser` (lib) generated 1 warning (run `cargo fix --lib -p dryad_parser` to apply 1 suggestion)
     Checking dryad_runtime v0.1.0 (C:\Users\Pedro Jesus\Downloads\source-main\source-main\crates\dryad_runtime)
+error[E0433]: failed to resolve: use of undeclared type `DebugEvent`
+   --> crates\dryad_runtime\src\interpreter.rs:220:21
+    |
+220 |                     DebugEvent::StepComplete { file: file_path.clone(), line }
+    |                     ^^^^^^^^^^ use of undeclared type `DebugEvent`
+    |
+help: consider importing this enum
+    |
+  2 + use crate::debug::DebugEvent;
+    |
+
+error[E0433]: failed to resolve: use of undeclared type `DebugEvent`
+   --> crates\dryad_runtime\src\interpreter.rs:222:21
+    |
+222 |                     DebugEvent::BreakpointHit { file: file_path.clone(), line }
+    |                     ^^^^^^^^^^ use of undeclared type `DebugEvent`
+    |
+help: consider importing this enum
+    |
+  2 + use crate::debug::DebugEvent;
+    |
+
+error[E0433]: failed to resolve: use of undeclared type `DebugEvent`
+   --> crates\dryad_runtime\src\interpreter.rs:250:52
+    |
+250 | ...                   state.event_queue.push(DebugEvent::Variables(vars));
+    |                                              ^^^^^^^^^^ use of undeclared type `DebugEvent`
+    |
+help: consider importing this enum
+    |
+  2 + use crate::debug::DebugEvent;
+    |
+
+error[E0433]: failed to resolve: use of undeclared type `DebugEvent`
+   --> crates\dryad_runtime\src\interpreter.rs:255:52
+    |
+255 | ...                   state.event_queue.push(DebugEvent::Heap(heap));
+    |                                              ^^^^^^^^^^ use of undeclared type `DebugEvent`
+    |
+help: consider importing this enum
+    |
+  2 + use crate::debug::DebugEvent;
+    |
+
 warning: unused import: `Value as JsonValue`
   --> crates\dryad_runtime\src\interpreter.rs:11:24
    |
@@ -16,23 +60,23 @@ warning: unused import: `Value as JsonValue`
    |
    = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
 
+warning: unused imports: `Arc` and `Mutex`
+  --> crates\dryad_runtime\src\interpreter.rs:12:17
+   |
+12 | use std::sync::{Arc, Mutex};
+   |                 ^^^  ^^^^^
+
+warning: unused import: `HeapId`
+  --> crates\dryad_runtime\src\native_modules\mod.rs:24:25
+   |
+24 | use crate::heap::{Heap, HeapId};
+   |                         ^^^^^^
+
 warning: unused import: `std::fs`
  --> crates\dryad_runtime\src\resolver.rs:3:5
   |
 3 | use std::fs;
   |     ^^^^^^^
-
-warning: unused import: `Stmt`
- --> crates\dryad_runtime\src\heap.rs:3:25
-  |
-3 | use dryad_parser::ast::{Stmt, Expr};
-  |                         ^^^^
-
-warning: unused import: `dryad_errors::SourceLocation`
- --> crates\dryad_runtime\src\heap.rs:4:5
-  |
-4 | use dryad_errors::SourceLocation;
-  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 warning: unused import: `Expr`
  --> crates\dryad_runtime\src\value.rs:1:31
@@ -46,167 +90,256 @@ warning: unused import: `std::collections::HashMap`
 2 | use std::collections::HashMap;
   |     ^^^^^^^^^^^^^^^^^^^^^^^^^
 
+warning: unused import: `crate::value::Value`
+ --> crates\dryad_runtime\src\debug.rs:4:5
+  |
+4 | use crate::value::Value;
+  |     ^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::net::SocketAddr`
+ --> crates\dryad_runtime\src\debug_server.rs:1:5
+  |
+1 | use std::net::SocketAddr;
+  |     ^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::sync::Arc`
+ --> crates\dryad_runtime\src\debug_server.rs:2:5
+  |
+2 | use std::sync::Arc;
+  |     ^^^^^^^^^^^^^^
+
+warning: unused import: `AsyncReadExt`
+ --> crates\dryad_runtime\src\debug_server.rs:4:17
+  |
+4 | use tokio::io::{AsyncReadExt, AsyncWriteExt};
+  |                 ^^^^^^^^^^^^
+
+warning: unused import: `DebugEvent`
+ --> crates\dryad_runtime\src\debug_server.rs:5:52
+  |
+5 | use crate::debug::{SharedDebugState, DebugCommand, DebugEvent};
+  |                                                    ^^^^^^^^^^
+
+error[E0061]: this function takes 4 arguments but 3 arguments were supplied
+   --> crates\dryad_runtime\src\interpreter.rs:346:24
+    |
+346 |               return Err(DryadError::runtime(
+    |  ________________________^^^^^^^^^^^^^^^^^^^-
+347 | |                 3001,
+348 | |                 &format!("Limite de recursão excedido ({}). Verifique se há recursão infinita.", MAX_RECURSION_DEPTH),
+349 | |                 location.clone()
+350 | |             ));
+    | |_____________- argument #4 of type `StackTrace` is missing
+    |
+note: associated function defined here
+   --> C:\Users\Pedro Jesus\Downloads\source-main\source-main\crates\dryad_errors\src\lib.rs:445:12
+    |
+445 |     pub fn runtime(code: u16, message: &str, location: SourceLocation, stack_trace: StackTrace) -> Self {
+    |            ^^^^^^^
+help: provide the argument
+    |
+346 |             return Err(DryadError::runtime(
+347 |                 3001,
+348 |                 &format!("Limite de recursão excedido ({}). Verifique se há recursão infinita.", MAX_RECURSION_DEPTH),
+349 ~                 location.clone(),
+350 +                 /* StackTrace */,
+    |
+
+error[E0061]: this function takes 4 arguments but 3 arguments were supplied
+   --> crates\dryad_runtime\src\interpreter.rs:357:35
+    |
+357 |                     Err(e) => Err(DryadError::runtime(3002, &e, location.clone())),
+    |                                   ^^^^^^^^^^^^^^^^^^^---------------------------- argument #4 of type `StackTrace` is missing
+    |
+note: associated function defined here
+   --> C:\Users\Pedro Jesus\Downloads\source-main\source-main\crates\dryad_errors\src\lib.rs:445:12
+    |
+445 |     pub fn runtime(code: u16, message: &str, location: SourceLocation, stack_trace: StackTrace) -> Self {
+    |            ^^^^^^^
+help: provide the argument
+    |
+357 |                     Err(e) => Err(DryadError::runtime(3002, &e, location.clone(), /* StackTrace */)),
+    |                                                                                 ++++++++++++++++++
+
 error[E0308]: mismatched types
-    --> crates\dryad_runtime\src\interpreter.rs:2610:46
-     |
-2610 |                 let heap_obj = self.heap.get(id).ok_or_else(|| {
-     |                                          --- ^^ expected `usize`, found `&usize`
-     |                                          |
-     |                                          arguments to this method are incorrect
-     |
+  --> crates\dryad_runtime\src\native_modules\terminal_ansi.rs:15:57
+   |
+15 |     functions.insert("native_clear_screen".to_string(), native_clear_screen);
+   |               ------                                    ^^^^^^^^^^^^^^^^^^^ incorrect number of function parameters
+   |               |
+   |               arguments to this method are incorrect
+   |
+   = note: expected fn pointer `for<'a, 'b, 'c> fn(&'a [value::Value], &'b NativeModuleManager, &'c mut Heap) -> Result<_, _>`
+                 found fn item `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<_, _> {native_clear_screen}`
+help: the return type of this call is `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<value::Value, RuntimeError> {native_clear_screen}` due to the type of the argument passed
+  --> crates\dryad_runtime\src\native_modules\terminal_ansi.rs:15:5
+   |
+15 |     functions.insert("native_clear_screen".to_string(), native_clear_screen);
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^-------------------^
+   |                                                         |
+   |                                                         this argument influences the return type of `insert`
 note: method defined here
-    --> crates\dryad_runtime\src\heap.rs:53:12
-     |
-  53 |     pub fn get(&self, id: HeapId) -> Option<&ManagedObject> {
-     |            ^^^        ----------
-help: consider dereferencing the borrow
-     |
-2610 |                 let heap_obj = self.heap.get(*id).ok_or_else(|| {
-     |                                              +
+  --> /rustc/254b59607d4417e9dffbc307138ae5c86280fe4c\library\std\src\collections\hash\map.rs:1207:12
 
 error[E0308]: mismatched types
-    --> crates\dryad_runtime\src\interpreter.rs:2711:96
-     |
-2711 | ...   let args = vec![element.clone(), Value::Number(index as f64), Value::Array(elements.clone())]; // Note: Passing clone of array to c...
-     |                                                                     ------------ ^^^^^^^^^^^^^^^^ expected `usize`, found `Vec<Value>`
-     |                                                                     |
-     |                                                                     arguments to this enum variant are incorrect
-     |
-     = note: expected type `usize`
-              found struct `Vec<value::Value>`
-note: tuple variant defined here
-    --> crates\dryad_runtime\src\value.rs:18:5
-     |
-  18 |     Array(HeapId),
-     |     ^^^^^
+  --> crates\dryad_runtime\src\native_modules\terminal_ansi.rs:16:56
+   |
+16 |     functions.insert("native_move_cursor".to_string(), native_move_cursor);
+   |               ------                                   ^^^^^^^^^^^^^^^^^^ incorrect number of function parameters
+   |               |
+   |               arguments to this method are incorrect
+   |
+   = note: expected fn pointer `for<'a, 'b, 'c> fn(&'a [value::Value], &'b NativeModuleManager, &'c mut Heap) -> Result<_, _>`
+                 found fn item `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<_, _> {native_move_cursor}`
+help: the return type of this call is `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<value::Value, RuntimeError> {native_move_cursor}` due to the type of the argument passed
+  --> crates\dryad_runtime\src\native_modules\terminal_ansi.rs:16:5
+   |
+16 |     functions.insert("native_move_cursor".to_string(), native_move_cursor);
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^------------------^
+   |                                                        |
+   |                                                        this argument influences the return type of `insert`
+note: method defined here
+  --> /rustc/254b59607d4417e9dffbc307138ae5c86280fe4c\library\std\src\collections\hash\map.rs:1207:12
 
 error[E0308]: mismatched types
-    --> crates\dryad_runtime\src\interpreter.rs:2718:67
-     |
-2718 |                 if arg_values.is_empty() { return Ok(Value::Array(Vec::new())); }
-     |                                                      ------------ ^^^^^^^^^^ expected `usize`, found `Vec<_>`
-     |                                                      |
-     |                                                      arguments to this enum variant are incorrect
-     |
-     = note: expected type `usize`
-              found struct `Vec<_>`
-note: tuple variant defined here
-    --> crates\dryad_runtime\src\value.rs:18:5
-     |
-  18 |     Array(HeapId),
-     |     ^^^^^
+  --> crates\dryad_runtime\src\native_modules\terminal_ansi.rs:17:54
+   |
+17 |     functions.insert("native_set_color".to_string(), native_set_color);
+   |               ------                                 ^^^^^^^^^^^^^^^^ incorrect number of function parameters
+   |               |
+   |               arguments to this method are incorrect
+   |
+   = note: expected fn pointer `for<'a, 'b, 'c> fn(&'a [value::Value], &'b NativeModuleManager, &'c mut Heap) -> Result<_, _>`
+                 found fn item `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<_, _> {native_set_color}`
+help: the return type of this call is `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<value::Value, RuntimeError> {native_set_color}` due to the type of the argument passed
+  --> crates\dryad_runtime\src\native_modules\terminal_ansi.rs:17:5
+   |
+17 |     functions.insert("native_set_color".to_string(), native_set_color);
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^----------------^
+   |                                                      |
+   |                                                      this argument influences the return type of `insert`
+note: method defined here
+  --> /rustc/254b59607d4417e9dffbc307138ae5c86280fe4c\library\std\src\collections\hash\map.rs:1207:12
 
 error[E0308]: mismatched types
-    --> crates\dryad_runtime\src\interpreter.rs:2722:96
-     |
-2722 |                     let args = vec![element.clone(), Value::Number(index as f64), Value::Array(elements.clone())];
-     |                                                                                   ------------ ^^^^^^^^^^^^^^^^ expected `usize`, found `Vec<Value>`
-     |                                                                                   |
-     |                                                                                   arguments to this enum variant are incorrect
-     |
-     = note: expected type `usize`
-              found struct `Vec<value::Value>`
-note: tuple variant defined here
-    --> crates\dryad_runtime\src\value.rs:18:5
-     |
-  18 |     Array(HeapId),
-     |     ^^^^^
+  --> crates\dryad_runtime\src\native_modules\terminal_ansi.rs:18:54
+   |
+18 |     functions.insert("native_set_style".to_string(), native_set_style);
+   |               ------                                 ^^^^^^^^^^^^^^^^ incorrect number of function parameters
+   |               |
+   |               arguments to this method are incorrect
+   |
+   = note: expected fn pointer `for<'a, 'b, 'c> fn(&'a [value::Value], &'b NativeModuleManager, &'c mut Heap) -> Result<_, _>`
+                 found fn item `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<_, _> {native_set_style}`
+help: the return type of this call is `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<value::Value, RuntimeError> {native_set_style}` due to the type of the argument passed
+  --> crates\dryad_runtime\src\native_modules\terminal_ansi.rs:18:5
+   |
+18 |     functions.insert("native_set_style".to_string(), native_set_style);
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^----------------^
+   |                                                      |
+   |                                                      this argument influences the return type of `insert`
+note: method defined here
+  --> /rustc/254b59607d4417e9dffbc307138ae5c86280fe4c\library\std\src\collections\hash\map.rs:1207:12
 
 error[E0308]: mismatched types
-    --> crates\dryad_runtime\src\interpreter.rs:2726:33
-     |
-2726 |                 Ok(Value::Array(results))
-     |                    ------------ ^^^^^^^ expected `usize`, found `Vec<Value>`
-     |                    |
-     |                    arguments to this enum variant are incorrect
-     |
-     = note: expected type `usize`
-              found struct `Vec<value::Value>`
-note: tuple variant defined here
-    --> crates\dryad_runtime\src\value.rs:18:5
-     |
-  18 |     Array(HeapId),
-     |     ^^^^^
+  --> crates\dryad_runtime\src\native_modules\terminal_ansi.rs:19:56
+   |
+19 |     functions.insert("native_reset_style".to_string(), native_reset_style);
+   |               ------                                   ^^^^^^^^^^^^^^^^^^ incorrect number of function parameters
+   |               |
+   |               arguments to this method are incorrect
+   |
+   = note: expected fn pointer `for<'a, 'b, 'c> fn(&'a [value::Value], &'b NativeModuleManager, &'c mut Heap) -> Result<_, _>`
+                 found fn item `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<_, _> {native_reset_style}`
+help: the return type of this call is `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<value::Value, RuntimeError> {native_reset_style}` due to the type of the argument passed
+  --> crates\dryad_runtime\src\native_modules\terminal_ansi.rs:19:5
+   |
+19 |     functions.insert("native_reset_style".to_string(), native_reset_style);
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^------------------^
+   |                                                        |
+   |                                                        this argument influences the return type of `insert`
+note: method defined here
+  --> /rustc/254b59607d4417e9dffbc307138ae5c86280fe4c\library\std\src\collections\hash\map.rs:1207:12
 
 error[E0308]: mismatched types
-    --> crates\dryad_runtime\src\interpreter.rs:2729:67
-     |
-2729 |                 if arg_values.is_empty() { return Ok(Value::Array(Vec::new())); }
-     |                                                      ------------ ^^^^^^^^^^ expected `usize`, found `Vec<_>`
-     |                                                      |
-     |                                                      arguments to this enum variant are incorrect
-     |
-     = note: expected type `usize`
-              found struct `Vec<_>`
-note: tuple variant defined here
-    --> crates\dryad_runtime\src\value.rs:18:5
-     |
-  18 |     Array(HeapId),
-     |     ^^^^^
+  --> crates\dryad_runtime\src\native_modules\terminal_ansi.rs:20:56
+   |
+20 |     functions.insert("native_hide_cursor".to_string(), native_hide_cursor);
+   |               ------                                   ^^^^^^^^^^^^^^^^^^ incorrect number of function parameters
+   |               |
+   |               arguments to this method are incorrect
+   |
+   = note: expected fn pointer `for<'a, 'b, 'c> fn(&'a [value::Value], &'b NativeModuleManager, &'c mut Heap) -> Result<_, _>`
+                 found fn item `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<_, _> {native_hide_cursor}`
+help: the return type of this call is `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<value::Value, RuntimeError> {native_hide_cursor}` due to the type of the argument passed
+  --> crates\dryad_runtime\src\native_modules\terminal_ansi.rs:20:5
+   |
+20 |     functions.insert("native_hide_cursor".to_string(), native_hide_cursor);
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^------------------^
+   |                                                        |
+   |                                                        this argument influences the return type of `insert`
+note: method defined here
+  --> /rustc/254b59607d4417e9dffbc307138ae5c86280fe4c\library\std\src\collections\hash\map.rs:1207:12
 
 error[E0308]: mismatched types
-    --> crates\dryad_runtime\src\interpreter.rs:2733:96
-     |
-2733 |                     let args = vec![element.clone(), Value::Number(index as f64), Value::Array(elements.clone())];
-     |                                                                                   ------------ ^^^^^^^^^^^^^^^^ expected `usize`, found `Vec<Value>`
-     |                                                                                   |
-     |                                                                                   arguments to this enum variant are incorrect
-     |
-     = note: expected type `usize`
-              found struct `Vec<value::Value>`
-note: tuple variant defined here
-    --> crates\dryad_runtime\src\value.rs:18:5
-     |
-  18 |     Array(HeapId),
-     |     ^^^^^
+  --> crates\dryad_runtime\src\native_modules\terminal_ansi.rs:21:56
+   |
+21 |     functions.insert("native_show_cursor".to_string(), native_show_cursor);
+   |               ------                                   ^^^^^^^^^^^^^^^^^^ incorrect number of function parameters
+   |               |
+   |               arguments to this method are incorrect
+   |
+   = note: expected fn pointer `for<'a, 'b, 'c> fn(&'a [value::Value], &'b NativeModuleManager, &'c mut Heap) -> Result<_, _>`
+                 found fn item `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<_, _> {native_show_cursor}`
+help: the return type of this call is `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<value::Value, RuntimeError> {native_show_cursor}` due to the type of the argument passed
+  --> crates\dryad_runtime\src\native_modules\terminal_ansi.rs:21:5
+   |
+21 |     functions.insert("native_show_cursor".to_string(), native_show_cursor);
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^------------------^
+   |                                                        |
+   |                                                        this argument influences the return type of `insert`
+note: method defined here
+  --> /rustc/254b59607d4417e9dffbc307138ae5c86280fe4c\library\std\src\collections\hash\map.rs:1207:12
 
 error[E0308]: mismatched types
-    --> crates\dryad_runtime\src\interpreter.rs:2739:33
-     |
-2739 |                 Ok(Value::Array(results))
-     |                    ------------ ^^^^^^^ expected `usize`, found `Vec<Value>`
-     |                    |
-     |                    arguments to this enum variant are incorrect
-     |
-     = note: expected type `usize`
-              found struct `Vec<value::Value>`
-note: tuple variant defined here
-    --> crates\dryad_runtime\src\value.rs:18:5
-     |
-  18 |     Array(HeapId),
-     |     ^^^^^
+  --> crates\dryad_runtime\src\native_modules\terminal_ansi.rs:22:58
+   |
+22 |     functions.insert("native_terminal_size".to_string(), native_terminal_size);
+   |               ------                                     ^^^^^^^^^^^^^^^^^^^^ incorrect number of function parameters
+   |               |
+   |               arguments to this method are incorrect
+   |
+   = note: expected fn pointer `for<'a, 'b, 'c> fn(&'a [value::Value], &'b NativeModuleManager, &'c mut Heap) -> Result<_, _>`
+                 found fn item `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<_, _> {native_terminal_size}`
+help: the return type of this call is `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<value::Value, RuntimeError> {native_terminal_size}` due to the type of the argument passed
+  --> crates\dryad_runtime\src\native_modules\terminal_ansi.rs:22:5
+   |
+22 |     functions.insert("native_terminal_size".to_string(), native_terminal_size);
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^--------------------^
+   |                                                          |
+   |                                                          this argument influences the return type of `insert`
+note: method defined here
+  --> /rustc/254b59607d4417e9dffbc307138ae5c86280fe4c\library\std\src\collections\hash\map.rs:1207:12
 
 error[E0308]: mismatched types
-    --> crates\dryad_runtime\src\interpreter.rs:2758:118
-     |
-2758 |                      let args = vec![accumulator.clone(), element.clone(), Value::Number(index as f64), Value::Array(elements.clone())];
-     |                                                                                                         ------------ ^^^^^^^^^^^^^^^^ expected `usize`, found `Vec<Value>`
-     |                                                                                                         |
-     |                                                                                                         arguments to this enum variant are incorrect
-     |
-     = note: expected type `usize`
-              found struct `Vec<value::Value>`
-note: tuple variant defined here
-    --> crates\dryad_runtime\src\value.rs:18:5
-     |
-  18 |     Array(HeapId),
-     |     ^^^^^
-
-error[E0308]: mismatched types
-    --> crates\dryad_runtime\src\interpreter.rs:2780:119
-     |
-2780 |                       let args = vec![accumulator.clone(), element.clone(), Value::Number(index as f64), Value::Array(elements.clone())];
-     |                                                                                                          ------------ ^^^^^^^^^^^^^^^^ expected `usize`, found `Vec<Value>`
-     |                                                                                                          |
-     |                                                                                                          arguments to this enum variant are incorrect
-     |
-     = note: expected type `usize`
-              found struct `Vec<value::Value>`
-note: tuple variant defined here
-    --> crates\dryad_runtime\src\value.rs:18:5
-     |
-  18 |     Array(HeapId),
-     |     ^^^^^
+  --> crates\dryad_runtime\src\native_modules\terminal_ansi.rs:23:46
+   |
+23 |     functions.insert("ansi_red".to_string(), native_ansi_red);
+   |               ------                         ^^^^^^^^^^^^^^^ incorrect number of function parameters
+   |               |
+   |               arguments to this method are incorrect
+   |
+   = note: expected fn pointer `for<'a, 'b, 'c> fn(&'a [value::Value], &'b NativeModuleManager, &'c mut Heap) -> Result<_, _>`
+                 found fn item `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<_, _> {native_ansi_red}`
+help: the return type of this call is `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<value::Value, RuntimeError> {native_ansi_red}` due to the type of the argument passed
+  --> crates\dryad_runtime\src\native_modules\terminal_ansi.rs:23:5
+   |
+23 |     functions.insert("ansi_red".to_string(), native_ansi_red);
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^---------------^
+   |                                              |
+   |                                              this argument influences the return type of `insert`
+note: method defined here
+  --> /rustc/254b59607d4417e9dffbc307138ae5c86280fe4c\library\std\src\collections\hash\map.rs:1207:12
 
 error[E0308]: mismatched types
    --> crates\dryad_runtime\src\native_modules\binary_io.rs:168:36
@@ -253,10 +386,10 @@ error[E0614]: type `f64` cannot be dereferenced
     |                    ^^ can't be dereferenced
 
 error[E0308]: mismatched types
-   --> crates\dryad_runtime\src\native_modules\file_io.rs:195:36
+   --> crates\dryad_runtime\src\native_modules\file_io.rs:270:29
     |
-195 |             Ok(RuntimeValue::Array(files))
-    |                ------------------- ^^^^^ expected `usize`, found `Vec<Value>`
+270 |             Ok(Value::Array(files))
+    |                ------------ ^^^^^ expected `usize`, found `Vec<Value>`
     |                |
     |                arguments to this enum variant are incorrect
     |
@@ -269,10 +402,10 @@ note: tuple variant defined here
     |     ^^^^^
 
 error[E0308]: mismatched types
-   --> crates\dryad_runtime\src\native_modules\file_io.rs:410:36
+   --> crates\dryad_runtime\src\native_modules\file_io.rs:537:29
     |
-410 |             Ok(RuntimeValue::Array(info))
-    |                ------------------- ^^^^ expected `usize`, found `Vec<Value>`
+537 |             Ok(Value::Array(info))
+    |                ------------ ^^^^ expected `usize`, found `Vec<Value>`
     |                |
     |                arguments to this enum variant are incorrect
     |
@@ -1004,6 +1137,546 @@ error[E0282]: type annotations needed
 318 |             cookies.insert(k.clone(), val.clone());
     |                            ^ cannot infer type
 
+error[E0308]: mismatched types
+   --> crates\dryad_runtime\src\native_modules\http_server.rs:181:60
+    |
+181 |     functions.insert("native_http_server_get".to_string(), native_http_server_get);
+    |               ------                                       ^^^^^^^^^^^^^^^^^^^^^^ incorrect number of function parameters
+    |               |
+    |               arguments to this method are incorrect
+    |
+    = note: expected fn pointer `for<'a, 'b, 'c> fn(&'a [value::Value], &'b NativeModuleManager, &'c mut Heap) -> Result<_, _>`
+                  found fn item `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<_, _> {native_http_server_get}`
+help: the return type of this call is `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<value::Value, RuntimeError> {native_http_server_get}` due to the type of the argument passed
+   --> crates\dryad_runtime\src\native_modules\http_server.rs:181:5
+    |
+181 |     functions.insert("native_http_server_get".to_string(), native_http_server_get);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^----------------------^
+    |                                                            |
+    |                                                            this argument influences the return type of `insert`
+note: method defined here
+   --> /rustc/254b59607d4417e9dffbc307138ae5c86280fe4c\library\std\src\collections\hash\map.rs:1207:12
+
+error[E0308]: mismatched types
+   --> crates\dryad_runtime\src\native_modules\http_server.rs:182:61
+    |
+182 |     functions.insert("native_http_server_post".to_string(), native_http_server_post);
+    |               ------ arguments to this method are incorrect ^^^^^^^^^^^^^^^^^^^^^^^ incorrect number of function parameters
+    |
+    = note: expected fn pointer `for<'a, 'b, 'c> fn(&'a [value::Value], &'b NativeModuleManager, &'c mut Heap) -> Result<_, _>`
+                  found fn item `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<_, _> {native_http_server_post}`
+help: the return type of this call is `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<value::Value, RuntimeError> {native_http_server_post}` due to the type of the argument passed
+   --> crates\dryad_runtime\src\native_modules\http_server.rs:182:5
+    |
+182 |     functions.insert("native_http_server_post".to_string(), native_http_server_post);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^-----------------------^
+    |                                                             |
+    |                                                             this argument influences the return type of `insert`
+note: method defined here
+   --> /rustc/254b59607d4417e9dffbc307138ae5c86280fe4c\library\std\src\collections\hash\map.rs:1207:12
+
+error[E0308]: mismatched types
+   --> crates\dryad_runtime\src\native_modules\http_server.rs:183:60
+    |
+183 |     functions.insert("native_http_server_put".to_string(), native_http_server_put);
+    |               ------                                       ^^^^^^^^^^^^^^^^^^^^^^ incorrect number of function parameters
+    |               |
+    |               arguments to this method are incorrect
+    |
+    = note: expected fn pointer `for<'a, 'b, 'c> fn(&'a [value::Value], &'b NativeModuleManager, &'c mut Heap) -> Result<_, _>`
+                  found fn item `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<_, _> {native_http_server_put}`
+help: the return type of this call is `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<value::Value, RuntimeError> {native_http_server_put}` due to the type of the argument passed
+   --> crates\dryad_runtime\src\native_modules\http_server.rs:183:5
+    |
+183 |     functions.insert("native_http_server_put".to_string(), native_http_server_put);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^----------------------^
+    |                                                            |
+    |                                                            this argument influences the return type of `insert`
+note: method defined here
+   --> /rustc/254b59607d4417e9dffbc307138ae5c86280fe4c\library\std\src\collections\hash\map.rs:1207:12
+
+error[E0308]: mismatched types
+   --> crates\dryad_runtime\src\native_modules\http_server.rs:184:63
+    |
+184 |     functions.insert("native_http_server_delete".to_string(), native_http_server_delete);
+    |               ------ arguments to this method are incorrect   ^^^^^^^^^^^^^^^^^^^^^^^^^ incorrect number of function parameters
+    |
+    = note: expected fn pointer `for<'a, 'b, 'c> fn(&'a [value::Value], &'b NativeModuleManager, &'c mut Heap) -> Result<_, _>`
+                  found fn item `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<_, _> {native_http_server_delete}`
+help: the return type of this call is `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<value::Value, RuntimeError> {native_http_server_delete}` due to the type of the argument passed
+   --> crates\dryad_runtime\src\native_modules\http_server.rs:184:5
+    |
+184 |     functions.insert("native_http_server_delete".to_string(), native_http_server_delete);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^-------------------------^
+    |                                                               |
+    |                                                               this argument influences the return type of `insert`
+note: method defined here
+   --> /rustc/254b59607d4417e9dffbc307138ae5c86280fe4c\library\std\src\collections\hash\map.rs:1207:12
+
+error[E0308]: mismatched types
+   --> crates\dryad_runtime\src\native_modules\http_server.rs:188:61
+    |
+188 |     functions.insert("native_http_server_file".to_string(), native_http_server_file);
+    |               ------ arguments to this method are incorrect ^^^^^^^^^^^^^^^^^^^^^^^ incorrect number of function parameters
+    |
+    = note: expected fn pointer `for<'a, 'b, 'c> fn(&'a [value::Value], &'b NativeModuleManager, &'c mut Heap) -> Result<_, _>`
+                  found fn item `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<_, _> {native_http_server_file}`
+help: the return type of this call is `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<value::Value, RuntimeError> {native_http_server_file}` due to the type of the argument passed
+   --> crates\dryad_runtime\src\native_modules\http_server.rs:188:5
+    |
+188 |     functions.insert("native_http_server_file".to_string(), native_http_server_file);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^-----------------------^
+    |                                                             |
+    |                                                             this argument influences the return type of `insert`
+note: method defined here
+   --> /rustc/254b59607d4417e9dffbc307138ae5c86280fe4c\library\std\src\collections\hash\map.rs:1207:12
+
+error[E0308]: mismatched types
+   --> crates\dryad_runtime\src\native_modules\http_server.rs:189:61
+    |
+189 |     functions.insert("native_http_server_html".to_string(), native_http_server_html);
+    |               ------ arguments to this method are incorrect ^^^^^^^^^^^^^^^^^^^^^^^ incorrect number of function parameters
+    |
+    = note: expected fn pointer `for<'a, 'b, 'c> fn(&'a [value::Value], &'b NativeModuleManager, &'c mut Heap) -> Result<_, _>`
+                  found fn item `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<_, _> {native_http_server_html}`
+help: the return type of this call is `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<value::Value, RuntimeError> {native_http_server_html}` due to the type of the argument passed
+   --> crates\dryad_runtime\src\native_modules\http_server.rs:189:5
+    |
+189 |     functions.insert("native_http_server_html".to_string(), native_http_server_html);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^-----------------------^
+    |                                                             |
+    |                                                             this argument influences the return type of `insert`
+note: method defined here
+   --> /rustc/254b59607d4417e9dffbc307138ae5c86280fe4c\library\std\src\collections\hash\map.rs:1207:12
+
+error[E0308]: mismatched types
+   --> crates\dryad_runtime\src\native_modules\http_server.rs:190:61
+    |
+190 |     functions.insert("native_http_server_json".to_string(), native_http_server_json);
+    |               ------ arguments to this method are incorrect ^^^^^^^^^^^^^^^^^^^^^^^ incorrect number of function parameters
+    |
+    = note: expected fn pointer `for<'a, 'b, 'c> fn(&'a [value::Value], &'b NativeModuleManager, &'c mut Heap) -> Result<_, _>`
+                  found fn item `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<_, _> {native_http_server_json}`
+help: the return type of this call is `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<value::Value, RuntimeError> {native_http_server_json}` due to the type of the argument passed
+   --> crates\dryad_runtime\src\native_modules\http_server.rs:190:5
+    |
+190 |     functions.insert("native_http_server_json".to_string(), native_http_server_json);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^-----------------------^
+    |                                                             |
+    |                                                             this argument influences the return type of `insert`
+note: method defined here
+   --> /rustc/254b59607d4417e9dffbc307138ae5c86280fe4c\library\std\src\collections\hash\map.rs:1207:12
+
+error[E0061]: this function takes 3 arguments but 2 arguments were supplied
+   --> crates\dryad_runtime\src\native_modules\http_server.rs:398:5
+    |
+398 |     native_http_server_route(args, manager)
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^--------------- argument #3 of type `&mut Heap` is missing
+    |
+note: function defined here
+   --> crates\dryad_runtime\src\native_modules\http_server.rs:348:4
+    |
+348 | fn native_http_server_route(args: &[RuntimeValue], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -...
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^                                                                               -----------------------------
+help: provide the argument
+    |
+398 |     native_http_server_route(args, manager, /* &mut Heap */)
+    |                                           +++++++++++++++++
+
+error[E0061]: this function takes 3 arguments but 2 arguments were supplied
+   --> crates\dryad_runtime\src\native_modules\http_server.rs:408:5
+    |
+408 |     native_http_server_route(args, manager)
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^--------------- argument #3 of type `&mut Heap` is missing
+    |
+note: function defined here
+   --> crates\dryad_runtime\src\native_modules\http_server.rs:348:4
+    |
+348 | fn native_http_server_route(args: &[RuntimeValue], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -...
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^                                                                               -----------------------------
+help: provide the argument
+    |
+408 |     native_http_server_route(args, manager, /* &mut Heap */)
+    |                                           +++++++++++++++++
+
+error[E0061]: this function takes 3 arguments but 2 arguments were supplied
+   --> crates\dryad_runtime\src\native_modules\http_server.rs:418:5
+    |
+418 |     native_http_server_route(args, manager)
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^--------------- argument #3 of type `&mut Heap` is missing
+    |
+note: function defined here
+   --> crates\dryad_runtime\src\native_modules\http_server.rs:348:4
+    |
+348 | fn native_http_server_route(args: &[RuntimeValue], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -...
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^                                                                               -----------------------------
+help: provide the argument
+    |
+418 |     native_http_server_route(args, manager, /* &mut Heap */)
+    |                                           +++++++++++++++++
+
+error[E0061]: this function takes 3 arguments but 2 arguments were supplied
+   --> crates\dryad_runtime\src\native_modules\http_server.rs:428:5
+    |
+428 |     native_http_server_route(args, manager)
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^--------------- argument #3 of type `&mut Heap` is missing
+    |
+note: function defined here
+   --> crates\dryad_runtime\src\native_modules\http_server.rs:348:4
+    |
+348 | fn native_http_server_route(args: &[RuntimeValue], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -...
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^                                                                               -----------------------------
+help: provide the argument
+    |
+428 |     native_http_server_route(args, manager, /* &mut Heap */)
+    |                                           +++++++++++++++++
+
+error[E0061]: this function takes 3 arguments but 2 arguments were supplied
+   --> crates\dryad_runtime\src\native_modules\http_server.rs:479:5
+    |
+479 |     native_http_server_static(args, manager)
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^--------------- argument #3 of type `&mut Heap` is missing
+    |
+note: function defined here
+   --> crates\dryad_runtime\src\native_modules\http_server.rs:437:4
+    |
+437 | fn native_http_server_static(args: &[RuntimeValue], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -...
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^^                                                                               -----------------------------
+help: provide the argument
+    |
+479 |     native_http_server_static(args, manager, /* &mut Heap */)
+    |                                            +++++++++++++++++
+
+error[E0061]: this function takes 3 arguments but 2 arguments were supplied
+   --> crates\dryad_runtime\src\native_modules\http_server.rs:497:5
+    |
+497 |     native_http_server_route(&new_args, manager)?;
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^-------------------- argument #3 of type `&mut Heap` is missing
+    |
+note: function defined here
+   --> crates\dryad_runtime\src\native_modules\http_server.rs:348:4
+    |
+348 | fn native_http_server_route(args: &[RuntimeValue], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -...
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^                                                                               -----------------------------
+help: provide the argument
+    |
+497 |     native_http_server_route(&new_args, manager, /* &mut Heap */)?;
+    |                                                +++++++++++++++++
+
+error[E0061]: this function takes 3 arguments but 2 arguments were supplied
+   --> crates\dryad_runtime\src\native_modules\http_server.rs:518:5
+    |
+518 |     native_http_server_route(&new_args, manager)?;
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^-------------------- argument #3 of type `&mut Heap` is missing
+    |
+note: function defined here
+   --> crates\dryad_runtime\src\native_modules\http_server.rs:348:4
+    |
+348 | fn native_http_server_route(args: &[RuntimeValue], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -...
+    |    ^^^^^^^^^^^^^^^^^^^^^^^^                                                                               -----------------------------
+help: provide the argument
+    |
+518 |     native_http_server_route(&new_args, manager, /* &mut Heap */)?;
+    |                                                +++++++++++++++++
+
+error[E0308]: mismatched types
+   --> crates\dryad_runtime\src\native_modules\tcp.rs:131:55
+    |
+131 |     functions.insert("tcp_server_create".to_string(), native_tcp_server_create);
+    |               ------                                  ^^^^^^^^^^^^^^^^^^^^^^^^ incorrect number of function parameters
+    |               |
+    |               arguments to this method are incorrect
+    |
+    = note: expected fn pointer `for<'a, 'b, 'c> fn(&'a [value::Value], &'b NativeModuleManager, &'c mut Heap) -> Result<_, _>`
+                  found fn item `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<_, _> {native_tcp_server_create}`
+help: the return type of this call is `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<value::Value, RuntimeError> {native_tcp_server_create}` due to the type of the argument passed
+   --> crates\dryad_runtime\src\native_modules\tcp.rs:131:5
+    |
+131 |     functions.insert("tcp_server_create".to_string(), native_tcp_server_create);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^------------------------^
+    |                                                       |
+    |                                                       this argument influences the return type of `insert`
+note: method defined here
+   --> /rustc/254b59607d4417e9dffbc307138ae5c86280fe4c\library\std\src\collections\hash\map.rs:1207:12
+
+error[E0308]: mismatched types
+   --> crates\dryad_runtime\src\native_modules\tcp.rs:132:54
+    |
+132 |     functions.insert("tcp_server_start".to_string(), native_tcp_server_start);
+    |               ------                                 ^^^^^^^^^^^^^^^^^^^^^^^ incorrect number of function parameters
+    |               |
+    |               arguments to this method are incorrect
+    |
+    = note: expected fn pointer `for<'a, 'b, 'c> fn(&'a [value::Value], &'b NativeModuleManager, &'c mut Heap) -> Result<_, _>`
+                  found fn item `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<_, _> {native_tcp_server_start}`
+help: the return type of this call is `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<value::Value, RuntimeError> {native_tcp_server_start}` due to the type of the argument passed
+   --> crates\dryad_runtime\src\native_modules\tcp.rs:132:5
+    |
+132 |     functions.insert("tcp_server_start".to_string(), native_tcp_server_start);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^-----------------------^
+    |                                                      |
+    |                                                      this argument influences the return type of `insert`
+note: method defined here
+   --> /rustc/254b59607d4417e9dffbc307138ae5c86280fe4c\library\std\src\collections\hash\map.rs:1207:12
+
+error[E0308]: mismatched types
+   --> crates\dryad_runtime\src\native_modules\tcp.rs:133:53
+    |
+133 |     functions.insert("tcp_server_stop".to_string(), native_tcp_server_stop);
+    |               ------                                ^^^^^^^^^^^^^^^^^^^^^^ incorrect number of function parameters
+    |               |
+    |               arguments to this method are incorrect
+    |
+    = note: expected fn pointer `for<'a, 'b, 'c> fn(&'a [value::Value], &'b NativeModuleManager, &'c mut Heap) -> Result<_, _>`
+                  found fn item `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<_, _> {native_tcp_server_stop}`
+help: the return type of this call is `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<value::Value, RuntimeError> {native_tcp_server_stop}` due to the type of the argument passed
+   --> crates\dryad_runtime\src\native_modules\tcp.rs:133:5
+    |
+133 |     functions.insert("tcp_server_stop".to_string(), native_tcp_server_stop);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^----------------------^
+    |                                                     |
+    |                                                     this argument influences the return type of `insert`
+note: method defined here
+   --> /rustc/254b59607d4417e9dffbc307138ae5c86280fe4c\library\std\src\collections\hash\map.rs:1207:12
+
+error[E0308]: mismatched types
+   --> crates\dryad_runtime\src\native_modules\tcp.rs:134:55
+    |
+134 |     functions.insert("tcp_server_status".to_string(), native_tcp_server_status);
+    |               ------                                  ^^^^^^^^^^^^^^^^^^^^^^^^ incorrect number of function parameters
+    |               |
+    |               arguments to this method are incorrect
+    |
+    = note: expected fn pointer `for<'a, 'b, 'c> fn(&'a [value::Value], &'b NativeModuleManager, &'c mut Heap) -> Result<_, _>`
+                  found fn item `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<_, _> {native_tcp_server_status}`
+help: the return type of this call is `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<value::Value, RuntimeError> {native_tcp_server_status}` due to the type of the argument passed
+   --> crates\dryad_runtime\src\native_modules\tcp.rs:134:5
+    |
+134 |     functions.insert("tcp_server_status".to_string(), native_tcp_server_status);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^------------------------^
+    |                                                       |
+    |                                                       this argument influences the return type of `insert`
+note: method defined here
+   --> /rustc/254b59607d4417e9dffbc307138ae5c86280fe4c\library\std\src\collections\hash\map.rs:1207:12
+
+error[E0308]: mismatched types
+   --> crates\dryad_runtime\src\native_modules\tcp.rs:135:64
+    |
+135 |     functions.insert("tcp_server_set_max_clients".to_string(), native_tcp_server_set_max_clients);
+    |               ------ arguments to this method are incorrect    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ incorrect number of function parameters
+    |
+    = note: expected fn pointer `for<'a, 'b, 'c> fn(&'a [value::Value], &'b NativeModuleManager, &'c mut Heap) -> Result<_, _>`
+                  found fn item `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<_, _> {native_tcp_server_set_max_clients}`
+help: the return type of this call is `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<value::Value, RuntimeError> {native_tcp_server_set_max_clients}` due to the type of the argument passed
+   --> crates\dryad_runtime\src\native_modules\tcp.rs:135:5
+    |
+135 |     functions.insert("tcp_server_set_max_clients".to_string(), native_tcp_server_set_max_clients);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^---------------------------------^
+    |                                                                |
+    |                                                                this argument influences the return type of `insert`
+note: method defined here
+   --> /rustc/254b59607d4417e9dffbc307138ae5c86280fe4c\library\std\src\collections\hash\map.rs:1207:12
+
+error[E0308]: mismatched types
+   --> crates\dryad_runtime\src\native_modules\tcp.rs:138:55
+    |
+138 |     functions.insert("tcp_client_create".to_string(), native_tcp_client_create);
+    |               ------                                  ^^^^^^^^^^^^^^^^^^^^^^^^ incorrect number of function parameters
+    |               |
+    |               arguments to this method are incorrect
+    |
+    = note: expected fn pointer `for<'a, 'b, 'c> fn(&'a [value::Value], &'b NativeModuleManager, &'c mut Heap) -> Result<_, _>`
+                  found fn item `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<_, _> {native_tcp_client_create}`
+help: the return type of this call is `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<value::Value, RuntimeError> {native_tcp_client_create}` due to the type of the argument passed
+   --> crates\dryad_runtime\src\native_modules\tcp.rs:138:5
+    |
+138 |     functions.insert("tcp_client_create".to_string(), native_tcp_client_create);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^------------------------^
+    |                                                       |
+    |                                                       this argument influences the return type of `insert`
+note: method defined here
+   --> /rustc/254b59607d4417e9dffbc307138ae5c86280fe4c\library\std\src\collections\hash\map.rs:1207:12
+
+error[E0308]: mismatched types
+   --> crates\dryad_runtime\src\native_modules\tcp.rs:139:56
+    |
+139 |     functions.insert("tcp_client_connect".to_string(), native_tcp_client_connect);
+    |               ------                                   ^^^^^^^^^^^^^^^^^^^^^^^^^ incorrect number of function parameters
+    |               |
+    |               arguments to this method are incorrect
+    |
+    = note: expected fn pointer `for<'a, 'b, 'c> fn(&'a [value::Value], &'b NativeModuleManager, &'c mut Heap) -> Result<_, _>`
+                  found fn item `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<_, _> {native_tcp_client_connect}`
+help: the return type of this call is `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<value::Value, RuntimeError> {native_tcp_client_connect}` due to the type of the argument passed
+   --> crates\dryad_runtime\src\native_modules\tcp.rs:139:5
+    |
+139 |     functions.insert("tcp_client_connect".to_string(), native_tcp_client_connect);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^-------------------------^
+    |                                                        |
+    |                                                        this argument influences the return type of `insert`
+note: method defined here
+   --> /rustc/254b59607d4417e9dffbc307138ae5c86280fe4c\library\std\src\collections\hash\map.rs:1207:12
+
+error[E0308]: mismatched types
+   --> crates\dryad_runtime\src\native_modules\tcp.rs:140:59
+    |
+140 |     functions.insert("tcp_client_disconnect".to_string(), native_tcp_client_disconnect);
+    |               ------                                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ incorrect number of function parameters
+    |               |
+    |               arguments to this method are incorrect
+    |
+    = note: expected fn pointer `for<'a, 'b, 'c> fn(&'a [value::Value], &'b NativeModuleManager, &'c mut Heap) -> Result<_, _>`
+                  found fn item `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<_, _> {native_tcp_client_disconnect}`
+help: the return type of this call is `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<value::Value, RuntimeError> {native_tcp_client_disconnect}` due to the type of the argument passed
+   --> crates\dryad_runtime\src\native_modules\tcp.rs:140:5
+    |
+140 |     functions.insert("tcp_client_disconnect".to_string(), native_tcp_client_disconnect);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^----------------------------^
+    |                                                           |
+    |                                                           this argument influences the return type of `insert`
+note: method defined here
+   --> /rustc/254b59607d4417e9dffbc307138ae5c86280fe4c\library\std\src\collections\hash\map.rs:1207:12
+
+error[E0308]: mismatched types
+   --> crates\dryad_runtime\src\native_modules\tcp.rs:141:53
+    |
+141 |     functions.insert("tcp_client_send".to_string(), native_tcp_client_send);
+    |               ------                                ^^^^^^^^^^^^^^^^^^^^^^ incorrect number of function parameters
+    |               |
+    |               arguments to this method are incorrect
+    |
+    = note: expected fn pointer `for<'a, 'b, 'c> fn(&'a [value::Value], &'b NativeModuleManager, &'c mut Heap) -> Result<_, _>`
+                  found fn item `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<_, _> {native_tcp_client_send}`
+help: the return type of this call is `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<value::Value, RuntimeError> {native_tcp_client_send}` due to the type of the argument passed
+   --> crates\dryad_runtime\src\native_modules\tcp.rs:141:5
+    |
+141 |     functions.insert("tcp_client_send".to_string(), native_tcp_client_send);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^----------------------^
+    |                                                     |
+    |                                                     this argument influences the return type of `insert`
+note: method defined here
+   --> /rustc/254b59607d4417e9dffbc307138ae5c86280fe4c\library\std\src\collections\hash\map.rs:1207:12
+
+error[E0308]: mismatched types
+   --> crates\dryad_runtime\src\native_modules\tcp.rs:142:56
+    |
+142 |     functions.insert("tcp_client_receive".to_string(), native_tcp_client_receive);
+    |               ------                                   ^^^^^^^^^^^^^^^^^^^^^^^^^ incorrect number of function parameters
+    |               |
+    |               arguments to this method are incorrect
+    |
+    = note: expected fn pointer `for<'a, 'b, 'c> fn(&'a [value::Value], &'b NativeModuleManager, &'c mut Heap) -> Result<_, _>`
+                  found fn item `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<_, _> {native_tcp_client_receive}`
+help: the return type of this call is `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<value::Value, RuntimeError> {native_tcp_client_receive}` due to the type of the argument passed
+   --> crates\dryad_runtime\src\native_modules\tcp.rs:142:5
+    |
+142 |     functions.insert("tcp_client_receive".to_string(), native_tcp_client_receive);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^-------------------------^
+    |                                                        |
+    |                                                        this argument influences the return type of `insert`
+note: method defined here
+   --> /rustc/254b59607d4417e9dffbc307138ae5c86280fe4c\library\std\src\collections\hash\map.rs:1207:12
+
+error[E0308]: mismatched types
+   --> crates\dryad_runtime\src\native_modules\tcp.rs:143:55
+    |
+143 |     functions.insert("tcp_client_status".to_string(), native_tcp_client_status);
+    |               ------                                  ^^^^^^^^^^^^^^^^^^^^^^^^ incorrect number of function parameters
+    |               |
+    |               arguments to this method are incorrect
+    |
+    = note: expected fn pointer `for<'a, 'b, 'c> fn(&'a [value::Value], &'b NativeModuleManager, &'c mut Heap) -> Result<_, _>`
+                  found fn item `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<_, _> {native_tcp_client_status}`
+help: the return type of this call is `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<value::Value, RuntimeError> {native_tcp_client_status}` due to the type of the argument passed
+   --> crates\dryad_runtime\src\native_modules\tcp.rs:143:5
+    |
+143 |     functions.insert("tcp_client_status".to_string(), native_tcp_client_status);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^------------------------^
+    |                                                       |
+    |                                                       this argument influences the return type of `insert`
+note: method defined here
+   --> /rustc/254b59607d4417e9dffbc307138ae5c86280fe4c\library\std\src\collections\hash\map.rs:1207:12
+
+error[E0308]: mismatched types
+   --> crates\dryad_runtime\src\native_modules\tcp.rs:144:60
+    |
+144 |     functions.insert("tcp_client_set_timeout".to_string(), native_tcp_client_set_timeout);
+    |               ------                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ incorrect number of function parameters
+    |               |
+    |               arguments to this method are incorrect
+    |
+    = note: expected fn pointer `for<'a, 'b, 'c> fn(&'a [value::Value], &'b NativeModuleManager, &'c mut Heap) -> Result<_, _>`
+                  found fn item `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<_, _> {native_tcp_client_set_timeout}`
+help: the return type of this call is `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<value::Value, RuntimeError> {native_tcp_client_set_timeout}` due to the type of the argument passed
+   --> crates\dryad_runtime\src\native_modules\tcp.rs:144:5
+    |
+144 |     functions.insert("tcp_client_set_timeout".to_string(), native_tcp_client_set_timeout);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^-----------------------------^
+    |                                                            |
+    |                                                            this argument influences the return type of `insert`
+note: method defined here
+   --> /rustc/254b59607d4417e9dffbc307138ae5c86280fe4c\library\std\src\collections\hash\map.rs:1207:12
+
+error[E0308]: mismatched types
+   --> crates\dryad_runtime\src\native_modules\tcp.rs:147:58
+    |
+147 |     functions.insert("tcp_resolve_hostname".to_string(), native_tcp_resolve_hostname);
+    |               ------                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^ incorrect number of function parameters
+    |               |
+    |               arguments to this method are incorrect
+    |
+    = note: expected fn pointer `for<'a, 'b, 'c> fn(&'a [value::Value], &'b NativeModuleManager, &'c mut Heap) -> Result<_, _>`
+                  found fn item `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<_, _> {native_tcp_resolve_hostname}`
+help: the return type of this call is `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<value::Value, RuntimeError> {native_tcp_resolve_hostname}` due to the type of the argument passed
+   --> crates\dryad_runtime\src\native_modules\tcp.rs:147:5
+    |
+147 |     functions.insert("tcp_resolve_hostname".to_string(), native_tcp_resolve_hostname);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^---------------------------^
+    |                                                          |
+    |                                                          this argument influences the return type of `insert`
+note: method defined here
+   --> /rustc/254b59607d4417e9dffbc307138ae5c86280fe4c\library\std\src\collections\hash\map.rs:1207:12
+
+error[E0308]: mismatched types
+   --> crates\dryad_runtime\src\native_modules\tcp.rs:148:54
+    |
+148 |     functions.insert("tcp_get_local_ip".to_string(), native_tcp_get_local_ip);
+    |               ------                                 ^^^^^^^^^^^^^^^^^^^^^^^ incorrect number of function parameters
+    |               |
+    |               arguments to this method are incorrect
+    |
+    = note: expected fn pointer `for<'a, 'b, 'c> fn(&'a [value::Value], &'b NativeModuleManager, &'c mut Heap) -> Result<_, _>`
+                  found fn item `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<_, _> {native_tcp_get_local_ip}`
+help: the return type of this call is `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<value::Value, RuntimeError> {native_tcp_get_local_ip}` due to the type of the argument passed
+   --> crates\dryad_runtime\src\native_modules\tcp.rs:148:5
+    |
+148 |     functions.insert("tcp_get_local_ip".to_string(), native_tcp_get_local_ip);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^-----------------------^
+    |                                                      |
+    |                                                      this argument influences the return type of `insert`
+note: method defined here
+   --> /rustc/254b59607d4417e9dffbc307138ae5c86280fe4c\library\std\src\collections\hash\map.rs:1207:12
+
+error[E0308]: mismatched types
+   --> crates\dryad_runtime\src\native_modules\tcp.rs:149:56
+    |
+149 |     functions.insert("tcp_port_available".to_string(), native_tcp_port_available);
+    |               ------                                   ^^^^^^^^^^^^^^^^^^^^^^^^^ incorrect number of function parameters
+    |               |
+    |               arguments to this method are incorrect
+    |
+    = note: expected fn pointer `for<'a, 'b, 'c> fn(&'a [value::Value], &'b NativeModuleManager, &'c mut Heap) -> Result<_, _>`
+                  found fn item `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<_, _> {native_tcp_port_available}`
+help: the return type of this call is `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<value::Value, RuntimeError> {native_tcp_port_available}` due to the type of the argument passed
+   --> crates\dryad_runtime\src\native_modules\tcp.rs:149:5
+    |
+149 |     functions.insert("tcp_port_available".to_string(), native_tcp_port_available);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^-------------------------^
+    |                                                        |
+    |                                                        this argument influences the return type of `insert`
+note: method defined here
+   --> /rustc/254b59607d4417e9dffbc307138ae5c86280fe4c\library\std\src\collections\hash\map.rs:1207:12
+
 error[E0559]: variant `value::Value::Object` has no field named `properties`
    --> crates\dryad_runtime\src\native_modules\tcp.rs:302:13
     |
@@ -1083,6 +1756,324 @@ help: `value::Value::Object` is a tuple variant, use the appropriate syntax
 562 -         })
 559 +         Ok(Value::Object(/* usize */))
     |
+
+error[E0308]: mismatched types
+  --> crates\dryad_runtime\src\native_modules\udp.rs:91:55
+   |
+91 |     functions.insert("udp_server_create".to_string(), native_udp_server_create);
+   |               ------                                  ^^^^^^^^^^^^^^^^^^^^^^^^ incorrect number of function parameters
+   |               |
+   |               arguments to this method are incorrect
+   |
+   = note: expected fn pointer `for<'a, 'b, 'c> fn(&'a [value::Value], &'b NativeModuleManager, &'c mut Heap) -> Result<_, _>`
+                 found fn item `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<_, _> {native_udp_server_create}`
+help: the return type of this call is `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<value::Value, RuntimeError> {native_udp_server_create}` due to the type of the argument passed
+  --> crates\dryad_runtime\src\native_modules\udp.rs:91:5
+   |
+91 |     functions.insert("udp_server_create".to_string(), native_udp_server_create);
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^------------------------^
+   |                                                       |
+   |                                                       this argument influences the return type of `insert`
+note: method defined here
+  --> /rustc/254b59607d4417e9dffbc307138ae5c86280fe4c\library\std\src\collections\hash\map.rs:1207:12
+
+error[E0308]: mismatched types
+  --> crates\dryad_runtime\src\native_modules\udp.rs:92:54
+   |
+92 |     functions.insert("udp_server_start".to_string(), native_udp_server_start);
+   |               ------                                 ^^^^^^^^^^^^^^^^^^^^^^^ incorrect number of function parameters
+   |               |
+   |               arguments to this method are incorrect
+   |
+   = note: expected fn pointer `for<'a, 'b, 'c> fn(&'a [value::Value], &'b NativeModuleManager, &'c mut Heap) -> Result<_, _>`
+                 found fn item `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<_, _> {native_udp_server_start}`
+help: the return type of this call is `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<value::Value, RuntimeError> {native_udp_server_start}` due to the type of the argument passed
+  --> crates\dryad_runtime\src\native_modules\udp.rs:92:5
+   |
+92 |     functions.insert("udp_server_start".to_string(), native_udp_server_start);
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^-----------------------^
+   |                                                      |
+   |                                                      this argument influences the return type of `insert`
+note: method defined here
+  --> /rustc/254b59607d4417e9dffbc307138ae5c86280fe4c\library\std\src\collections\hash\map.rs:1207:12
+
+error[E0308]: mismatched types
+  --> crates\dryad_runtime\src\native_modules\udp.rs:93:53
+   |
+93 |     functions.insert("udp_server_stop".to_string(), native_udp_server_stop);
+   |               ------                                ^^^^^^^^^^^^^^^^^^^^^^ incorrect number of function parameters
+   |               |
+   |               arguments to this method are incorrect
+   |
+   = note: expected fn pointer `for<'a, 'b, 'c> fn(&'a [value::Value], &'b NativeModuleManager, &'c mut Heap) -> Result<_, _>`
+                 found fn item `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<_, _> {native_udp_server_stop}`
+help: the return type of this call is `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<value::Value, RuntimeError> {native_udp_server_stop}` due to the type of the argument passed
+  --> crates\dryad_runtime\src\native_modules\udp.rs:93:5
+   |
+93 |     functions.insert("udp_server_stop".to_string(), native_udp_server_stop);
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^----------------------^
+   |                                                     |
+   |                                                     this argument influences the return type of `insert`
+note: method defined here
+  --> /rustc/254b59607d4417e9dffbc307138ae5c86280fe4c\library\std\src\collections\hash\map.rs:1207:12
+
+error[E0308]: mismatched types
+  --> crates\dryad_runtime\src\native_modules\udp.rs:94:55
+   |
+94 |     functions.insert("udp_server_status".to_string(), native_udp_server_status);
+   |               ------                                  ^^^^^^^^^^^^^^^^^^^^^^^^ incorrect number of function parameters
+   |               |
+   |               arguments to this method are incorrect
+   |
+   = note: expected fn pointer `for<'a, 'b, 'c> fn(&'a [value::Value], &'b NativeModuleManager, &'c mut Heap) -> Result<_, _>`
+                 found fn item `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<_, _> {native_udp_server_status}`
+help: the return type of this call is `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<value::Value, RuntimeError> {native_udp_server_status}` due to the type of the argument passed
+  --> crates\dryad_runtime\src\native_modules\udp.rs:94:5
+   |
+94 |     functions.insert("udp_server_status".to_string(), native_udp_server_status);
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^------------------------^
+   |                                                       |
+   |                                                       this argument influences the return type of `insert`
+note: method defined here
+  --> /rustc/254b59607d4417e9dffbc307138ae5c86280fe4c\library\std\src\collections\hash\map.rs:1207:12
+
+error[E0308]: mismatched types
+  --> crates\dryad_runtime\src\native_modules\udp.rs:97:55
+   |
+97 |     functions.insert("udp_client_create".to_string(), native_udp_client_create);
+   |               ------                                  ^^^^^^^^^^^^^^^^^^^^^^^^ incorrect number of function parameters
+   |               |
+   |               arguments to this method are incorrect
+   |
+   = note: expected fn pointer `for<'a, 'b, 'c> fn(&'a [value::Value], &'b NativeModuleManager, &'c mut Heap) -> Result<_, _>`
+                 found fn item `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<_, _> {native_udp_client_create}`
+help: the return type of this call is `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<value::Value, RuntimeError> {native_udp_client_create}` due to the type of the argument passed
+  --> crates\dryad_runtime\src\native_modules\udp.rs:97:5
+   |
+97 |     functions.insert("udp_client_create".to_string(), native_udp_client_create);
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^------------------------^
+   |                                                       |
+   |                                                       this argument influences the return type of `insert`
+note: method defined here
+  --> /rustc/254b59607d4417e9dffbc307138ae5c86280fe4c\library\std\src\collections\hash\map.rs:1207:12
+
+error[E0308]: mismatched types
+  --> crates\dryad_runtime\src\native_modules\udp.rs:98:53
+   |
+98 |     functions.insert("udp_client_bind".to_string(), native_udp_client_bind);
+   |               ------                                ^^^^^^^^^^^^^^^^^^^^^^ incorrect number of function parameters
+   |               |
+   |               arguments to this method are incorrect
+   |
+   = note: expected fn pointer `for<'a, 'b, 'c> fn(&'a [value::Value], &'b NativeModuleManager, &'c mut Heap) -> Result<_, _>`
+                 found fn item `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<_, _> {native_udp_client_bind}`
+help: the return type of this call is `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<value::Value, RuntimeError> {native_udp_client_bind}` due to the type of the argument passed
+  --> crates\dryad_runtime\src\native_modules\udp.rs:98:5
+   |
+98 |     functions.insert("udp_client_bind".to_string(), native_udp_client_bind);
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^----------------------^
+   |                                                     |
+   |                                                     this argument influences the return type of `insert`
+note: method defined here
+  --> /rustc/254b59607d4417e9dffbc307138ae5c86280fe4c\library\std\src\collections\hash\map.rs:1207:12
+
+error[E0308]: mismatched types
+  --> crates\dryad_runtime\src\native_modules\udp.rs:99:53
+   |
+99 |     functions.insert("udp_client_send".to_string(), native_udp_client_send);
+   |               ------                                ^^^^^^^^^^^^^^^^^^^^^^ incorrect number of function parameters
+   |               |
+   |               arguments to this method are incorrect
+   |
+   = note: expected fn pointer `for<'a, 'b, 'c> fn(&'a [value::Value], &'b NativeModuleManager, &'c mut Heap) -> Result<_, _>`
+                 found fn item `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<_, _> {native_udp_client_send}`
+help: the return type of this call is `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<value::Value, RuntimeError> {native_udp_client_send}` due to the type of the argument passed
+  --> crates\dryad_runtime\src\native_modules\udp.rs:99:5
+   |
+99 |     functions.insert("udp_client_send".to_string(), native_udp_client_send);
+   |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^----------------------^
+   |                                                     |
+   |                                                     this argument influences the return type of `insert`
+note: method defined here
+  --> /rustc/254b59607d4417e9dffbc307138ae5c86280fe4c\library\std\src\collections\hash\map.rs:1207:12
+
+error[E0308]: mismatched types
+   --> crates\dryad_runtime\src\native_modules\udp.rs:100:56
+    |
+100 |     functions.insert("udp_client_receive".to_string(), native_udp_client_receive);
+    |               ------                                   ^^^^^^^^^^^^^^^^^^^^^^^^^ incorrect number of function parameters
+    |               |
+    |               arguments to this method are incorrect
+    |
+    = note: expected fn pointer `for<'a, 'b, 'c> fn(&'a [value::Value], &'b NativeModuleManager, &'c mut Heap) -> Result<_, _>`
+                  found fn item `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<_, _> {native_udp_client_receive}`
+help: the return type of this call is `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<value::Value, RuntimeError> {native_udp_client_receive}` due to the type of the argument passed
+   --> crates\dryad_runtime\src\native_modules\udp.rs:100:5
+    |
+100 |     functions.insert("udp_client_receive".to_string(), native_udp_client_receive);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^-------------------------^
+    |                                                        |
+    |                                                        this argument influences the return type of `insert`
+note: method defined here
+   --> /rustc/254b59607d4417e9dffbc307138ae5c86280fe4c\library\std\src\collections\hash\map.rs:1207:12
+
+error[E0308]: mismatched types
+   --> crates\dryad_runtime\src\native_modules\udp.rs:101:56
+    |
+101 |     functions.insert("udp_client_send_to".to_string(), native_udp_client_send_to);
+    |               ------                                   ^^^^^^^^^^^^^^^^^^^^^^^^^ incorrect number of function parameters
+    |               |
+    |               arguments to this method are incorrect
+    |
+    = note: expected fn pointer `for<'a, 'b, 'c> fn(&'a [value::Value], &'b NativeModuleManager, &'c mut Heap) -> Result<_, _>`
+                  found fn item `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<_, _> {native_udp_client_send_to}`
+help: the return type of this call is `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<value::Value, RuntimeError> {native_udp_client_send_to}` due to the type of the argument passed
+   --> crates\dryad_runtime\src\native_modules\udp.rs:101:5
+    |
+101 |     functions.insert("udp_client_send_to".to_string(), native_udp_client_send_to);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^-------------------------^
+    |                                                        |
+    |                                                        this argument influences the return type of `insert`
+note: method defined here
+   --> /rustc/254b59607d4417e9dffbc307138ae5c86280fe4c\library\std\src\collections\hash\map.rs:1207:12
+
+error[E0308]: mismatched types
+   --> crates\dryad_runtime\src\native_modules\udp.rs:102:61
+    |
+102 |     functions.insert("udp_client_receive_from".to_string(), native_udp_client_receive_from);
+    |               ------ arguments to this method are incorrect ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ incorrect number of function parameters
+    |
+    = note: expected fn pointer `for<'a, 'b, 'c> fn(&'a [value::Value], &'b NativeModuleManager, &'c mut Heap) -> Result<_, _>`
+                  found fn item `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<_, _> {native_udp_client_receive_from}`
+help: the return type of this call is `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<value::Value, RuntimeError> {native_udp_client_receive_from}` due to the type of the argument passed
+   --> crates\dryad_runtime\src\native_modules\udp.rs:102:5
+    |
+102 |     functions.insert("udp_client_receive_from".to_string(), native_udp_client_receive_from);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^------------------------------^
+    |                                                             |
+    |                                                             this argument influences the return type of `insert`
+note: method defined here
+   --> /rustc/254b59607d4417e9dffbc307138ae5c86280fe4c\library\std\src\collections\hash\map.rs:1207:12
+
+error[E0308]: mismatched types
+   --> crates\dryad_runtime\src\native_modules\udp.rs:103:55
+    |
+103 |     functions.insert("udp_client_status".to_string(), native_udp_client_status);
+    |               ------                                  ^^^^^^^^^^^^^^^^^^^^^^^^ incorrect number of function parameters
+    |               |
+    |               arguments to this method are incorrect
+    |
+    = note: expected fn pointer `for<'a, 'b, 'c> fn(&'a [value::Value], &'b NativeModuleManager, &'c mut Heap) -> Result<_, _>`
+                  found fn item `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<_, _> {native_udp_client_status}`
+help: the return type of this call is `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<value::Value, RuntimeError> {native_udp_client_status}` due to the type of the argument passed
+   --> crates\dryad_runtime\src\native_modules\udp.rs:103:5
+    |
+103 |     functions.insert("udp_client_status".to_string(), native_udp_client_status);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^------------------------^
+    |                                                       |
+    |                                                       this argument influences the return type of `insert`
+note: method defined here
+   --> /rustc/254b59607d4417e9dffbc307138ae5c86280fe4c\library\std\src\collections\hash\map.rs:1207:12
+
+error[E0308]: mismatched types
+   --> crates\dryad_runtime\src\native_modules\udp.rs:104:60
+    |
+104 |     functions.insert("udp_client_set_timeout".to_string(), native_udp_client_set_timeout);
+    |               ------                                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ incorrect number of function parameters
+    |               |
+    |               arguments to this method are incorrect
+    |
+    = note: expected fn pointer `for<'a, 'b, 'c> fn(&'a [value::Value], &'b NativeModuleManager, &'c mut Heap) -> Result<_, _>`
+                  found fn item `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<_, _> {native_udp_client_set_timeout}`
+help: the return type of this call is `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<value::Value, RuntimeError> {native_udp_client_set_timeout}` due to the type of the argument passed
+   --> crates\dryad_runtime\src\native_modules\udp.rs:104:5
+    |
+104 |     functions.insert("udp_client_set_timeout".to_string(), native_udp_client_set_timeout);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^-----------------------------^
+    |                                                            |
+    |                                                            this argument influences the return type of `insert`
+note: method defined here
+   --> /rustc/254b59607d4417e9dffbc307138ae5c86280fe4c\library\std\src\collections\hash\map.rs:1207:12
+
+error[E0308]: mismatched types
+   --> crates\dryad_runtime\src\native_modules\udp.rs:105:54
+    |
+105 |     functions.insert("udp_client_close".to_string(), native_udp_client_close);
+    |               ------                                 ^^^^^^^^^^^^^^^^^^^^^^^ incorrect number of function parameters
+    |               |
+    |               arguments to this method are incorrect
+    |
+    = note: expected fn pointer `for<'a, 'b, 'c> fn(&'a [value::Value], &'b NativeModuleManager, &'c mut Heap) -> Result<_, _>`
+                  found fn item `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<_, _> {native_udp_client_close}`
+help: the return type of this call is `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<value::Value, RuntimeError> {native_udp_client_close}` due to the type of the argument passed
+   --> crates\dryad_runtime\src\native_modules\udp.rs:105:5
+    |
+105 |     functions.insert("udp_client_close".to_string(), native_udp_client_close);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^-----------------------^
+    |                                                      |
+    |                                                      this argument influences the return type of `insert`
+note: method defined here
+   --> /rustc/254b59607d4417e9dffbc307138ae5c86280fe4c\library\std\src\collections\hash\map.rs:1207:12
+
+error[E0308]: mismatched types
+   --> crates\dryad_runtime\src\native_modules\udp.rs:108:58
+    |
+108 |     functions.insert("udp_resolve_hostname".to_string(), native_udp_resolve_hostname);
+    |               ------                                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^ incorrect number of function parameters
+    |               |
+    |               arguments to this method are incorrect
+    |
+    = note: expected fn pointer `for<'a, 'b, 'c> fn(&'a [value::Value], &'b NativeModuleManager, &'c mut Heap) -> Result<_, _>`
+                  found fn item `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<_, _> {native_udp_resolve_hostname}`
+help: the return type of this call is `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<value::Value, RuntimeError> {native_udp_resolve_hostname}` due to the type of the argument passed
+   --> crates\dryad_runtime\src\native_modules\udp.rs:108:5
+    |
+108 |     functions.insert("udp_resolve_hostname".to_string(), native_udp_resolve_hostname);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^---------------------------^
+    |                                                          |
+    |                                                          this argument influences the return type of `insert`
+note: method defined here
+   --> /rustc/254b59607d4417e9dffbc307138ae5c86280fe4c\library\std\src\collections\hash\map.rs:1207:12
+
+error[E0308]: mismatched types
+   --> crates\dryad_runtime\src\native_modules\udp.rs:109:54
+    |
+109 |     functions.insert("udp_get_local_ip".to_string(), native_udp_get_local_ip);
+    |               ------                                 ^^^^^^^^^^^^^^^^^^^^^^^ incorrect number of function parameters
+    |               |
+    |               arguments to this method are incorrect
+    |
+    = note: expected fn pointer `for<'a, 'b, 'c> fn(&'a [value::Value], &'b NativeModuleManager, &'c mut Heap) -> Result<_, _>`
+                  found fn item `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<_, _> {native_udp_get_local_ip}`
+help: the return type of this call is `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<value::Value, RuntimeError> {native_udp_get_local_ip}` due to the type of the argument passed
+   --> crates\dryad_runtime\src\native_modules\udp.rs:109:5
+    |
+109 |     functions.insert("udp_get_local_ip".to_string(), native_udp_get_local_ip);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^-----------------------^
+    |                                                      |
+    |                                                      this argument influences the return type of `insert`
+note: method defined here
+   --> /rustc/254b59607d4417e9dffbc307138ae5c86280fe4c\library\std\src\collections\hash\map.rs:1207:12
+
+error[E0308]: mismatched types
+   --> crates\dryad_runtime\src\native_modules\udp.rs:110:56
+    |
+110 |     functions.insert("udp_port_available".to_string(), native_udp_port_available);
+    |               ------                                   ^^^^^^^^^^^^^^^^^^^^^^^^^ incorrect number of function parameters
+    |               |
+    |               arguments to this method are incorrect
+    |
+    = note: expected fn pointer `for<'a, 'b, 'c> fn(&'a [value::Value], &'b NativeModuleManager, &'c mut Heap) -> Result<_, _>`
+                  found fn item `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<_, _> {native_udp_port_available}`
+help: the return type of this call is `for<'a, 'b> fn(&'a [value::Value], &'b NativeModuleManager) -> Result<value::Value, RuntimeError> {native_udp_port_available}` due to the type of the argument passed
+   --> crates\dryad_runtime\src\native_modules\udp.rs:110:5
+    |
+110 |     functions.insert("udp_port_available".to_string(), native_udp_port_available);
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^-------------------------^
+    |                                                        |
+    |                                                        this argument influences the return type of `insert`
+note: method defined here
+   --> /rustc/254b59607d4417e9dffbc307138ae5c86280fe4c\library\std\src\collections\hash\map.rs:1207:12
 
 error[E0559]: variant `value::Value::Object` has no field named `properties`
    --> crates\dryad_runtime\src\native_modules\udp.rs:253:32
@@ -1266,121 +2257,176 @@ warning: unused import: `aes::cipher::KeyInit`
 11 | use aes::cipher::KeyInit;
    |     ^^^^^^^^^^^^^^^^^^^^
 
-warning: unused variable: `is_async`
-   --> crates\dryad_runtime\src\interpreter.rs:419:70
+warning: unused variable: `location`
+   --> crates\dryad_runtime\src\interpreter.rs:966:128
     |
-419 |                         ClassMember::Method { visibility, is_static, is_async, name: method_name, params, body, .. } => {
-    |                                                                      ^^^^^^^^ help: try ignoring the field: `is_async: _`
+966 | ...>, arg_values: Vec<Value>, location: &SourceLocation) -> Result<Value, DryadError> {
+    |                               ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_location`
     |
     = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
 
-warning: unused variable: `location`
-   --> crates\dryad_runtime\src\interpreter.rs:805:128
-    |
-805 | ...>, arg_values: Vec<Value>, location: &SourceLocation) -> Result<Value, DryadError> {
-    |                               ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_location`
-
 error[E0502]: cannot borrow `*self` as mutable because it is also borrowed as immutable
-    --> crates\dryad_runtime\src\interpreter.rs:1642:45
+    --> crates\dryad_runtime\src\interpreter.rs:1805:45
      |
-1619 |                 let heap_obj = self.heap.get(id).ok_or_else(|| {
+1782 |                 let heap_obj = self.heap.get(id).ok_or_else(|| {
      |                                --------- immutable borrow occurs here
 ...
-1642 |                             arg_values.push(self.evaluate(arg)?);
+1805 |                             arg_values.push(self.evaluate(arg)?);
      |                                             ^^^^^^^^^^^^^^^^^^ mutable borrow occurs here
 ...
-1645 |                         if arg_values.len() != method.params.len() {
+1808 |                         if arg_values.len() != method.params.len() {
      |                                                ------------- immutable borrow later used here
 
 error[E0502]: cannot borrow `*self` as mutable because it is also borrowed as immutable
-    --> crates\dryad_runtime\src\interpreter.rs:1660:44
+    --> crates\dryad_runtime\src\interpreter.rs:1823:44
      |
-1619 |                 let heap_obj = self.heap.get(id).ok_or_else(|| {
+1782 |                 let heap_obj = self.heap.get(id).ok_or_else(|| {
      |                                --------- immutable borrow occurs here
 ...
-1660 |                         let result = match self.execute_statement(&method.body) {
+1823 |                         let result = match self.execute_statement(&method.body) {
      |                                            ^^^^^-----------------^^^^^^^^^^^^^^
      |                                            |    |
      |                                            |    immutable borrow later used by call
      |                                            mutable borrow occurs here
 
 error[E0502]: cannot borrow `*self` as mutable because it is also borrowed as immutable
-    --> crates\dryad_runtime\src\interpreter.rs:1706:53
+    --> crates\dryad_runtime\src\interpreter.rs:1869:53
      |
-1691 |                         let class_obj = self.heap.get(cid).ok_or_else(|| {
+1854 |                         let class_obj = self.heap.get(cid).ok_or_else(|| {
      |                                         --------- immutable borrow occurs here
 ...
-1706 |                                     arg_values.push(self.evaluate(arg)?);
+1869 |                                     arg_values.push(self.evaluate(arg)?);
      |                                                     ^^^^^^^^^^^^^^^^^^ mutable borrow occurs here
 ...
-1709 |                                 if arg_values.len() != method.params.len() {
+1872 |                                 if arg_values.len() != method.params.len() {
      |                                                        ------------- immutable borrow later used here
 
 error[E0502]: cannot borrow `*self` as mutable because it is also borrowed as immutable
-    --> crates\dryad_runtime\src\interpreter.rs:1725:52
+    --> crates\dryad_runtime\src\interpreter.rs:1888:52
      |
-1691 |                         let class_obj = self.heap.get(cid).ok_or_else(|| {
+1854 |                         let class_obj = self.heap.get(cid).ok_or_else(|| {
      |                                         --------- immutable borrow occurs here
 ...
-1725 |                                 let result = match self.execute_statement(&method.body) {
+1888 |                                 let result = match self.execute_statement(&method.body) {
      |                                                    ^^^^^-----------------^^^^^^^^^^^^^^
      |                                                    |    |
      |                                                    |    immutable borrow later used by call
      |                                                    mutable borrow occurs here
 
 error[E0502]: cannot borrow `*self` as mutable because it is also borrowed as immutable
-    --> crates\dryad_runtime\src\interpreter.rs:1803:53
+    --> crates\dryad_runtime\src\interpreter.rs:1966:53
      |
-1753 |                 let heap_obj = self.heap.get(id).ok_or_else(|| {
+1916 |                 let heap_obj = self.heap.get(id).ok_or_else(|| {
      |                                --------- immutable borrow occurs here
 ...
-1803 |                                     arg_values.push(self.evaluate(arg)?);
+1966 |                                     arg_values.push(self.evaluate(arg)?);
      |                                                     ^^^^^^^^^^^^^^^^^^ mutable borrow occurs here
 ...
-1806 |                                 if arg_values.len() != params.len() {
+1969 |                                 if arg_values.len() != params.len() {
      |                                                        ------ immutable borrow later used here
 
 error[E0502]: cannot borrow `*self` as mutable because it is also borrowed as immutable
-    --> crates\dryad_runtime\src\interpreter.rs:1819:52
+    --> crates\dryad_runtime\src\interpreter.rs:1982:52
      |
-1753 |                 let heap_obj = self.heap.get(id).ok_or_else(|| {
+1916 |                 let heap_obj = self.heap.get(id).ok_or_else(|| {
      |                                --------- immutable borrow occurs here
 ...
-1819 |                                 let result = match self.execute_statement(body) {
+1982 |                                 let result = match self.execute_statement(body) {
      |                                                    ^^^^^-----------------^^^^^^
      |                                                    |    |
      |                                                    |    immutable borrow later used by call
      |                                                    mutable borrow occurs here
 
 warning: unused variable: `properties`
-    --> crates\dryad_runtime\src\interpreter.rs:1688:25
+    --> crates\dryad_runtime\src\interpreter.rs:1851:25
      |
-1688 |                     let properties = properties.clone();
+1851 |                     let properties = properties.clone();
      |                         ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_properties`
 
 warning: unused variable: `properties`
-    --> crates\dryad_runtime\src\interpreter.rs:1760:29
+    --> crates\dryad_runtime\src\interpreter.rs:1923:29
      |
-1760 |                         let properties = properties.clone();
+1923 |                         let properties = properties.clone();
      |                             ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_properties`
 
 warning: unused variable: `methods`
-    --> crates\dryad_runtime\src\interpreter.rs:1761:29
+    --> crates\dryad_runtime\src\interpreter.rs:1924:29
      |
-1761 |                         let methods = methods.clone();
+1924 |                         let methods = methods.clone();
      |                             ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_methods`
 
 warning: unused variable: `location`
-    --> crates\dryad_runtime\src\interpreter.rs:2075:64
+    --> crates\dryad_runtime\src\interpreter.rs:2239:64
      |
-2075 |     fn eval_match(&mut self, target: &Expr, arms: &[MatchArm], location: &SourceLocation) -> Result<Value, DryadError> {
+2239 |     fn eval_match(&mut self, target: &Expr, arms: &[MatchArm], location: &SourceLocation) -> Result<Value, DryadError> {
      |                                                                ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_location`
 
 warning: unused variable: `id`
-    --> crates\dryad_runtime\src\interpreter.rs:2225:30
+    --> crates\dryad_runtime\src\interpreter.rs:2390:30
      |
-2225 |             Value::Promise { id, resolved: true, value: Some(val) } => Ok(*val),
+2390 |             Value::Promise { id, resolved: true, value: Some(val) } => Ok(*val),
      |                              ^^ help: try ignoring the field: `id: _`
+
+warning: variable does not need to be mutable
+    --> crates\dryad_runtime\src\interpreter.rs:2991:21
+     |
+2991 |                 let mut idx = if start_index >= 0 { 
+     |                     ----^^^
+     |                     |
+     |                     help: remove this `mut`
+     |
+     = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+error: lifetime may not live long enough
+   --> crates\dryad_runtime\src\native_modules\file_io.rs:582:5
+    |
+581 |   fn async_read_file(args: Vec<Value>, _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Pin<Box<dyn...
+    |                                                  - let's call the lifetime of this reference `'1`
+582 | /     Box::pin(async move {
+583 | |         if args.len() != 1 {
+584 | |             return Err(RuntimeError::ArgumentError("readFile espera 1 argumento: path".to_string()));
+...   |
+602 | |     })
+    | |______^ returning this value requires that `'1` must outlive `'static`
+    |
+help: to declare that the trait object captures data from argument `_manager`, you can add an explicit `'_` lifetime bound
+    |
+581 | fn async_read_file(args: Vec<Value>, _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Pin<Box<dyn Future<Output = Result<Value, RuntimeError>> + Send + '_>> {
+    |                                                                                                                                                                                               ++++
+
+error: lifetime may not live long enough
+   --> crates\dryad_runtime\src\native_modules\file_io.rs:606:5
+    |
+605 |   fn async_write_file(args: Vec<Value>, _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Pin<Box<dy...
+    |                                                   - let's call the lifetime of this reference `'1`
+606 | /     Box::pin(async move {
+607 | |         if args.len() != 2 {
+608 | |             return Err(RuntimeError::ArgumentError("writeFile espera 2 argumentos: path, data".to_string()));
+...   |
+628 | |     })
+    | |______^ returning this value requires that `'1` must outlive `'static`
+    |
+help: to declare that the trait object captures data from argument `_manager`, you can add an explicit `'_` lifetime bound
+    |
+605 | fn async_write_file(args: Vec<Value>, _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Pin<Box<dyn Future<Output = Result<Value, RuntimeError>> + Send + '_>> {
+    |                                                                                                                                                                                                ++++
+
+error: lifetime may not live long enough
+   --> crates\dryad_runtime\src\native_modules\file_io.rs:632:5
+    |
+631 |   fn async_append_file(args: Vec<Value>, _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Pin<Box<d...
+    |                                                    - let's call the lifetime of this reference `'1`
+632 | /     Box::pin(async move {
+633 | |         if args.len() != 2 {
+634 | |             return Err(RuntimeError::ArgumentError("appendFile espera 2 argumentos: path, data".to_string()));
+...   |
+659 | |     })
+    | |______^ returning this value requires that `'1` must outlive `'static`
+    |
+help: to declare that the trait object captures data from argument `_manager`, you can add an explicit `'_` lifetime bound
+    |
+631 | fn async_append_file(args: Vec<Value>, _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Pin<Box<dyn Future<Output = Result<Value, RuntimeError>> + Send + '_>> {
+    |                                                                                                                                                                                                 ++++
 
 warning: unused variable: `buffer`
    --> crates\dryad_runtime\src\native_modules\tcp.rs:102:9
@@ -1388,18 +2434,7 @@ warning: unused variable: `buffer`
 102 |     let buffer = [0; 1024];
     |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_buffer`
 
-error[E0502]: cannot borrow `*self` as immutable because it is also borrowed as mutable
-  --> crates\dryad_runtime\src\heap.rs:74:21
-   |
-70 |             if let Some((obj, mark)) = self.objects.get_mut(&id) {
-   |                                        ------------ mutable borrow occurs here
-...
-74 |                     self.trace_object(obj, &mut worklist);
-   |                     ^^^^              --- mutable borrow later used here
-   |                     |
-   |                     immutable borrow occurs here
-
-Some errors have detailed explanations: E0026, E0277, E0282, E0308, E0502, E0559, E0599, E0614, E0769.
+Some errors have detailed explanations: E0026, E0061, E0277, E0282, E0308, E0433, E0502, E0559, E0599...
 For more information about an error, try `rustc --explain E0026`.
-warning: `dryad_runtime` (lib) generated 16 warnings
-error: could not compile `dryad_runtime` (lib) due to 102 previous errors; 16 warnings emitted
+warning: `dryad_runtime` (lib) generated 21 warnings
+error: could not compile `dryad_runtime` (lib) due to 154 previous errors; 21 warnings emitted

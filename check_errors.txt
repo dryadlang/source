@@ -1,0 +1,147 @@
+warning: unused variable: `index_expr`
+   --> crates\dryad_parser\src\parser.rs:171:33
+    |
+171 | ...       let index_expr = self.express...
+    |               ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_index_expr`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `dryad_parser` (lib) generated 1 warning (run `cargo fix --lib -p dryad_parser` to apply 1 suggestion)
+    Checking dryad_runtime v0.1.0 (C:\Users\Pedro Jesus\Downloads\source-main\source-main\crates\dryad_runtime)
+crates\dryad_runtime\src\interpreter.rs:220:21: error[E0433]: failed to resolve: use of undeclared type `DebugEvent`: use of undeclared type `DebugEvent`
+crates\dryad_runtime\src\interpreter.rs:222:21: error[E0433]: failed to resolve: use of undeclared type `DebugEvent`: use of undeclared type `DebugEvent`
+crates\dryad_runtime\src\interpreter.rs:250:52: error[E0433]: failed to resolve: use of undeclared type `DebugEvent`: use of undeclared type `DebugEvent`
+crates\dryad_runtime\src\interpreter.rs:255:52: error[E0433]: failed to resolve: use of undeclared type `DebugEvent`: use of undeclared type `DebugEvent`
+crates\dryad_runtime\src\native_modules\tcp.rs:295:25: error[E0425]: cannot find value `status` in this scope: not found in this scope
+crates\dryad_runtime\src\native_modules\tcp.rs:546:25: error[E0425]: cannot find value `status` in this scope: not found in this scope
+crates\dryad_runtime\src\interpreter.rs:11:24: warning: unused import: `Value as JsonValue`
+crates\dryad_runtime\src\interpreter.rs:12:17: warning: unused imports: `Arc` and `Mutex`
+crates\dryad_runtime\src\native_modules\encode_decode.rs:5:18: warning: unused import: `Value as JsonValue`
+crates\dryad_runtime\src\native_modules\mod.rs:24:25: warning: unused import: `HeapId`
+crates\dryad_runtime\src\resolver.rs:3:5: warning: unused import: `std::fs`
+crates\dryad_runtime\src\value.rs:1:31: warning: unused import: `Expr`
+crates\dryad_runtime\src\value.rs:2:5: warning: unused import: `std::collections::HashMap`
+crates\dryad_runtime\src\debug.rs:4:5: warning: unused import: `crate::value::Value`
+crates\dryad_runtime\src\debug_server.rs:1:5: warning: unused import: `std::net::SocketAddr`
+crates\dryad_runtime\src\debug_server.rs:2:5: warning: unused import: `std::sync::Arc`
+crates\dryad_runtime\src\debug_server.rs:4:17: warning: unused import: `AsyncReadExt`
+crates\dryad_runtime\src\debug_server.rs:5:52: warning: unused import: `DebugEvent`
+crates\dryad_runtime\src\interpreter.rs:346:24: error[E0061]: this function takes 4 arguments but 3 arguments were supplied
+crates\dryad_runtime\src\interpreter.rs:357:35: error[E0061]: this function takes 4 arguments but 3 arguments were supplied
+crates\dryad_runtime\src\native_modules\terminal_ansi.rs:15:57: error[E0308]: mismatched types: incorrect number of function parameters
+crates\dryad_runtime\src\native_modules\terminal_ansi.rs:16:56: error[E0308]: mismatched types: incorrect number of function parameters
+crates\dryad_runtime\src\native_modules\terminal_ansi.rs:17:54: error[E0308]: mismatched types: incorrect number of function parameters
+crates\dryad_runtime\src\native_modules\terminal_ansi.rs:18:54: error[E0308]: mismatched types: incorrect number of function parameters
+crates\dryad_runtime\src\native_modules\terminal_ansi.rs:19:56: error[E0308]: mismatched types: incorrect number of function parameters
+crates\dryad_runtime\src\native_modules\terminal_ansi.rs:20:56: error[E0308]: mismatched types: incorrect number of function parameters
+crates\dryad_runtime\src\native_modules\terminal_ansi.rs:21:56: error[E0308]: mismatched types: incorrect number of function parameters
+crates\dryad_runtime\src\native_modules\terminal_ansi.rs:22:58: error[E0308]: mismatched types: incorrect number of function parameters
+crates\dryad_runtime\src\native_modules\terminal_ansi.rs:23:46: error[E0308]: mismatched types: incorrect number of function parameters
+crates\dryad_runtime\src\native_modules\binary_io.rs:168:29: error[E0308]: mismatched types: expected `usize`, found `Vec<Value>`
+crates\dryad_runtime\src\native_modules\binary_io.rs:252:21: error[E0308]: mismatched types: expected `usize`, found `Vec<Value>`
+crates\dryad_runtime\src\native_modules\binary_io.rs:284:34: error[E0599]: no method named `iter` found for reference `&usize` in the current scope: method not found in `&usize`
+crates\dryad_runtime\src\native_modules\binary_io.rs:286:20: error[E0614]: type `f64` cannot be dereferenced: can't be dereferenced
+crates\dryad_runtime\src\native_modules\file_io.rs:270:29: error[E0308]: mismatched types: expected `usize`, found `Vec<Value>`
+crates\dryad_runtime\src\native_modules\file_io.rs:537:29: error[E0308]: mismatched types: expected `usize`, found `Vec<Value>`
+crates\dryad_runtime\src\native_modules\encode_decode.rs:32:45: error[E0277]: the trait bound `value::Value: debug::_::_serde::Serialize` is not satisfied: unsatisfied trait bound
+crates\dryad_runtime\src\native_modules\encode_decode.rs:49:29: error[E0277]: the trait bound `value::Value: debug::_::_serde::Deserialize<'_>` is not satisfied: unsatisfied trait bound
+crates\dryad_runtime\src\native_modules\encode_decode.rs:74:20: error[E0277]: `&usize` is not an iterator: `&usize` is not an iterator
+crates\dryad_runtime\src\native_modules\encode_decode.rs:77:57: error[E0599]: no method named `iter` found for type `usize` in the current scope: method not found in `usize`
+crates\dryad_runtime\src\native_modules\encode_decode.rs:119:34: error[E0308]: mismatched types: expected `usize`, found `Vec<Value>`
+crates\dryad_runtime\src\native_modules\encode_decode.rs:122:21: error[E0308]: mismatched types: expected `usize`, found `Vec<Value>`
+crates\dryad_runtime\src\native_modules\encode_decode.rs:190:9: error[E0769]: tuple variant `Value::Object` written as struct variant
+crates\dryad_runtime\src\native_modules\encode_decode.rs:180:46: error[E0308]: mismatched types: expected `f64`, found `Number`
+crates\dryad_runtime\src\native_modules\encode_decode.rs:185:53: error[E0599]: no method named `iter` found for reference `&usize` in the current scope: method not found in `&usize`
+crates\dryad_runtime\src\native_modules\encode_decode.rs:193:33: error[E0282]: type annotations needed: cannot infer type
+crates\dryad_runtime\src\native_modules\encode_decode.rs:193:46: error[E0308]: `?` operator has incompatible types: expected `serde_json::Value`, found `value::Value`
+crates\dryad_runtime\src\native_modules\encode_decode.rs:195:30: error[E0308]: mismatched types: expected `usize`, found `Map<String, Value>`
+crates\dryad_runtime\src\native_modules\encode_decode.rs:203:45: error[E0599]: no method named `as_f64` found for reference `&f64` in the current scope
+crates\dryad_runtime\src\native_modules\encode_decode.rs:208:49: error[E0599]: no method named `iter` found for reference `&usize` in the current scope: method not found in `&usize`
+crates\dryad_runtime\src\native_modules\encode_decode.rs:215:31: error[E0277]: `&usize` is not an iterator: `&usize` is not an iterator
+crates\dryad_runtime\src\native_modules\encode_decode.rs:216:36: error[E0282]: type annotations needed: cannot infer type
+crates\dryad_runtime\src\native_modules\encode_decode.rs:219:17: error[E0559]: variant `value::Value::Object` has no field named `properties`: field does not exist
+crates\dryad_runtime\src\native_modules\encode_decode.rs:220:17: error[E0559]: variant `value::Value::Object` has no field named `methods`: field does not exist
+crates\dryad_runtime\src\native_modules\encode_decode.rs:286:9: error[E0769]: tuple variant `Value::Object` written as struct variant
+crates\dryad_runtime\src\native_modules\encode_decode.rs:280:34: error[E0599]: no method named `iter` found for reference `&usize` in the current scope: method not found in `&usize`
+crates\dryad_runtime\src\native_modules\encode_decode.rs:332:13: error[E0559]: variant `value::Value::Object` has no field named `properties`: field does not exist
+crates\dryad_runtime\src\native_modules\encode_decode.rs:333:13: error[E0559]: variant `value::Value::Object` has no field named `methods`: field does not exist
+crates\dryad_runtime\src\native_modules\crypto.rs:49:24: error[E0277]: `&usize` is not an iterator: `&usize` is not an iterator
+crates\dryad_runtime\src\native_modules\crypto.rs:52:36: error[E0614]: type `f64` cannot be dereferenced: can't be dereferenced
+crates\dryad_runtime\src\native_modules\crypto.rs:81:24: error[E0277]: `&usize` is not an iterator: `&usize` is not an iterator
+crates\dryad_runtime\src\native_modules\crypto.rs:84:36: error[E0614]: type `f64` cannot be dereferenced: can't be dereferenced
+crates\dryad_runtime\src\native_modules\crypto.rs:131:24: error[E0277]: `&usize` is not an iterator: `&usize` is not an iterator
+crates\dryad_runtime\src\native_modules\crypto.rs:134:36: error[E0614]: type `f64` cannot be dereferenced: can't be dereferenced
+crates\dryad_runtime\src\native_modules\crypto.rs:169:37: error[E0308]: mismatched types: expected `usize`, found `Vec<Value>`
+crates\dryad_runtime\src\native_modules\crypto.rs:187:24: error[E0277]: `&usize` is not an iterator: `&usize` is not an iterator
+crates\dryad_runtime\src\native_modules\crypto.rs:190:36: error[E0614]: type `f64` cannot be dereferenced: can't be dereferenced
+crates\dryad_runtime\src\native_modules\crypto.rs:225:37: error[E0308]: mismatched types: expected `usize`, found `Vec<Value>`
+crates\dryad_runtime\src\native_modules\crypto.rs:260:21: error[E0308]: mismatched types: expected `usize`, found `Vec<Value>`
+crates\dryad_runtime\src\native_modules\crypto.rs:312:24: error[E0277]: `&usize` is not an iterator: `&usize` is not an iterator
+crates\dryad_runtime\src\native_modules\crypto.rs:315:36: error[E0614]: type `f64` cannot be dereferenced: can't be dereferenced
+crates\dryad_runtime\src\native_modules\crypto.rs:347:49: error[E0599]: no method named `iter` found for reference `&usize` in the current scope: method not found in `&usize`
+crates\dryad_runtime\src\native_modules\crypto.rs:348:40: error[E0614]: type `f64` cannot be dereferenced: can't be dereferenced
+crates\dryad_runtime\src\native_modules\crypto.rs:371:21: error[E0308]: mismatched types: expected `usize`, found `Vec<Value>`
+crates\dryad_runtime\src\native_modules\crypto.rs:383:49: error[E0599]: no method named `iter` found for reference `&usize` in the current scope: method not found in `&usize`
+crates\dryad_runtime\src\native_modules\crypto.rs:384:40: error[E0614]: type `f64` cannot be dereferenced: can't be dereferenced
+crates\dryad_runtime\src\native_modules\crypto.rs:422:49: error[E0599]: no method named `iter` found for reference `&usize` in the current scope: method not found in `&usize`
+crates\dryad_runtime\src\native_modules\crypto.rs:423:40: error[E0614]: type `f64` cannot be dereferenced: can't be dereferenced
+crates\dryad_runtime\src\native_modules\crypto.rs:446:21: error[E0308]: mismatched types: expected `usize`, found `Vec<Value>`
+crates\dryad_runtime\src\native_modules\crypto.rs:458:49: error[E0599]: no method named `iter` found for reference `&usize` in the current scope: method not found in `&usize`
+crates\dryad_runtime\src\native_modules\crypto.rs:459:40: error[E0614]: type `f64` cannot be dereferenced: can't be dereferenced
+crates\dryad_runtime\src\native_modules\crypto.rs:492:49: error[E0599]: no method named `iter` found for reference `&usize` in the current scope: method not found in `&usize`
+crates\dryad_runtime\src\native_modules\crypto.rs:493:40: error[E0614]: type `f64` cannot be dereferenced: can't be dereferenced
+crates\dryad_runtime\src\native_modules\crypto.rs:516:21: error[E0308]: mismatched types: expected `usize`, found `Vec<Value>`
+crates\dryad_runtime\src\native_modules\crypto.rs:528:49: error[E0599]: no method named `iter` found for reference `&usize` in the current scope: method not found in `&usize`
+crates\dryad_runtime\src\native_modules\crypto.rs:529:40: error[E0614]: type `f64` cannot be dereferenced: can't be dereferenced
+crates\dryad_runtime\src\native_modules\crypto.rs:539:49: error[E0599]: no method named `iter` found for reference `&usize` in the current scope: method not found in `&usize`
+crates\dryad_runtime\src\native_modules\crypto.rs:540:40: error[E0614]: type `f64` cannot be dereferenced: can't be dereferenced
+crates\dryad_runtime\src\native_modules\crypto.rs:589:9: error[E0559]: variant `value::Value::Object` has no field named `properties`: field does not exist
+crates\dryad_runtime\src\native_modules\crypto.rs:590:9: error[E0559]: variant `value::Value::Object` has no field named `methods`: field does not exist
+crates\dryad_runtime\src\native_modules\debug.rs:74:9: error[E0164]: expected tuple struct or tuple variant, found struct variant `Value::Function`: not a tuple struct or tuple variant
+crates\dryad_runtime\src\native_modules\debug.rs:76:9: error[E0164]: expected tuple struct or tuple variant, found struct variant `Value::Promise`: not a tuple struct or tuple variant
+crates\dryad_runtime\src\native_modules\debug.rs:80:16: error[E0599]: no variant or associated item named `NativeFunction` found for enum `value::Value` in the current scope: variant or associated item not found in `value::Value`
+crates\dryad_runtime\src\native_modules\debug.rs:81:16: error[E0599]: no variant or associated item named `AsyncNativeFunction` found for enum `value::Value` in the current scope: variant or associated item not found in `value::Value`
+crates\dryad_runtime\src\native_modules\utils.rs:125:8: error[E0061]: this function takes 1 argument but 2 arguments were supplied
+crates\dryad_runtime\src\native_modules\utils.rs:147:9: error[E0769]: tuple variant `Value::Object` written as struct variant
+crates\dryad_runtime\src\native_modules\utils.rs:157:9: error[E0769]: tuple variant `Value::Instance` written as struct variant
+crates\dryad_runtime\src\native_modules\utils.rs:136:48: error[E0599]: no method named `iter` found for reference `&usize` in the current scope: method not found in `&usize`
+crates\dryad_runtime\src\native_modules\utils.rs:142:50: error[E0599]: no method named `iter` found for reference `&usize` in the current scope: method not found in `&usize`
+crates\dryad_runtime\src\native_modules\utils.rs:150:42: error[E0282]: type annotations needed: cannot infer type
+crates\dryad_runtime\src\native_modules\utils.rs:153:17: error[E0559]: variant `value::Value::Object` has no field named `properties`: field does not exist
+crates\dryad_runtime\src\native_modules\utils.rs:154:17: error[E0559]: variant `value::Value::Object` has no field named `methods`: field does not exist
+crates\dryad_runtime\src\native_modules\utils.rs:160:42: error[E0282]: type annotations needed: cannot infer type
+crates\dryad_runtime\src\native_modules\utils.rs:163:17: error[E0559]: variant `value::Value::Instance` has no field named `class_name`: field does not exist
+crates\dryad_runtime\src\native_modules\utils.rs:164:17: error[E0559]: variant `value::Value::Instance` has no field named `properties`: field does not exist
+crates\dryad_runtime\src\native_modules\utils.rs:351:21: error[E0308]: mismatched types: expected `usize`, found `Vec<Value>`
+crates\dryad_runtime\src\native_modules\utils.rs:421:33: error[E0308]: mismatched types: expected `usize`, found `Vec<Value>`
+crates\dryad_runtime\src\native_modules\utils.rs:483:29: error[E0308]: mismatched types: expected `usize`, found `Vec<Value>`
+crates\dryad_runtime\src\native_modules\http_client.rs:222:92: error[E0308]: mismatched types: expected `value::Value`, found `serde_json::Value`
+crates\dryad_runtime\src\native_modules\udp.rs:520:44: error[E0559]: variant `value::Value::Object` has no field named `properties`: field does not exist
+crates\dryad_runtime\src\native_modules\udp.rs:520:64: error[E0559]: variant `value::Value::Object` has no field named `methods`: field does not exist
+crates\dryad_runtime\src\native_modules\udp.rs:526:44: error[E0559]: variant `value::Value::Object` has no field named `properties`: field does not exist
+crates\dryad_runtime\src\native_modules\udp.rs:526:64: error[E0559]: variant `value::Value::Object` has no field named `methods`: field does not exist
+crates\dryad_runtime\src\native_modules\udp.rs:533:44: error[E0559]: variant `value::Value::Object` has no field named `properties`: field does not exist
+crates\dryad_runtime\src\native_modules\udp.rs:533:64: error[E0559]: variant `value::Value::Object` has no field named `methods`: field does not exist
+crates\dryad_runtime\src\native_modules\udp.rs:566:32: error[E0559]: variant `value::Value::Object` has no field named `properties`: field does not exist
+crates\dryad_runtime\src\native_modules\udp.rs:566:52: error[E0559]: variant `value::Value::Object` has no field named `methods`: field does not exist
+crates\dryad_runtime\src\native_modules\crypto.rs:12:5: warning: unused import: `rsa::signature::SignatureEncoding`
+crates\dryad_runtime\src\native_modules\crypto.rs:11:5: warning: unused import: `aes::cipher::KeyInit`
+crates\dryad_runtime\src\interpreter.rs:966:128: warning: unused variable: `location`: help: if this is intentional, prefix it with an underscore: `_location`
+crates\dryad_runtime\src\interpreter.rs:1805:45: error[E0502]: cannot borrow `*self` as mutable because it is also borrowed as immutable: mutable borrow occurs here
+crates\dryad_runtime\src\interpreter.rs:1823:44: error[E0502]: cannot borrow `*self` as mutable because it is also borrowed as immutable: mutable borrow occurs here
+crates\dryad_runtime\src\interpreter.rs:1869:53: error[E0502]: cannot borrow `*self` as mutable because it is also borrowed as immutable: mutable borrow occurs here
+crates\dryad_runtime\src\interpreter.rs:1888:52: error[E0502]: cannot borrow `*self` as mutable because it is also borrowed as immutable: mutable borrow occurs here
+crates\dryad_runtime\src\interpreter.rs:1966:53: error[E0502]: cannot borrow `*self` as mutable because it is also borrowed as immutable: mutable borrow occurs here
+crates\dryad_runtime\src\interpreter.rs:1982:52: error[E0502]: cannot borrow `*self` as mutable because it is also borrowed as immutable: mutable borrow occurs here
+crates\dryad_runtime\src\interpreter.rs:1851:25: warning: unused variable: `properties`: help: if this is intentional, prefix it with an underscore: `_properties`
+crates\dryad_runtime\src\interpreter.rs:1923:29: warning: unused variable: `properties`: help: if this is intentional, prefix it with an underscore: `_properties`
+crates\dryad_runtime\src\interpreter.rs:1924:29: warning: unused variable: `methods`: help: if this is intentional, prefix it with an underscore: `_methods`
+crates\dryad_runtime\src\interpreter.rs:2239:64: warning: unused variable: `location`: help: if this is intentional, prefix it with an underscore: `_location`
+crates\dryad_runtime\src\interpreter.rs:2390:30: warning: unused variable: `id`: help: try ignoring the field: `id: _`
+crates\dryad_runtime\src\interpreter.rs:2991:21: warning: variable does not need to be mutable
+crates\dryad_runtime\src\native_modules\file_io.rs:582:5: error: lifetime may not live long enough: returning this value requires that `'1` must outlive `'static`
+crates\dryad_runtime\src\native_modules\file_io.rs:606:5: error: lifetime may not live long enough: returning this value requires that `'1` must outlive `'static`
+crates\dryad_runtime\src\native_modules\file_io.rs:632:5: error: lifetime may not live long enough: returning this value requires that `'1` must outlive `'static`
+crates\dryad_runtime\src\native_modules\tcp.rs:102:9: warning: unused variable: `buffer`: help: if this is intentional, prefix it with an underscore: `_buffer`
+warning: `dryad_runtime` (lib) generated 22 warnings
+error: could not compile `dryad_runtime` (lib) due to 113 previous errors; 22 warnings emitted

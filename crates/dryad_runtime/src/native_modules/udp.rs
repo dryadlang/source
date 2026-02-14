@@ -116,7 +116,7 @@ pub fn register_udp_functions(functions: &mut HashMap<String, NativeFunction>) {
 
 /// native_udp_server_create(server_id, host?, port?) -> null
 /// Cria uma nova instância de servidor UDP
-fn native_udp_server_create(args: &[Value], _manager: &crate::native_modules::NativeModuleManager) -> Result<Value, RuntimeError> {
+fn native_udp_server_create(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.is_empty() || args.len() > 3 {
         return Err(RuntimeError::ArgumentError("udp_server_create requer 1-3 argumentos: server_id, host (opcional), port (opcional)".to_string()));
     }
@@ -161,7 +161,7 @@ fn native_udp_server_create(args: &[Value], _manager: &crate::native_modules::Na
 
 /// native_udp_server_start(server_id) -> null  
 /// Inicia o servidor UDP especificado
-fn native_udp_server_start(args: &[Value], _manager: &crate::native_modules::NativeModuleManager) -> Result<Value, RuntimeError> {
+fn native_udp_server_start(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.len() != 1 {
         return Err(RuntimeError::ArgumentError("udp_server_start requer exatamente 1 argumento: server_id".to_string()));
     }
@@ -200,7 +200,7 @@ fn native_udp_server_start(args: &[Value], _manager: &crate::native_modules::Nat
 
 /// native_udp_server_stop(server_id) -> null
 /// Para o servidor UDP especificado
-fn native_udp_server_stop(args: &[Value], _manager: &crate::native_modules::NativeModuleManager) -> Result<Value, RuntimeError> {
+fn native_udp_server_stop(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.len() != 1 {
         return Err(RuntimeError::ArgumentError("udp_server_stop requer exatamente 1 argumento: server_id".to_string()));
     }
@@ -231,7 +231,7 @@ fn native_udp_server_stop(args: &[Value], _manager: &crate::native_modules::Nati
 
 /// native_udp_server_status(server_id) -> objeto
 /// Retorna o status do servidor UDP
-fn native_udp_server_status(args: &[Value], _manager: &crate::native_modules::NativeModuleManager) -> Result<Value, RuntimeError> {
+fn native_udp_server_status(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.len() != 1 {
         return Err(RuntimeError::ArgumentError("udp_server_status requer exatamente 1 argumento: server_id".to_string()));
     }
@@ -250,7 +250,12 @@ fn native_udp_server_status(args: &[Value], _manager: &crate::native_modules::Na
             status.insert("port".to_string(), Value::Number(server.port as f64));
             status.insert("is_running".to_string(), Value::Bool(server.is_running));
             
-            Ok(Value::Object { properties: status, methods: HashMap::new() })
+            let id = _heap.allocate(crate::heap::ManagedObject::Object {
+                properties: status,
+                methods: HashMap::new(),
+            });
+            
+            Ok(Value::Object(id))
         }
         None => Err(RuntimeError::NetworkError(format!("UDP Server '{}' não encontrado", server_id))),
     }
@@ -262,7 +267,7 @@ fn native_udp_server_status(args: &[Value], _manager: &crate::native_modules::Na
 
 /// native_udp_client_create(client_id, host?, port?) -> null
 /// Cria uma nova instância de cliente UDP
-fn native_udp_client_create(args: &[Value], _manager: &crate::native_modules::NativeModuleManager) -> Result<Value, RuntimeError> {
+fn native_udp_client_create(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.is_empty() || args.len() > 3 {
         return Err(RuntimeError::ArgumentError("udp_client_create requer 1-3 argumentos: client_id, host (opcional), port (opcional)".to_string()));
     }
@@ -308,7 +313,7 @@ fn native_udp_client_create(args: &[Value], _manager: &crate::native_modules::Na
 
 /// native_udp_client_bind(client_id, local_port?) -> bool
 /// Faz bind do cliente UDP a uma porta local
-fn native_udp_client_bind(args: &[Value], _manager: &crate::native_modules::NativeModuleManager) -> Result<Value, RuntimeError> {
+fn native_udp_client_bind(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.is_empty() || args.len() > 2 {
         return Err(RuntimeError::ArgumentError("udp_client_bind requer 1-2 argumentos: client_id, local_port (opcional)".to_string()));
     }
@@ -353,7 +358,7 @@ fn native_udp_client_bind(args: &[Value], _manager: &crate::native_modules::Nati
 
 /// native_udp_client_send(client_id, message) -> bool
 /// Envia dados para o servidor configurado
-fn native_udp_client_send(args: &[Value], _manager: &crate::native_modules::NativeModuleManager) -> Result<Value, RuntimeError> {
+fn native_udp_client_send(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.len() != 2 {
         return Err(RuntimeError::ArgumentError("udp_client_send requer exatamente 2 argumentos: client_id, message".to_string()));
     }
@@ -395,7 +400,7 @@ fn native_udp_client_send(args: &[Value], _manager: &crate::native_modules::Nati
 
 /// native_udp_client_receive(client_id) -> string
 /// Recebe dados do socket UDP (do último remetente)
-fn native_udp_client_receive(args: &[Value], _manager: &crate::native_modules::NativeModuleManager) -> Result<Value, RuntimeError> {
+fn native_udp_client_receive(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.len() != 1 {
         return Err(RuntimeError::ArgumentError("udp_client_receive requer exatamente 1 argumento: client_id".to_string()));
     }
@@ -434,7 +439,7 @@ fn native_udp_client_receive(args: &[Value], _manager: &crate::native_modules::N
 
 /// native_udp_client_send_to(client_id, message, host, port) -> bool
 /// Envia dados para um endereço específico
-fn native_udp_client_send_to(args: &[Value], _manager: &crate::native_modules::NativeModuleManager) -> Result<Value, RuntimeError> {
+fn native_udp_client_send_to(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.len() != 4 {
         return Err(RuntimeError::ArgumentError("udp_client_send_to requer exatamente 4 argumentos: client_id, message, host, port".to_string()));
     }
@@ -486,7 +491,7 @@ fn native_udp_client_send_to(args: &[Value], _manager: &crate::native_modules::N
 
 /// native_udp_client_receive_from(client_id) -> objeto
 /// Recebe dados e retorna objeto com dados e informações do remetente
-fn native_udp_client_receive_from(args: &[Value], _manager: &crate::native_modules::NativeModuleManager) -> Result<Value, RuntimeError> {
+fn native_udp_client_receive_from(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.len() != 1 {
         return Err(RuntimeError::ArgumentError("udp_client_receive_from requer exatamente 1 argumento: client_id".to_string()));
     }
@@ -511,21 +516,36 @@ fn native_udp_client_receive_from(args: &[Value], _manager: &crate::native_modul
                         let mut result = HashMap::new();
                         result.insert("data".to_string(), Value::String(data));
                         result.insert("sender".to_string(), Value::String(addr_str));
+                        result.insert("success".to_string(), Value::Bool(true));
                         
-                        Ok(Value::Object { properties: result, methods: HashMap::new() })
+                        let id = _heap.allocate(crate::heap::ManagedObject::Object {
+                            properties: result,
+                            methods: HashMap::new(),
+                        });
+                        Ok(Value::Object(id))
                     }
                     Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock || e.kind() == std::io::ErrorKind::TimedOut => {
                         let mut result = HashMap::new();
-                        result.insert("data".to_string(), Value::String("".to_string()));
-                        result.insert("sender".to_string(), Value::String("".to_string()));
-                        Ok(Value::Object { properties: result, methods: HashMap::new() })
+                        result.insert("timeout".to_string(), Value::Bool(true));
+                        result.insert("success".to_string(), Value::Bool(false));
+                        
+                        let id = _heap.allocate(crate::heap::ManagedObject::Object {
+                            properties: result,
+                            methods: HashMap::new(),
+                        });
+                        Ok(Value::Object(id))
                     }
                     Err(e) => {
                         eprintln!("❌ UDP Client '{}': Erro ao receber dados: {}", client_id, e);
                         let mut result = HashMap::new();
-                        result.insert("data".to_string(), Value::String("".to_string()));
-                        result.insert("sender".to_string(), Value::String("".to_string()));
-                        Ok(Value::Object { properties: result, methods: HashMap::new() })
+                        result.insert("error".to_string(), Value::String(e.to_string()));
+                        result.insert("success".to_string(), Value::Bool(false));
+                        
+                        let id = _heap.allocate(crate::heap::ManagedObject::Object {
+                            properties: result,
+                            methods: HashMap::new(),
+                        });
+                        Ok(Value::Object(id))
                     }
                 }
             } else {
@@ -538,7 +558,7 @@ fn native_udp_client_receive_from(args: &[Value], _manager: &crate::native_modul
 
 /// native_udp_client_status(client_id) -> objeto
 /// Retorna o status do cliente UDP
-fn native_udp_client_status(args: &[Value], _manager: &crate::native_modules::NativeModuleManager) -> Result<Value, RuntimeError> {
+fn native_udp_client_status(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.len() != 1 {
         return Err(RuntimeError::ArgumentError("udp_client_status requer exatamente 1 argumento: client_id".to_string()));
     }
@@ -558,7 +578,11 @@ fn native_udp_client_status(args: &[Value], _manager: &crate::native_modules::Na
             status.insert("timeout_secs".to_string(), Value::Number(client.timeout_secs as f64));
             status.insert("is_bound".to_string(), Value::Bool(client.is_bound));
             
-            Ok(Value::Object { properties: status, methods: HashMap::new() })
+            let id = _heap.allocate(crate::heap::ManagedObject::Object {
+                properties: status,
+                methods: HashMap::new(),
+            });
+            Ok(Value::Object(id))
         }
         None => Err(RuntimeError::NetworkError(format!("UDP Client '{}' não encontrado", client_id))),
     }
@@ -566,7 +590,7 @@ fn native_udp_client_status(args: &[Value], _manager: &crate::native_modules::Na
 
 /// native_udp_client_set_timeout(client_id, timeout_secs) -> null
 /// Define o timeout para operações de recepção
-fn native_udp_client_set_timeout(args: &[Value], _manager: &crate::native_modules::NativeModuleManager) -> Result<Value, RuntimeError> {
+fn native_udp_client_set_timeout(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.len() != 2 {
         return Err(RuntimeError::ArgumentError("udp_client_set_timeout requer exatamente 2 argumentos: client_id, timeout_secs".to_string()));
     }
@@ -600,7 +624,7 @@ fn native_udp_client_set_timeout(args: &[Value], _manager: &crate::native_module
 
 /// native_udp_client_close(client_id) -> null
 /// Fecha o cliente UDP
-fn native_udp_client_close(args: &[Value], _manager: &crate::native_modules::NativeModuleManager) -> Result<Value, RuntimeError> {
+fn native_udp_client_close(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.len() != 1 {
         return Err(RuntimeError::ArgumentError("udp_client_close requer exatamente 1 argumento: client_id".to_string()));
     }
@@ -626,7 +650,7 @@ fn native_udp_client_close(args: &[Value], _manager: &crate::native_modules::Nat
 
 /// native_udp_resolve_hostname(hostname) -> string
 /// Resolve um hostname para endereço IP
-fn native_udp_resolve_hostname(args: &[Value], _manager: &crate::native_modules::NativeModuleManager) -> Result<Value, RuntimeError> {
+fn native_udp_resolve_hostname(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.len() != 1 {
         return Err(RuntimeError::ArgumentError("udp_resolve_hostname requer exatamente 1 argumento: hostname".to_string()));
     }
@@ -652,7 +676,7 @@ fn native_udp_resolve_hostname(args: &[Value], _manager: &crate::native_modules:
 
 /// native_udp_get_local_ip() -> string
 /// Retorna o IP local da máquina
-fn native_udp_get_local_ip(args: &[Value], _manager: &crate::native_modules::NativeModuleManager) -> Result<Value, RuntimeError> {
+fn native_udp_get_local_ip(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if !args.is_empty() {
         return Err(RuntimeError::ArgumentError("udp_get_local_ip não requer argumentos".to_string()));
     }
@@ -679,7 +703,7 @@ fn native_udp_get_local_ip(args: &[Value], _manager: &crate::native_modules::Nat
 
 /// native_udp_port_available(port) -> bool
 /// Verifica se uma porta está disponível para bind
-fn native_udp_port_available(args: &[Value], _manager: &crate::native_modules::NativeModuleManager) -> Result<Value, RuntimeError> {
+fn native_udp_port_available(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.len() != 1 {
         return Err(RuntimeError::ArgumentError("udp_port_available requer exatamente 1 argumento: port".to_string()));
     }

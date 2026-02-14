@@ -1,5 +1,5 @@
-use dryad_parser::ast::{Program, Stmt, Expr, Type, ClassMember, ObjectProperty};
 use dryad_errors::DryadError;
+use dryad_parser::ast::{ClassMember, Expr, ObjectProperty, Program, Stmt, Type};
 use std::collections::HashMap;
 
 pub struct TypeChecker {
@@ -31,36 +31,40 @@ impl TypeChecker {
         match stmt {
             Stmt::VarDeclaration(name, var_type, initializer, _location) => {
                 let init_type = initializer.as_ref().map(|expr| self.check_expr(expr));
-                
-                if let Some(expected_type) = var_type {
-                    if let Some(actual_type) = init_type {
-                        if !self.is_assignable(expected_type, &actual_type) {
-                            self.errors.push(DryadError::new(
-                                3001,
-                                &format!("Tipo incompatível na variável '{}'. Esperado {:?}, encontrado {:?}", name, expected_type, actual_type)
-                            ));
+
+                if let Some(var_name) = name.identifier_name() {
+                    if let Some(expected_type) = var_type {
+                        if let Some(actual_type) = init_type {
+                            if !self.is_assignable(expected_type, &actual_type) {
+                                self.errors.push(DryadError::new(
+                                    3001,
+                                    &format!("Tipo incompatível na variável '{}'. Esperado {:?}, encontrado {:?}", var_name, expected_type, actual_type)
+                                ));
+                            }
                         }
+                        self.define(var_name.clone(), expected_type.clone());
+                    } else if let Some(actual_type) = init_type {
+                        self.define(var_name.clone(), actual_type);
+                    } else {
+                        self.define(var_name.clone(), Type::Any);
                     }
-                    self.define(name.clone(), expected_type.clone());
-                } else if let Some(actual_type) = init_type {
-                    self.define(name.clone(), actual_type);
-                } else {
-                    self.define(name.clone(), Type::Any);
                 }
             }
             Stmt::ConstDeclaration(name, const_type, initializer, _location) => {
                 let init_type = self.check_expr(initializer);
-                
-                if let Some(expected_type) = const_type {
-                    if !self.is_assignable(expected_type, &init_type) {
-                        self.errors.push(DryadError::new(
-                            3002,
-                            &format!("Tipo incompatível na constante '{}'. Esperado {:?}, encontrado {:?}", name, expected_type, init_type)
-                        ));
+
+                if let Some(const_name) = name.identifier_name() {
+                    if let Some(expected_type) = const_type {
+                        if !self.is_assignable(expected_type, &init_type) {
+                            self.errors.push(DryadError::new(
+                                3002,
+                                &format!("Tipo incompatível na constante '{}'. Esperado {:?}, encontrado {:?}", const_name, expected_type, init_type)
+                            ));
+                        }
+                        self.define(const_name.clone(), expected_type.clone());
+                    } else {
+                        self.define(const_name.clone(), init_type);
                     }
-                    self.define(name.clone(), expected_type.clone());
-                } else {
-                    self.define(name.clone(), init_type);
                 }
             }
             Stmt::Block(statements, _location) => {
@@ -73,11 +77,21 @@ impl TypeChecker {
             Stmt::Expression(expr, _location) => {
                 self.check_expr(expr);
             }
-            Stmt::FunctionDeclaration { name, params, return_type, body, location: _, is_async: _ } => {
+            Stmt::FunctionDeclaration {
+                name,
+                params,
+                return_type,
+                body,
+                location: _,
+                is_async: _,
+            } => {
                 // Pre-define function for recursion
                 // For now, simplify function type representation
                 // For now, simplify function representation in checker
-                self.define(name.clone(), Type::Function(Vec::new(), Box::new(Type::Any))); 
+                self.define(
+                    name.clone(),
+                    Type::Function(Vec::new(), Box::new(Type::Any)),
+                );
 
                 self.begin_scope();
                 for (param_name, param_type) in params {
@@ -95,21 +109,17 @@ impl TypeChecker {
 
     fn check_expr(&mut self, expr: &Expr) -> Type {
         match expr {
-            Expr::Literal(lit, _location) => {
-                match lit {
-                    dryad_parser::ast::Literal::Number(_) => Type::Number,
-                    dryad_parser::ast::Literal::String(_) => Type::String,
-                    dryad_parser::ast::Literal::Bool(_) => Type::Bool,
-                    dryad_parser::ast::Literal::Null => Type::Null,
-                }
-            }
-            Expr::Variable(name, _location) => {
-                self.resolve(name).cloned().unwrap_or(Type::Any)
-            }
+            Expr::Literal(lit, _location) => match lit {
+                dryad_parser::ast::Literal::Number(_) => Type::Number,
+                dryad_parser::ast::Literal::String(_) => Type::String,
+                dryad_parser::ast::Literal::Bool(_) => Type::Bool,
+                dryad_parser::ast::Literal::Null => Type::Null,
+            },
+            Expr::Variable(name, _location) => self.resolve(name).cloned().unwrap_or(Type::Any),
             Expr::Binary(left, op, right, _location) => {
                 let lt = self.check_expr(left);
                 let rt = self.check_expr(right);
-                
+
                 match op.as_str() {
                     "+" | "-" | "*" | "/" | "%" | "**" => {
                         if lt != Type::Number || rt != Type::Number {
@@ -117,11 +127,14 @@ impl TypeChecker {
                             if op == "+" && (lt == Type::String || rt == Type::String) {
                                 return Type::String;
                             }
-                            
+
                             if lt != Type::Any && rt != Type::Any {
                                 self.errors.push(DryadError::new(
                                     3003,
-                                    &format!("Operação '{}' não pode ser aplicada a {:?} e {:?}", op, lt, rt)
+                                    &format!(
+                                        "Operação '{}' não pode ser aplicada a {:?} e {:?}",
+                                        op, lt, rt
+                                    ),
                                 ));
                             }
                         }

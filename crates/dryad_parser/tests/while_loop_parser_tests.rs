@@ -1,11 +1,13 @@
-use dryad_parser::{Parser, ast::{Stmt, Expr, Literal}};
 use dryad_lexer::{Lexer, Token};
+use dryad_parser::{
+    ast::{Expr, Literal, Stmt},
+    Parser,
+};
 
 fn parse_tokens(input: &str) -> dryad_parser::ast::Program {
     let mut lexer = Lexer::new(input);
     let mut tokens = Vec::new();
-    
-    
+
     loop {
         let token = lexer.next_token().unwrap();
         if token.token == Token::Eof {
@@ -13,7 +15,7 @@ fn parse_tokens(input: &str) -> dryad_parser::ast::Program {
         }
         tokens.push(token);
     }
-    
+
     let mut parser = Parser::new(tokens);
     parser.parse().unwrap()
 }
@@ -25,10 +27,10 @@ fn test_parse_simple_while_statement() {
         x = x + 1;
     }
     "#;
-    
+
     let program = parse_tokens(input);
     assert_eq!(program.statements.len(), 1);
-    
+
     match &program.statements[0] {
         Stmt::While(condition, body, _) => {
             match condition {
@@ -52,19 +54,17 @@ fn test_parse_while_with_complex_condition() {
         x = x - 1;
     }
     "#;
-    
+
     let program = parse_tokens(input);
     assert_eq!(program.statements.len(), 1);
-    
+
     match &program.statements[0] {
-        Stmt::While(condition, _, _) => {
-            match condition {
-                Expr::Binary(_, op, _, _) => {
-                    assert_eq!(op, "&&");
-                }
-                _ => panic!("Condição deveria ser uma expressão binária"),
+        Stmt::While(condition, _, _) => match condition {
+            Expr::Binary(_, op, _, _) => {
+                assert_eq!(op, "&&");
             }
-        }
+            _ => panic!("Condição deveria ser uma expressão binária"),
+        },
         _ => panic!("Esperava um while statement"),
     }
 }
@@ -78,19 +78,17 @@ fn test_parse_while_with_multiple_statements() {
         let temp = counter;
     }
     "#;
-    
+
     let program = parse_tokens(input);
     assert_eq!(program.statements.len(), 1);
-    
+
     match &program.statements[0] {
-        Stmt::While(_, body, _) => {
-            match **body {
-                Stmt::Block(ref statements, _) => {
-                    assert_eq!(statements.len(), 3);
-                }
-                _ => panic!("Corpo deveria ser um bloco"),
+        Stmt::While(_, body, _) => match **body {
+            Stmt::Block(ref statements, _) => {
+                assert_eq!(statements.len(), 3);
             }
-        }
+            _ => panic!("Corpo deveria ser um bloco"),
+        },
         _ => panic!("Esperava um while statement"),
     }
 }
@@ -104,20 +102,18 @@ fn test_parse_nested_while_statements() {
         }
     }
     "#;
-    
+
     let program = parse_tokens(input);
     assert_eq!(program.statements.len(), 1);
-    
+
     match &program.statements[0] {
-        Stmt::While(_, outer_body, _) => {
-            match **outer_body {
-                Stmt::Block(ref statements, _) => {
-                    assert_eq!(statements.len(), 1);
-                    assert!(matches!(statements[0], Stmt::While(..)));
-                }
-                _ => panic!("Corpo deveria ser um bloco"),
+        Stmt::While(_, outer_body, _) => match **outer_body {
+            Stmt::Block(ref statements, _) => {
+                assert_eq!(statements.len(), 1);
+                assert!(matches!(statements[0], Stmt::While(..)));
             }
-        }
+            _ => panic!("Corpo deveria ser um bloco"),
+        },
         _ => panic!("Esperava um while statement"),
     }
 }
@@ -131,20 +127,18 @@ fn test_parse_while_with_if_inside() {
         }
     }
     "#;
-    
+
     let program = parse_tokens(input);
     assert_eq!(program.statements.len(), 1);
-    
+
     match &program.statements[0] {
-        Stmt::While(_, body, _) => {
-            match **body {
-                Stmt::Block(ref statements, _) => {
-                    assert_eq!(statements.len(), 1);
-                    assert!(matches!(statements[0], Stmt::If(..)));
-                }
-                _ => panic!("Corpo deveria ser um bloco"),
+        Stmt::While(_, body, _) => match **body {
+            Stmt::Block(ref statements, _) => {
+                assert_eq!(statements.len(), 1);
+                assert!(matches!(statements[0], Stmt::If(..)));
             }
-        }
+            _ => panic!("Corpo deveria ser um bloco"),
+        },
         _ => panic!("Esperava um while statement"),
     }
 }
@@ -156,10 +150,10 @@ fn test_parse_while_with_single_statement_block() {
         counter = counter + 1;
     }
     "#;
-    
+
     let program = parse_tokens(input);
     assert_eq!(program.statements.len(), 1);
-    
+
     match &program.statements[0] {
         Stmt::While(condition, body, _) => {
             match condition {
@@ -186,12 +180,11 @@ fn test_parse_while_without_braces_error() {
     while (condition
         statement;
     "#;
-    
+
     // Este teste deveria falhar porque while requer chaves
     let mut lexer = Lexer::new(input);
     let mut tokens = Vec::new();
-    
-    
+
     loop {
         let token = lexer.next_token().unwrap();
         if token.token == Token::Eof {
@@ -199,10 +192,10 @@ fn test_parse_while_without_braces_error() {
         }
         tokens.push(token);
     }
-    
+
     let mut parser = Parser::new(tokens);
     let result = parser.parse();
-    
+
     // Deveria retornar erro
     assert!(result.is_err());
 }
@@ -214,18 +207,15 @@ fn test_parse_while_boolean_conditions() {
         break;
     }
     "#;
-    
+
     let program = parse_tokens(input);
     assert_eq!(program.statements.len(), 1);
-    
+
     match &program.statements[0] {
-        Stmt::While(condition, _, _) => {
-            match condition {
-                Expr::Literal(Literal::Bool(true), _) => {
-                }
-                _ => panic!("Condição deveria ser true literal"),
-            }
-        }
+        Stmt::While(condition, _, _) => match condition {
+            Expr::Literal(Literal::Bool(true), _) => {}
+            _ => panic!("Condição deveria ser true literal"),
+        },
         _ => panic!("Esperava um while statement"),
     }
 }
@@ -237,19 +227,17 @@ fn test_parse_while_variable_condition() {
         result = result + 1;
     }
     "#;
-    
+
     let program = parse_tokens(input);
     assert_eq!(program.statements.len(), 1);
-    
+
     match &program.statements[0] {
-        Stmt::While(condition, _, _) => {
-            match condition {
-                Expr::Variable(name, _) => {
-                    assert_eq!(name, "running");
-                }
-                _ => panic!("Condição deveria ser uma variável"),
+        Stmt::While(condition, _, _) => match condition {
+            Expr::Variable(name, _) => {
+                assert_eq!(name, "running");
             }
-        }
+            _ => panic!("Condição deveria ser uma variável"),
+        },
         _ => panic!("Esperava um while statement"),
     }
 }
@@ -263,17 +251,16 @@ fn test_exact_syntax_md_example() {
         i = i + 1;
     }
     "#;
-    
+
     let program = parse_tokens(input);
     assert_eq!(program.statements.len(), 2); // let declaration + while
-    
+
     // Primeiro statement: let i = 0;
     match &program.statements[0] {
-        Stmt::VarDeclaration(name, Some(expr), _) => {
-            assert_eq!(name, "i");
+        Stmt::VarDeclaration(name, _, Some(expr), _) => {
+            assert_eq!(name.identifier_name().unwrap(), "i");
             match expr {
-                Expr::Literal(Literal::Number(0.0), _) => {
-                }
+                Expr::Literal(Literal::Number(0.0), _) => {}
                 _ => panic!("Valor inicial deveria ser 0"),
             }
         }
@@ -299,6 +286,3 @@ fn test_exact_syntax_md_example() {
         _ => panic!("Esperava um while statement"),
     }
 }
-
-
-

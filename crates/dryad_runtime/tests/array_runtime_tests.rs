@@ -1,5 +1,6 @@
 // crates/dryad_runtime/tests/array_runtime_tests.rs
 use dryad_runtime::interpreter::{Interpreter, Value};
+use dryad_runtime::heap::ManagedObject;
 use dryad_parser::{Parser, ast::Expr};
 use dryad_lexer::{Lexer, token::Token};
 
@@ -20,7 +21,7 @@ fn parse_expression(input: &str) -> Expr {
     
     // Pega a primeira declaração de variável e retorna sua expressão
     match &program.statements[0] {
-        dryad_parser::ast::Stmt::VarDeclaration(_, Some(expr), _) => expr.clone(),
+        dryad_parser::ast::Stmt::VarDeclaration(_, _, Some(expr), _) => expr.clone(),
         _ => panic!("Esperado declaração de variável com expressão"),
     }
 }
@@ -33,8 +34,13 @@ fn test_empty_array() {
     let result = interpreter.evaluate(&expr).unwrap();
     
     match result {
-        Value::Array(elements) => {
-            assert_eq!(elements.len(), 0);
+        Value::Array(id) => {
+            let obj = interpreter.heap.get(id).unwrap();
+            if let ManagedObject::Array(elements) = obj {
+                assert_eq!(elements.len(), 0);
+            } else {
+                panic!("Esperado ManagedObject::Array");
+            }
         },
         _ => panic!("Esperado array vazio, encontrado {:?}", result),
     }
@@ -48,11 +54,16 @@ fn test_array_with_numbers() {
     let result = interpreter.evaluate(&expr).unwrap();
     
     match result {
-        Value::Array(elements) => {
-            assert_eq!(elements.len(), 3);
-            assert_eq!(elements[0], Value::Number(1.0));
-            assert_eq!(elements[1], Value::Number(2.0));
-            assert_eq!(elements[2], Value::Number(3.0));
+        Value::Array(id) => {
+            let obj = interpreter.heap.get(id).unwrap();
+            if let ManagedObject::Array(elements) = obj {
+                assert_eq!(elements.len(), 3);
+                assert_eq!(elements[0], Value::Number(1.0));
+                assert_eq!(elements[1], Value::Number(2.0));
+                assert_eq!(elements[2], Value::Number(3.0));
+            } else {
+                panic!("Esperado ManagedObject::Array");
+            }
         },
         _ => panic!("Esperado array com números, encontrado {:?}", result),
     }
@@ -66,11 +77,16 @@ fn test_array_with_mixed_types() {
     let result = interpreter.evaluate(&expr).unwrap();
     
     match result {
-        Value::Array(elements) => {
-            assert_eq!(elements.len(), 3);
-            assert_eq!(elements[0], Value::Number(1.0));
-            assert_eq!(elements[1], Value::String("dois".to_string()));
-            assert_eq!(elements[2], Value::Bool(true));
+        Value::Array(id) => {
+            let obj = interpreter.heap.get(id).unwrap();
+            if let ManagedObject::Array(elements) = obj {
+                assert_eq!(elements.len(), 3);
+                assert_eq!(elements[0], Value::Number(1.0));
+                assert_eq!(elements[1], Value::String("dois".to_string()));
+                assert_eq!(elements[2], Value::Bool(true));
+            } else {
+                panic!("Esperado ManagedObject::Array");
+            }
         },
         _ => panic!("Esperado array misto, encontrado {:?}", result),
     }
@@ -84,25 +100,40 @@ fn test_nested_array() {
     let result = interpreter.evaluate(&expr).unwrap();
     
     match result {
-        Value::Array(elements) => {
-            assert_eq!(elements.len(), 2);
-            
-            match &elements[0] {
-                Value::Array(sub_elements) => {
-                    assert_eq!(sub_elements.len(), 2);
-                    assert_eq!(sub_elements[0], Value::Number(1.0));
-                    assert_eq!(sub_elements[1], Value::Number(2.0));
-                },
-                _ => panic!("Esperado sub-array"),
-            }
-            
-            match &elements[1] {
-                Value::Array(sub_elements) => {
-                    assert_eq!(sub_elements.len(), 2);
-                    assert_eq!(sub_elements[0], Value::Number(3.0));
-                    assert_eq!(sub_elements[1], Value::Number(4.0));
-                },
-                _ => panic!("Esperado sub-array"),
+        Value::Array(id) => {
+            let obj = interpreter.heap.get(id).unwrap();
+            if let ManagedObject::Array(elements) = obj {
+                assert_eq!(elements.len(), 2);
+                
+                match &elements[0] {
+                    Value::Array(sub_id) => {
+                        let sub_obj = interpreter.heap.get(*sub_id).unwrap();
+                        if let ManagedObject::Array(sub_elements) = sub_obj {
+                            assert_eq!(sub_elements.len(), 2);
+                            assert_eq!(sub_elements[0], Value::Number(1.0));
+                            assert_eq!(sub_elements[1], Value::Number(2.0));
+                        } else {
+                            panic!("Esperado sub ManagedObject::Array");
+                        }
+                    },
+                    _ => panic!("Esperado sub-array"),
+                }
+                
+                match &elements[1] {
+                    Value::Array(sub_id) => {
+                        let sub_obj = interpreter.heap.get(*sub_id).unwrap();
+                        if let ManagedObject::Array(sub_elements) = sub_obj {
+                            assert_eq!(sub_elements.len(), 2);
+                            assert_eq!(sub_elements[0], Value::Number(3.0));
+                            assert_eq!(sub_elements[1], Value::Number(4.0));
+                        } else {
+                            panic!("Esperado sub ManagedObject::Array");
+                        }
+                    },
+                    _ => panic!("Esperado sub-array"),
+                }
+            } else {
+                panic!("Esperado ManagedObject::Array");
             }
         },
         _ => panic!("Esperado array aninhado, encontrado {:?}", result),
@@ -113,12 +144,13 @@ fn test_nested_array() {
 fn test_array_access() {
     let mut interpreter = Interpreter::new();
     
-    // Primeiro cria o array
-    interpreter.set_variable("arr".to_string(), Value::Array(vec![
+    // Primeiro cria o array no heap
+    let arr_id = interpreter.heap.allocate(ManagedObject::Array(vec![
         Value::Number(10.0),
         Value::Number(20.0),
         Value::Number(30.0),
     ]));
+    interpreter.set_variable("arr".to_string(), Value::Array(arr_id));
     
     let expr = parse_expression("let valor = arr[1];");
     let result = interpreter.evaluate(&expr).unwrap();
@@ -130,10 +162,11 @@ fn test_array_access() {
 fn test_array_access_out_of_bounds() {
     let mut interpreter = Interpreter::new();
     
-    // Cria array pequeno
-    interpreter.set_variable("arr".to_string(), Value::Array(vec![
+    // Cria array pequeno no heap
+    let arr_id = interpreter.heap.allocate(ManagedObject::Array(vec![
         Value::Number(10.0),
     ]));
+    interpreter.set_variable("arr".to_string(), Value::Array(arr_id));
     
     let expr = parse_expression("let valor = arr[5];");
     let result = interpreter.evaluate(&expr);
@@ -151,8 +184,13 @@ fn test_empty_tuple() {
     let result = interpreter.evaluate(&expr).unwrap();
     
     match result {
-        Value::Tuple(elements) => {
-            assert_eq!(elements.len(), 0);
+        Value::Tuple(id) => {
+            let obj = interpreter.heap.get(id).unwrap();
+            if let ManagedObject::Tuple(elements) = obj {
+                assert_eq!(elements.len(), 0);
+            } else {
+                panic!("Esperado ManagedObject::Tuple");
+            }
         },
         _ => panic!("Esperado tupla vazia, encontrado {:?}", result),
     }
@@ -166,11 +204,16 @@ fn test_tuple_with_mixed_types() {
     let result = interpreter.evaluate(&expr).unwrap();
     
     match result {
-        Value::Tuple(elements) => {
-            assert_eq!(elements.len(), 3);
-            assert_eq!(elements[0], Value::Number(1.0));
-            assert_eq!(elements[1], Value::String("dois".to_string()));
-            assert_eq!(elements[2], Value::Number(3.0));
+        Value::Tuple(id) => {
+            let obj = interpreter.heap.get(id).unwrap();
+            if let ManagedObject::Tuple(elements) = obj {
+                assert_eq!(elements.len(), 3);
+                assert_eq!(elements[0], Value::Number(1.0));
+                assert_eq!(elements[1], Value::String("dois".to_string()));
+                assert_eq!(elements[2], Value::Number(3.0));
+            } else {
+                panic!("Esperado ManagedObject::Tuple");
+            }
         },
         _ => panic!("Esperado tupla mista, encontrado {:?}", result),
     }
@@ -180,12 +223,13 @@ fn test_tuple_with_mixed_types() {
 fn test_tuple_access() {
     let mut interpreter = Interpreter::new();
     
-    // Primeiro cria a tupla
-    interpreter.set_variable("tupla".to_string(), Value::Tuple(vec![
+    // Primeiro cria a tupla no heap
+    let tupla_id = interpreter.heap.allocate(ManagedObject::Tuple(vec![
         Value::Number(1.0),
         Value::String("dois".to_string()),
         Value::Number(3.0),
     ]));
+    interpreter.set_variable("tupla".to_string(), Value::Tuple(tupla_id));
     
     let expr = parse_expression("let valor = tupla.1;");
     let result = interpreter.evaluate(&expr).unwrap();
@@ -197,10 +241,11 @@ fn test_tuple_access() {
 fn test_tuple_access_out_of_bounds() {
     let mut interpreter = Interpreter::new();
     
-    // Cria tupla pequena
-    interpreter.set_variable("tupla".to_string(), Value::Tuple(vec![
+    // Cria tupla pequena no heap
+    let tupla_id = interpreter.heap.allocate(ManagedObject::Tuple(vec![
         Value::Number(1.0),
     ]));
+    interpreter.set_variable("tupla".to_string(), Value::Tuple(tupla_id));
     
     let expr = parse_expression("let valor = tupla.5;");
     let result = interpreter.evaluate(&expr);

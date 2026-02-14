@@ -1,4 +1,4 @@
-use crate::interpreter::RuntimeValue;
+use crate::interpreter::Value;
 use crate::native_modules::NativeFunction;
 use crate::errors::RuntimeError;
 use std::collections::HashMap;
@@ -33,9 +33,9 @@ fn get_start_time() -> std::time::Instant {
 /// Retorna o timestamp atual em milissegundos desde a época (epoch)
 /// Entrada: nenhum
 /// Retorna: um número inteiro representando o timestamp atual
-fn native_now(_args: &[RuntimeValue], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<RuntimeValue, RuntimeError> {
+fn native_now(_args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     match SystemTime::now().duration_since(UNIX_EPOCH) {
-        Ok(duration) => Ok(RuntimeValue::Number(duration.as_millis() as f64)),
+        Ok(duration) => Ok(Value::Number(duration.as_millis() as f64)),
         Err(e) => Err(RuntimeError::IoError(format!("Erro ao obter timestamp: {}", e))),
     }
 }
@@ -43,13 +43,13 @@ fn native_now(_args: &[RuntimeValue], _manager: &crate::native_modules::NativeMo
 /// Pausa a execução por um número específico de milissegundos
 /// Entrada: um número inteiro representando o tempo em milissegundos
 /// Retorna: nenhum
-fn native_sleep(args: &[RuntimeValue], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<RuntimeValue, RuntimeError> {
+fn native_sleep(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.len() != 1 {
         return Err(RuntimeError::ArgumentError("native_sleep requer exatamente 1 argumento".to_string()));
     }
 
     let ms = match &args[0] {
-        RuntimeValue::Number(n) => {
+        Value::Number(n) => {
             if *n < 0.0 {
                 return Err(RuntimeError::ArgumentError("Tempo de sleep não pode ser negativo".to_string()));
             }
@@ -59,15 +59,15 @@ fn native_sleep(args: &[RuntimeValue], _manager: &crate::native_modules::NativeM
     };
 
     thread::sleep(Duration::from_millis(ms));
-    Ok(RuntimeValue::Null)
+    Ok(Value::Null)
 }
 
 /// Retorna o timestamp atual em segundos desde a época (epoch)
 /// Entrada: nenhum
 /// Retorna: um número inteiro representando o timestamp atual
-fn native_timestamp(_args: &[RuntimeValue], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<RuntimeValue, RuntimeError> {
+fn native_timestamp(_args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     match SystemTime::now().duration_since(UNIX_EPOCH) {
-        Ok(duration) => Ok(RuntimeValue::Number(duration.as_secs() as f64)),
+        Ok(duration) => Ok(Value::Number(duration.as_secs() as f64)),
         Err(e) => Err(RuntimeError::IoError(format!("Erro ao obter timestamp: {}", e))),
     }
 }
@@ -75,7 +75,7 @@ fn native_timestamp(_args: &[RuntimeValue], _manager: &crate::native_modules::Na
 /// Retorna a data atual no formato "YYYY-MM-DD"
 /// Entrada: nenhum
 /// Retorna: uma string representando a data atual
-fn native_date(_args: &[RuntimeValue], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<RuntimeValue, RuntimeError> {
+fn native_date(_args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     use chrono::{Local, Datelike};
     
     let now = Local::now();
@@ -85,13 +85,13 @@ fn native_date(_args: &[RuntimeValue], _manager: &crate::native_modules::NativeM
         now.day()
     );
     
-    Ok(RuntimeValue::String(formatted))
+    Ok(Value::String(formatted))
 }
 
 /// Retorna a hora atual no formato "HH:MM:SS"
 /// Entrada: nenhum
 /// Retorna: uma string representando a hora atual
-fn native_time(_args: &[RuntimeValue], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<RuntimeValue, RuntimeError> {
+fn native_time(_args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     use chrono::{Local, Timelike};
     
     let now = Local::now();
@@ -101,19 +101,19 @@ fn native_time(_args: &[RuntimeValue], _manager: &crate::native_modules::NativeM
         now.second()
     );
     
-    Ok(RuntimeValue::String(formatted))
+    Ok(Value::String(formatted))
 }
 
 /// Formata a data atual de acordo com o formato especificado
 /// Entrada: uma string representando o formato (ex: "YYYY-MM-DD HH:mm:ss")
 /// Retorna: uma string com a data formatada
-fn native_format_date(args: &[RuntimeValue], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<RuntimeValue, RuntimeError> {
+fn native_format_date(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.len() != 1 {
         return Err(RuntimeError::ArgumentError("native_format_date requer exatamente 1 argumento".to_string()));
     }
 
     let format_str = match &args[0] {
-        RuntimeValue::String(s) => s,
+        Value::String(s) => s,
         _ => return Err(RuntimeError::TypeError("Formato deve ser uma string".to_string())),
     };
 
@@ -162,14 +162,14 @@ fn native_format_date(args: &[RuntimeValue], _manager: &crate::native_modules::N
     result = result.replace("A", ampm);
     result = result.replace("a", &ampm.to_lowercase());
     
-    Ok(RuntimeValue::String(result))
+    Ok(Value::String(result))
 }
 
 /// Retorna o tempo de execução do programa em milissegundos
 /// Entrada: nenhum
 /// Retorna: um número inteiro representando o tempo de execução
-fn native_uptime(_args: &[RuntimeValue], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<RuntimeValue, RuntimeError> {
+fn native_uptime(_args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     let start = get_start_time();
     let elapsed = start.elapsed();
-    Ok(RuntimeValue::Number(elapsed.as_millis() as f64))
+    Ok(Value::Number(elapsed.as_millis() as f64))
 }

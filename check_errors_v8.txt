@@ -1,0 +1,513 @@
+warning: unused variable: `index_expr`
+   --> crates\dryad_parser\src\parser.rs:171:33
+    |
+171 | ...         let index_expr = self.expression...
+    |                 ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_index_expr`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `dryad_parser` (lib) generated 1 warning (run `cargo fix --lib -p dryad_parser` to apply 1 suggestion)
+    Checking dryad_runtime v0.1.0 (C:\Users\Pedro Jesus\Downloads\source-main\source-main\crates\dryad_runtime)
+error[E0432]: unresolved import `dryad_errors::RuntimeError`
+ --> crates\dryad_runtime\src\native_registry.rs:5:5
+  |
+5 | use dryad_errors::RuntimeError;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^ no `RuntimeError` in the root
+  |
+help: consider importing this enum instead
+  |
+5 - use dryad_errors::RuntimeError;
+5 + use crate::errors::RuntimeError;
+  |
+
+warning: unused import: `crate::native_modules::NativeModuleManager`
+ --> crates\dryad_runtime\src\interpreter.rs:6:5
+  |
+6 | use crate::native_modules::NativeModuleManager;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused import: `Value as JsonValue`
+  --> crates\dryad_runtime\src\interpreter.rs:13:24
+   |
+13 | use serde_json::{self, Value as JsonValue};
+   |                        ^^^^^^^^^^^^^^^^^^
+
+warning: unused imports: `Arc` and `Mutex`
+  --> crates\dryad_runtime\src\interpreter.rs:14:17
+   |
+14 | use std::sync::{Arc, Mutex};
+   |                 ^^^  ^^^^^
+
+warning: unused import: `HeapId`
+ --> crates\dryad_runtime\src\native_modules\encode_decode.rs:4:40
+  |
+4 | use crate::heap::{Heap, ManagedObject, HeapId};
+  |                                        ^^^^^^
+
+warning: unused import: `HeapId`
+  --> crates\dryad_runtime\src\native_modules\mod.rs:24:25
+   |
+24 | use crate::heap::{Heap, HeapId};
+   |                         ^^^^^^
+
+warning: unused import: `std::fs`
+ --> crates\dryad_runtime\src\resolver.rs:3:5
+  |
+3 | use std::fs;
+  |     ^^^^^^^
+
+warning: unused import: `Expr`
+ --> crates\dryad_runtime\src\value.rs:1:31
+  |
+1 | use dryad_parser::ast::{Stmt, Expr, Visibility};
+  |                               ^^^^
+
+warning: unused import: `std::collections::HashMap`
+ --> crates\dryad_runtime\src\value.rs:2:5
+  |
+2 | use std::collections::HashMap;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::value::Value`
+ --> crates\dryad_runtime\src\debug.rs:4:5
+  |
+4 | use crate::value::Value;
+  |     ^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::net::SocketAddr`
+ --> crates\dryad_runtime\src\debug_server.rs:1:5
+  |
+1 | use std::net::SocketAddr;
+  |     ^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::sync::Arc`
+ --> crates\dryad_runtime\src\debug_server.rs:2:5
+  |
+2 | use std::sync::Arc;
+  |     ^^^^^^^^^^^^^^
+
+warning: unused import: `AsyncReadExt`
+ --> crates\dryad_runtime\src\debug_server.rs:4:17
+  |
+4 | use tokio::io::{AsyncReadExt, AsyncWriteExt};
+  |                 ^^^^^^^^^^^^
+
+warning: unused import: `DebugEvent`
+ --> crates\dryad_runtime\src\debug_server.rs:5:52
+  |
+5 | use crate::debug::{SharedDebugState, DebugCommand, DebugEvent};
+  |                                                    ^^^^^^^^^^
+
+error[E0609]: no field `variables` on type `&Interpreter`
+   --> crates\dryad_runtime\src\interpreter.rs:267:34
+    |
+267 |         for (name, val) in &self.variables {
+    |                                  ^^^^^^^^^ unknown field
+    |
+help: one of the expressions' fields has a field of the same name
+    |
+267 |         for (name, val) in &self.env.variables {
+    |                                  ++++
+
+error[E0282]: type annotations needed
+   --> crates\dryad_runtime\src\interpreter.rs:268:25
+    |
+268 |             vars.insert(name.clone(), val.to_string());
+    |                         ^^^^ cannot infer type
+
+error[E0282]: type annotations needed
+   --> crates\dryad_runtime\src\interpreter.rs:268:39
+    |
+268 |             vars.insert(name.clone(), val.to_string());
+    |                                       ^^^ cannot infer type
+
+error[E0609]: no field `constants` on type `&Interpreter`
+   --> crates\dryad_runtime\src\interpreter.rs:270:34
+    |
+270 |         for (name, val) in &self.constants {
+    |                                  ^^^^^^^^^ unknown field
+    |
+help: one of the expressions' fields has a field of the same name
+    |
+270 |         for (name, val) in &self.env.constants {
+    |                                  ++++
+
+error[E0282]: type annotations needed
+   --> crates\dryad_runtime\src\interpreter.rs:271:25
+    |
+271 |             vars.insert(name.clone(), val.to_string());
+    |                         ^^^^ cannot infer type
+
+error[E0282]: type annotations needed
+   --> crates\dryad_runtime\src\interpreter.rs:271:39
+    |
+271 |             vars.insert(name.clone(), val.to_string());
+    |                                       ^^^ cannot infer type
+
+error[E0609]: no field `current_instance` on type `&mut Interpreter`
+   --> crates\dryad_runtime\src\interpreter.rs:678:47
+    |
+678 |                 if let Some(instance) = &self.current_instance {
+    |                                               ^^^^^^^^^^^^^^^^ unknown field
+    |
+help: one of the expressions' fields has a field of the same name
+    |
+678 |                 if let Some(instance) = &self.env.current_instance {
+    |                                               ++++
+
+error[E0282]: type annotations needed
+   --> crates\dryad_runtime\src\interpreter.rs:679:24
+    |
+679 |                     Ok(instance.clone())
+    |                        ^^^^^^^^ cannot infer type
+
+error[E0609]: no field `variables` on type `&Interpreter`
+   --> crates\dryad_runtime\src\interpreter.rs:724:14
+    |
+724 |         self.variables
+    |              ^^^^^^^^^ unknown field
+    |
+help: one of the expressions' fields has a field of the same name
+    |
+724 |         self.env.variables
+    |              ++++
+
+error[E0609]: no field `native_modules` on type `&mut Interpreter`
+   --> crates\dryad_runtime\src\interpreter.rs:811:51
+    |
+811 |             return native_func(&arg_values, &self.native_modules, &mut self.heap).map_err(|e| {
+    |                                                   ^^^^^^^^^^^^^^ unknown field
+    |
+    = note: available fields are: `env`, `heap`, `native_registry`, `debug_state`, `current_file_path` ... and 9 others
+
+error[E0609]: no field `native_modules` on type `&mut Interpreter`
+   --> crates\dryad_runtime\src\interpreter.rs:828:63
+    |
+828 |              let future = async_native_func(arg_values, &self.native_modules, &mut self.heap);
+    |                                                               ^^^^^^^^^^^^^^ unknown field
+    |
+    = note: available fields are: `env`, `heap`, `native_registry`, `debug_state`, `current_file_path` ... and 9 others
+
+error[E0609]: no field `variables` on type `&mut Interpreter`
+   --> crates\dryad_runtime\src\interpreter.rs:945:18
+    |
+945 |             self.variables = saved;
+    |                  ^^^^^^^^^ unknown field
+    |
+help: one of the expressions' fields has a field of the same name
+    |
+945 |             self.env.variables = saved;
+    |                  ++++
+
+error[E0609]: no field `variables` on type `&mut Interpreter`
+   --> crates\dryad_runtime\src\interpreter.rs:982:14
+    |
+982 |         self.variables = closure;
+    |              ^^^^^^^^^ unknown field
+    |
+help: one of the expressions' fields has a field of the same name
+    |
+982 |         self.env.variables = closure;
+    |              ++++
+
+error[E0609]: no field `variables` on type `&mut Interpreter`
+   --> crates\dryad_runtime\src\interpreter.rs:994:18
+    |
+994 |             self.variables = saved;
+    |                  ^^^^^^^^^ unknown field
+    |
+help: one of the expressions' fields has a field of the same name
+    |
+994 |             self.env.variables = saved;
+    |                  ++++
+
+error[E0609]: no field `current_instance` on type `&mut Interpreter`
+    --> crates\dryad_runtime\src\interpreter.rs:1811:30
+     |
+1811 |                         self.current_instance = None;
+     |                              ^^^^^^^^^^^^^^^^ unknown field
+     |
+help: one of the expressions' fields has a field of the same name
+     |
+1811 |                         self.env.current_instance = None;
+     |                              ++++
+
+error[E0609]: no field `variables` on type `&mut Interpreter`
+    --> crates\dryad_runtime\src\interpreter.rs:1828:30
+     |
+1828 |                         self.variables = saved_vars;
+     |                              ^^^^^^^^^ unknown field
+     |
+help: one of the expressions' fields has a field of the same name
+     |
+1828 |                         self.env.variables = saved_vars;
+     |                              ++++
+
+error[E0609]: no field `current_instance` on type `&mut Interpreter`
+    --> crates\dryad_runtime\src\interpreter.rs:1829:30
+     |
+1829 |                         self.current_instance = saved_instance;
+     |                              ^^^^^^^^^^^^^^^^ unknown field
+     |
+help: one of the expressions' fields has a field of the same name
+     |
+1829 |                         self.env.current_instance = saved_instance;
+     |                              ++++
+
+error[E0609]: no field `current_instance` on type `&mut Interpreter`
+    --> crates\dryad_runtime\src\interpreter.rs:1875:38
+     |
+1875 | ...                   self.current_instance = Some(Value::Instance(id));
+     |                            ^^^^^^^^^^^^^^^^ unknown field
+     |
+help: one of the expressions' fields has a field of the same name
+     |
+1875 |                                 self.env.current_instance = Some(Value::Instance(id));
+     |                                      ++++
+
+error[E0609]: no field `variables` on type `&mut Interpreter`
+    --> crates\dryad_runtime\src\interpreter.rs:1892:38
+     |
+1892 | ...                   self.variables = saved_vars;
+     |                            ^^^^^^^^^ unknown field
+     |
+help: one of the expressions' fields has a field of the same name
+     |
+1892 |                                 self.env.variables = saved_vars;
+     |                                      ++++
+
+error[E0609]: no field `current_instance` on type `&mut Interpreter`
+    --> crates\dryad_runtime\src\interpreter.rs:1893:38
+     |
+1893 | ...                   self.current_instance = saved_instance;
+     |                            ^^^^^^^^^^^^^^^^ unknown field
+     |
+help: one of the expressions' fields has a field of the same name
+     |
+1893 |                                 self.env.current_instance = saved_instance;
+     |                                      ++++
+
+error[E0609]: no field `current_instance` on type `&mut Interpreter`
+    --> crates\dryad_runtime\src\interpreter.rs:1934:30
+     |
+1934 |                         self.current_instance = Some(Value::Object(id));
+     |                              ^^^^^^^^^^^^^^^^ unknown field
+     |
+help: one of the expressions' fields has a field of the same name
+     |
+1934 |                         self.env.current_instance = Some(Value::Object(id));
+     |                              ++++
+
+error[E0609]: no field `variables` on type `&mut Interpreter`
+    --> crates\dryad_runtime\src\interpreter.rs:1951:30
+     |
+1951 |                         self.variables = saved_vars;
+     |                              ^^^^^^^^^ unknown field
+     |
+help: one of the expressions' fields has a field of the same name
+     |
+1951 |                         self.env.variables = saved_vars;
+     |                              ++++
+
+error[E0609]: no field `current_instance` on type `&mut Interpreter`
+    --> crates\dryad_runtime\src\interpreter.rs:1952:30
+     |
+1952 |                         self.current_instance = saved_instance;
+     |                              ^^^^^^^^^^^^^^^^ unknown field
+     |
+help: one of the expressions' fields has a field of the same name
+     |
+1952 |                         self.env.current_instance = saved_instance;
+     |                              ++++
+
+error[E0609]: no field `variables` on type `&mut Interpreter`
+    --> crates\dryad_runtime\src\interpreter.rs:1986:38
+     |
+1986 | ...                   self.variables = saved_vars;
+     |                            ^^^^^^^^^ unknown field
+     |
+help: one of the expressions' fields has a field of the same name
+     |
+1986 |                                 self.env.variables = saved_vars;
+     |                                      ++++
+
+error[E0609]: no field `current_instance` on type `&mut Interpreter`
+    --> crates\dryad_runtime\src\interpreter.rs:2162:26
+     |
+2162 |                     self.current_instance = Some(instance.clone());
+     |                          ^^^^^^^^^^^^^^^^ unknown field
+     |
+help: one of the expressions' fields has a field of the same name
+     |
+2162 |                     self.env.current_instance = Some(instance.clone());
+     |                          ++++
+
+error[E0609]: no field `variables` on type `&mut Interpreter`
+    --> crates\dryad_runtime\src\interpreter.rs:2177:42
+     |
+2177 | ...                   self.variables = saved;
+     |                            ^^^^^^^^^ unknown field
+     |
+help: one of the expressions' fields has a field of the same name
+     |
+2177 |                                     self.env.variables = saved;
+     |                                          ++++
+
+error[E0609]: no field `current_instance` on type `&mut Interpreter`
+    --> crates\dryad_runtime\src\interpreter.rs:2179:38
+     |
+2179 | ...                   self.current_instance = saved_instance;
+     |                            ^^^^^^^^^^^^^^^^ unknown field
+     |
+help: one of the expressions' fields has a field of the same name
+     |
+2179 |                                 self.env.current_instance = saved_instance;
+     |                                      ++++
+
+error[E0609]: no field `variables` on type `&mut Interpreter`
+    --> crates\dryad_runtime\src\interpreter.rs:2187:30
+     |
+2187 |                         self.variables = saved;
+     |                              ^^^^^^^^^ unknown field
+     |
+help: one of the expressions' fields has a field of the same name
+     |
+2187 |                         self.env.variables = saved;
+     |                              ++++
+
+error[E0609]: no field `current_instance` on type `&mut Interpreter`
+    --> crates\dryad_runtime\src\interpreter.rs:2189:26
+     |
+2189 |                     self.current_instance = saved_instance;
+     |                          ^^^^^^^^^^^^^^^^ unknown field
+     |
+help: one of the expressions' fields has a field of the same name
+     |
+2189 |                     self.env.current_instance = saved_instance;
+     |                          ++++
+
+error[E0609]: no field `variables` on type `&mut Interpreter`
+    --> crates\dryad_runtime\src\interpreter.rs:2250:26
+     |
+2250 |                     self.variables = backup;
+     |                          ^^^^^^^^^ unknown field
+     |
+help: one of the expressions' fields has a field of the same name
+     |
+2250 |                     self.env.variables = backup;
+     |                          ++++
+
+error[E0609]: no field `variables` on type `&mut Interpreter`
+    --> crates\dryad_runtime\src\interpreter.rs:2265:26
+     |
+2265 |                     self.variables = backup;
+     |                          ^^^^^^^^^ unknown field
+     |
+help: one of the expressions' fields has a field of the same name
+     |
+2265 |                     self.env.variables = backup;
+     |                          ++++
+
+error[E0609]: no field `variables` on type `Interpreter`
+    --> crates\dryad_runtime\src\interpreter.rs:2433:36
+     |
+2433 |                     thread_context.variables.insert(param.clone(), arg.clone());
+     |                                    ^^^^^^^^^ unknown field
+     |
+help: one of the expressions' fields has a field of the same name
+     |
+2433 |                     thread_context.env.variables.insert(param.clone(), arg.clone());
+     |                                    ++++
+
+error[E0609]: no field `variables` on type `&mut Interpreter`
+    --> crates\dryad_runtime\src\interpreter.rs:2568:18
+     |
+2568 |             self.variables = saved;
+     |                  ^^^^^^^^^ unknown field
+     |
+help: one of the expressions' fields has a field of the same name
+     |
+2568 |             self.env.variables = saved;
+     |                  ++++
+
+error[E0609]: no field `classes` on type `&mut Interpreter`
+    --> crates\dryad_runtime\src\interpreter.rs:2570:14
+     |
+2570 |         self.classes = original_classes;
+     |              ^^^^^^^ unknown field
+     |
+help: one of the expressions' fields has a field of the same name
+     |
+2570 |         self.env.classes = original_classes;
+     |              ++++
+
+error[E0599]: no method named `call_function` found for struct `NativeModuleManager` in the current scope
+   --> crates\dryad_runtime\src\native_registry.rs:24:22
+    |
+ 24 |         self.manager.call_function(name, args, heap)
+    |                      ^^^^^^^^^^^^^
+    |
+   ::: crates\dryad_runtime\src\native_modules\mod.rs:38:1
+    |
+ 38 | pub struct NativeModuleManager {
+    | ------------------------------ method `call_function` not found for this struct
+    |
+help: there is a method `get_function` with a similar name, but with different arguments
+   --> crates\dryad_runtime\src\native_modules\mod.rs:171:5
+    |
+171 |     pub fn get_function(&self, function_name: &str) -> Option<NativeFunction> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0599]: no method named `get_registered_functions` found for struct `NativeModuleManager` in the current scope
+   --> crates\dryad_runtime\src\native_registry.rs:36:22
+    |
+ 36 |         self.manager.get_registered_functions()
+    |                      ^^^^^^^^^^^^^^^^^^^^^^^^
+    |
+   ::: crates\dryad_runtime\src\native_modules\mod.rs:38:1
+    |
+ 38 | pub struct NativeModuleManager {
+    | ------------------------------ method `get_registered_functions` not found for this struct
+    |
+help: there is a method `get_function` with a similar name, but with different arguments
+   --> crates\dryad_runtime\src\native_modules\mod.rs:171:5
+    |
+171 |     pub fn get_function(&self, function_name: &str) -> Option<NativeFunction> {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused variable: `is_async`
+   --> crates\dryad_runtime\src\interpreter.rs:569:70
+    |
+569 |                         ClassMember::Method { visibility, is_static, is_async, name: method_name, params, body, .. } => {
+    |                                                                      ^^^^^^^^ help: try ignoring the field: `is_async: _`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `id`
+    --> crates\dryad_runtime\src\interpreter.rs:2383:30
+     |
+2383 |             Value::Promise { id, resolved: true, value: Some(val) } => Ok(*val),
+     |                              ^^ help: try ignoring the field: `id: _`
+
+warning: variable does not need to be mutable
+    --> crates\dryad_runtime\src\interpreter.rs:2984:21
+     |
+2984 |                 let mut idx = if start_index >= 0 { 
+     |                     ----^^^
+     |                     |
+     |                     help: remove this `mut`
+     |
+     = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `buffer`
+   --> crates\dryad_runtime\src\native_modules\tcp.rs:102:9
+    |
+102 |     let buffer = [0; 1024];
+    |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_buffer`
+
+Some errors have detailed explanations: E0282, E0432, E0599, E0609.
+For more information about an error, try `rustc --explain E0282`.
+warning: `dryad_runtime` (lib) generated 17 warnings
+error: could not compile `dryad_runtime` (lib) due to 37 previous errors; 17 warnings emitted

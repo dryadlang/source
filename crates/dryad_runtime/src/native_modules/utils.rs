@@ -1,6 +1,7 @@
-use crate::interpreter::RuntimeValue;
+use crate::interpreter::Value;
 use crate::native_modules::NativeFunction;
 use crate::errors::RuntimeError;
+use crate::heap::{Heap, ManagedObject};
 use std::collections::HashMap;
 use regex::Regex;
 use rand::{RngCore, SeedableRng, Rng};
@@ -39,40 +40,33 @@ pub fn register_utils_functions(functions: &mut HashMap<String, NativeFunction>)
 
 /// native_eval(code) -> valor
 /// Executa código Dryad dinâmico passado como string
-fn native_eval(args: &[RuntimeValue], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<RuntimeValue, RuntimeError> {
+fn native_eval(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.len() != 1 {
         return Err(RuntimeError::ArgumentError("native_eval: esperado 1 argumento (código)".to_string()));
     }
     
     let code = match &args[0] {
-        RuntimeValue::String(s) => s,
+        Value::String(s) => s,
         _ => return Err(RuntimeError::TypeError("native_eval: argumento deve ser string".to_string())),
     };
     
     // NOTA: Esta é uma implementação simplificada
-    // Em uma implementação real, seria necessário ter acesso ao parser e interpretador
-    // Por enquanto, simulamos alguns comandos básicos
-    
-    // Verifica se é uma expressão matemática simples
     if let Ok(result) = evaluate_simple_expression(code) {
-        return Ok(RuntimeValue::Number(result));
+        return Ok(Value::Number(result));
     }
     
-    // Verifica se é uma string literal
     if code.starts_with('"') && code.ends_with('"') && code.len() >= 2 {
         let string_content = &code[1..code.len()-1];
-        return Ok(RuntimeValue::String(string_content.to_string()));
+        return Ok(Value::String(string_content.to_string()));
     }
     
-    // Verifica se é um valor booleano
     match code.trim() {
-        "true" => return Ok(RuntimeValue::Bool(true)),
-        "false" => return Ok(RuntimeValue::Bool(false)),
-        "null" => return Ok(RuntimeValue::Null),
+        "true" => return Ok(Value::Bool(true)),
+        "false" => return Ok(Value::Bool(false)),
+        "null" => return Ok(Value::Null),
         _ => {}
     }
     
-    // Se não conseguir avaliar, retorna erro
     Err(RuntimeError::Generic(format!("native_eval: não foi possível avaliar o código: {}", code)))
 }
 
@@ -80,7 +74,6 @@ fn native_eval(args: &[RuntimeValue], _manager: &crate::native_modules::NativeMo
 fn evaluate_simple_expression(expr: &str) -> Result<f64, ()> {
     let expr = expr.trim();
     
-    // Operações básicas
     if let Some(pos) = expr.rfind(" + ") {
         let left = evaluate_simple_expression(&expr[..pos])?;
         let right = evaluate_simple_expression(&expr[pos + 3..])?;
@@ -107,7 +100,6 @@ fn evaluate_simple_expression(expr: &str) -> Result<f64, ()> {
         }
     }
     
-    // Número simples
     expr.parse::<f64>().map_err(|_| ())
 }
 
@@ -117,55 +109,55 @@ fn evaluate_simple_expression(expr: &str) -> Result<f64, ()> {
 
 /// native_clone(obj) -> objeto
 /// Cria uma cópia profunda de um objeto
-fn native_clone(args: &[RuntimeValue], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<RuntimeValue, RuntimeError> {
+fn native_clone(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.len() != 1 {
         return Err(RuntimeError::ArgumentError("native_clone: esperado 1 argumento".to_string()));
     }
     
-    Ok(deep_clone(&args[0]))
+    deep_clone(&args[0], _heap)
 }
 
 /// Implementa clonagem profunda recursiva
-fn deep_clone(value: &RuntimeValue) -> RuntimeValue {
+fn deep_clone(value: &Value, heap: &mut Heap) -> Result<Value, RuntimeError> {
     match value {
-        RuntimeValue::String(s) => RuntimeValue::String(s.clone()),
-        RuntimeValue::Number(n) => RuntimeValue::Number(*n),
-        RuntimeValue::Bool(b) => RuntimeValue::Bool(*b),
-        RuntimeValue::Null => RuntimeValue::Null,
-        RuntimeValue::Array(arr) => {
-            let cloned_array: Vec<RuntimeValue> = arr.iter()
-                .map(|item| deep_clone(item))
-                .collect();
-            RuntimeValue::Array(cloned_array)
+        Value::String(s) => Ok(Value::String(s.clone())),
+        Value::Number(n) => Ok(Value::Number(*n)),
+        Value::Bool(b) => Ok(Value::Bool(*b)),
+        Value::Null => Ok(Value::Null),
+        Value::Array(id) => {
+            let obj = heap.get(*id).ok_or_else(|| RuntimeError::HeapError("Array reference not found".to_string()))?;
+            let elements = if let ManagedObject::Array(arr) = obj {
+                arr.clone()
+            } else {
+                return Err(RuntimeError::TypeError("Expected array in heap".to_string()));
+            };
+            
+            let mut cloned_elements = Vec::new();
+            for item in elements {
+                cloned_elements.push(deep_clone(&item, heap)?);
+            }
+            let new_id = heap.allocate(ManagedObject::Array(cloned_elements));
+            Ok(Value::Array(new_id))
         },
-        RuntimeValue::Tuple(tuple) => {
-            let cloned_tuple: Vec<RuntimeValue> = tuple.iter()
-                .map(|item| deep_clone(item))
-                .collect();
-            RuntimeValue::Tuple(cloned_tuple)
-        },
-        RuntimeValue::Object { properties, methods } => {
+        Value::Object(id) => {
+            let obj = heap.get(*id).ok_or_else(|| RuntimeError::HeapError("Object reference not found".to_string()))?;
+            let (properties, methods) = if let ManagedObject::Object { properties, methods } = obj {
+                (properties.clone(), methods.clone())
+            } else {
+                return Err(RuntimeError::TypeError("Expected object in heap".to_string()));
+            };
+            
             let mut cloned_properties = HashMap::new();
             for (key, val) in properties {
-                cloned_properties.insert(key.clone(), deep_clone(val));
+                cloned_properties.insert(key.clone(), deep_clone(&val, heap)?);
             }
-            RuntimeValue::Object {
+            let new_id = heap.allocate(ManagedObject::Object {
                 properties: cloned_properties,
-                methods: methods.clone(), // Métodos são copiados como referência
-            }
+                methods, // Métodos são copiados como referência
+            });
+            Ok(Value::Object(new_id))
         },
-        RuntimeValue::Instance { class_name, properties } => {
-            let mut cloned_properties = HashMap::new();
-            for (key, val) in properties {
-                cloned_properties.insert(key.clone(), deep_clone(val));
-            }
-            RuntimeValue::Instance {
-                class_name: class_name.clone(),
-                properties: cloned_properties,
-            }
-        },
-        // Para outros tipos, faça uma cópia simples
-        _ => value.clone(),
+        _ => Ok(value.clone()),
     }
 }
 
@@ -175,13 +167,13 @@ fn deep_clone(value: &RuntimeValue) -> RuntimeValue {
 
 /// native_watch_file(path) -> id
 /// Observa mudanças em um arquivo em tempo real
-fn native_watch_file(args: &[RuntimeValue], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<RuntimeValue, RuntimeError> {
+fn native_watch_file(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.len() != 1 {
         return Err(RuntimeError::ArgumentError("native_watch_file: esperado 1 argumento (path)".to_string()));
     }
 
     let path = match &args[0] {
-        RuntimeValue::String(s) => s,
+        Value::String(s) => s,
         _ => return Err(RuntimeError::TypeError("native_watch_file: argumento deve ser string".to_string())),
     };
 
@@ -189,7 +181,6 @@ fn native_watch_file(args: &[RuntimeValue], _manager: &crate::native_modules::Na
         return Err(RuntimeError::IoError(format!("Arquivo não encontrado: {}", path)));
     }
 
-    // Gera um ID único para o watcher
     let mut counter = WATCHER_COUNTER.lock().unwrap();
     *counter += 1;
     let watcher_id = *counter;
@@ -216,7 +207,7 @@ fn native_watch_file(args: &[RuntimeValue], _manager: &crate::native_modules::Na
         }
     });
 
-    Ok(RuntimeValue::Number(watcher_id as f64))
+    Ok(Value::Number(watcher_id as f64))
 }
 
 // ============================================
@@ -224,19 +215,18 @@ fn native_watch_file(args: &[RuntimeValue], _manager: &crate::native_modules::Na
 // ============================================
 
 /// native_random_int(min, max) -> número
-/// Gera um número inteiro aleatório entre min e max (inclusive)
-fn native_random_int(args: &[RuntimeValue], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<RuntimeValue, RuntimeError> {
+fn native_random_int(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.len() != 2 {
         return Err(RuntimeError::ArgumentError("native_random_int: esperado 2 argumentos (min, max)".to_string()));
     }
     
     let min = match &args[0] {
-        RuntimeValue::Number(n) => *n as i64,
+        Value::Number(n) => *n as i64,
         _ => return Err(RuntimeError::TypeError("native_random_int: primeiro argumento deve ser número".to_string())),
     };
     
     let max = match &args[1] {
-        RuntimeValue::Number(n) => *n as i64,
+        Value::Number(n) => *n as i64,
         _ => return Err(RuntimeError::TypeError("native_random_int: segundo argumento deve ser número".to_string())),
     };
     
@@ -247,23 +237,22 @@ fn native_random_int(args: &[RuntimeValue], _manager: &crate::native_modules::Na
     let mut rng = RNG.lock().unwrap();
     let random_int = rng.gen_range(min..=max);
     
-    Ok(RuntimeValue::Number(random_int as f64))
+    Ok(Value::Number(random_int as f64))
 }
 
 /// native_random_float(min, max) -> número
-/// Gera um número de ponto flutuante aleatório entre min e max
-fn native_random_float(args: &[RuntimeValue], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<RuntimeValue, RuntimeError> {
+fn native_random_float(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.len() != 2 {
         return Err(RuntimeError::ArgumentError("native_random_float: esperado 2 argumentos (min, max)".to_string()));
     }
     
     let min = match &args[0] {
-        RuntimeValue::Number(n) => *n,
+        Value::Number(n) => *n,
         _ => return Err(RuntimeError::TypeError("native_random_float: primeiro argumento deve ser número".to_string())),
     };
     
     let max = match &args[1] {
-        RuntimeValue::Number(n) => *n,
+        Value::Number(n) => *n,
         _ => return Err(RuntimeError::TypeError("native_random_float: segundo argumento deve ser número".to_string())),
     };
     
@@ -274,18 +263,17 @@ fn native_random_float(args: &[RuntimeValue], _manager: &crate::native_modules::
     let mut rng = RNG.lock().unwrap();
     let random_float = rng.gen_range(min..=max);
     
-    Ok(RuntimeValue::Number(random_float))
+    Ok(Value::Number(random_float))
 }
 
 /// native_random_string(length, charset) -> string
-/// Gera uma string aleatória com charset específico
-fn native_random_string(args: &[RuntimeValue], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<RuntimeValue, RuntimeError> {
+fn native_random_string(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.len() != 2 {
         return Err(RuntimeError::ArgumentError("native_random_string: esperado 2 argumentos (length, charset)".to_string()));
     }
     
     let length = match &args[0] {
-        RuntimeValue::Number(n) => {
+        Value::Number(n) => {
             if *n < 0.0 {
                 return Err(RuntimeError::ArgumentError("native_random_string: comprimento deve ser não-negativo".to_string()));
             }
@@ -295,7 +283,7 @@ fn native_random_string(args: &[RuntimeValue], _manager: &crate::native_modules:
     };
     
     let charset = match &args[1] {
-        RuntimeValue::String(s) => s,
+        Value::String(s) => s,
         _ => return Err(RuntimeError::TypeError("native_random_string: segundo argumento deve ser string".to_string())),
     };
     
@@ -316,18 +304,17 @@ fn native_random_string(args: &[RuntimeValue], _manager: &crate::native_modules:
         result.push(charset_chars[idx]);
     }
     
-    Ok(RuntimeValue::String(result))
+    Ok(Value::String(result))
 }
 
 /// native_random_bytes(length) -> array
-/// Gera um array de bytes aleatórios
-fn native_random_bytes(args: &[RuntimeValue], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<RuntimeValue, RuntimeError> {
+fn native_random_bytes(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.len() != 1 {
         return Err(RuntimeError::ArgumentError("native_random_bytes: esperado 1 argumento (length)".to_string()));
     }
     
     let length = match &args[0] {
-        RuntimeValue::Number(n) => {
+        Value::Number(n) => {
             if *n < 0.0 {
                 return Err(RuntimeError::ArgumentError("native_random_bytes: comprimento deve ser não-negativo".to_string()));
             }
@@ -344,24 +331,23 @@ fn native_random_bytes(args: &[RuntimeValue], _manager: &crate::native_modules::
     let mut bytes = vec![0u8; length];
     rng.fill_bytes(&mut bytes);
     
-    let runtime_bytes: Vec<RuntimeValue> = bytes.into_iter()
-        .map(|b| RuntimeValue::Number(b as f64))
+    let runtime_bytes: Vec<Value> = bytes.into_iter()
+        .map(|b| Value::Number(b as f64))
         .collect();
     
-    Ok(RuntimeValue::Array(runtime_bytes))
+    let id = _heap.allocate(ManagedObject::Array(runtime_bytes));
+    Ok(Value::Array(id))
 }
 
 /// native_random_seed(seed) -> null
-/// Define a semente do gerador de números aleatórios
-fn native_random_seed(args: &[RuntimeValue], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<RuntimeValue, RuntimeError> {
+fn native_random_seed(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.len() != 1 {
         return Err(RuntimeError::ArgumentError("native_random_seed: esperado 1 argumento (seed)".to_string()));
     }
     
     let seed = match &args[0] {
-        RuntimeValue::Number(n) => *n as u64,
-        RuntimeValue::String(s) => {
-            // Usa hash da string como seed
+        Value::Number(n) => *n as u64,
+        Value::String(s) => {
             use std::collections::hash_map::DefaultHasher;
             use std::hash::{Hash, Hasher};
             let mut hasher = DefaultHasher::new();
@@ -371,11 +357,10 @@ fn native_random_seed(args: &[RuntimeValue], _manager: &crate::native_modules::N
         _ => return Err(RuntimeError::TypeError("native_random_seed: argumento deve ser número ou string".to_string())),
     };
     
-    // Reinicializa o RNG com nova seed
     let mut rng_lock = RNG.lock().unwrap();
     *rng_lock = ChaCha20Rng::seed_from_u64(seed);
     
-    Ok(RuntimeValue::Null)
+    Ok(Value::Null)
 }
 
 // ============================================
@@ -383,19 +368,18 @@ fn native_random_seed(args: &[RuntimeValue], _manager: &crate::native_modules::N
 // ============================================
 
 /// native_regex_match(pattern, string) -> array ou null
-/// Verifica correspondência de regex e retorna grupos capturados
-fn native_regex_match(args: &[RuntimeValue], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<RuntimeValue, RuntimeError> {
+fn native_regex_match(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.len() != 2 {
         return Err(RuntimeError::ArgumentError("native_regex_match: esperado 2 argumentos (pattern, string)".to_string()));
     }
     
     let pattern = match &args[0] {
-        RuntimeValue::String(s) => s,
+        Value::String(s) => s,
         _ => return Err(RuntimeError::TypeError("native_regex_match: primeiro argumento deve ser string".to_string())),
     };
     
     let text = match &args[1] {
-        RuntimeValue::String(s) => s,
+        Value::String(s) => s,
         _ => return Err(RuntimeError::TypeError("native_regex_match: segundo argumento deve ser string".to_string())),
     };
     
@@ -404,23 +388,22 @@ fn native_regex_match(args: &[RuntimeValue], _manager: &crate::native_modules::N
             if let Some(captures) = re.captures(text) {
                 let mut groups = Vec::new();
                 
-                // Adiciona o match completo
                 if let Some(full_match) = captures.get(0) {
-                    groups.push(RuntimeValue::String(full_match.as_str().to_string()));
+                    groups.push(Value::String(full_match.as_str().to_string()));
                 }
                 
-                // Adiciona grupos capturados
                 for i in 1..captures.len() {
                     if let Some(group) = captures.get(i) {
-                        groups.push(RuntimeValue::String(group.as_str().to_string()));
+                        groups.push(Value::String(group.as_str().to_string()));
                     } else {
-                        groups.push(RuntimeValue::Null);
+                        groups.push(Value::Null);
                     }
                 }
                 
-                Ok(RuntimeValue::Array(groups))
+                let id = _heap.allocate(ManagedObject::Array(groups));
+                Ok(Value::Array(id))
             } else {
-                Ok(RuntimeValue::Null)
+                Ok(Value::Null)
             }
         },
         Err(e) => Err(RuntimeError::Generic(format!("Erro no padrão regex: {}", e))),
@@ -428,83 +411,81 @@ fn native_regex_match(args: &[RuntimeValue], _manager: &crate::native_modules::N
 }
 
 /// native_regex_replace(pattern, replacement, string) -> string
-/// Substitui ocorrências de regex em uma string
-fn native_regex_replace(args: &[RuntimeValue], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<RuntimeValue, RuntimeError> {
+fn native_regex_replace(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.len() != 3 {
         return Err(RuntimeError::ArgumentError("native_regex_replace: esperado 3 argumentos (pattern, replacement, string)".to_string()));
     }
     
     let pattern = match &args[0] {
-        RuntimeValue::String(s) => s,
+        Value::String(s) => s,
         _ => return Err(RuntimeError::TypeError("native_regex_replace: primeiro argumento deve ser string".to_string())),
     };
     
     let replacement = match &args[1] {
-        RuntimeValue::String(s) => s,
+        Value::String(s) => s,
         _ => return Err(RuntimeError::TypeError("native_regex_replace: segundo argumento deve ser string".to_string())),
     };
     
     let text = match &args[2] {
-        RuntimeValue::String(s) => s,
+        Value::String(s) => s,
         _ => return Err(RuntimeError::TypeError("native_regex_replace: terceiro argumento deve ser string".to_string())),
     };
     
     match Regex::new(pattern) {
         Ok(re) => {
             let result = re.replace_all(text, replacement.as_str()).to_string();
-            Ok(RuntimeValue::String(result))
+            Ok(Value::String(result))
         },
         Err(e) => Err(RuntimeError::Generic(format!("Erro no padrão regex: {}", e))),
     }
 }
 
 /// native_regex_split(pattern, string) -> array
-/// Divide uma string usando regex como delimitador
-fn native_regex_split(args: &[RuntimeValue], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<RuntimeValue, RuntimeError> {
+fn native_regex_split(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.len() != 2 {
         return Err(RuntimeError::ArgumentError("native_regex_split: esperado 2 argumentos (pattern, string)".to_string()));
     }
     
     let pattern = match &args[0] {
-        RuntimeValue::String(s) => s,
+        Value::String(s) => s,
         _ => return Err(RuntimeError::TypeError("native_regex_split: primeiro argumento deve ser string".to_string())),
     };
     
     let text = match &args[1] {
-        RuntimeValue::String(s) => s,
+        Value::String(s) => s,
         _ => return Err(RuntimeError::TypeError("native_regex_split: segundo argumento deve ser string".to_string())),
     };
     
     match Regex::new(pattern) {
         Ok(re) => {
-            let parts: Vec<RuntimeValue> = re.split(text)
-                .map(|s| RuntimeValue::String(s.to_string()))
+            let parts: Vec<Value> = re.split(text)
+                .map(|s| Value::String(s.to_string()))
                 .collect();
-            Ok(RuntimeValue::Array(parts))
+            let id = _heap.allocate(ManagedObject::Array(parts));
+            Ok(Value::Array(id))
         },
         Err(e) => Err(RuntimeError::Generic(format!("Erro no padrão regex: {}", e))),
     }
 }
 
 /// native_regex_test(pattern, string) -> bool
-/// Testa se regex corresponde sem capturar grupos
-fn native_regex_test(args: &[RuntimeValue], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<RuntimeValue, RuntimeError> {
+fn native_regex_test(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.len() != 2 {
         return Err(RuntimeError::ArgumentError("native_regex_test: esperado 2 argumentos (pattern, string)".to_string()));
     }
     
     let pattern = match &args[0] {
-        RuntimeValue::String(s) => s,
+        Value::String(s) => s,
         _ => return Err(RuntimeError::TypeError("native_regex_test: primeiro argumento deve ser string".to_string())),
     };
     
     let text = match &args[1] {
-        RuntimeValue::String(s) => s,
+        Value::String(s) => s,
         _ => return Err(RuntimeError::TypeError("native_regex_test: segundo argumento deve ser string".to_string())),
     };
     
     match Regex::new(pattern) {
-        Ok(re) => Ok(RuntimeValue::Bool(re.is_match(text))),
+        Ok(re) => Ok(Value::Bool(re.is_match(text))),
         Err(e) => Err(RuntimeError::Generic(format!("Erro no padrão regex: {}", e))),
     }
 }

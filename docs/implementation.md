@@ -6,48 +6,54 @@ A implementação da Dryad é focada em modularidade e segurança, utilizando o 
 
 - **Linguagem Core**: Escrita 100% em **Rust**.
 - **Modelo**: Interpretador Tree-Walking (Execução direta de AST).
-- **Módulos**: Organizados em crates independentes (`dryad_lexer`, `dryad_parser`, etc).
-- **Extensível**: Sistema de funções nativas via FFI.
+- **Módulos**: Organizados em crates independentes no workspace.
+- **Extensível**: Sistema de funções nativas modularizado.
 
 ---
 
 ## ⚙️ Visão Técnica
 
-### 1. Arquitetura Baseada em Crates
+### 1. Arquitetura de Crates
 
-O projeto utiliza um **Workspace do Cargo**, o que permite compilar componentes isoladamente, facilitando testes unitários e linting.
+O projeto utiliza um **Workspace do Cargo**, distribuindo responsabilidades em unidades compiláveis de forma independente.
 
-| Crate           | Responsabilidade       | Tecnologia Chave      |
-| :-------------- | :--------------------- | :-------------------- |
-| `dryad_lexer`   | Análise Léxica         | Logos / State Machine |
-| `dryad_parser`  | Gramática e AST        | Recursive Descent     |
-| `dryad_runtime` | Interpretador e Scopes | Environment Stacks    |
-| `dryad_errors`  | Diagnósticos           | Miette / Diagnostics  |
+| Crate           | Responsabilidade               | Componentes Principais                  |
+| :-------------- | :----------------------------- | :-------------------------------------- |
+| `dryad_lexer`   | Análise Léxica e Tokenização   | `lexer.rs`, `token.rs`, `source.rs`     |
+| `dryad_parser`  | Parsing de AST e Gramática     | `parser.rs`, `ast.rs`                   |
+| `dryad_runtime` | Driver de Execução e Runtime   | `interpreter.rs`, `environment.rs`, etc |
+| `dryad_errors`  | Gestão de Erros e Diagnósticos | `lib.rs`, `RuntimeError`                |
+| `dryad_cli`     | Interface de Linha de Comando  | `main.rs`, `repl.rs`                    |
+| `oak`           | Gerenciador de Pacotes         | `commands/`, `core/`                    |
 
-### 2. O Ciclo de Vida da Execução
+### 2. Modularização do Interpretador
 
-Diferente de sistemas baseados em Bytecode (como Python ou Node), o Dryad atualmente percorre a árvore sintática:
+O interpretador central (`interpreter.rs`) delega a gestão de estado e recursos para sub-módulos especializados na crate `dryad_runtime`:
 
-1.  **Frontend**: O `dryad_cli` recebe o arquivo e instancia o `Lexer`.
-2.  **Middle**: O `Parser` transforma os tokens em nós `Stmt` e `Expr`.
-3.  **Backend**: O `Interpreter` (Runtime) visita cada nó, alternando entre `execute` e `evaluate`.
+- **Environment**: Gerencia a pilha de escopos (variáveis locais e globais).
+- **NativeRegistry**: Única fonte de verdade para descoberta e despacho de funções nativas.
+- **Heap**: Gerencia o ciclo de vida de objetos complexos com suporte a Garbage Collection.
 
-### 3. Sistema de Funções Nativas (FFI)
+### 3. Fases de Implementação (Log)
 
-As bibliotecas padrão (`std_io`, `std_http`) são conectadas ao runtime através de um mapeamento de nomes de funções Dryad para closures do Rust, que possuem acesso ao estado do interpretador.
+O desenvolvimento segue um cronograma de estabilização e refatoração:
 
----
-
-## 📚 Referências e Paralelos
-
-- **Rust Architecture**: [The Cargo Book - Workspaces](https://doc.rust-lang.org/book/ch14-03-cargo-workspaces.html).
-- **Design Pattern**: [Visitor Pattern](https://refactoring.guru/design-patterns/visitor) - Base do motor de execução.
-- **Parsing Theory**: [Recursive Descent Parsers](https://en.wikipedia.org/wiki/Recursive_descent_parser).
+- **Fase 1 (Segurança)**: Implementação de Proteção de Recursão, Sandbox de FS e Ativação Estrita de Módulos.
+- **Fase 2 (Estrutura)**: Modularização do Interpretador, extração do `Environment` e implementação do GC Mark-and-Sweep.
+- **Fase 3 (Expansão)**: Unificação de módulos nativos e otimização de performance (em progresso).
 
 ---
 
-## Próximos Passos (Roadmap Técnico)
+## 📚 Referências de Engenharia
 
-- [ ] Implementação de **Bytecode VM** para performance 10x superior.
-- [ ] JIT experimental utilizando **Cranelift** ou **LLVM**.
-- [ ] Otimização de Garbage Collection para ciclos complexos.
+- **Pattern Design**: [Delegation Pattern](https://en.wikipedia.org/wiki/Delegation_pattern) - Utilizado para separar `Environment` do `Interpreter`.
+- **Memory Safety**: [Rust Ownership](https://doc.rust-lang.org/book/ch04-00-understanding-ownership.html) - Base de toda a segurança do runtime.
+
+---
+
+## Roadmap Técnico Atualizado
+
+- [x] Refatoração Modular do Interpretador.
+- [x] Implementação de Garbage Collection Automático.
+- [ ] Migração para Bytecode VM (Planned).
+- [ ] JIT experimental utilizando Cranelift.

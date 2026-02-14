@@ -63,6 +63,7 @@ fn test_unknown_module_directive() {
 #[test]
 fn test_native_function_call() {
     let code = r#"
+        #<console_io>
         #<debug>
         let value = 123;
         debug(value);
@@ -98,6 +99,7 @@ fn test_system_env_directive() {
 #[test]
 fn test_terminal_ansi_directive() {
     let code = r#"
+        #<console_io>
         #<terminal_ansi>
         let red_text = ansi_red("Error message");
         print(red_text);

@@ -1,0 +1,375 @@
+warning: unused variable: `index_expr`
+   --> crates\dryad_parser\src\parser.rs:171:33
+    |
+171 | ...                   let index_expr = self.expression()?;
+    |                           ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_index_expr`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `dryad_parser` (lib) generated 1 warning (run `cargo fix --lib -p dryad_parser` to apply 1 suggestion)
+warning: unused import: `Value as JsonValue`
+  --> crates\dryad_runtime\src\interpreter.rs:11:24
+   |
+11 | use serde_json::{self, Value as JsonValue};
+   |                        ^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused imports: `Arc` and `Mutex`
+  --> crates\dryad_runtime\src\interpreter.rs:12:17
+   |
+12 | use std::sync::{Arc, Mutex};
+   |                 ^^^  ^^^^^
+
+warning: unused import: `HeapId`
+ --> crates\dryad_runtime\src\native_modules\encode_decode.rs:4:40
+  |
+4 | use crate::heap::{Heap, ManagedObject, HeapId};
+  |                                        ^^^^^^
+
+warning: unused import: `HeapId`
+  --> crates\dryad_runtime\src\native_modules\mod.rs:24:25
+   |
+24 | use crate::heap::{Heap, HeapId};
+   |                         ^^^^^^
+
+warning: unused import: `std::fs`
+ --> crates\dryad_runtime\src\resolver.rs:3:5
+  |
+3 | use std::fs;
+  |     ^^^^^^^
+
+warning: unused import: `Expr`
+ --> crates\dryad_runtime\src\value.rs:1:31
+  |
+1 | use dryad_parser::ast::{Stmt, Expr, Visibility};
+  |                               ^^^^
+
+warning: unused import: `std::collections::HashMap`
+ --> crates\dryad_runtime\src\value.rs:2:5
+  |
+2 | use std::collections::HashMap;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::value::Value`
+ --> crates\dryad_runtime\src\debug.rs:4:5
+  |
+4 | use crate::value::Value;
+  |     ^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::net::SocketAddr`
+ --> crates\dryad_runtime\src\debug_server.rs:1:5
+  |
+1 | use std::net::SocketAddr;
+  |     ^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::sync::Arc`
+ --> crates\dryad_runtime\src\debug_server.rs:2:5
+  |
+2 | use std::sync::Arc;
+  |     ^^^^^^^^^^^^^^
+
+warning: unused import: `AsyncReadExt`
+ --> crates\dryad_runtime\src\debug_server.rs:4:17
+  |
+4 | use tokio::io::{AsyncReadExt, AsyncWriteExt};
+  |                 ^^^^^^^^^^^^
+
+warning: unused import: `DebugEvent`
+ --> crates\dryad_runtime\src\debug_server.rs:5:52
+  |
+5 | use crate::debug::{SharedDebugState, DebugCommand, DebugEvent};
+  |                                                    ^^^^^^^^^^
+
+warning: unused variable: `is_async`
+   --> crates\dryad_runtime\src\interpreter.rs:576:70
+    |
+576 |                         ClassMember::Method { visibility, is_static, is_async, name: method_name, params, body, .. } => {
+    |                                                                      ^^^^^^^^ help: try ignoring the field: `is_async: _`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `location`
+   --> crates\dryad_runtime\src\interpreter.rs:967:128
+    |
+967 | ...>, arg_values: Vec<Value>, location: &SourceLocation) -> Result<Value, DryadError> {
+    |                               ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_location`
+
+warning: unused variable: `properties`
+    --> crates\dryad_runtime\src\interpreter.rs:1850:62
+     |
+1850 |                 if let ManagedObject::Instance { class_name, properties } = heap_obj {
+     |                                                              ^^^^^^^^^^ help: try ignoring the field: `properties: _`
+
+warning: unused variable: `properties`
+    --> crates\dryad_runtime\src\interpreter.rs:1923:29
+     |
+1923 |                         let properties = properties.clone();
+     |                             ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_properties`
+
+warning: unused variable: `methods`
+    --> crates\dryad_runtime\src\interpreter.rs:1924:29
+     |
+1924 |                         let methods = methods.clone();
+     |                             ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_methods`
+
+warning: unused variable: `location`
+    --> crates\dryad_runtime\src\interpreter.rs:2239:64
+     |
+2239 |     fn eval_match(&mut self, target: &Expr, arms: &[MatchArm], location: &SourceLocation) -> Result<Value, DryadError> {
+     |                                                                ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_location`
+
+warning: unused variable: `id`
+    --> crates\dryad_runtime\src\interpreter.rs:2390:30
+     |
+2390 |             Value::Promise { id, resolved: true, value: Some(val) } => Ok(*val),
+     |                              ^^ help: try ignoring the field: `id: _`
+
+warning: variable does not need to be mutable
+    --> crates\dryad_runtime\src\interpreter.rs:2991:21
+     |
+2991 |                 let mut idx = if start_index >= 0 { 
+     |                     ----^^^
+     |                     |
+     |                     help: remove this `mut`
+     |
+     = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `buffer`
+   --> crates\dryad_runtime\src\native_modules\tcp.rs:102:9
+    |
+102 |     let buffer = [0; 1024];
+    |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_buffer`
+
+warning: fields `method`, `path`, and `response_headers` are never read
+  --> crates\dryad_runtime\src\native_modules\http_server.rs:30:5
+   |
+29 | struct RouteHandler {
+   |        ------------ fields in this struct
+30 |     method: String,
+   |     ^^^^^^
+31 |     path: String,
+   |     ^^^^
+32 |     response_body: String,
+33 |     response_headers: HashMap<String, String>,
+   |     ^^^^^^^^^^^^^^^^
+   |
+   = note: `RouteHandler` has derived impls for the traits `Debug` and `Clone`, but these are intentionally ignored during dead code analysis
+   = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default
+
+warning: `dryad_runtime` (lib) generated 22 warnings (run `cargo fix --lib -p dryad_runtime` to apply 21 suggestions)
+warning: `dryad_runtime` (lib test) generated 22 warnings (22 duplicates)
+   Compiling dryad_runtime v0.1.0 (C:\Users\Pedro Jesus\Downloads\source-main\source-main\crates\dryad_runtime)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 52.50s
+warning: the following packages contain code that will be rejected by a future version of Rust: num-bigint-dig v0.8.4
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 2`
+     Running unittests src\lib.rs (target\debug\deps\dryad_runtime-1bff2ec2ca9fc1a1.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\advanced_math_runtime_tests.rs (target\debug\deps\advanced_math_runtime_tests-4cde069e2e6d5abd.exe)
+
+running 22 tests
+test advanced_math_runtime_tests::test_exponentiation_operator_zero ... ok
+test advanced_math_runtime_tests::test_exponentiation_operator_negative ... ok
+test advanced_math_runtime_tests::test_modulo_operator_basic ... ok
+test advanced_math_runtime_tests::test_complex_expression ... ok
+test advanced_math_runtime_tests::test_exponentiation_operator_basic ... ok
+test advanced_math_runtime_tests::test_mixed_with_existing_operators ... ok
+test advanced_math_runtime_tests::test_modulo_operator_zero_remainder ... ok
+test advanced_math_runtime_tests::test_modulo_operator_negative ... ok
+test advanced_math_runtime_tests::test_chained_operations ... ok
+test advanced_math_runtime_tests::test_nth_root_operator_basic ... ok
+test advanced_math_runtime_tests::test_nth_root_operator_square ... ok
+test advanced_math_runtime_tests::test_exact_syntax_md_examples ... ok
+test advanced_math_runtime_tests::test_operator_precedence_modulo ... ok
+test advanced_math_runtime_tests::test_operator_precedence_exponentiation ... ok
+test advanced_math_runtime_tests::test_parentheses_override_precedence ... ok
+test advanced_math_runtime_tests::test_power_of_ten_operator_basic ... ok
+test advanced_math_runtime_tests::test_safe_modulo_operator_negative_dividend ... ok
+test advanced_math_runtime_tests::test_power_of_ten_operator_positive ... ok
+test advanced_math_runtime_tests::test_power_of_ten_operator_negative ... ok
+test advanced_math_runtime_tests::test_safe_modulo_operator_negative_divisor ... ok
+test advanced_math_runtime_tests::test_safe_modulo_operator_positive ... ok
+test advanced_math_runtime_tests::test_single_caret_operator ... ok
+
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests\array_runtime_tests.rs (target\debug\deps\array_runtime_tests-651e4af0efd6e537.exe)
+
+running 10 tests
+test test_empty_tuple ... ok
+test test_array_with_mixed_types ... ok
+test test_array_with_numbers ... ok
+test test_array_access_out_of_bounds ... ok
+test test_nested_array ... ok
+test test_tuple_access ... ok
+test test_empty_array ... ok
+test test_array_access ... ok
+test test_tuple_with_mixed_types ... ok
+test test_tuple_access_out_of_bounds ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests\assignment_runtime_tests.rs (target\debug\deps\assignment_runtime_tests-1883092631d85609.exe)
+
+running 20 tests
+test assignment_runtime_tests::test_assignment_returns_assigned_value ... ok
+test assignment_runtime_tests::test_addition_assignment ... ok
+test assignment_runtime_tests::test_all_operators_sequence ... ok
+test assignment_runtime_tests::test_assignment_error_undefined_variable ... ok
+test assignment_runtime_tests::test_assignment_with_floating_point ... ok
+test assignment_runtime_tests::test_assignment_precedence ... ok
+test assignment_runtime_tests::test_assignment_with_expression ... ok
+test assignment_runtime_tests::test_assignment_with_negative_numbers ... ok
+test assignment_runtime_tests::test_complex_assignment_expressions ... ok
+test assignment_runtime_tests::test_assignment_with_parentheses ... ok
+test assignment_runtime_tests::test_assignment_with_variables ... ok
+test assignment_runtime_tests::test_chained_assignments ... ok
+test assignment_runtime_tests::test_division_assignment ... ok
+test assignment_runtime_tests::test_exact_syntax_md_example ... ok
+test assignment_runtime_tests::test_multiple_variables_assignments ... ok
+test assignment_runtime_tests::test_division_by_zero_in_assignment ... ok
+test assignment_runtime_tests::test_multiplication_assignment ... ok
+test assignment_runtime_tests::test_simple_assignment ... ok
+test assignment_runtime_tests::test_subtraction_assignment ... ok
+test assignment_runtime_tests::test_step_by_step_calculation ... ok
+
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests\async_threading_runtime_tests.rs (target\debug\deps\async_threading_runtime_tests-c2aaa85b90c790de.exe)
+
+running 6 tests
+test test_thread_function_declaration ... ok
+test test_simple_await ... ok
+test test_mutex_creation ... ok
+test test_async_function_declaration ... ok
+test test_thread_instantiation ... ok
+test test_mutex_and_thread_combo ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests\bitwise_operators_runtime_tests.rs (target\debug\deps\bitwise_operators_runtime_tests-4b2a148551633734.exe)
+
+running 18 tests
+test test_bitwise_or_operator_evaluation ... ok
+test test_complex_bitwise_expression ... ok
+test test_bitwise_and_operator_evaluation ... ok
+test test_bitwise_xor_operator_evaluation ... ok
+test test_bitwise_operators_with_parentheses ... ok
+test test_bitwise_operators_with_different_numbers ... ok
+test test_bitwise_operators_precedence ... ok
+test test_bitwise_operators_with_zero ... ok
+test test_left_shift_operator_evaluation ... ok
+test test_floating_point_bitwise_operations ... ok
+test test_right_shift_operator_evaluation ... ok
+test test_mixed_operations_with_bitwise ... ok
+test test_symmetric_left_shift_operator_evaluation ... ok
+test test_shift_operators_with_zero ... ok
+test test_large_numbers_bitwise ... ok
+test test_symmetric_right_shift_operator_evaluation ... ok
+test test_shift_operators_with_different_numbers ... ok
+test test_exact_syntax_md_examples ... ok
+
+test result: ok. 18 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests\block_structure_runtime_tests.rs (target\debug\deps\block_structure_runtime_tests-f6cb98d3e74ebaf8.exe)
+
+running 20 tests
+test test_block_variable_modification ... ok
+test test_block_preserves_outer_scope ... ok
+test test_block_variable_access ... ok
+test test_block_variable_shadowing ... ok
+test test_block_sequence_evaluation ... ok
+test test_block_multiple_statements ... ok
+test test_block_variable_scoping ... ok
+test test_block_with_boolean_logic ... ok
+test test_block_with_expressions ... ok
+test test_block_with_mathematical_sequence ... ok
+test test_empty_block_runtime ... ok
+test test_block_with_string_operations ... ok
+test test_deeply_nested_blocks ... ok
+test test_block_with_complex_expressions ... ok
+test test_empty_statements_in_block ... ok
+test test_mixed_nested_block_patterns ... ok
+test test_multiple_blocks_separate_scopes ... ok
+test test_simple_block_with_variable ... ok
+test test_nested_block_scoping ... ok
+test test_syntax_md_block_patterns ... ok
+
+test result: ok. 20 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests\byte_operators_runtime_tests.rs (target\debug\deps\byte_operators_runtime_tests-475149740f70c80b.exe)
+
+running 17 tests
+test byte_operators_runtime_tests::test_byte_numbers_arithmetic ... ok
+test byte_operators_runtime_tests::test_byte_numbers_with_advanced_math ... ok
+test byte_operators_runtime_tests::test_byte_numbers_precedence ... ok
+test byte_operators_runtime_tests::test_byte_numbers_complex_expression ... ok
+test byte_operators_runtime_tests::test_byte_numbers_floating_operations ... ok
+test byte_operators_runtime_tests::test_byte_numbers_mixed_operations ... ok
+test byte_operators_runtime_tests::test_binary_number_evaluation ... ok
+test byte_operators_runtime_tests::test_byte_numbers_with_modulo ... ok
+test byte_operators_runtime_tests::test_byte_numbers_with_parentheses ... ok
+test byte_operators_runtime_tests::test_hexadecimal_number_evaluation ... ok
+test byte_operators_runtime_tests::test_octal_number_evaluation ... ok
+test byte_operators_runtime_tests::test_exact_syntax_md_examples ... ok
+test byte_operators_runtime_tests::test_large_byte_numbers ... ok
+test byte_operators_runtime_tests::test_hexadecimal_case_insensitive ... ok
+test byte_operators_runtime_tests::test_binary_numbers_various_values ... ok
+test byte_operators_runtime_tests::test_octal_numbers_various_values ... ok
+test byte_operators_runtime_tests::test_hexadecimal_numbers_various_values ... ok
+
+test result: ok. 17 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests\class_tests.rs (target\debug\deps\class_tests-dc62bdaaf00623cd.exe)
+
+running 6 tests
+test test_class_with_properties ... ok
+test test_simple_class_declaration ... FAILED
+test test_property_access ... FAILED
+test test_method_with_parameters ... FAILED
+test test_method_call ... FAILED
+test test_class_instantiation ... FAILED
+
+failures:
+
+---- test_simple_class_declaration stdout ----
+
+thread 'test_simple_class_declaration' (17088) panicked at crates\dryad_runtime\tests\class_tests.rs:44:5:
+Failed to declare simple class: Some("Parser error: Parser { code: 2093, message: \"Esperado ',' ou ')' na lista de parâmetros\", location: SourceLocation { file: None, line: 0, column: 0, position: 0, source_line: None }, expected: [], found: \"\", debug_context: None }")
+
+---- test_property_access stdout ----
+
+thread 'test_property_access' (12320) panicked at crates\dryad_runtime\tests\class_tests.rs:101:5:
+Failed to access property: Some("Parser error: Parser { code: 2093, message: \"Esperado ',' ou ')' na lista de parâmetros\", location: SourceLocation { file: None, line: 0, column: 0, position: 0, source_line: None }, expected: [], found: \"\", debug_context: None }")
+
+---- test_method_with_parameters stdout ----
+
+thread 'test_method_with_parameters' (7280) panicked at crates\dryad_runtime\tests\class_tests.rs:118:5:
+Failed to call method with parameters: Some("Parser error: Parser { code: 2093, message: \"Esperado ',' ou ')' na lista de parâmetros\", location: SourceLocation { file: None, line: 0, column: 0, position: 0, source_line: None }, expected: [], found: \"\", debug_context: None }")
+
+---- test_method_call stdout ----
+
+thread 'test_method_call' (1588) panicked at crates\dryad_runtime\tests\class_tests.rs:83:5:
+Failed to call method: Some("Parser error: Parser { code: 2093, message: \"Esperado ',' ou ')' na lista de parâmetros\", location: SourceLocation { file: None, line: 0, column: 0, position: 0, source_line: None }, expected: [], found: \"\", debug_context: None }")
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+---- test_class_instantiation stdout ----
+
+thread 'test_class_instantiation' (9496) panicked at crates\dryad_runtime\tests\class_tests.rs:61:5:
+Failed to instantiate class: Some("Parser error: Parser { code: 2093, message: \"Esperado ',' ou ')' na lista de parâmetros\", location: SourceLocation { file: None, line: 0, column: 0, position: 0, source_line: None }, expected: [], found: \"\", debug_context: None }")
+
+
+failures:
+    test_class_instantiation
+    test_method_call
+    test_method_with_parameters
+    test_property_access
+    test_simple_class_declaration
+
+test result: FAILED. 1 passed; 5 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.08s
+
+error: test failed, to rerun pass `-p dryad_runtime --test class_tests`

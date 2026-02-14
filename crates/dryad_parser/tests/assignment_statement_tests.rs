@@ -27,7 +27,7 @@ mod assignment_statement_tests {
         assert_eq!(program.statements.len(), 1);
         
         if let Stmt::Assignment(name, expr, _) = &program.statements[0] {
-            assert_eq!(name, "x");
+            assert_eq!(name.identifier_name().unwrap(), "x");
             assert!(matches!(expr, Expr::Literal(Literal::Number(5.0), _)));
         } else {
             panic!("Esperado Assignment statement");
@@ -40,7 +40,7 @@ mod assignment_statement_tests {
         assert_eq!(program.statements.len(), 1);
         
         if let Stmt::Assignment(name, expr, _) = &program.statements[0] {
-            assert_eq!(name, "x");
+            assert_eq!(name.identifier_name().unwrap(), "x");
             // Deve ser x = x + 5
             if let Expr::Binary(left, op, right, _) = expr {
                 assert_eq!(op, "+");
@@ -60,7 +60,7 @@ mod assignment_statement_tests {
         assert_eq!(program.statements.len(), 1);
         
         if let Stmt::Assignment(name, expr, _) = &program.statements[0] {
-            assert_eq!(name, "x");
+            assert_eq!(name.identifier_name().unwrap(), "x");
             if let Expr::Binary(left, op, right, _) = expr {
                 assert_eq!(op, "-");
                 assert!(matches!(**left, Expr::Variable(ref var_name, _) if var_name == "x"));
@@ -79,7 +79,7 @@ mod assignment_statement_tests {
         assert_eq!(program.statements.len(), 1);
         
         if let Stmt::Assignment(name, expr, _) = &program.statements[0] {
-            assert_eq!(name, "x");
+            assert_eq!(name.identifier_name().unwrap(), "x");
             if let Expr::Binary(left, op, right, _) = expr {
                 assert_eq!(op, "*");
                 assert!(matches!(**left, Expr::Variable(ref var_name, _) if var_name == "x"));
@@ -98,7 +98,7 @@ mod assignment_statement_tests {
         assert_eq!(program.statements.len(), 1);
         
         if let Stmt::Assignment(name, expr, _) = &program.statements[0] {
-            assert_eq!(name, "x");
+            assert_eq!(name.identifier_name().unwrap(), "x");
             if let Expr::Binary(left, op, right, _) = expr {
                 assert_eq!(op, "/");
                 assert!(matches!(**left, Expr::Variable(ref var_name, _) if var_name == "x"));
@@ -117,7 +117,7 @@ mod assignment_statement_tests {
         assert_eq!(program.statements.len(), 1);
         
         if let Stmt::Assignment(name, expr, _) = &program.statements[0] {
-            assert_eq!(name, "x");
+            assert_eq!(name.identifier_name().unwrap(), "x");
             // Deve ser x = x + (y * 2)
             if let Expr::Binary(left, op, right, _) = expr {
                 assert_eq!(op, "+");
@@ -153,7 +153,7 @@ mod assignment_statement_tests {
         // Verifica que todos são assignments
         for (i, stmt) in program.statements.iter().enumerate() {
             if let Stmt::Assignment(name, _, _) = stmt {
-                assert_eq!(name, "x");
+                assert_eq!(name.identifier_name().unwrap(), "x");
             } else {
                 panic!("Statement {} deveria ser Assignment", i);
             }
@@ -183,7 +183,7 @@ mod assignment_statement_tests {
         assert_eq!(program.statements.len(), 1);
         
         if let Stmt::Assignment(name, expr, _) = &program.statements[0] {
-            assert_eq!(name, "x");
+            assert_eq!(name.identifier_name().unwrap(), "x");
             if let Expr::Binary(left, op, right, _) = expr {
                 assert_eq!(op, "+");
                 assert!(matches!(**left, Expr::Variable(ref var_name, _) if var_name == "y"));
@@ -208,8 +208,8 @@ mod assignment_statement_tests {
         assert_eq!(program.statements.len(), 5);
 
         // Primeiro é declaração
-        if let Stmt::VarDeclaration(name, _, _) = &program.statements[0] {
-            assert_eq!(name, "total");
+        if let Stmt::VarDeclaration(name, _, _, _) = &program.statements[0] {
+            assert_eq!(name.identifier_name().unwrap(), "total");
         } else {
             panic!("Primeiro statement deveria ser VarDeclaration");
         }
@@ -218,7 +218,7 @@ mod assignment_statement_tests {
         let expected_ops = ["+", "*", "-", "/"];
         for (i, expected_op) in expected_ops.iter().enumerate() {
             if let Stmt::Assignment(name, expr, _) = &program.statements[i + 1] {
-                assert_eq!(name, "total");
+                assert_eq!(name.identifier_name().unwrap(), "total");
                 if let Expr::Binary(_, op, _, _) = expr {
                     assert_eq!(op, expected_op);
                 } else {

@@ -45,6 +45,8 @@ pub struct Interpreter {
     current_stack_trace: StackTrace,
     resolver: Box<dyn crate::resolver::ModuleResolver>,
     call_depth: usize,
+    compile_mode: bool,
+    jit_mode: bool,
 }
 
 const MAX_RECURSION_DEPTH: usize = 1000;
@@ -66,6 +68,8 @@ impl Interpreter {
             current_stack_trace: StackTrace::new(),
             resolver: Box::new(crate::resolver::FileSystemResolver),
             call_depth: 0,
+            compile_mode: false,
+            jit_mode: false,
         }
     }
 
@@ -87,6 +91,14 @@ impl Interpreter {
 
     pub fn set_sandbox_root(&mut self, root: std::path::PathBuf) {
         self.native_registry.manager.set_sandbox_root(root);
+    }
+
+    pub fn set_compile_mode(&mut self, compile: bool) {
+        self.compile_mode = compile;
+    }
+
+    pub fn set_jit_mode(&mut self, jit: bool) {
+        self.jit_mode = jit;
     }
 
     pub fn execute(&mut self, program: &Program) -> Result<String, DryadError> {

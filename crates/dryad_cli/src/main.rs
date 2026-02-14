@@ -37,6 +37,12 @@ enum Commands {
         /// Diretório raiz para o sandbox de arquivos
         #[arg(long)]
         sandbox: Option<String>,
+        /// Compila para bytecode antes de executar (mais rápido para execuções repetidas)
+        #[arg(long)]
+        compile: bool,
+        /// Usa compilação JIT para funções quentes (experimental)
+        #[arg(long)]
+        jit: bool,
     },
     /// Inicia o modo interativo (REPL)
     Repl,
@@ -64,6 +70,8 @@ fn main() {
             allow_unsafe,
             allow_exec,
             sandbox,
+            compile,
+            jit,
         }) => {
             if let Err(e) = run_file(
                 file,
@@ -71,6 +79,8 @@ fn main() {
                 *allow_unsafe,
                 *allow_exec,
                 sandbox.as_deref(),
+                *compile,
+                *jit,
             ) {
                 eprintln!("Erro: {}", e);
                 std::process::exit(1);
@@ -121,6 +131,8 @@ fn run_file(
     allow_unsafe: bool,
     allow_exec: bool,
     sandbox: Option<&str>,
+    compile: bool,
+    jit: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
     let source = fs::read_to_string(filename)
         .map_err(|e| format!("Erro ao ler arquivo '{}': {}", filename, e))?;
@@ -177,6 +189,16 @@ fn run_file(
 
     // Definir o arquivo atual para resolução de imports relativos
     interpreter.set_current_file(std::path::PathBuf::from(filename));
+
+    // Configurar modo de execução
+    if compile {
+        println!("Modo: Bytecode Compiler");
+        interpreter.set_compile_mode(true);
+    }
+    if jit {
+        println!("Modo: JIT Compiler (experimental)");
+        interpreter.set_jit_mode(true);
+    }
 
     let result = interpreter.execute(&program)?;
 

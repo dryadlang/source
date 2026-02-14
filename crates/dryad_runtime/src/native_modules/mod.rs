@@ -18,6 +18,9 @@ pub mod http_server;
 pub mod tcp;
 pub mod udp;
 pub mod ffi;
+pub mod json_stream;
+pub mod websocket;
+pub mod database;
 
 // Módulos futuros:
 // pub mod websocket;
@@ -151,6 +154,21 @@ impl NativeModuleManager {
         let mut ffi_functions = HashMap::new();
         ffi::register_ffi_functions(&mut ffi_functions);
         self.categories.insert("ffi".to_string(), ffi_functions);
+
+        // Registra JSON Stream
+        let mut json_stream_functions = HashMap::new();
+        json_stream::register_json_stream_functions(&mut json_stream_functions);
+        self.categories.insert("json_stream".to_string(), json_stream_functions);
+
+        // Registra WebSocket
+        let mut websocket_functions = HashMap::new();
+        websocket::register_websocket_functions(&mut websocket_functions);
+        self.categories.insert("websocket".to_string(), websocket_functions);
+
+        // Registra Database
+        let mut database_functions = HashMap::new();
+        database::register_database_functions(&mut database_functions);
+        self.categories.insert("database".to_string(), database_functions);
     }
     
     /// Ativa uma categoria específica através de diretiva #<categoria>

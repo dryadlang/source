@@ -1,4 +1,4 @@
-use crate::interpreter::RuntimeValue;
+use crate::interpreter::Value;
 use crate::native_modules::NativeFunction;
 use crate::errors::RuntimeError;
 use std::collections::HashMap;
@@ -21,7 +21,7 @@ pub fn register_system_env_functions(map: &mut HashMap<String, NativeFunction>) 
 /// Retorna o sistema operacional atual
 /// Entrada: nenhum
 /// Retorna: uma string representando o sistema operacional
-fn native_platform(_args: &[RuntimeValue], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<RuntimeValue, RuntimeError> {
+fn native_platform(_args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     let platform = if cfg!(target_os = "windows") {
         "windows"
     } else if cfg!(target_os = "linux") {
@@ -38,13 +38,13 @@ fn native_platform(_args: &[RuntimeValue], _manager: &crate::native_modules::Nat
         "unknown"
     };
     
-    Ok(RuntimeValue::String(platform.to_string()))
+    Ok(Value::String(platform.to_string()))
 }
 
 /// Retorna a arquitetura do sistema atual
 /// Entrada: nenhum
 /// Retorna: uma string representando a arquitetura do sistema
-fn native_arch(_args: &[RuntimeValue], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<RuntimeValue, RuntimeError> {
+fn native_arch(_args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     let arch = if cfg!(target_arch = "x86_64") {
         "x86_64"
     } else if cfg!(target_arch = "x86") {
@@ -69,63 +69,66 @@ fn native_arch(_args: &[RuntimeValue], _manager: &crate::native_modules::NativeM
         "unknown"
     };
     
-    Ok(RuntimeValue::String(arch.to_string()))
+    Ok(Value::String(arch.to_string()))
 }
 
 /// Busca o valor de uma variável de ambiente
 /// Entrada: uma string representando o nome da variável de ambiente
 /// Retorna: uma string com o valor da variável ou null se não existir
-fn native_env(args: &[RuntimeValue], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<RuntimeValue, RuntimeError> {
+fn native_env(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.len() != 1 {
         return Err(RuntimeError::ArgumentError("native_env requer exatamente 1 argumento".to_string()));
     }
 
     let key = match &args[0] {
-        RuntimeValue::String(s) => s,
+        Value::String(s) => s,
         _ => return Err(RuntimeError::TypeError("Argumento deve ser uma string".to_string())),
     };
 
     match env::var(key) {
-        Ok(value) => Ok(RuntimeValue::String(value)),
-        Err(_) => Ok(RuntimeValue::Null),
+        Ok(value) => Ok(Value::String(value)),
+        Err(_) => Ok(Value::Null),
     }
 }
 
 /// Define o valor de uma variável de ambiente
 /// Entrada: duas strings, a primeira é o nome da variável e a segunda é o valor
 /// Retorna: nenhum
-fn native_set_env(args: &[RuntimeValue], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<RuntimeValue, RuntimeError> {
+fn native_set_env(args: &[Value], manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
+    if !manager.allow_unsafe() {
+        return Err(RuntimeError::SystemError("native_set_env está desabilitado. Use --allow-unsafe para habilitar.".to_string()));
+    }
     if args.len() != 2 {
         return Err(RuntimeError::ArgumentError("native_set_env requer exatamente 2 argumentos".to_string()));
     }
 
     let key = match &args[0] {
-        RuntimeValue::String(s) => s,
+        Value::String(s) => s,
         _ => return Err(RuntimeError::TypeError("Primeiro argumento deve ser uma string".to_string())),
     };
 
     let value = match &args[1] {
-        RuntimeValue::String(s) => s,
+        Value::String(s) => s,
         _ => return Err(RuntimeError::TypeError("Segundo argumento deve ser uma string".to_string())),
     };
 
     env::set_var(key, value);
-    Ok(RuntimeValue::Null)
+    Ok(Value::Null)
 }
 
 /// Executa um comando no shell e retorna o status de saída
 /// Entrada: uma string representando o comando a ser executado
 /// Retorna: um número inteiro representando o status de saída do comando
-fn native_exec(args: &[RuntimeValue], manager: &crate::native_modules::NativeModuleManager) -> Result<RuntimeValue, RuntimeError> {
-    if !manager.allow_unsafe() {
-        return Err(RuntimeError::SystemError("native_exec está desabilitado. Use --allow-unsafe para habilitar.".to_string()));
+fn native_exec(args: &[Value], manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
+    if !manager.allow_exec() {
+        return Err(RuntimeError::SystemError("native_exec está desabilitado. Use --allow-exec para habilitar.".to_string()));
     }
     if args.len() != 1 {
         return Err(RuntimeError::ArgumentError("native_exec requer exatamente 1 argumento".to_string()));
     }
 
     let cmd_str = match &args[0] {
-        RuntimeValue::String(s) => s,
+        Value::String(s) => s,
         _ => return Err(RuntimeError::TypeError("Argumento deve ser uma string".to_string())),
     };
 
@@ -143,7 +146,7 @@ fn native_exec(args: &[RuntimeValue], manager: &crate::native_modules::NativeMod
     {
         Ok(status) => {
             let code = status.code().unwrap_or(-1);
-            Ok(RuntimeValue::Number(code as f64))
+            Ok(Value::Number(code as f64))
         }
         Err(e) => Err(RuntimeError::IoError(format!("Erro ao executar comando: {}", e))),
     }
@@ -152,16 +155,16 @@ fn native_exec(args: &[RuntimeValue], manager: &crate::native_modules::NativeMod
 /// Executa um comando no shell e retorna sua saída padrão
 /// Entrada: uma string representando o comando a ser executado
 /// Retorna: uma string com a saída do comando
-fn native_exec_output(args: &[RuntimeValue], manager: &crate::native_modules::NativeModuleManager) -> Result<RuntimeValue, RuntimeError> {
-    if !manager.allow_unsafe() {
-        return Err(RuntimeError::SystemError("native_exec_output está desabilitado. Use --allow-unsafe para habilitar.".to_string()));
+fn native_exec_output(args: &[Value], manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
+    if !manager.allow_exec() {
+        return Err(RuntimeError::SystemError("native_exec_output está desabilitado. Use --allow-exec para habilitar.".to_string()));
     }
     if args.len() != 1 {
         return Err(RuntimeError::ArgumentError("native_exec_output requer exatamente 1 argumento".to_string()));
     }
 
     let cmd_str = match &args[0] {
-        RuntimeValue::String(s) => s,
+        Value::String(s) => s,
         _ => return Err(RuntimeError::TypeError("Argumento deve ser uma string".to_string())),
     };
 
@@ -179,7 +182,7 @@ fn native_exec_output(args: &[RuntimeValue], manager: &crate::native_modules::Na
     {
         Ok(output) => {
             let stdout = String::from_utf8_lossy(&output.stdout);
-            Ok(RuntimeValue::String(stdout.trim().to_string()))
+            Ok(Value::String(stdout.trim().to_string()))
         }
         Err(e) => Err(RuntimeError::IoError(format!("Erro ao executar comando: {}", e))),
     }
@@ -188,20 +191,20 @@ fn native_exec_output(args: &[RuntimeValue], manager: &crate::native_modules::Na
 /// Retorna o ID do processo atual
 /// Entrada: nenhum
 /// Retorna: um número inteiro representando o ID do processo
-fn native_pid(_args: &[RuntimeValue], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<RuntimeValue, RuntimeError> {
+fn native_pid(_args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     let pid = std::process::id();
-    Ok(RuntimeValue::Number(pid as f64))
+    Ok(Value::Number(pid as f64))
 }
 
 /// Encerra a execução do programa com um código de saída
 /// Entrada: um número inteiro representando o código de saída (0 para sucesso, outros valores para erro)
 /// Retorna: nenhum (nunca retorna, pois encerra o programa)
-fn native_exit(args: &[RuntimeValue], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<RuntimeValue, RuntimeError> {
+fn native_exit(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     let exit_code = if args.is_empty() {
         0
     } else {
         match &args[0] {
-            RuntimeValue::Number(n) => *n as i32,
+            Value::Number(n) => *n as i32,
             _ => return Err(RuntimeError::TypeError("Código de saída deve ser um número".to_string())),
         }
     };
@@ -212,9 +215,9 @@ fn native_exit(args: &[RuntimeValue], _manager: &crate::native_modules::NativeMo
 /// Retorna o diretório de trabalho atual
 /// Entrada: nenhum
 /// Retorna: uma string representando o caminho do diretório atual
-fn native_getcwd(_args: &[RuntimeValue], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<RuntimeValue, RuntimeError> {
+fn native_getcwd(_args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     match env::current_dir() {
-        Ok(path) => Ok(RuntimeValue::String(path.to_string_lossy().into_owned())),
+        Ok(path) => Ok(Value::String(path.to_string_lossy().into_owned())),
         Err(e) => Err(RuntimeError::IoError(format!("Erro ao obter diretório atual: {}", e))),
     }
 }

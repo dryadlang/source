@@ -26,8 +26,8 @@ mod comparison_tests {
         let program = parse_program("let igual = 5 == 10;").unwrap();
         assert_eq!(program.statements.len(), 1);
         
-        if let Stmt::VarDeclaration(name, Some(Expr::Binary(left, op, right, _)), _) = &program.statements[0] {
-            assert_eq!(name, "igual");
+        if let Stmt::VarDeclaration(name, _, Some(Expr::Binary(left, op, right, _)), _) = &program.statements[0] {
+            assert_eq!(name.identifier_name().unwrap(), "igual");
             assert_eq!(op, "==");
             assert!(matches!(**left, Expr::Literal(Literal::Number(5.0), _)));
             assert!(matches!(**right, Expr::Literal(Literal::Number(10.0), _)));
@@ -41,8 +41,8 @@ mod comparison_tests {
         let program = parse_program("let diferente = 5 != 10;").unwrap();
         assert_eq!(program.statements.len(), 1);
         
-        if let Stmt::VarDeclaration(name, Some(Expr::Binary(left, op, right, _)), _) = &program.statements[0] {
-            assert_eq!(name, "diferente");
+        if let Stmt::VarDeclaration(name, _, Some(Expr::Binary(left, op, right, _)), _) = &program.statements[0] {
+            assert_eq!(name.identifier_name().unwrap(), "diferente");
             assert_eq!(op, "!=");
             assert!(matches!(**left, Expr::Literal(Literal::Number(5.0), _)));
             assert!(matches!(**right, Expr::Literal(Literal::Number(10.0), _)));
@@ -56,8 +56,8 @@ mod comparison_tests {
         let program = parse_program("let menor = 5 < 10;").unwrap();
         assert_eq!(program.statements.len(), 1);
         
-        if let Stmt::VarDeclaration(name, Some(Expr::Binary(left, op, right, _)), _) = &program.statements[0] {
-            assert_eq!(name, "menor");
+        if let Stmt::VarDeclaration(name, _, Some(Expr::Binary(left, op, right, _)), _) = &program.statements[0] {
+            assert_eq!(name.identifier_name().unwrap(), "menor");
             assert_eq!(op, "<");
             assert!(matches!(**left, Expr::Literal(Literal::Number(5.0), _)));
             assert!(matches!(**right, Expr::Literal(Literal::Number(10.0), _)));
@@ -71,8 +71,8 @@ mod comparison_tests {
         let program = parse_program("let maior = 5 > 10;").unwrap();
         assert_eq!(program.statements.len(), 1);
         
-        if let Stmt::VarDeclaration(name, Some(Expr::Binary(left, op, right, _)), _) = &program.statements[0] {
-            assert_eq!(name, "maior");
+        if let Stmt::VarDeclaration(name, _, Some(Expr::Binary(left, op, right, _)), _) = &program.statements[0] {
+            assert_eq!(name.identifier_name().unwrap(), "maior");
             assert_eq!(op, ">");
             assert!(matches!(**left, Expr::Literal(Literal::Number(5.0), _)));
             assert!(matches!(**right, Expr::Literal(Literal::Number(10.0), _)));
@@ -86,8 +86,8 @@ mod comparison_tests {
         let program = parse_program("let menorIgual = 5 <= 10;").unwrap();
         assert_eq!(program.statements.len(), 1);
         
-        if let Stmt::VarDeclaration(name, Some(Expr::Binary(left, op, right, _)), _) = &program.statements[0] {
-            assert_eq!(name, "menorIgual");
+        if let Stmt::VarDeclaration(name, _, Some(Expr::Binary(left, op, right, _)), _) = &program.statements[0] {
+            assert_eq!(name.identifier_name().unwrap(), "menorIgual");
             assert_eq!(op, "<=");
             assert!(matches!(**left, Expr::Literal(Literal::Number(5.0), _)));
             assert!(matches!(**right, Expr::Literal(Literal::Number(10.0), _)));
@@ -101,8 +101,8 @@ mod comparison_tests {
         let program = parse_program("let maiorIgual = 5 >= 10;").unwrap();
         assert_eq!(program.statements.len(), 1);
         
-        if let Stmt::VarDeclaration(name, Some(Expr::Binary(left, op, right, _)), _) = &program.statements[0] {
-            assert_eq!(name, "maiorIgual");
+        if let Stmt::VarDeclaration(name, _, Some(Expr::Binary(left, op, right, _)), _) = &program.statements[0] {
+            assert_eq!(name.identifier_name().unwrap(), "maiorIgual");
             assert_eq!(op, ">=");
             assert!(matches!(**left, Expr::Literal(Literal::Number(5.0), _)));
             assert!(matches!(**right, Expr::Literal(Literal::Number(10.0), _)));
@@ -121,22 +121,22 @@ mod comparison_tests {
         assert_eq!(program.statements.len(), 3);
 
         // Verifica primeira declaração
-        if let Stmt::VarDeclaration(name, Some(Expr::Literal(Literal::Number(5.0), _)), _) = &program.statements[0] {
-            assert_eq!(name, "x");
+        if let Stmt::VarDeclaration(name, _, Some(Expr::Literal(Literal::Number(5.0), _)), _) = &program.statements[0] {
+            assert_eq!(name.identifier_name().unwrap(), "x");
         } else {
             panic!("Esperado VarDeclaration x = 5");
         }
 
         // Verifica segunda declaração  
-        if let Stmt::VarDeclaration(name, Some(Expr::Literal(Literal::Number(10.0), _)), _) = &program.statements[1] {
-            assert_eq!(name, "y");
+        if let Stmt::VarDeclaration(name, _, Some(Expr::Literal(Literal::Number(10.0), _)), _) = &program.statements[1] {
+            assert_eq!(name.identifier_name().unwrap(), "y");
         } else {
             panic!("Esperado VarDeclaration y = 10");
         }
 
         // Verifica comparação
-        if let Stmt::VarDeclaration(name, Some(Expr::Binary(left, op, right, _)), _) = &program.statements[2] {
-            assert_eq!(name, "resultado");
+        if let Stmt::VarDeclaration(name, _, Some(Expr::Binary(left, op, right, _)), _) = &program.statements[2] {
+            assert_eq!(name.identifier_name().unwrap(), "resultado");
             assert_eq!(op, "<");
             assert!(matches!(**left, Expr::Variable(ref var_name, _) if var_name == "x"));
             assert!(matches!(**right, Expr::Variable(ref var_name, _) if var_name == "y"));
@@ -150,8 +150,8 @@ mod comparison_tests {
         let program = parse_program("let igual = \"hello\" == \"world\";").unwrap();
         assert_eq!(program.statements.len(), 1);
         
-        if let Stmt::VarDeclaration(name, Some(Expr::Binary(left, op, right, _)), _) = &program.statements[0] {
-            assert_eq!(name, "igual");
+        if let Stmt::VarDeclaration(name, _, Some(Expr::Binary(left, op, right, _)), _) = &program.statements[0] {
+            assert_eq!(name.identifier_name().unwrap(), "igual");
             assert_eq!(op, "==");
             assert!(matches!(**left, Expr::Literal(Literal::String(ref s), _) if s == "hello"));
             assert!(matches!(**right, Expr::Literal(Literal::String(ref s), _) if s == "world"));
@@ -165,8 +165,8 @@ mod comparison_tests {
         let program = parse_program("let igual = true == false;").unwrap();
         assert_eq!(program.statements.len(), 1);
         
-        if let Stmt::VarDeclaration(name, Some(Expr::Binary(left, op, right, _)), _) = &program.statements[0] {
-            assert_eq!(name, "igual");
+        if let Stmt::VarDeclaration(name, _, Some(Expr::Binary(left, op, right, _)), _) = &program.statements[0] {
+            assert_eq!(name.identifier_name().unwrap(), "igual");
             assert_eq!(op, "==");
             assert!(matches!(**left, Expr::Literal(Literal::Bool(true), _)));
             assert!(matches!(**right, Expr::Literal(Literal::Bool(false), _)));
@@ -180,8 +180,8 @@ mod comparison_tests {
         let program = parse_program("let igual = null == null;").unwrap();
         assert_eq!(program.statements.len(), 1);
         
-        if let Stmt::VarDeclaration(name, Some(Expr::Binary(left, op, right, _)), _) = &program.statements[0] {
-            assert_eq!(name, "igual");
+        if let Stmt::VarDeclaration(name, _, Some(Expr::Binary(left, op, right, _)), _) = &program.statements[0] {
+            assert_eq!(name.identifier_name().unwrap(), "igual");
             assert_eq!(op, "==");
             assert!(matches!(**left, Expr::Literal(Literal::Null, _)));
             assert!(matches!(**right, Expr::Literal(Literal::Null, _)));
@@ -195,8 +195,8 @@ mod comparison_tests {
         let program = parse_program("let resultado = 1 < 2 && 2 < 3;").unwrap();
         assert_eq!(program.statements.len(), 1);
         
-        if let Stmt::VarDeclaration(name, Some(Expr::Binary(left, op, right, _)), _) = &program.statements[0] {
-            assert_eq!(name, "resultado");
+        if let Stmt::VarDeclaration(name, _, Some(Expr::Binary(left, op, right, _)), _) = &program.statements[0] {
+            assert_eq!(name.identifier_name().unwrap(), "resultado");
             assert_eq!(op, "&&");
             
             // Left side should be 1 < 2

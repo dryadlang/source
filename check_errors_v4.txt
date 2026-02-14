@@ -1,0 +1,171 @@
+warning: unused variable: `index_expr`
+   --> crates\dryad_parser\src\parser.rs:171:33
+    |
+171 | ...       let index_expr = self.express...
+    |               ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_index_expr`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `dryad_parser` (lib) generated 1 warning (run `cargo fix --lib -p dryad_parser` to apply 1 suggestion)
+    Checking dryad_runtime v0.1.0 (C:\Users\Pedro Jesus\Downloads\source-main\source-main\crates\dryad_runtime)
+error[E0425]: cannot find function `register_file_io_async_functions` in module `file_io`
+  --> crates\dryad_runtime\src\native_modules\mod.rs:94:18
+   |
+94 |         file_io::register_file_io_async_functions(&mut file_io_async_functions);
+   |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: a function with a similar name exists: `register_file_io_functions`
+   |
+  ::: crates\dryad_runtime\src\native_modules\file_io.rs:30:1
+   |
+30 | pub fn register_file_io_functions(functions: &mut std::collections::HashMap<String, crate::native_modules::NativeFunction>) {
+   | --------------------------------------------------------------------------------------------------------------------------- similarly named function `register_file_io_functions` defined here
+
+warning: unused import: `Value as JsonValue`
+  --> crates\dryad_runtime\src\interpreter.rs:11:24
+   |
+11 | use serde_json::{self, Value as JsonValue};
+   |                        ^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused imports: `Arc` and `Mutex`
+  --> crates\dryad_runtime\src\interpreter.rs:12:17
+   |
+12 | use std::sync::{Arc, Mutex};
+   |                 ^^^  ^^^^^
+
+warning: unused import: `HeapId`
+ --> crates\dryad_runtime\src\native_modules\encode_decode.rs:4:40
+  |
+4 | use crate::heap::{Heap, ManagedObject, HeapId};
+  |                                        ^^^^^^
+
+warning: unused import: `HeapId`
+  --> crates\dryad_runtime\src\native_modules\mod.rs:24:25
+   |
+24 | use crate::heap::{Heap, HeapId};
+   |                         ^^^^^^
+
+warning: unused import: `std::fs`
+ --> crates\dryad_runtime\src\resolver.rs:3:5
+  |
+3 | use std::fs;
+  |     ^^^^^^^
+
+warning: unused import: `Expr`
+ --> crates\dryad_runtime\src\value.rs:1:31
+  |
+1 | use dryad_parser::ast::{Stmt, Expr, Visibility};
+  |                               ^^^^
+
+warning: unused import: `std::collections::HashMap`
+ --> crates\dryad_runtime\src\value.rs:2:5
+  |
+2 | use std::collections::HashMap;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::value::Value`
+ --> crates\dryad_runtime\src\debug.rs:4:5
+  |
+4 | use crate::value::Value;
+  |     ^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::net::SocketAddr`
+ --> crates\dryad_runtime\src\debug_server.rs:1:5
+  |
+1 | use std::net::SocketAddr;
+  |     ^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::sync::Arc`
+ --> crates\dryad_runtime\src\debug_server.rs:2:5
+  |
+2 | use std::sync::Arc;
+  |     ^^^^^^^^^^^^^^
+
+warning: unused import: `AsyncReadExt`
+ --> crates\dryad_runtime\src\debug_server.rs:4:17
+  |
+4 | use tokio::io::{AsyncReadExt, AsyncWriteExt};
+  |                 ^^^^^^^^^^^^
+
+warning: unused import: `DebugEvent`
+ --> crates\dryad_runtime\src\debug_server.rs:5:52
+  |
+5 | use crate::debug::{SharedDebugState, DebugCommand, DebugEvent};
+  |                                                    ^^^^^^^^^^
+
+error[E0599]: no method named `get_sandbox_root` found for reference `&NativeModuleManager` in the current scope
+   --> crates\dryad_runtime\src\native_modules\file_io.rs:15:37
+    |
+ 15 |         if let Some(root) = manager.get_sandbox_root() {
+    |                                     ^^^^^^^^^^^^^^^^
+    |
+help: there is a method `set_sandbox_root` with a similar name, but with different arguments
+   --> crates\dryad_runtime\src\native_modules\mod.rs:210:5
+    |
+210 |     pub fn set_sandbox_root(&mut self, root: std::path::PathBuf) {
+    |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused variable: `is_async`
+   --> crates\dryad_runtime\src\interpreter.rs:576:70
+    |
+576 |                         ClassMember::Method { visibility, is_static, is_async, name: method_name, params, body, .. } => {
+    |                                                                      ^^^^^^^^ help: try ignoring the field: `is_async: _`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `location`
+   --> crates\dryad_runtime\src\interpreter.rs:967:128
+    |
+967 | ...>, arg_values: Vec<Value>, location: &SourceLocation) -> Result<Value, DryadError> {
+    |                               ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_location`
+
+warning: unused variable: `properties`
+    --> crates\dryad_runtime\src\interpreter.rs:1850:62
+     |
+1850 |                 if let ManagedObject::Instance { class_name, properties } = heap_obj {
+     |                                                              ^^^^^^^^^^ help: try ignoring the field: `properties: _`
+
+warning: unused variable: `properties`
+    --> crates\dryad_runtime\src\interpreter.rs:1923:29
+     |
+1923 |                         let properties = properties.clone();
+     |                             ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_properties`
+
+warning: unused variable: `methods`
+    --> crates\dryad_runtime\src\interpreter.rs:1924:29
+     |
+1924 |                         let methods = methods.clone();
+     |                             ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_methods`
+
+warning: unused variable: `location`
+    --> crates\dryad_runtime\src\interpreter.rs:2239:64
+     |
+2239 |     fn eval_match(&mut self, target: &Expr, arms: &[MatchArm], location: &SourceLocation) -> Result<Value, DryadError> {
+     |                                                                ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_location`
+
+warning: unused variable: `id`
+    --> crates\dryad_runtime\src\interpreter.rs:2390:30
+     |
+2390 |             Value::Promise { id, resolved: true, value: Some(val) } => Ok(*val),
+     |                              ^^ help: try ignoring the field: `id: _`
+
+warning: variable does not need to be mutable
+    --> crates\dryad_runtime\src\interpreter.rs:2991:21
+     |
+2991 |                 let mut idx = if start_index >= 0 { 
+     |                     ----^^^
+     |                     |
+     |                     help: remove this `mut`
+     |
+     = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `buffer`
+   --> crates\dryad_runtime\src\native_modules\tcp.rs:102:9
+    |
+102 |     let buffer = [0; 1024];
+    |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_buffer`
+
+Some errors have detailed explanations: E0425, E0599.
+For more information about an error, try `rustc --explain E0425`.
+warning: `dryad_runtime` (lib) generated 21 warnings
+error: could not compile `dryad_runtime` (lib) due to 2 previous errors; 21 warnings emitted

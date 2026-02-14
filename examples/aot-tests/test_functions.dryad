@@ -1,0 +1,27 @@
+# Teste de Funções Bytecode
+
+# Função simples
+fn add(a, b) {
+    return a + b;
+}
+
+# Chamada de função
+print add(10, 20);
+
+# Função com variáveis locais
+fn greet(nome) {
+    var msg = "Ola, " + nome;
+    print msg;
+}
+
+greet("Mundo");
+
+# Função recursiva simples
+fn factorial(n) {
+    if (n <= 1) {
+        return 1;
+    }
+    return n * factorial(n - 1);
+}
+
+print factorial(5);

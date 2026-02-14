@@ -1,16 +1,21 @@
-use dryad_parser::{Parser, ast::{Stmt, Expr, Literal}};
-use dryad_lexer::{Lexer, token::Token};
+use dryad_lexer::{token::Token, Lexer};
+use dryad_parser::{
+    ast::{Expr, Literal, Stmt},
+    Parser,
+};
 
 fn parse_tokens(input: &str) -> dryad_parser::ast::Program {
     let mut lexer = Lexer::new(input);
     let mut tokens = Vec::new();
-    
+
     loop {
         let tok = lexer.next_token().unwrap();
-        if let Token::Eof = tok.token { break; }
+        if let Token::Eof = tok.token {
+            break;
+        }
         tokens.push(tok);
     }
-    
+
     let mut parser = Parser::new(tokens);
     parser.parse().unwrap()
 }
@@ -22,16 +27,16 @@ fn test_parse_simple_do_while_statement() {
         i = i + 1;
     } while (i < 5);
     "#;
-    
+
     let program = parse_tokens(input);
-        assert_eq!(program.statements.len(), 1);
-        assert!(matches!(program.statements[0], Stmt::DoWhile(..)));
-    
+    assert_eq!(program.statements.len(), 1);
+    assert!(matches!(program.statements[0], Stmt::DoWhile(..)));
+
     match &program.statements[0] {
         Stmt::DoWhile(body, condition, _) => {
             // Verifica o corpo é um bloco
             assert!(matches!(**body, Stmt::Block(..)));
-            
+
             // Verifica a condição: i < 5
             match condition {
                 Expr::Binary(left, op, right, _) => {
@@ -53,11 +58,11 @@ fn test_parse_do_while_with_complex_condition() {
         x = x - 1;
     } while (x > 0 && y < 10);
     "#;
-    
+
     let program = parse_tokens(input);
-            assert_eq!(program.statements.len(), 1);
-        assert!(matches!(program.statements[0], Stmt::DoWhile(..)));
-    
+    assert_eq!(program.statements.len(), 1);
+    assert!(matches!(program.statements[0], Stmt::DoWhile(..)));
+
     match &program.statements[0] {
         Stmt::DoWhile(_, condition, _) => {
             // Condição complexa: x > 0 && y < 10
@@ -81,10 +86,10 @@ fn test_parse_do_while_with_multiple_statements() {
         let temp = counter;
     } while (counter < 3);
     "#;
-    
+
     let program = parse_tokens(input);
     assert_eq!(program.statements.len(), 1);
-    
+
     match &program.statements[0] {
         Stmt::DoWhile(body, _, _) => {
             match **body {
@@ -107,10 +112,10 @@ fn test_parse_nested_do_while_statements() {
         } while (inner < 3);
     } while (outer < 2);
     "#;
-    
+
     let program = parse_tokens(input);
     assert_eq!(program.statements.len(), 1);
-    
+
     match &program.statements[0] {
         Stmt::DoWhile(outer_body, _, _) => {
             match **outer_body {
@@ -135,10 +140,10 @@ fn test_parse_do_while_with_if_inside() {
         }
     } while (running);
     "#;
-    
+
     let program = parse_tokens(input);
     assert_eq!(program.statements.len(), 1);
-    
+
     match &program.statements[0] {
         Stmt::DoWhile(body, _, _) => {
             match **body {
@@ -161,10 +166,10 @@ fn test_parse_do_while_with_single_statement_block() {
         counter = counter + 1;
     } while (active);
     "#;
-    
+
     let program = parse_tokens(input);
     assert_eq!(program.statements.len(), 1);
-    
+
     match &program.statements[0] {
         Stmt::DoWhile(body, condition, _) => {
             // Condição simples: active
@@ -174,7 +179,7 @@ fn test_parse_do_while_with_single_statement_block() {
                 }
                 _ => panic!("Condição deveria ser uma variável"),
             }
-            
+
             // Corpo com um statement
             match **body {
                 Stmt::Block(ref statements, _) => {
@@ -195,20 +200,22 @@ fn test_parse_do_while_without_braces_error() {
         statement;
     while condition;
     "#;
-    
+
     // Este teste deveria falhar porque do-while requer chaves
     let mut lexer = Lexer::new(input);
     let mut tokens = Vec::new();
-    
+
     loop {
         let tok = lexer.next_token().unwrap();
-        if let Token::Eof = tok.token { break; }
+        if let Token::Eof = tok.token {
+            break;
+        }
         tokens.push(tok);
     }
-    
+
     let mut parser = Parser::new(tokens);
     let result = parser.parse();
-    
+
     // Deveria retornar erro
     assert!(result.is_err());
 }
@@ -220,10 +227,10 @@ fn test_parse_do_while_boolean_conditions() {
         break;
     } while (true);
     "#;
-    
+
     let program = parse_tokens(input);
     assert_eq!(program.statements.len(), 1);
-    
+
     match &program.statements[0] {
         Stmt::DoWhile(_, condition, _) => {
             match condition {
@@ -244,19 +251,17 @@ fn test_parse_do_while_variable_condition() {
         result = result + 1;
     } while (running);
     "#;
-    
+
     let program = parse_tokens(input);
     assert_eq!(program.statements.len(), 1);
-    
+
     match &program.statements[0] {
-        Stmt::DoWhile(_, condition, _) => {
-            match condition {
-                Expr::Variable(name, _) => {
-                    assert_eq!(name, "running");
-                }
-                _ => panic!("Condição deveria ser uma variável"),
+        Stmt::DoWhile(_, condition, _) => match condition {
+            Expr::Variable(name, _) => {
+                assert_eq!(name, "running");
             }
-        }
+            _ => panic!("Condição deveria ser uma variável"),
+        },
         _ => panic!("Esperava um do-while statement"),
     }
 }
@@ -270,14 +275,14 @@ fn test_exact_syntax_md_example() {
         i = i + 1;
     } while (i < 5);
     "#;
-    
+
     let program = parse_tokens(input);
     assert_eq!(program.statements.len(), 2); // let declaration + do-while
-    
+
     // Primeiro statement: let i = 0;
     match &program.statements[0] {
-        Stmt::VarDeclaration(name, Some(expr), _) => {
-            assert_eq!(name, "i");
+        Stmt::VarDeclaration(pattern, _, Some(expr), _) => {
+            assert_eq!(pattern.identifier_name().unwrap(), "i");
             match expr {
                 Expr::Literal(Literal::Number(0.0), _) => {
                     // Correto
@@ -287,7 +292,7 @@ fn test_exact_syntax_md_example() {
         }
         _ => panic!("Esperava declaração de variável"),
     }
-    
+
     // Segundo statement: do-while loop
     match &program.statements[1] {
         Stmt::DoWhile(body, condition, _) => {
@@ -300,7 +305,7 @@ fn test_exact_syntax_md_example() {
                 }
                 _ => panic!("Condição deveria ser i < 5"),
             }
-            
+
             // Corpo: { result = i; i = i + 1; }
             match **body {
                 Stmt::Block(ref statements, _) => {
@@ -312,5 +317,3 @@ fn test_exact_syntax_md_example() {
         _ => panic!("Esperava um do-while statement"),
     }
 }
-
-

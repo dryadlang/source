@@ -27,6 +27,10 @@ pub async fn find_package(
 
     // Query all registries
     for (reg_name, reg_url) in &config.registries {
+        if !reg_url.starts_with("https://") {
+            println!("{}", format!("⚠️ AVISO: Registry '{}' usa conexão insegura ({}). Recomenda-se HTTPS.", reg_name, reg_url).yellow());
+        }
+
         let url = if let Some(ver) = version {
             format!("{}/packages/{}/{}", reg_url, package_name, ver)
         } else {

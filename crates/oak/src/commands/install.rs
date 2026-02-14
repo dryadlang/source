@@ -106,7 +106,13 @@ async fn install_single_package(
         }
         print_success("✅ Integridade verificada com sucesso.");
     } else {
-        print_warning("⚠️ Pacote sem checksum registrado no registry. Prosseguindo com cautela.");
+        print_error(&format!("🚨 ERRO DE SEGURANÇA: O pacote '{}' não possui checksum registrado!", pkg_name));
+        print_error("   Instalações sem checksum são altamente inseguras e desabilitadas por padrão.");
+        print_error("   Use um registry que forneça hashes de integridade ou verifique o pacote manualmente.");
+        
+        // Cleanup on failure
+        fs::remove_dir_all(&pkg_dir).ok();
+        return Err("Abortando instalação devido a ausência de checksum".into());
     }
 
     print_success(&format!("Pacote '{}' instalado.", pkg_name));

@@ -41,11 +41,13 @@ fn execute_and_get_variable(code: &str, var_name: &str) -> Result<Value, dryad_e
     let mut interpreter = Interpreter::new();
     interpreter.execute(&program)?;
     
-    // Acessa a constante diretamente
-    if let Some(value) = interpreter.constants.get(var_name) {
-        Ok(value.clone())
-    } else if let Some(value) = interpreter.variables.get(var_name) {
-        Ok(value.clone())
+    // Acessa a constante diretamente via o novo Environment
+    if let Some(value) = interpreter.env.constants.get(var_name) {
+        let val: Value = value.clone();
+        Ok(val)
+    } else if let Some(value) = interpreter.env.variables.get(var_name) {
+        let val: Value = value.clone();
+        Ok(val)
     } else {
         Err(dryad_errors::DryadError::new(3001, &format!("Variável '{}' não encontrada", var_name)))
     }

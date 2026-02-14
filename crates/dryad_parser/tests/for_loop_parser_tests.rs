@@ -1,10 +1,13 @@
-use dryad_parser::{Parser, ast::{Stmt, Expr, Literal}};
 use dryad_lexer::{Lexer, Token};
+use dryad_parser::{
+    ast::{Expr, Literal, Stmt},
+    Parser,
+};
 
 fn parse_tokens(input: &str) -> dryad_parser::ast::Program {
     let mut lexer = Lexer::new(input);
     let mut tokens = Vec::new();
-    
+
     loop {
         let token_with_loc = lexer.next_token().unwrap();
         if matches!(token_with_loc.token, Token::Eof) {
@@ -12,7 +15,7 @@ fn parse_tokens(input: &str) -> dryad_parser::ast::Program {
         }
         tokens.push(token_with_loc);
     }
-    
+
     let mut parser = Parser::new(tokens);
     parser.parse().unwrap()
 }
@@ -24,22 +27,22 @@ fn test_parse_simple_for_statement() {
         result = result + i;
     }
     "#;
-    
+
     let program = parse_tokens(input);
-        assert_eq!(program.statements.len(), 1);
-    
+    assert_eq!(program.statements.len(), 1);
+
     match &program.statements[0] {
         Stmt::For(init, condition, update, body, _) => {
             // Verifica inicialização: i = 0
             assert!(init.is_some());
             match init.as_ref().unwrap().as_ref() {
                 Stmt::Assignment(var, _, _) => {
-                    assert_eq!(var, "i");
+                    assert_eq!(var.identifier_name().unwrap(), "i");
                     // Simplificamos o teste para apenas verificar se é uma atribuição à variável 'i'
                 }
                 _ => panic!("Inicialização deveria ser um assignment"),
             }
-            
+
             // Verifica condição: i < 5
             assert!(condition.is_some());
             match condition.as_ref().unwrap() {
@@ -50,16 +53,16 @@ fn test_parse_simple_for_statement() {
                 }
                 _ => panic!("Condição deveria ser uma expressão binária"),
             }
-            
+
             // Verifica update: i = i + 1
             assert!(update.is_some());
             match update.as_ref().unwrap().as_ref() {
                 Stmt::Assignment(var, _, _) => {
-                    assert_eq!(var, "i");
+                    assert_eq!(var.identifier_name().unwrap(), "i");
                 }
                 _ => panic!("Update deveria ser um assignment"),
             }
-            
+
             // Verifica corpo é um bloco
             assert!(matches!(**body, Stmt::Block(..)));
         }
@@ -74,10 +77,10 @@ fn test_parse_for_with_complex_condition() {
         sum = sum + count;
     }
     "#;
-    
+
     let program = parse_tokens(input);
     assert_eq!(program.statements.len(), 1);
-    
+
     match &program.statements[0] {
         Stmt::For(_, condition, _, _, _) => {
             // Condição complexa: count <= 10 && active
@@ -102,10 +105,10 @@ fn test_parse_for_with_multiple_statements() {
         let temp = i * 2;
     }
     "#;
-    
+
     let program = parse_tokens(input);
     assert_eq!(program.statements.len(), 1);
-    
+
     match &program.statements[0] {
         Stmt::For(_, _, _, body, _) => {
             match **body {
@@ -128,10 +131,10 @@ fn test_parse_nested_for_statements() {
         }
     }
     "#;
-    
+
     let program = parse_tokens(input);
     assert_eq!(program.statements.len(), 1);
-    
+
     match &program.statements[0] {
         Stmt::For(_, _, _, outer_body, _) => {
             match **outer_body {
@@ -156,10 +159,10 @@ fn test_parse_for_with_if_inside() {
         }
     }
     "#;
-    
+
     let program = parse_tokens(input);
     assert_eq!(program.statements.len(), 1);
-    
+
     match &program.statements[0] {
         Stmt::For(_, _, _, body, _) => {
             match **body {
@@ -188,10 +191,10 @@ fn test_parse_for_with_break_continue() {
         result = result + i;
     }
     "#;
-    
+
     let program = parse_tokens(input);
     assert_eq!(program.statements.len(), 1);
-    
+
     match &program.statements[0] {
         Stmt::For(_, _, _, body, _) => {
             match **body {
@@ -214,10 +217,10 @@ fn test_parse_for_empty_components() {
         }
     }
     "#;
-    
+
     let program = parse_tokens(input);
     assert_eq!(program.statements.len(), 1);
-    
+
     match &program.statements[0] {
         Stmt::For(init, condition, update, _, _) => {
             // Todos os componentes devem ser None
@@ -235,11 +238,11 @@ fn test_parse_for_without_braces_error() {
     for (i = 0; i < 5; i = i + 1)
         statement;
     "#;
-    
+
     // Este teste deveria falhar porque for requer chaves
     let mut lexer = Lexer::new(input);
     let mut tokens = Vec::new();
-    
+
     loop {
         let token_with_loc = lexer.next_token().unwrap();
         if matches!(token_with_loc.token, Token::Eof) {
@@ -247,10 +250,10 @@ fn test_parse_for_without_braces_error() {
         }
         tokens.push(token_with_loc);
     }
-    
+
     let mut parser = Parser::new(tokens);
     let result = parser.parse();
-    
+
     // Deveria retornar erro
     assert!(result.is_err());
 }
@@ -264,10 +267,10 @@ fn test_parse_for_variable_condition() {
         }
     }
     "#;
-    
+
     let program = parse_tokens(input);
     assert_eq!(program.statements.len(), 1);
-    
+
     match &program.statements[0] {
         Stmt::For(_, condition, _, _, _) => {
             assert!(condition.is_some());
@@ -289,22 +292,22 @@ fn test_exact_syntax_md_example() {
         i = i * 2;
     }
     "#;
-    
+
     let program = parse_tokens(input);
     assert_eq!(program.statements.len(), 1);
-    
+
     match &program.statements[0] {
         Stmt::For(init, condition, update, body, _) => {
             // Inicialização: i = 0
             assert!(init.is_some());
             match init.as_ref().unwrap().as_ref() {
-                Stmt::Assignment(var, _, _) => {
-                    assert_eq!(var, "i");
+                Stmt::Assignment(pattern, _, _) => {
+                    assert_eq!(pattern.identifier_name().unwrap(), "i");
                     // Simplificamos o teste para apenas verificar se é uma atribuição à variável 'i'
                 }
                 _ => panic!("Inicialização deveria ser i = 0"),
             }
-            
+
             // Condição: i < 5
             assert!(condition.is_some());
             match condition.as_ref().unwrap() {
@@ -319,16 +322,16 @@ fn test_exact_syntax_md_example() {
                 }
                 _ => panic!("Condição deveria ser uma expressão binária"),
             }
-            
+
             // Update: i = i + 1
             assert!(update.is_some());
             match update.as_ref().unwrap().as_ref() {
-                Stmt::Assignment(var, _, _) => {
-                    assert_eq!(var, "i");
+                Stmt::Assignment(pattern, _, _) => {
+                    assert_eq!(pattern.identifier_name().unwrap(), "i");
                 }
                 _ => panic!("Update deveria ser i = i + 1"),
             }
-            
+
             // Corpo: { print(i); }
             match **body {
                 Stmt::Block(ref statements, _) => {

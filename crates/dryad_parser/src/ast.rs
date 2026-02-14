@@ -27,7 +27,9 @@ impl fmt::Display for Type {
             Type::Tuple(elements) => {
                 write!(f, "(")?;
                 for (i, el) in elements.iter().enumerate() {
-                    if i > 0 { write!(f, ", ")?; }
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
                     write!(f, "{}", el)?;
                 }
                 write!(f, ")")
@@ -35,7 +37,9 @@ impl fmt::Display for Type {
             Type::Function(params, ret) => {
                 write!(f, "fn(")?;
                 for (i, p) in params.iter().enumerate() {
-                    if i > 0 { write!(f, ", ")?; }
+                    if i > 0 {
+                        write!(f, ", ")?;
+                    }
                     write!(f, "{}", p)?;
                 }
                 write!(f, ") -> {}", ret)
@@ -48,24 +52,35 @@ impl fmt::Display for Type {
 #[derive(Debug, Clone)]
 pub enum Stmt {
     Expression(Expr, SourceLocation),
-    VarDeclaration(String, Option<Type>, Option<Expr>, SourceLocation), // nome, tipo opcional, valor opcional
-    ConstDeclaration(String, Option<Type>, Expr, SourceLocation),       // nome, tipo opcional, valor obrigatório
-    Assignment(String, Expr, SourceLocation),             // nome, valor
+    VarDeclaration(Pattern, Option<Type>, Option<Expr>, SourceLocation), // padrão, tipo opcional, valor opcional
+    ConstDeclaration(Pattern, Option<Type>, Expr, SourceLocation), // padrão, tipo opcional, valor obrigatório
+    Assignment(Pattern, Expr, SourceLocation), // padrão (pode ser simples id), valor
     PropertyAssignment(Expr, String, Expr, SourceLocation), // object, property, value
-    IndexAssignment(Expr, Expr, Expr, SourceLocation),    // array/object, index, value
-    Block(Vec<Stmt>, SourceLocation),                    // { stmt1; stmt2; ... }
-    If(Expr, Box<Stmt>, SourceLocation),                 // if (condição) { bloco }
-    IfElse(Expr, Box<Stmt>, Box<Stmt>, SourceLocation),  // if (condição) { bloco } else { bloco }
-    While(Expr, Box<Stmt>, SourceLocation),              // while (condição) { bloco }
-    DoWhile(Box<Stmt>, Expr, SourceLocation),            // do { bloco } while (condição);
-    For(Option<Box<Stmt>>, Option<Expr>, Option<Box<Stmt>>, Box<Stmt>, SourceLocation), // for (init; condition; update) { body }
-    ForEach(String, Expr, Box<Stmt>, SourceLocation),    // for var in iterable { body }
-    Break(SourceLocation),                               // break;
-    Continue(SourceLocation),                            // continue;
-    Try(Box<Stmt>, Option<(String, Box<Stmt>)>, Option<Box<Stmt>>, SourceLocation), // try { } catch (var) { } finally { }
-    Throw(Expr, SourceLocation),                         // throw expression;
-    Return(Option<Expr>, SourceLocation),                // return [expression];
-    NativeDirective(String, SourceLocation),             // #<module_name>
+    IndexAssignment(Expr, Expr, Expr, SourceLocation), // array/object, index, value
+    Block(Vec<Stmt>, SourceLocation),          // { stmt1; stmt2; ... }
+    If(Expr, Box<Stmt>, SourceLocation),       // if (condição) { bloco }
+    IfElse(Expr, Box<Stmt>, Box<Stmt>, SourceLocation), // if (condição) { bloco } else { bloco }
+    While(Expr, Box<Stmt>, SourceLocation),    // while (condição) { bloco }
+    DoWhile(Box<Stmt>, Expr, SourceLocation),  // do { bloco } while (condição);
+    For(
+        Option<Box<Stmt>>,
+        Option<Expr>,
+        Option<Box<Stmt>>,
+        Box<Stmt>,
+        SourceLocation,
+    ), // for (init; condition; update) { body }
+    ForEach(Pattern, Expr, Box<Stmt>, SourceLocation), // for pattern in iterable { body }
+    Break(SourceLocation),                     // break;
+    Continue(SourceLocation),                  // continue;
+    Try(
+        Box<Stmt>,
+        Option<(String, Box<Stmt>)>,
+        Option<Box<Stmt>>,
+        SourceLocation,
+    ), // try { } catch (var) { } finally { }
+    Throw(Expr, SourceLocation),               // throw expression;
+    Return(Option<Expr>, SourceLocation),      // return [expression];
+    NativeDirective(String, SourceLocation),   // #<module_name>
     FunctionDeclaration {
         name: String,
         params: Vec<(String, Option<Type>)>,
@@ -80,17 +95,24 @@ pub enum Stmt {
         body: Box<Stmt>,
         location: SourceLocation,
     },
-    ClassDeclaration(String, Option<String>, Vec<ClassMember>, SourceLocation), // class Name [extends Parent] { members... }
-    Export(Box<Stmt>, SourceLocation),                   // export statement
-    Use(String, SourceLocation),                         // use "module/path"
-    Import(ImportKind, String, SourceLocation),          // import statement
+    ClassDeclaration(
+        String,
+        Option<String>,
+        Vec<String>,
+        Vec<ClassMember>,
+        SourceLocation,
+    ), // class Name [extends Parent] [implements Interfaces] { members... }
+    InterfaceDeclaration(String, Vec<InterfaceMember>, SourceLocation), // interface Name { methods... }
+    Export(Box<Stmt>, SourceLocation),                                  // export statement
+    Use(String, SourceLocation),                                        // use "module/path"
+    Import(ImportKind, String, SourceLocation),                         // import statement
 }
 
 #[derive(Debug, Clone)]
 pub enum ImportKind {
-    Named(Vec<String>),                  // import { func1, func2 } from "module"
-    Namespace(String),                   // import * as name from "module"
-    SideEffect,                          // import "module"
+    Named(Vec<String>), // import { func1, func2 } from "module"
+    Namespace(String),  // import * as name from "module"
+    SideEffect,         // import "module"
 }
 
 #[derive(Debug, Clone)]
@@ -100,40 +122,50 @@ pub enum Expr {
     Unary(String, Box<Expr>, SourceLocation),
     Variable(String, SourceLocation),
     Call(Box<Expr>, Vec<Expr>, SourceLocation),
-    PostIncrement(Box<Expr>, SourceLocation),             // x++
-    PostDecrement(Box<Expr>, SourceLocation),             // x--
-    PreIncrement(Box<Expr>, SourceLocation),              // ++x
-    PreDecrement(Box<Expr>, SourceLocation),              // --x
-    Array(Vec<Expr>, SourceLocation),                     // [expr1, expr2, ...]
-    Tuple(Vec<Expr>, SourceLocation),                     // (expr1, expr2, ...)
-    Index(Box<Expr>, Box<Expr>, SourceLocation),          // array[index]
-    TupleAccess(Box<Expr>, usize, SourceLocation),        // tuple.index
+    PostIncrement(Box<Expr>, SourceLocation),      // x++
+    PostDecrement(Box<Expr>, SourceLocation),      // x--
+    PreIncrement(Box<Expr>, SourceLocation),       // ++x
+    PreDecrement(Box<Expr>, SourceLocation),       // --x
+    Array(Vec<Expr>, SourceLocation),              // [expr1, expr2, ...]
+    Tuple(Vec<Expr>, SourceLocation),              // (expr1, expr2, ...)
+    Index(Box<Expr>, Box<Expr>, SourceLocation),   // array[index]
+    TupleAccess(Box<Expr>, usize, SourceLocation), // tuple.index
     Lambda {
         params: Vec<(String, Option<Type>)>,
         body: Box<Expr>,
         return_type: Option<Type>,
         location: SourceLocation,
     },
-    This(SourceLocation),                                 // this
-    Super(SourceLocation),                                // super
+    This(SourceLocation),                                     // this
+    Super(SourceLocation),                                    // super
     MethodCall(Box<Expr>, String, Vec<Expr>, SourceLocation), // object.method(args...)
-    PropertyAccess(Box<Expr>, String, SourceLocation),    // object.property
-    ClassInstantiation(String, Vec<Expr>, SourceLocation), // ClassName(args...)
-    ObjectLiteral(Vec<ObjectProperty>, SourceLocation),   // { key: value, method() { ... } }
-    Await(Box<Expr>, SourceLocation),                     // await expr
-    ThreadCall(Box<Expr>, Vec<Expr>, SourceLocation),     // thread(func, args...)
-    MutexCreation(SourceLocation),                        // mutex()
-    Match(Box<Expr>, Vec<MatchArm>, SourceLocation),      // match expr { pat => body, ... }
+    PropertyAccess(Box<Expr>, String, SourceLocation),        // object.property
+    ClassInstantiation(String, Vec<Expr>, SourceLocation),    // ClassName(args...)
+    ObjectLiteral(Vec<ObjectProperty>, SourceLocation),       // { key: value, method() { ... } }
+    Await(Box<Expr>, SourceLocation),                         // await expr
+    ThreadCall(Box<Expr>, Vec<Expr>, SourceLocation),         // thread(func, args...)
+    MutexCreation(SourceLocation),                            // mutex()
+    Match(Box<Expr>, Vec<MatchArm>, SourceLocation),          // match expr { pat => body, ... }
 }
 
 #[derive(Debug, Clone)]
 pub enum Pattern {
     Literal(Literal),
     Identifier(String), // Binding
-    Wildcard,          // _
+    Wildcard,           // _
     Array(Vec<Pattern>),
     Tuple(Vec<Pattern>),
     Object(Vec<(String, Pattern)>),
+}
+
+impl Pattern {
+    /// Retorna o nome do identificador se for um Pattern::Identifier
+    pub fn identifier_name(&self) -> Option<&String> {
+        match self {
+            Pattern::Identifier(name) => Some(name),
+            _ => None,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -154,7 +186,7 @@ pub enum Literal {
 
 #[derive(Debug, Clone)]
 pub enum ObjectProperty {
-    Property(String, Expr),                               // key: value
+    Property(String, Expr), // key: value
     Method {
         name: String,
         params: Vec<(String, Option<Type>)>,
@@ -180,6 +212,17 @@ pub enum ClassMember {
         body: Box<Stmt>,
     },
     Property(Visibility, bool, String, Option<Type>, Option<Expr>), // visibility, is_static, name, type, default_value
+    Getter {
+        visibility: Visibility,
+        name: String,
+        body: Box<Stmt>,
+    },
+    Setter {
+        visibility: Visibility,
+        name: String,
+        param: String,
+        body: Box<Stmt>,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -194,3 +237,18 @@ impl Default for Visibility {
         Visibility::Public
     }
 }
+
+#[derive(Debug, Clone)]
+pub struct InterfaceMethod {
+    pub name: String,
+    pub params: Vec<(String, Option<Type>)>,
+    pub return_type: Option<Type>,
+}
+
+#[derive(Debug, Clone)]
+pub enum InterfaceMember {
+    Method(InterfaceMethod),
+    // Future: Property, StaticMethod, etc.
+}
+
+pub type InterfaceDeclaration = Vec<InterfaceMember>;

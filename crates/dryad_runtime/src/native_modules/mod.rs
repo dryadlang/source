@@ -17,6 +17,10 @@ pub mod http_client;
 pub mod http_server;
 pub mod tcp;
 pub mod udp;
+pub mod ffi;
+pub mod json_stream;
+pub mod websocket;
+pub mod database;
 
 // Módulos futuros:
 // pub mod websocket;
@@ -32,7 +36,7 @@ use std::pin::Pin;
 pub type NativeFunction = fn(&[Value], &NativeModuleManager, &mut Heap) -> Result<Value, RuntimeError>;
 
 /// Tipo para funções nativas assíncronas
-pub type AsyncNativeFunction = fn(Vec<Value>, &NativeModuleManager, &mut Heap) -> Pin<Box<dyn Future<Output = Result<Value, RuntimeError>> + Send>>;
+pub type AsyncNativeFunction = fn(Vec<Value>, &NativeModuleManager, &mut Heap) -> Pin<Box<dyn Future<Output = Result<Value, RuntimeError>> + Send + 'static>>;
 
 /// Gerenciador de módulos nativos
 pub struct NativeModuleManager {
@@ -42,8 +46,12 @@ pub struct NativeModuleManager {
     async_categories: HashMap<String, HashMap<String, AsyncNativeFunction>>,
     /// Categorias ativas (carregadas através de diretivas)
     active_categories: HashSet<String>,
-    /// Flag para permitir operações inseguras (ex: native_exec)
+    /// Flag para permitir operações inseguras (ex: native_set_env)
     allow_unsafe: bool,
+    /// Flag para permitir execução de comandos (native_exec, native_exec_output)
+    allow_exec: bool,
+    /// Diretório raiz para o sandbox de arquivos (se None, usa o diretório atual como base)
+    sandbox_root: Option<std::path::PathBuf>,
 }
 
 impl NativeModuleManager {
@@ -53,13 +61,15 @@ impl NativeModuleManager {
             async_categories: HashMap::new(),
             active_categories: HashSet::new(),
             allow_unsafe: false,
+            allow_exec: false,
+            sandbox_root: None,
         };
         
         // Registra todas as categorias disponíveis
         manager.register_all_categories();
         
         // Ativa console_io por padrão (print, println, input, etc.)
-        let _ = manager.activate_category("console_io");
+        // let _ = manager.activate_category("console_io");
         
         manager
     }
@@ -139,6 +149,26 @@ impl NativeModuleManager {
         let mut udp_functions = HashMap::new();
         udp::register_udp_functions(&mut udp_functions);
         self.categories.insert("udp".to_string(), udp_functions);
+
+        // Registra FFI
+        let mut ffi_functions = HashMap::new();
+        ffi::register_ffi_functions(&mut ffi_functions);
+        self.categories.insert("ffi".to_string(), ffi_functions);
+
+        // Registra JSON Stream
+        let mut json_stream_functions = HashMap::new();
+        json_stream::register_json_stream_functions(&mut json_stream_functions);
+        self.categories.insert("json_stream".to_string(), json_stream_functions);
+
+        // Registra WebSocket
+        let mut websocket_functions = HashMap::new();
+        websocket::register_websocket_functions(&mut websocket_functions);
+        self.categories.insert("websocket".to_string(), websocket_functions);
+
+        // Registra Database
+        let mut database_functions = HashMap::new();
+        database::register_database_functions(&mut database_functions);
+        self.categories.insert("database".to_string(), database_functions);
     }
     
     /// Ativa uma categoria específica através de diretiva #<categoria>
@@ -192,6 +222,22 @@ impl NativeModuleManager {
     pub fn allow_unsafe(&self) -> bool {
         self.allow_unsafe
     }
+
+    pub fn set_allow_exec(&mut self, allow: bool) {
+        self.allow_exec = allow;
+    }
+
+    pub fn allow_exec(&self) -> bool {
+        self.allow_exec
+    }
+
+    pub fn set_sandbox_root(&mut self, root: std::path::PathBuf) {
+        self.sandbox_root = Some(root);
+    }
+
+    pub fn sandbox_root(&self) -> Option<&std::path::PathBuf> {
+        self.sandbox_root.as_ref()
+    }
     
     /// Lista todas as funções ativas (de categorias carregadas)
     pub fn list_active_functions(&self) -> Vec<String> {
@@ -227,6 +273,35 @@ impl NativeModuleManager {
             Some((is_active, function_names))
         } else {
             None
+        }
+    }
+    
+    /// Verifica se uma função nativa existe em qualquer categoria (mesmo que inativa)
+    /// Retorna o nome da categoria se encontrada, ou None se não existir
+    pub fn find_function_category(&self, function_name: &str) -> Option<String> {
+        // Verificar em categorias síncronas
+        for (category, functions) in &self.categories {
+            if functions.contains_key(function_name) {
+                return Some(category.clone());
+            }
+        }
+        
+        // Verificar em categorias assíncronas
+        for (category, functions) in &self.async_categories {
+            if functions.contains_key(function_name) {
+                return Some(category.clone());
+            }
+        }
+        
+        None
+    }
+    
+    /// Verifica se uma função existe mas está em uma categoria inativa
+    pub fn is_function_in_inactive_category(&self, function_name: &str) -> bool {
+        if let Some(category) = self.find_function_category(function_name) {
+            !self.active_categories.contains(&category)
+        } else {
+            false
         }
     }
 }

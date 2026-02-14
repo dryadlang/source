@@ -1,4 +1,4 @@
-use crate::interpreter::RuntimeValue;
+use crate::interpreter::Value;
 use crate::native_modules::NativeFunction;
 use crate::errors::RuntimeError;
 use std::collections::HashMap;
@@ -200,21 +200,21 @@ pub fn register_http_server_functions(functions: &mut HashMap<String, NativeFunc
 
 /// native_http_server_create(server_id, host?, port?) -> null
 /// Cria uma nova instância de servidor HTTP
-fn native_http_server_create(args: &[RuntimeValue], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<RuntimeValue, RuntimeError> {
+fn native_http_server_create(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     let server_id = match args.get(0) {
-        Some(RuntimeValue::String(s)) => s.clone(),
+        Some(Value::String(s)) => s.clone(),
         Some(_) => return Err(RuntimeError::TypeError("Primeiro argumento deve ser string (server_id)".to_string())),
         None => return Err(RuntimeError::ArgumentError("native_http_server_create espera pelo menos 1 argumento".to_string())),
     };
     
     let host = match args.get(1) {
-        Some(RuntimeValue::String(s)) => s.clone(),
+        Some(Value::String(s)) => s.clone(),
         Some(_) => return Err(RuntimeError::TypeError("Segundo argumento deve ser string (host)".to_string())),
         None => "127.0.0.1".to_string(),
     };
     
     let port = match args.get(2) {
-        Some(RuntimeValue::Number(n)) => *n as u16,
+        Some(Value::Number(n)) => *n as u16,
         Some(_) => return Err(RuntimeError::TypeError("Terceiro argumento deve ser número (port)".to_string())),
         None => 8080,
     };
@@ -230,14 +230,14 @@ fn native_http_server_create(args: &[RuntimeValue], _manager: &crate::native_mod
     ROUTE_HANDLERS.lock().unwrap().insert(server_id.clone(), HashMap::new());
     STATIC_CONTENT.lock().unwrap().insert(server_id, HashMap::new());
     
-    Ok(RuntimeValue::Null)
+    Ok(Value::Null)
 }
 
 /// native_http_server_start(server_id) -> null
 /// Inicia o servidor HTTP
-fn native_http_server_start(args: &[RuntimeValue], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<RuntimeValue, RuntimeError> {
+fn native_http_server_start(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     let server_id = match args.get(0) {
-        Some(RuntimeValue::String(s)) => s.clone(),
+        Some(Value::String(s)) => s.clone(),
         Some(_) => return Err(RuntimeError::TypeError("Argumento deve ser string (server_id)".to_string())),
         None => return Err(RuntimeError::ArgumentError("native_http_server_start espera 1 argumento".to_string())),
     };
@@ -283,14 +283,14 @@ fn native_http_server_start(args: &[RuntimeValue], _manager: &crate::native_modu
              HTTP_SERVERS.lock().unwrap().get(&server_id).unwrap().host,
              HTTP_SERVERS.lock().unwrap().get(&server_id).unwrap().port);
     
-    Ok(RuntimeValue::Null)
+    Ok(Value::Null)
 }
 
 /// native_http_server_stop(server_id) -> null
 /// Para o servidor HTTP
-fn native_http_server_stop(args: &[RuntimeValue], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<RuntimeValue, RuntimeError> {
+fn native_http_server_stop(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     let server_id = match args.get(0) {
-        Some(RuntimeValue::String(s)) => s.clone(),
+        Some(Value::String(s)) => s.clone(),
         Some(_) => return Err(RuntimeError::TypeError("Argumento deve ser string (server_id)".to_string())),
         None => return Err(RuntimeError::ArgumentError("native_http_server_stop espera 1 argumento".to_string())),
     };
@@ -314,14 +314,14 @@ fn native_http_server_stop(args: &[RuntimeValue], _manager: &crate::native_modul
     }
     
     println!("🛑 Servidor HTTP '{}' parado", server_id);
-    Ok(RuntimeValue::Null)
+    Ok(Value::Null)
 }
 
 /// native_http_server_status(server_id) -> object
 /// Retorna status do servidor
-fn native_http_server_status(args: &[RuntimeValue], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<RuntimeValue, RuntimeError> {
+fn native_http_server_status(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     let server_id = match args.get(0) {
-        Some(RuntimeValue::String(s)) => s.clone(),
+        Some(Value::String(s)) => s.clone(),
         Some(_) => return Err(RuntimeError::TypeError("Argumento deve ser string (server_id)".to_string())),
         None => return Err(RuntimeError::ArgumentError("native_http_server_status espera 1 argumento".to_string())),
     };
@@ -330,13 +330,18 @@ fn native_http_server_status(args: &[RuntimeValue], _manager: &crate::native_mod
     let server = servers.get(&server_id)
         .ok_or_else(|| RuntimeError::ArgumentError(format!("Servidor '{}' não encontrado", server_id)))?;
     
-    // Retorna informações do servidor como string JSON (simplificado)
-    let status = format!(
-        r#"{{"server_id": "{}", "host": "{}", "port": {}, "running": {}}}"#,
-        server_id, server.host, server.port, server.is_running
-    );
+    let mut status_map = HashMap::new();
+    status_map.insert("server_id".to_string(), Value::String(server_id.clone()));
+    status_map.insert("host".to_string(), Value::String(server.host.clone()));
+    status_map.insert("port".to_string(), Value::Number(server.port as f64));
+    status_map.insert("running".to_string(), Value::Bool(server.is_running));
     
-    Ok(RuntimeValue::String(status))
+    let id = _heap.allocate(crate::heap::ManagedObject::Object {
+        properties: status_map,
+        methods: HashMap::new(),
+    });
+    
+    Ok(Value::Object(id))
 }
 
 // ========================
@@ -345,29 +350,29 @@ fn native_http_server_status(args: &[RuntimeValue], _manager: &crate::native_mod
 
 /// native_http_server_route(server_id, method, path, response_body, status_code?) -> null
 /// Define uma rota genérica
-fn native_http_server_route(args: &[RuntimeValue], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<RuntimeValue, RuntimeError> {
+fn native_http_server_route(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     let server_id = match args.get(0) {
-        Some(RuntimeValue::String(s)) => s.clone(),
+        Some(Value::String(s)) => s.clone(),
         _ => return Err(RuntimeError::ArgumentError("Primeiro argumento deve ser string (server_id)".to_string())),
     };
     
     let method = match args.get(1) {
-        Some(RuntimeValue::String(s)) => s.to_uppercase(),
+        Some(Value::String(s)) => s.to_uppercase(),
         _ => return Err(RuntimeError::ArgumentError("Segundo argumento deve ser string (method)".to_string())),
     };
     
     let path = match args.get(2) {
-        Some(RuntimeValue::String(s)) => s.clone(),
+        Some(Value::String(s)) => s.clone(),
         _ => return Err(RuntimeError::ArgumentError("Terceiro argumento deve ser string (path)".to_string())),
     };
     
     let response_body = match args.get(3) {
-        Some(RuntimeValue::String(s)) => s.clone(),
+        Some(Value::String(s)) => s.clone(),
         _ => return Err(RuntimeError::ArgumentError("Quarto argumento deve ser string (response_body)".to_string())),
     };
     
     let status_code = match args.get(4) {
-        Some(RuntimeValue::Number(n)) => *n as u16,
+        Some(Value::Number(n)) => *n as u16,
         _ => 200,
     };
     
@@ -385,47 +390,79 @@ fn native_http_server_route(args: &[RuntimeValue], _manager: &crate::native_modu
         .ok_or_else(|| RuntimeError::ArgumentError(format!("Servidor '{}' não encontrado", server_id)))?
         .insert(route_key, handler);
     
-    Ok(RuntimeValue::Null)
+    Ok(Value::Null)
 }
 
 /// native_http_server_get(server_id, path, response_body) -> null
 /// Define uma rota GET
-fn native_http_server_get(args: &[RuntimeValue], manager: &crate::native_modules::NativeModuleManager) -> Result<RuntimeValue, RuntimeError> {
+fn native_http_server_get(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.len() < 3 {
-        return Err(RuntimeError::ArgumentError("native_http_server_get espera 3 argumentos".to_string()));
+        return Err(RuntimeError::ArgumentError("native_http_server_get espera pelo menos 3 argumentos (server_id, path, response_body)".to_string()));
     }
     
-    native_http_server_route(args, manager)
+    let new_args = vec![
+        args[0].clone(),
+        Value::String("GET".to_string()),
+        args[1].clone(),
+        args[2].clone(),
+        args.get(3).cloned().unwrap_or(Value::Number(200.0)),
+    ];
+    
+    native_http_server_route(&new_args, _manager, _heap)
 }
 
 /// native_http_server_post(server_id, path, response_body) -> null
 /// Define uma rota POST
-fn native_http_server_post(args: &[RuntimeValue], manager: &crate::native_modules::NativeModuleManager) -> Result<RuntimeValue, RuntimeError> {
+fn native_http_server_post(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.len() < 3 {
-        return Err(RuntimeError::ArgumentError("native_http_server_post espera 3 argumentos".to_string()));
+        return Err(RuntimeError::ArgumentError("native_http_server_post espera pelo menos 3 argumentos (server_id, path, response_body)".to_string()));
     }
     
-    native_http_server_route(args, manager)
+    let new_args = vec![
+        args[0].clone(),
+        Value::String("POST".to_string()),
+        args[1].clone(),
+        args[2].clone(),
+        args.get(3).cloned().unwrap_or(Value::Number(200.0)),
+    ];
+    
+    native_http_server_route(&new_args, _manager, _heap)
 }
 
 /// native_http_server_put(server_id, path, response_body) -> null
 /// Define uma rota PUT
-fn native_http_server_put(args: &[RuntimeValue], manager: &crate::native_modules::NativeModuleManager) -> Result<RuntimeValue, RuntimeError> {
+fn native_http_server_put(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.len() < 3 {
-        return Err(RuntimeError::ArgumentError("native_http_server_put espera 3 argumentos".to_string()));
+        return Err(RuntimeError::ArgumentError("native_http_server_put espera pelo menos 3 argumentos (server_id, path, response_body)".to_string()));
     }
     
-    native_http_server_route(args, manager)
+    let new_args = vec![
+        args[0].clone(),
+        Value::String("PUT".to_string()),
+        args[1].clone(),
+        args[2].clone(),
+        args.get(3).cloned().unwrap_or(Value::Number(200.0)),
+    ];
+    
+    native_http_server_route(&new_args, _manager, _heap)
 }
 
 /// native_http_server_delete(server_id, path, response_body) -> null
 /// Define uma rota DELETE
-fn native_http_server_delete(args: &[RuntimeValue], manager: &crate::native_modules::NativeModuleManager) -> Result<RuntimeValue, RuntimeError> {
+fn native_http_server_delete(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.len() < 3 {
-        return Err(RuntimeError::ArgumentError("native_http_server_delete espera 3 argumentos".to_string()));
+        return Err(RuntimeError::ArgumentError("native_http_server_delete espera pelo menos 3 argumentos (server_id, path, response_body)".to_string()));
     }
     
-    native_http_server_route(args, manager)
+    let new_args = vec![
+        args[0].clone(),
+        Value::String("DELETE".to_string()),
+        args[1].clone(),
+        args[2].clone(),
+        args.get(3).cloned().unwrap_or(Value::Number(200.0)),
+    ];
+    
+    native_http_server_route(&new_args, _manager, _heap)
 }
 
 // ========================
@@ -434,23 +471,23 @@ fn native_http_server_delete(args: &[RuntimeValue], manager: &crate::native_modu
 
 /// native_http_server_static(server_id, path, file_path) -> null
 /// Serve arquivo estático
-fn native_http_server_static(args: &[RuntimeValue], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<RuntimeValue, RuntimeError> {
+fn native_http_server_static(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.len() != 3 {
         return Err(RuntimeError::ArgumentError("native_http_server_static espera 3 argumentos".to_string()));
     }
     
     let server_id = match &args[0] {
-        RuntimeValue::String(s) => s.clone(),
+        Value::String(s) => s.clone(),
         _ => return Err(RuntimeError::TypeError("Primeiro argumento deve ser string (server_id)".to_string())),
     };
     
     let path = match &args[1] {
-        RuntimeValue::String(s) => s.clone(),
+        Value::String(s) => s.clone(),
         _ => return Err(RuntimeError::TypeError("Segundo argumento deve ser string (path)".to_string())),
     };
     
     let file_path = match &args[2] {
-        RuntimeValue::String(s) => s.clone(),
+        Value::String(s) => s.clone(),
         _ => return Err(RuntimeError::TypeError("Terceiro argumento deve ser string (file_path)".to_string())),
     };
     
@@ -470,55 +507,55 @@ fn native_http_server_static(args: &[RuntimeValue], _manager: &crate::native_mod
         .ok_or_else(|| RuntimeError::ArgumentError(format!("Servidor '{}' não encontrado", server_id)))?
         .insert(path, static_content);
     
-    Ok(RuntimeValue::Null)
+    Ok(Value::Null)
 }
 
 /// native_http_server_file(server_id, path, file_path) -> null
 /// Alias para static
-fn native_http_server_file(args: &[RuntimeValue], manager: &crate::native_modules::NativeModuleManager) -> Result<RuntimeValue, RuntimeError> {
-    native_http_server_static(args, manager)
+fn native_http_server_file(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
+    native_http_server_static(args, _manager, _heap)
 }
 
 /// native_http_server_html(server_id, path, html_content) -> null
 /// Define resposta HTML
-fn native_http_server_html(args: &[RuntimeValue], manager: &crate::native_modules::NativeModuleManager) -> Result<RuntimeValue, RuntimeError> {
+fn native_http_server_html(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.len() != 3 {
         return Err(RuntimeError::ArgumentError("native_http_server_html espera 3 argumentos".to_string()));
     }
     
     let new_args = vec![
         args[0].clone(),
-        RuntimeValue::String("GET".to_string()),
+        Value::String("GET".to_string()),
         args[1].clone(),
         args[2].clone(),
     ];
     
     // Define como rota GET primeiro
-    native_http_server_route(&new_args, manager)?;
+    native_http_server_route(&new_args, _manager, _heap)?;
     
     // Depois define o content-type como HTML (simplificado por enquanto)
-    Ok(RuntimeValue::Null)
+    Ok(Value::Null)
 }
 
 /// native_http_server_json(server_id, path, json_content) -> null
 /// Define resposta JSON
-fn native_http_server_json(args: &[RuntimeValue], manager: &crate::native_modules::NativeModuleManager) -> Result<RuntimeValue, RuntimeError> {
+fn native_http_server_json(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.len() != 3 {
         return Err(RuntimeError::ArgumentError("native_http_server_json espera 3 argumentos".to_string()));
     }
     
     let new_args = vec![
         args[0].clone(),
-        RuntimeValue::String("GET".to_string()),
+        Value::String("GET".to_string()),
         args[1].clone(),
         args[2].clone(),
     ];
     
     // Define como rota GET primeiro
-    native_http_server_route(&new_args, manager)?;
+    native_http_server_route(&new_args, _manager, _heap)?;
     
     // Depois define o content-type como JSON (simplificado por enquanto)
-    Ok(RuntimeValue::Null)
+    Ok(Value::Null)
 }
 
 // ========================
@@ -527,26 +564,26 @@ fn native_http_server_json(args: &[RuntimeValue], manager: &crate::native_module
 
 /// native_http_server_cors(server_id, origin?) -> null
 /// Configura CORS
-fn native_http_server_cors(args: &[RuntimeValue], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<RuntimeValue, RuntimeError> {
+fn native_http_server_cors(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     // Por enquanto, apenas aceita os argumentos mas não implementa CORS real
     if args.is_empty() {
         return Err(RuntimeError::ArgumentError("native_http_server_cors espera pelo menos 1 argumento".to_string()));
     }
     
     println!("📋 CORS configurado (implementação simplificada)");
-    Ok(RuntimeValue::Null)
+    Ok(Value::Null)
 }
 
 /// native_http_server_middleware(server_id, middleware_fn) -> null
 /// Adiciona middleware (futuro)
-fn native_http_server_middleware(args: &[RuntimeValue], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<RuntimeValue, RuntimeError> {
+fn native_http_server_middleware(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     // Por enquanto, apenas aceita os argumentos mas não implementa middleware real
     if args.len() != 2 {
         return Err(RuntimeError::ArgumentError("native_http_server_middleware espera 2 argumentos".to_string()));
     }
     
     println!("📋 Middleware adicionado (implementação simplificada)");
-    Ok(RuntimeValue::Null)
+    Ok(Value::Null)
 }
 
 // ========================

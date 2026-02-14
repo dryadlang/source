@@ -27,8 +27,8 @@ fn test_single_param_lambda() {
     let expr = parse_expression("x => x * 2").unwrap();
     
     match expr {
-        Expr::Lambda(params, body, _) => {
-            assert_eq!(params, vec!["x".to_string()]);
+        Expr::Lambda { params, body, .. } => {
+            assert_eq!(params[0].0, "x".to_string());
             match *body {
                 Expr::Binary(left, op, right, _) => {
                     assert_eq!(op, "*");
@@ -47,8 +47,8 @@ fn test_multi_param_lambda() {
     let expr = parse_expression("(a, b) => a + b").unwrap();
     
     match expr {
-        Expr::Lambda(params, body, _) => {
-            assert_eq!(params, vec!["a".to_string(), "b".to_string()]);
+        Expr::Lambda { params, body, .. } => {
+            assert_eq!(params.len(), 2); assert_eq!(params[0].0, "a".to_string()); assert_eq!(params[1].0, "b".to_string());
             match *body {
                 Expr::Binary(left, op, right, _) => {
                     assert_eq!(op, "+");
@@ -67,8 +67,8 @@ fn test_zero_param_lambda() {
     let expr = parse_expression("() => 42").unwrap();
     
     match expr {
-        Expr::Lambda(params, body, _) => {
-            assert_eq!(params, Vec::<String>::new());
+        Expr::Lambda { params, body, .. } => {
+            assert!(params.is_empty());
             assert!(matches!(*body, Expr::Literal(Literal::Number(42.0), _)));
         }
         _ => panic!("Expected lambda expression")
@@ -91,11 +91,11 @@ fn test_lambda_assignment() {
     let stmt = parser.statement().unwrap().unwrap();
     
     match stmt {
-        Stmt::VarDeclaration(name, Some(expr), _) => {
-            assert_eq!(name, "quadrado");
+        Stmt::VarDeclaration(name, _, Some(expr), _) => {
+            assert_eq!(name.identifier_name().unwrap(), "quadrado");
             match expr {
-                Expr::Lambda(params, body, _) => {
-                    assert_eq!(params, vec!["x".to_string()]);
+                Expr::Lambda { params, body, .. } => {
+                    assert_eq!(params[0].0, "x".to_string());
                     match *body {
                         Expr::Binary(left, op, right, _) => {
                             assert_eq!(op, "*");
@@ -117,11 +117,11 @@ fn test_nested_lambdas() {
     let expr = parse_expression("x => y => x + y").unwrap();
     
     match expr {
-        Expr::Lambda(params, body, _) => {
-            assert_eq!(params, vec!["x".to_string()]);
+        Expr::Lambda { params, body, .. } => {
+            assert_eq!(params[0].0, "x".to_string());
             match *body {
-                Expr::Lambda(inner_params, inner_body, _) => {
-                    assert_eq!(inner_params, vec!["y".to_string()]);
+                Expr::Lambda { params: inner_params, body: inner_body, .. } => {
+                    assert_eq!(inner_params[0].0, "y".to_string());
                     match *inner_body {
                         Expr::Binary(left, op, right, _) => {
                             assert_eq!(op, "+");
@@ -143,8 +143,8 @@ fn test_lambda_with_complex_expression() {
     let expr = parse_expression("(x, y) => x * 2 + y / 3").unwrap();
     
     match expr {
-        Expr::Lambda(params, body, _) => {
-            assert_eq!(params, vec!["x".to_string(), "y".to_string()]);
+        Expr::Lambda { params, body, .. } => {
+            assert_eq!(params.len(), 2); assert_eq!(params[0].0, "x".to_string()); assert_eq!(params[1].0, "y".to_string());
             // O corpo deve ser: (x * 2) + (y / 3)
             match *body {
                 Expr::Binary(_, op, _, _) => {

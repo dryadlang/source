@@ -2,6 +2,7 @@
 // Arquivo: crates/dryad_runtime/tests/http_server_tests.rs
 
 use dryad_runtime::{Interpreter, Value};
+use dryad_runtime::heap::ManagedObject;
 use dryad_lexer::Lexer;
 use dryad_parser::Parser;
 
@@ -167,20 +168,18 @@ fn test_http_server_status() {
     let result = interpreter.execute_and_return_value(&program).expect("Execução falhou");
     
     match result {
-        Value::String(status_json) => {
-            // Verifica se é JSON válido
-            let parsed: Result<serde_json::Value, _> = serde_json::from_str(&status_json);
-            assert!(parsed.is_ok(), "Status não é JSON válido");
-            
-            // Verifica conteúdo do status
-            let status: serde_json::Value = parsed.unwrap();
-            assert_eq!(status["server_id"], "status_server");
-            assert_eq!(status["host"], "127.0.0.1");
-            assert_eq!(status["port"], 8086);
-            
-            println!("✅ Status do servidor funcionou: {}", status_json);
+        Value::Object(id) => {
+            let obj = interpreter.heap.get(id).unwrap();
+            if let ManagedObject::Object { properties, .. } = obj {
+                assert_eq!(properties.get("server_id"), Some(&Value::String("status_server".to_string())));
+                assert_eq!(properties.get("host"), Some(&Value::String("127.0.0.1".to_string())));
+                assert_eq!(properties.get("port"), Some(&Value::Number(8086.0)));
+                println!("✅ Status do servidor funcionou");
+            } else {
+                panic!("Esperado ManagedObject::Object");
+            }
         }
-        _ => panic!("Esperado String (JSON), recebido: {:?}", result),
+        _ => panic!("Esperado Object, recebido: {:?}", result),
     }
 }
 

@@ -1,4 +1,4 @@
-use crate::interpreter::RuntimeValue;
+use crate::interpreter::Value;
 use crate::native_modules::NativeFunction;
 use crate::errors::RuntimeError;
 use std::io::{self, Write, Read, stdout};
@@ -37,7 +37,7 @@ pub fn register_console_io_functions(functions: &mut std::collections::HashMap<S
 
 /// native_input() - Lê linha do stdin (bloqueante)
 /// Retorna: string
-fn native_input(_args: &[RuntimeValue], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<RuntimeValue, RuntimeError> {
+fn native_input(_args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     let stdin = io::stdin();
     let mut line = String::new();
     
@@ -50,7 +50,7 @@ fn native_input(_args: &[RuntimeValue], _manager: &crate::native_modules::Native
                     line.pop();
                 }
             }
-            Ok(RuntimeValue::String(line))
+            Ok(Value::String(line))
         }
         Err(e) => Err(RuntimeError::IoError(format!("Erro ao ler entrada: {}", e)))
     }
@@ -58,7 +58,7 @@ fn native_input(_args: &[RuntimeValue], _manager: &crate::native_modules::Native
 
 /// native_input_char() - Lê 1 caractere sem esperar Enter
 /// Retorna: string (um caractere)
-fn native_input_char(_args: &[RuntimeValue], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<RuntimeValue, RuntimeError> {
+fn native_input_char(_args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     // Implementação simplificada que lê uma linha e pega o primeiro caractere
     // Uma implementação mais avançada usaria bibliotecas específicas do sistema
     let stdin = io::stdin();
@@ -68,12 +68,12 @@ fn native_input_char(_args: &[RuntimeValue], _manager: &crate::native_modules::N
         Ok(_) => {
             if let Some(first_char) = line.chars().next() {
                 if first_char != '\n' && first_char != '\r' {
-                    Ok(RuntimeValue::String(first_char.to_string()))
+                    Ok(Value::String(first_char.to_string()))
                 } else {
-                    Ok(RuntimeValue::String(" ".to_string())) // Espaço para Enter
+                    Ok(Value::String(" ".to_string())) // Espaço para Enter
                 }
             } else {
-                Ok(RuntimeValue::String("".to_string()))
+                Ok(Value::String("".to_string()))
             }
         }
         Err(e) => Err(RuntimeError::IoError(format!("Erro ao ler caractere: {}", e)))
@@ -83,13 +83,13 @@ fn native_input_char(_args: &[RuntimeValue], _manager: &crate::native_modules::N
 /// native_input_bytes(count) - Lê N bytes do console
 /// Args: count (número de bytes)
 /// Retorna: array de bytes (como string por enquanto)
-fn native_input_bytes(args: &[RuntimeValue], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<RuntimeValue, RuntimeError> {
+fn native_input_bytes(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.len() != 1 {
         return Err(RuntimeError::ArgumentError("native_input_bytes() espera 1 argumento (count)".to_string()));
     }
     
     let count = match &args[0] {
-        RuntimeValue::Number(n) => *n as usize,
+        Value::Number(n) => *n as usize,
         _ => return Err(RuntimeError::ArgumentError("Argumento deve ser um número".to_string()))
     };
     
@@ -98,7 +98,7 @@ fn native_input_bytes(args: &[RuntimeValue], _manager: &crate::native_modules::N
         Ok(_) => {
             // Por enquanto, retornamos como string. Futuramente, podemos implementar arrays de bytes
             let result = String::from_utf8_lossy(&buffer).to_string();
-            Ok(RuntimeValue::String(result))
+            Ok(Value::String(result))
         }
         Err(e) => Err(RuntimeError::IoError(format!("Erro ao ler {} bytes: {}", count, e)))
     }
@@ -107,13 +107,13 @@ fn native_input_bytes(args: &[RuntimeValue], _manager: &crate::native_modules::N
 /// native_input_timeout(ms) - Lê entrada com timeout
 /// Args: ms (timeout em milissegundos)
 /// Retorna: string ou null se timeout
-fn native_input_timeout(args: &[RuntimeValue], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<RuntimeValue, RuntimeError> {
+fn native_input_timeout(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.len() != 1 {
         return Err(RuntimeError::ArgumentError("native_input_timeout() espera 1 argumento (ms)".to_string()));
     }
     
     let timeout_ms = match &args[0] {
-        RuntimeValue::Number(n) => *n as u64,
+        Value::Number(n) => *n as u64,
         _ => return Err(RuntimeError::ArgumentError("Timeout deve ser um número".to_string()))
     };
     
@@ -141,75 +141,75 @@ fn native_input_timeout(args: &[RuntimeValue], _manager: &crate::native_modules:
     
     // Aguarda com timeout
     match receiver.recv_timeout(Duration::from_millis(timeout_ms)) {
-        Ok(Some(line)) => Ok(RuntimeValue::String(line)),
+        Ok(Some(line)) => Ok(Value::String(line)),
         Ok(None) => Err(RuntimeError::IoError("Erro ao ler entrada".to_string())),
-        Err(_) => Ok(RuntimeValue::Null) // Timeout
+        Err(_) => Ok(Value::Null) // Timeout
     }
 }
 
 /// native_print(data) - Imprime dados sem quebra de linha
 /// Args: data (qualquer tipo)
-fn native_print(args: &[RuntimeValue], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<RuntimeValue, RuntimeError> {
+fn native_print(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.len() != 1 {
         return Err(RuntimeError::ArgumentError("native_print() espera 1 argumento".to_string()));
     }
     
     let text = match &args[0] {
-        RuntimeValue::String(s) => s.clone(),
-        RuntimeValue::Number(n) => n.to_string(),
-        RuntimeValue::Bool(b) => b.to_string(),
-        RuntimeValue::Null => "null".to_string(),
+        Value::String(s) => s.clone(),
+        Value::Number(n) => n.to_string(),
+        Value::Bool(b) => b.to_string(),
+        Value::Null => "null".to_string(),
         _ => format!("{:?}", args[0])
     };
     
     print!("{}", text);
     let _ = stdout().flush(); // Força flush automático
     
-    Ok(RuntimeValue::Null)
+    Ok(Value::Null)
 }
 
 /// native_println(data) - Imprime dados com quebra de linha
 /// Args: data (qualquer tipo)
-fn native_println(args: &[RuntimeValue], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<RuntimeValue, RuntimeError> {
+fn native_println(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.len() != 1 {
         return Err(RuntimeError::ArgumentError("native_println() espera 1 argumento".to_string()));
     }
     
     let text = match &args[0] {
-        RuntimeValue::String(s) => s.clone(),
-        RuntimeValue::Number(n) => n.to_string(),
-        RuntimeValue::Bool(b) => b.to_string(),
-        RuntimeValue::Null => "null".to_string(),
+        Value::String(s) => s.clone(),
+        Value::Number(n) => n.to_string(),
+        Value::Bool(b) => b.to_string(),
+        Value::Null => "null".to_string(),
         _ => format!("{:?}", args[0])
     };
     
     println!("{}", text);
     
-    Ok(RuntimeValue::Null)
+    Ok(Value::Null)
 }
 
 /// native_write_stdout(bytes) - Escrita binária direta no stdout
 /// Args: bytes (string que representa bytes)
-fn native_write_stdout(args: &[RuntimeValue], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<RuntimeValue, RuntimeError> {
+fn native_write_stdout(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     if args.len() != 1 {
         return Err(RuntimeError::ArgumentError("native_write_stdout() espera 1 argumento".to_string()));
     }
     
     let bytes = match &args[0] {
-        RuntimeValue::String(s) => s.as_bytes(),
+        Value::String(s) => s.as_bytes(),
         _ => return Err(RuntimeError::ArgumentError("Argumento deve ser string".to_string()))
     };
     
     match stdout().write_all(bytes) {
-        Ok(_) => Ok(RuntimeValue::Null),
+        Ok(_) => Ok(Value::Null),
         Err(e) => Err(RuntimeError::IoError(format!("Erro ao escrever no stdout: {}", e)))
     }
 }
 
 /// native_flush() - Força flush do stdout
-fn native_flush(_args: &[RuntimeValue], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<RuntimeValue, RuntimeError> {
+fn native_flush(_args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
     match stdout().flush() {
-        Ok(_) => Ok(RuntimeValue::Null),
+        Ok(_) => Ok(Value::Null),
         Err(e) => Err(RuntimeError::IoError(format!("Erro ao fazer flush: {}", e)))
     }
 }

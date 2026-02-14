@@ -1,6 +1,6 @@
-use std::collections::HashMap;
-use crate::value::{Value, ClassMethod, ClassProperty, ObjectMethod};
+use crate::value::{ClassGetter, ClassMethod, ClassProperty, ClassSetter, ObjectMethod, Value};
 use dryad_parser::ast::Expr;
+use std::collections::HashMap;
 
 pub type HeapId = usize;
 
@@ -23,8 +23,11 @@ pub enum ManagedObject {
     Class {
         name: String,
         parent: Option<String>,
+        interfaces: Vec<String>,
         methods: HashMap<String, ClassMethod>,
         properties: HashMap<String, ClassProperty>,
+        getters: HashMap<String, ClassGetter>,
+        setters: HashMap<String, ClassSetter>,
     },
     Instance {
         class_name: String,
@@ -54,15 +57,15 @@ impl Heap {
             gc_stats: GcStats::default(),
         }
     }
-    
+
     pub fn set_gc_threshold(&mut self, threshold: usize) {
         self.gc_threshold = threshold;
     }
-    
+
     pub fn should_collect(&self) -> bool {
         self.allocation_count >= self.gc_threshold
     }
-    
+
     pub fn heap_size(&self) -> usize {
         self.objects.len()
     }
@@ -85,7 +88,7 @@ impl Heap {
 
     pub fn collect(&mut self, roots: &[HeapId]) {
         let before_count = self.objects.len();
-        
+
         // 1. Unmark all
         for (_, mark) in self.objects.values_mut() {
             *mark = false;
@@ -107,19 +110,22 @@ impl Heap {
 
         // 3. Sweep
         self.objects.retain(|_, (_, mark)| *mark);
-        
+
         // 4. Update statistics
         let after_count = self.objects.len();
         let freed = before_count.saturating_sub(after_count);
-        
+
         self.gc_stats.total_collections += 1;
         self.gc_stats.total_objects_freed += freed;
         self.gc_stats.last_collection_freed = freed;
         self.allocation_count = 0; // Reset counter after GC
-        
+
         #[cfg(debug_assertions)]
         if freed > 0 {
-            eprintln!("🗑️  GC: Collected {} objects (heap size: {} → {})", freed, before_count, after_count);
+            eprintln!(
+                "🗑️  GC: Collected {} objects (heap size: {} → {})",
+                freed, before_count, after_count
+            );
         }
     }
 
@@ -157,15 +163,17 @@ impl Heap {
 
     fn trace_value(&self, val: &Value, worklist: &mut Vec<HeapId>) {
         match val {
-            Value::Array(id) |
-            Value::Tuple(id) |
-            Value::Lambda(id) |
-            Value::Class(id) |
-            Value::Instance(id) |
-            Value::Object(id) => {
+            Value::Array(id)
+            | Value::Tuple(id)
+            | Value::Lambda(id)
+            | Value::Class(id)
+            | Value::Instance(id)
+            | Value::Object(id) => {
                 worklist.push(*id);
             }
-            Value::Promise { value: Some(val), .. } => {
+            Value::Promise {
+                value: Some(val), ..
+            } => {
                 self.trace_value(val, worklist);
             }
             _ => {}

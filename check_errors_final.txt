@@ -1,0 +1,479 @@
+warning: unused variable: `index_expr`
+   --> crates\dryad_parser\src\parser.rs:171:33
+    |
+171 | ...       let index_expr = self.express...
+    |               ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_index_expr`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: `dryad_parser` (lib) generated 1 warning (run `cargo fix --lib -p dryad_parser` to apply 1 suggestion)
+    Checking dryad_runtime v0.1.0 (C:\Users\Pedro Jesus\Downloads\source-main\source-main\crates\dryad_runtime)
+error[E0425]: cannot find value `result` in this scope
+   --> crates\dryad_runtime\src\native_modules\udp.rs:517:41
+    |
+517 | ...                   properties: result,
+    |                                   ^^^^^^ not found in this scope
+
+error[E0425]: cannot find value `result` in this scope
+   --> crates\dryad_runtime\src\native_modules\udp.rs:524:41
+    |
+524 | ...                   properties: result,
+    |                                   ^^^^^^ not found in this scope
+
+error[E0425]: cannot find value `result` in this scope
+   --> crates\dryad_runtime\src\native_modules\udp.rs:532:41
+    |
+532 | ...                   properties: result,
+    |                                   ^^^^^^ not found in this scope
+
+warning: unused import: `Value as JsonValue`
+  --> crates\dryad_runtime\src\interpreter.rs:11:24
+   |
+11 | use serde_json::{self, Value as JsonValue};
+   |                        ^^^^^^^^^^^^^^^^^^
+   |
+   = note: `#[warn(unused_imports)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused imports: `Arc` and `Mutex`
+  --> crates\dryad_runtime\src\interpreter.rs:12:17
+   |
+12 | use std::sync::{Arc, Mutex};
+   |                 ^^^  ^^^^^
+
+warning: unused import: `HeapId`
+ --> crates\dryad_runtime\src\native_modules\encode_decode.rs:4:40
+  |
+4 | use crate::heap::{Heap, ManagedObject, HeapId};
+  |                                        ^^^^^^
+
+warning: unused import: `HeapId`
+  --> crates\dryad_runtime\src\native_modules\mod.rs:24:25
+   |
+24 | use crate::heap::{Heap, HeapId};
+   |                         ^^^^^^
+
+warning: unused import: `std::fs`
+ --> crates\dryad_runtime\src\resolver.rs:3:5
+  |
+3 | use std::fs;
+  |     ^^^^^^^
+
+warning: unused import: `Expr`
+ --> crates\dryad_runtime\src\value.rs:1:31
+  |
+1 | use dryad_parser::ast::{Stmt, Expr, Visibility};
+  |                               ^^^^
+
+warning: unused import: `std::collections::HashMap`
+ --> crates\dryad_runtime\src\value.rs:2:5
+  |
+2 | use std::collections::HashMap;
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `crate::value::Value`
+ --> crates\dryad_runtime\src\debug.rs:4:5
+  |
+4 | use crate::value::Value;
+  |     ^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::net::SocketAddr`
+ --> crates\dryad_runtime\src\debug_server.rs:1:5
+  |
+1 | use std::net::SocketAddr;
+  |     ^^^^^^^^^^^^^^^^^^^^
+
+warning: unused import: `std::sync::Arc`
+ --> crates\dryad_runtime\src\debug_server.rs:2:5
+  |
+2 | use std::sync::Arc;
+  |     ^^^^^^^^^^^^^^
+
+warning: unused import: `AsyncReadExt`
+ --> crates\dryad_runtime\src\debug_server.rs:4:17
+  |
+4 | use tokio::io::{AsyncReadExt, AsyncWriteExt};
+  |                 ^^^^^^^^^^^^
+
+warning: unused import: `DebugEvent`
+ --> crates\dryad_runtime\src\debug_server.rs:5:52
+  |
+5 | use crate::debug::{SharedDebugState, DebugCommand, DebugEvent};
+  |                                                    ^^^^^^^^^^
+
+error[E0599]: no variant or associated item named `HeapError` found for enum `RuntimeError` in the current scope
+   --> crates\dryad_runtime\src\native_modules\binary_io.rs:287:65
+    |
+287 |             let obj = heap.get(*id).ok_or_else(|| RuntimeError::HeapError("Array reference not found".to_string()))?;
+    |                                                                 ^^^^^^^^^ variant or associated item not found in `RuntimeError`
+    |
+   ::: crates\dryad_runtime\src\errors.rs:5:1
+    |
+  5 | pub enum RuntimeError {
+    | --------------------- variant or associated item `HeapError` not found for this enum
+
+error[E0599]: no variant or associated item named `HeapError` found for enum `RuntimeError` in the current scope
+  --> crates\dryad_runtime\src\native_modules\encode_decode.rs:71:69
+   |
+71 |     let array_obj = _heap.get(array_id).ok_or_else(|| RuntimeError::HeapError("Array reference not found".to_string()))?;
+   |                                                                     ^^^^^^^^^ variant or associated item not found in `RuntimeError`
+   |
+  ::: crates\dryad_runtime\src\errors.rs:5:1
+   |
+ 5 | pub enum RuntimeError {
+   | --------------------- variant or associated item `HeapError` not found for this enum
+
+error[E0614]: type `usize` cannot be dereferenced
+  --> crates\dryad_runtime\src\native_modules\encode_decode.rs:84:46
+   |
+84 |                     let cols_obj = _heap.get(*cols_id).ok_or_else(|| RuntimeError::HeapError("Array reference not found".to_string()))?;
+   |                                              ^^^^^^^^ can't be dereferenced
+
+error[E0599]: no variant or associated item named `HeapError` found for enum `RuntimeError` in the current scope
+  --> crates\dryad_runtime\src\native_modules\encode_decode.rs:84:84
+   |
+84 |                     let cols_obj = _heap.get(*cols_id).ok_or_else(|| RuntimeError::HeapError("Array reference not found".to_string()))?;
+   |                                                                                    ^^^^^^^^^ variant or associated item not found in `RuntimeError`
+   |
+  ::: crates\dryad_runtime\src\errors.rs:5:1
+   |
+ 5 | pub enum RuntimeError {
+   | --------------------- variant or associated item `HeapError` not found for this enum
+
+error[E0599]: no variant or associated item named `HeapError` found for enum `RuntimeError` in the current scope
+   --> crates\dryad_runtime\src\native_modules\encode_decode.rs:199:65
+    |
+199 |             let obj = heap.get(*id).ok_or_else(|| RuntimeError::HeapError("Array reference not found".to_string()))?;
+    |                                                                 ^^^^^^^^^ variant or associated item not found in `RuntimeError`
+    |
+   ::: crates\dryad_runtime\src\errors.rs:5:1
+    |
+  5 | pub enum RuntimeError {
+    | --------------------- variant or associated item `HeapError` not found for this enum
+
+error[E0599]: no variant or associated item named `HeapError` found for enum `RuntimeError` in the current scope
+   --> crates\dryad_runtime\src\native_modules\encode_decode.rs:210:65
+    |
+210 |             let obj = heap.get(*id).ok_or_else(|| RuntimeError::HeapError("Object reference not found".to_string()))?;
+    |                                                                 ^^^^^^^^^ variant or associated item not found in `RuntimeError`
+    |
+   ::: crates\dryad_runtime\src\errors.rs:5:1
+    |
+  5 | pub enum RuntimeError {
+    | --------------------- variant or associated item `HeapError` not found for this enum
+
+error[E0308]: mismatched types
+   --> crates\dryad_runtime\src\native_modules\encode_decode.rs:214:72
+    |
+214 |                     json_obj.insert(key.clone(), runtime_value_to_json(val, heap)?);
+    |                                                  --------------------- ^^^ expected `&Value`, found `Value`
+    |                                                  |
+    |                                                  arguments to this function are incorrect
+    |
+note: function defined here
+   --> crates\dryad_runtime\src\native_modules\encode_decode.rs:192:4
+    |
+192 | fn runtime_value_to_json(value: &Value, heap: &Heap) -> Result<JsonValue, RuntimeError> {
+    |    ^^^^^^^^^^^^^^^^^^^^^ -------------
+help: consider borrowing here
+    |
+214 |                     json_obj.insert(key.clone(), runtime_value_to_json(&val, heap)?);
+    |                                                                        +
+
+error[E0599]: no variant or associated item named `HeapError` found for enum `RuntimeError` in the current scope
+   --> crates\dryad_runtime\src\native_modules\encode_decode.rs:309:65
+    |
+309 |             let obj = heap.get(*id).ok_or_else(|| RuntimeError::HeapError("Array reference not found".to_string()))?;
+    |                                                                 ^^^^^^^^^ variant or associated item not found in `RuntimeError`
+    |
+   ::: crates\dryad_runtime\src\errors.rs:5:1
+    |
+  5 | pub enum RuntimeError {
+    | --------------------- variant or associated item `HeapError` not found for this enum
+
+error[E0599]: no variant or associated item named `HeapError` found for enum `RuntimeError` in the current scope
+   --> crates\dryad_runtime\src\native_modules\encode_decode.rs:324:65
+    |
+324 |             let obj = heap.get(*id).ok_or_else(|| RuntimeError::HeapError("Object reference not found".to_string()))?;
+    |                                                                 ^^^^^^^^^ variant or associated item not found in `RuntimeError`
+    |
+   ::: crates\dryad_runtime\src\errors.rs:5:1
+    |
+  5 | pub enum RuntimeError {
+    | --------------------- variant or associated item `HeapError` not found for this enum
+
+error[E0599]: no variant or associated item named `HeapError` found for enum `RuntimeError` in the current scope
+   --> crates\dryad_runtime\src\native_modules\crypto.rs:459:65
+    |
+459 |             let obj = heap.get(*id).ok_or_else(|| RuntimeError::HeapError("Array reference not found".to_string()))?;
+    |                                                                 ^^^^^^^^^ variant or associated item not found in `RuntimeError`
+    |
+   ::: crates\dryad_runtime\src\errors.rs:5:1
+    |
+  5 | pub enum RuntimeError {
+    | --------------------- variant or associated item `HeapError` not found for this enum
+
+error[E0599]: no variant or associated item named `NativeFunction` found for enum `value::Value` in the current scope
+  --> crates\dryad_runtime\src\native_modules\debug.rs:84:16
+   |
+84 |         Value::NativeFunction(_) => "native_function",
+   |                ^^^^^^^^^^^^^^ variant or associated item not found in `value::Value`
+   |
+  ::: crates\dryad_runtime\src\value.rs:13:1
+   |
+13 | pub enum Value {
+   | -------------- variant or associated item `NativeFunction` not found for this enum
+
+error[E0599]: no variant or associated item named `AsyncNativeFunction` found for enum `value::Value` in the current scope
+  --> crates\dryad_runtime\src\native_modules\debug.rs:85:16
+   |
+85 |         Value::AsyncNativeFunction(_) => "async_native_function",
+   |                ^^^^^^^^^^^^^^^^^^^ variant or associated item not found in `value::Value`
+   |
+  ::: crates\dryad_runtime\src\value.rs:13:1
+   |
+13 | pub enum Value {
+   | -------------- variant or associated item `AsyncNativeFunction` not found for this enum
+   |
+help: there is a variant with a similar name
+   |
+85 -         Value::AsyncNativeFunction(_) => "async_native_function",
+85 +         Value::AsyncFunction(_) => "async_native_function",
+   |
+
+error[E0599]: no variant or associated item named `NativeFunction` found for enum `value::Value` in the current scope
+   --> crates\dryad_runtime\src\native_modules\debug.rs:335:16
+    |
+335 |         Value::NativeFunction(_) => "native_function",
+    |                ^^^^^^^^^^^^^^ variant or associated item not found in `value::Value`
+    |
+   ::: crates\dryad_runtime\src\value.rs:13:1
+    |
+ 13 | pub enum Value {
+    | -------------- variant or associated item `NativeFunction` not found for this enum
+
+error[E0599]: no variant or associated item named `AsyncNativeFunction` found for enum `value::Value` in the current scope
+   --> crates\dryad_runtime\src\native_modules\debug.rs:336:16
+    |
+336 |         Value::AsyncNativeFunction(_) => "async_native_function",
+    |                ^^^^^^^^^^^^^^^^^^^ variant or associated item not found in `value::Value`
+    |
+   ::: crates\dryad_runtime\src\value.rs:13:1
+    |
+ 13 | pub enum Value {
+    | -------------- variant or associated item `AsyncNativeFunction` not found for this enum
+    |
+help: there is a variant with a similar name
+    |
+336 -         Value::AsyncNativeFunction(_) => "async_native_function",
+336 +         Value::AsyncFunction(_) => "async_native_function",
+    |
+
+error[E0599]: no variant or associated item named `HeapError` found for enum `RuntimeError` in the current scope
+   --> crates\dryad_runtime\src\native_modules\utils.rs:128:65
+    |
+128 |             let obj = heap.get(*id).ok_or_else(|| RuntimeError::HeapError("Array reference not found".to_string()))?;
+    |                                                                 ^^^^^^^^^ variant or associated item not found in `RuntimeError`
+    |
+   ::: crates\dryad_runtime\src\errors.rs:5:1
+    |
+  5 | pub enum RuntimeError {
+    | --------------------- variant or associated item `HeapError` not found for this enum
+
+error[E0599]: no variant or associated item named `HeapError` found for enum `RuntimeError` in the current scope
+   --> crates\dryad_runtime\src\native_modules\utils.rs:143:65
+    |
+143 |             let obj = heap.get(*id).ok_or_else(|| RuntimeError::HeapError("Object reference not found".to_string()))?;
+    |                                                                 ^^^^^^^^^ variant or associated item not found in `RuntimeError`
+    |
+   ::: crates\dryad_runtime\src\errors.rs:5:1
+    |
+  5 | pub enum RuntimeError {
+    | --------------------- variant or associated item `HeapError` not found for this enum
+
+warning: unused variable: `is_async`
+   --> crates\dryad_runtime\src\interpreter.rs:576:70
+    |
+576 |                         ClassMember::Method { visibility, is_static, is_async, name: method_name, params, body, .. } => {
+    |                                                                      ^^^^^^^^ help: try ignoring the field: `is_async: _`
+    |
+    = note: `#[warn(unused_variables)]` (part of `#[warn(unused)]`) on by default
+
+warning: unused variable: `location`
+   --> crates\dryad_runtime\src\interpreter.rs:967:128
+    |
+967 | ...>, arg_values: Vec<Value>, location: &SourceLocation) -> Result<Value, DryadError> {
+    |                               ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_location`
+
+error[E0502]: cannot borrow `*self` as mutable because it is also borrowed as immutable
+    --> crates\dryad_runtime\src\interpreter.rs:1806:45
+     |
+1783 |                 let heap_obj = self.heap.get(id).ok_or_else(|| {
+     |                                --------- immutable borrow occurs here
+...
+1806 |                             arg_values.push(self.evaluate(arg)?);
+     |                                             ^^^^^^^^^^^^^^^^^^ mutable borrow occurs here
+...
+1809 |                         if arg_values.len() != method.params.len() {
+     |                                                ------------- immutable borrow later used here
+
+error[E0502]: cannot borrow `*self` as mutable because it is also borrowed as immutable
+    --> crates\dryad_runtime\src\interpreter.rs:1824:44
+     |
+1783 |                 let heap_obj = self.heap.get(id).ok_or_else(|| {
+     |                                --------- immutable borrow occurs here
+...
+1824 |                         let result = match self.execute_statement(&method.body) {
+     |                                            ^^^^^-----------------^^^^^^^^^^^^^^
+     |                                            |    |
+     |                                            |    immutable borrow later used by call
+     |                                            mutable borrow occurs here
+
+error[E0502]: cannot borrow `*self` as mutable because it is also borrowed as immutable
+    --> crates\dryad_runtime\src\interpreter.rs:1870:53
+     |
+1855 |                         let class_obj = self.heap.get(cid).ok_or_else(|| {
+     |                                         --------- immutable borrow occurs here
+...
+1870 |                                     arg_values.push(self.evaluate(arg)?);
+     |                                                     ^^^^^^^^^^^^^^^^^^ mutable borrow occurs here
+...
+1873 |                                 if arg_values.len() != method.params.len() {
+     |                                                        ------------- immutable borrow later used here
+
+error[E0502]: cannot borrow `*self` as mutable because it is also borrowed as immutable
+    --> crates\dryad_runtime\src\interpreter.rs:1889:52
+     |
+1855 |                         let class_obj = self.heap.get(cid).ok_or_else(|| {
+     |                                         --------- immutable borrow occurs here
+...
+1889 |                                 let result = match self.execute_statement(&method.body) {
+     |                                                    ^^^^^-----------------^^^^^^^^^^^^^^
+     |                                                    |    |
+     |                                                    |    immutable borrow later used by call
+     |                                                    mutable borrow occurs here
+
+error[E0502]: cannot borrow `*self` as mutable because it is also borrowed as immutable
+    --> crates\dryad_runtime\src\interpreter.rs:1967:53
+     |
+1917 |                 let heap_obj = self.heap.get(id).ok_or_else(|| {
+     |                                --------- immutable borrow occurs here
+...
+1967 |                                     arg_values.push(self.evaluate(arg)?);
+     |                                                     ^^^^^^^^^^^^^^^^^^ mutable borrow occurs here
+...
+1970 |                                 if arg_values.len() != params.len() {
+     |                                                        ------ immutable borrow later used here
+
+error[E0502]: cannot borrow `*self` as mutable because it is also borrowed as immutable
+    --> crates\dryad_runtime\src\interpreter.rs:1983:52
+     |
+1917 |                 let heap_obj = self.heap.get(id).ok_or_else(|| {
+     |                                --------- immutable borrow occurs here
+...
+1983 |                                 let result = match self.execute_statement(body) {
+     |                                                    ^^^^^-----------------^^^^^^
+     |                                                    |    |
+     |                                                    |    immutable borrow later used by call
+     |                                                    mutable borrow occurs here
+
+warning: unused variable: `properties`
+    --> crates\dryad_runtime\src\interpreter.rs:1852:25
+     |
+1852 |                     let properties = properties.clone();
+     |                         ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_properties`
+
+warning: unused variable: `properties`
+    --> crates\dryad_runtime\src\interpreter.rs:1924:29
+     |
+1924 |                         let properties = properties.clone();
+     |                             ^^^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_properties`
+
+warning: unused variable: `methods`
+    --> crates\dryad_runtime\src\interpreter.rs:1925:29
+     |
+1925 |                         let methods = methods.clone();
+     |                             ^^^^^^^ help: if this is intentional, prefix it with an underscore: `_methods`
+
+warning: unused variable: `location`
+    --> crates\dryad_runtime\src\interpreter.rs:2240:64
+     |
+2240 |     fn eval_match(&mut self, target: &Expr, arms: &[MatchArm], location: &SourceLocation) -> Result<Value, DryadError> {
+     |                                                                ^^^^^^^^ help: if this is intentional, prefix it with an underscore: `_location`
+
+warning: unused variable: `id`
+    --> crates\dryad_runtime\src\interpreter.rs:2391:30
+     |
+2391 |             Value::Promise { id, resolved: true, value: Some(val) } => Ok(*val),
+     |                              ^^ help: try ignoring the field: `id: _`
+
+warning: variable does not need to be mutable
+    --> crates\dryad_runtime\src\interpreter.rs:2992:21
+     |
+2992 |                 let mut idx = if start_index >= 0 { 
+     |                     ----^^^
+     |                     |
+     |                     help: remove this `mut`
+     |
+     = note: `#[warn(unused_mut)]` (part of `#[warn(unused)]`) on by default
+
+error: lifetime may not live long enough
+   --> crates\dryad_runtime\src\native_modules\file_io.rs:584:5
+    |
+583 |   fn async_read_file(args: Vec<Value>, _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Pin<Box<dyn...
+    |                                                  - let's call the lifetime of this reference `'1`
+584 | /     Box::pin(async move {
+585 | |         if args.len() != 1 {
+586 | |             return Err(RuntimeError::ArgumentError("readFile espera 1 argumento: path".to_string()));
+...   |
+604 | |     })
+    | |______^ returning this value requires that `'1` must outlive `'static`
+    |
+help: to declare that the trait object captures data from argument `_manager`, you can add an explicit `'_` lifetime bound
+    |
+583 | fn async_read_file(args: Vec<Value>, _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Pin<Box<dyn Future<Output = Result<Value, RuntimeError>> + Send + '_>> {
+    |                                                                                                                                                                                               ++++
+
+error: lifetime may not live long enough
+   --> crates\dryad_runtime\src\native_modules\file_io.rs:608:5
+    |
+607 |   fn async_write_file(args: Vec<Value>, _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Pin<Box<dy...
+    |                                                   - let's call the lifetime of this reference `'1`
+608 | /     Box::pin(async move {
+609 | |         if args.len() != 2 {
+610 | |             return Err(RuntimeError::ArgumentError("writeFile espera 2 argumentos: path, data".to_string()));
+...   |
+630 | |     })
+    | |______^ returning this value requires that `'1` must outlive `'static`
+    |
+help: to declare that the trait object captures data from argument `_manager`, you can add an explicit `'_` lifetime bound
+    |
+607 | fn async_write_file(args: Vec<Value>, _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Pin<Box<dyn Future<Output = Result<Value, RuntimeError>> + Send + '_>> {
+    |                                                                                                                                                                                                ++++
+
+error: lifetime may not live long enough
+   --> crates\dryad_runtime\src\native_modules\file_io.rs:634:5
+    |
+633 |   fn async_append_file(args: Vec<Value>, _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Pin<Box<d...
+    |                                                    - let's call the lifetime of this reference `'1`
+634 | /     Box::pin(async move {
+635 | |         if args.len() != 2 {
+636 | |             return Err(RuntimeError::ArgumentError("appendFile espera 2 argumentos: path, data".to_string()));
+...   |
+661 | |     })
+    | |______^ returning this value requires that `'1` must outlive `'static`
+    |
+help: to declare that the trait object captures data from argument `_manager`, you can add an explicit `'_` lifetime bound
+    |
+633 | fn async_append_file(args: Vec<Value>, _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Pin<Box<dyn Future<Output = Result<Value, RuntimeError>> + Send + '_>> {
+    |                                                                                                                                                                                                 ++++
+
+warning: unused variable: `buffer`
+   --> crates\dryad_runtime\src\native_modules\tcp.rs:102:9
+    |
+102 |     let buffer = [0; 1024];
+    |         ^^^^^^ help: if this is intentional, prefix it with an underscore: `_buffer`
+
+Some errors have detailed explanations: E0308, E0425, E0502, E0599, E0614.
+For more information about an error, try `rustc --explain E0308`.
+warning: `dryad_runtime` (lib) generated 21 warnings
+error: could not compile `dryad_runtime` (lib) due to 28 previous errors; 21 warnings emitted

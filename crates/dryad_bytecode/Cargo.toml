@@ -1,0 +1,12 @@
+[package]
+name = "dryad_bytecode"
+version = "0.1.0"
+edition = "2021"
+description = "Máquina Virtual baseada em bytecode para a linguagem Dryad"
+
+[dependencies]
+dryad_errors = { workspace = true }
+dryad_parser = { workspace = true }
+
+[dev-dependencies]
+# Testes serão adicionados posteriormente

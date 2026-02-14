@@ -38,6 +38,7 @@ order: 3
 - [x] Loops: `for ... in` (Iteração sobre arrays/objetos)
 - [x] Controle: `break`, `continue`
 - [x] Exceções: `try`, `catch`, `finally`, `throw`
+- [x] **Pattern Matching** (`match` com suporte a literais, listas, objetos e guards)
 
 ## 2. Funções e Modularidade
 
@@ -70,11 +71,13 @@ order: 3
 
 ## 3. Runtime e Concorrência
 
-### 3.1 Concorrência
+### 3.1 Gestão de Memória e Concorrência
 
 - [x] Threads Nativas (`thread function`)
 - [x] Async/Await (`async function`, `await promise`)
 - [x] Mutex (`mutex()`)
+- [x] **Garbage Collector Mark-and-Sweep** (Limpeza automática de Heap)
+- [x] **Limite de Recursão** (Proteção contra Stack Overflow)
 
 ### 3.2 Biblioteca Padrão (Native Modules)
 

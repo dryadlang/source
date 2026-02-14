@@ -1,0 +1,102 @@
+# Exemplo de Funções - Bytecode
+# Execute com: dryad run test_functions_example.dryad --compile
+
+# ============================================
+# Funções Básicas
+# ============================================
+
+# Função simples sem parâmetros
+fn digaOla() {
+    print "Ola Mundo!";
+}
+
+# Função com parâmetros
+fn soma(a, b) {
+    return a + b;
+}
+
+# Função com variáveis locais
+fn calculaMedia(x, y, z) {
+    var soma = x + y + z;
+    var media = soma / 3;
+    return media;
+}
+
+# ============================================
+# Testando as funções
+# ============================================
+
+print "=== Teste 1: Função sem parâmetros ===";
+digaOla();
+
+print "\n=== Teste 2: Função com parâmetros ===";
+print soma(10, 20);
+print soma(100, 200);
+
+print "\n=== Teste 3: Função com variáveis locais ===";
+print calculaMedia(10, 20, 30);
+
+# ============================================
+# Funções Recursivas
+# ============================================
+
+fn fatorial(n) {
+    if (n <= 1) {
+        return 1;
+    }
+    return n * fatorial(n - 1);
+}
+
+fn fibonacci(n) {
+    if (n <= 1) {
+        return n;
+    }
+    return fibonacci(n - 1) + fibonacci(n - 2);
+}
+
+print "\n=== Teste 4: Funções recursivas ===";
+print fatorial(5);    # Esperado: 120
+print fibonacci(10);  # Esperado: 55
+
+# ============================================
+# Funções com Strings
+# ============================================
+
+fn concatena(a, b) {
+    return a + b;
+}
+
+fn repete(msg, vezes) {
+    var resultado = "";
+    var i = 0;
+    while (i < vezes) {
+        resultado = resultado + msg;
+        i = i + 1;
+    }
+    return resultado;
+}
+
+print "\n=== Teste 5: Funções com strings ===";
+print concatena("Ola, ", "Dryad!");
+print repete("*", 10);
+
+# ============================================
+# Funções Aninhadas (escopos)
+# ============================================
+
+fn exemploEscopo() {
+    var x = 100;
+    
+    if (true) {
+        var y = 200;
+        print x + y;  # Deve acessar x do escopo externo
+    }
+    
+    # y não deve estar acessível aqui
+    return x;
+}
+
+print "\n=== Teste 6: Escopos aninhados ===";
+print exemploEscopo();
+
+print "\n=== Todos os testes concluídos! ===";

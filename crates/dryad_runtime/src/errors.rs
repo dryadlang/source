@@ -21,6 +21,9 @@ pub enum RuntimeError {
     /// Erro de criptografia
     CryptoError(String),
     
+    /// Erro de heap (alocação ou referência inválida)
+    HeapError(String),
+    
     /// Erro genérico
     Generic(String),
 }
@@ -34,6 +37,7 @@ impl fmt::Display for RuntimeError {
             RuntimeError::NetworkError(msg) => write!(f, "Erro de rede: {}", msg),
             RuntimeError::SystemError(msg) => write!(f, "Erro de sistema: {}", msg),
             RuntimeError::CryptoError(msg) => write!(f, "Erro de criptografia: {}", msg),
+            RuntimeError::HeapError(msg) => write!(f, "Erro de heap: {}", msg),
             RuntimeError::Generic(msg) => write!(f, "Erro: {}", msg),
         }
     }

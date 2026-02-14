@@ -22,8 +22,8 @@ fn test_parse_simple_const_declaration() {
     assert_eq!(program.statements.len(), 1);
     
     match &program.statements[0] {
-        Stmt::ConstDeclaration(name, expr, _) => {
-            assert_eq!(name, "PI");
+        Stmt::ConstDeclaration(name, _, expr, _) => {
+            assert_eq!(name.identifier_name().unwrap(), "PI");
             match expr {
                 Expr::Literal(Literal::Number(n), _) => assert_eq!(*n, 3.14159),
                 _ => panic!("Esperado número literal"),
@@ -39,8 +39,8 @@ fn test_parse_const_string_declaration() {
     assert_eq!(program.statements.len(), 1);
     
     match &program.statements[0] {
-        Stmt::ConstDeclaration(name, expr, _) => {
-            assert_eq!(name, "APP_NAME");
+        Stmt::ConstDeclaration(name, _, expr, _) => {
+            assert_eq!(name.identifier_name().unwrap(), "APP_NAME");
             match expr {
                 Expr::Literal(Literal::String(s), _) => assert_eq!(s, "Dryad Language"),
                 _ => panic!("Esperado string literal"),
@@ -56,8 +56,8 @@ fn test_parse_const_boolean_declaration() {
     assert_eq!(program.statements.len(), 1);
     
     match &program.statements[0] {
-        Stmt::ConstDeclaration(name, expr, _) => {
-            assert_eq!(name, "DEBUG_MODE");
+        Stmt::ConstDeclaration(name, _, expr, _) => {
+            assert_eq!(name.identifier_name().unwrap(), "DEBUG_MODE");
             match expr {
                 Expr::Literal(Literal::Bool(b), _) => assert_eq!(*b, true),
                 _ => panic!("Esperado boolean literal"),
@@ -73,8 +73,8 @@ fn test_parse_const_with_expression() {
     assert_eq!(program.statements.len(), 1);
     
     match &program.statements[0] {
-        Stmt::ConstDeclaration(name, expr, _) => {
-            assert_eq!(name, "MAX_SIZE");
+        Stmt::ConstDeclaration(name, _, expr, _) => {
+            assert_eq!(name.identifier_name().unwrap(), "MAX_SIZE");
             match expr {
                 Expr::Binary { .. } => {}, // Verificação simples que é uma expressão binária
                 _ => panic!("Esperado expressão binária"),
@@ -113,19 +113,19 @@ fn test_multiple_const_declarations() {
     
     // Verifica primeira constante
     match &program.statements[0] {
-        Stmt::ConstDeclaration(name, _, _) => assert_eq!(name, "PI"),
+        Stmt::ConstDeclaration(name, _, _, _) => assert_eq!(name.identifier_name().unwrap(), "PI"),
         _ => panic!("Esperado ConstDeclaration"),
     }
     
     // Verifica segunda constante
     match &program.statements[1] {
-        Stmt::ConstDeclaration(name, _, _) => assert_eq!(name, "E"),
+        Stmt::ConstDeclaration(name, _, _, _) => assert_eq!(name.identifier_name().unwrap(), "E"),
         _ => panic!("Esperado ConstDeclaration"),
     }
     
     // Verifica terceira constante
     match &program.statements[2] {
-        Stmt::ConstDeclaration(name, _, _) => assert_eq!(name, "NAME"),
+        Stmt::ConstDeclaration(name, _, _, _) => assert_eq!(name.identifier_name().unwrap(), "NAME"),
         _ => panic!("Esperado ConstDeclaration"),
     }
 }

@@ -11,10 +11,11 @@ Este documento mergulha nos detalhes técnicos da arquitetura da linguagem Dryad
 
 ## 🚀 Leitura Rápida
 
-- **Pipeline**: Lexer (Tokens) → Parser (AST) → Analyzer → Runtime.
-- **Memória**: Híbrida (Stack para primitivos, Arc/RwLock para heap).
+- **Pipeline**: Lexer (Tokens) → Parser (AST) → Interpreter (Tree-Walk).
+- **Memória**: Gestão de Heap via Mark-and-Sweep Garbage Collector (GC).
 - **Paralelismo**: M-N Scheduling (Milhares de fibras em poucas threads de sistema).
-- **Extensível**: Sistema de módulos nativos via FFI com Rust.
+- **Extensível**: Sistema de módulos nativos via FFI com Rust e ativação estrita.
+- **Arquitetura**: Interpretador modularizado com separação de Ambiente e Registro Nativo.
 
 ---
 
@@ -22,52 +23,76 @@ Este documento mergulha nos detalhes técnicos da arquitetura da linguagem Dryad
 
 ### 1. Pipeline de Execução
 
-O Dryad evita a compilação JIT (Just-In-Time) complexa em favor de um interpretador de AST resiliente e otimizado, facilitando a portabilidade.
+O Dryad utiliza um interpretador de AST (Abstract Syntax Tree) otimizado, focado em portabilidade e facilidade de depuração.
 
-1.  **Lexer**: Máquina de estados DFA para scan de tokens.
-2.  **Parser**: Recursive Descent com Pratt Parsing para precedência.
-3.  **Static Analysis**: Verificação de escopo e mutabilidade antes da execução.
-4.  **Runtime**: Executor Tree-Walking que utiliza o modelo de Visitor.
+1.  **Lexer**: Máquina de estados DFA para scan de tokens. Implementa proteção contra indexação insegura (out-of-bounds).
+2.  **Parser**: Recursive Descent com Pratt Parsing para precedência de operadores.
+3.  **Runtime**: Executor Tree-Walking que alterna entre métodos `execute` (para `Stmt`) e `evaluate` (para `Expr`).
 
-### 2. Gerenciamento de Memória Híbrido
+### 2. Gestão de Memória e Garbage Collection
 
-Diferente de linguagens com GC "Stop-the-World" (como Java), o Dryad utiliza contagem de referências atômica.
+Diferente das versões iniciais que usavam apenas `Rc/Arc`, o Dryad implementa um **Garbage Collector Mark-and-Sweep** para gerenciar o Heap, permitindo ciclos de referência e controle fino de memória.
 
-- **Ownership de Rust**: O interpretador herda a segurança do Rust. Quando um `Value` sai de escopo, as referências são decrementadas e a memória é liberada imediatamente.
-- **Mutexes e Interior Mutability**: Estruturas globais são protegidas por `RwLock`, permitindo múltiplas leituras simultâneas mas escrita exclusiva.
+#### 2.1 Estrutura do Heap
 
-### 3. Concorrência M-N (Green Threads)
+O `Heap` centraliza todos os objetos gerenciados (`Array`, `Object`, `Tuple`, `Instance`, `Closure`). Cada objeto é identificado por um `HeapId` (usize).
 
-Utilizamos a crate **Crossbeam** e **Tokio** para gerenciar o balanceamento de carga entre núcleos da CPU.
+#### 2.2 Ciclo do GC
 
-- **Fibras**: São corrotinas leves que pausão em IO, cedendo o núcleo para outra fibra.
-- **Threads Nativa**: Criadas via `std::thread`, ideais para processamento pesado que não deve bloquear o loop de eventos das fibras.
+O GC é acionado automaticamente baseado em um limite de alocações (`gc_threshold`).
+
+- **Trigger**: Por padrão, o GC é disparado a cada 1000 alocações.
+- **Fase de Mark**: O interpretador identifica os "Roots" (variáveis globais, stack de chamadas, constantes, classes). O GC percorre recursivamente todos os `HeapId` alcançáveis a partir destes roots, marcando-os.
+- **Fase de Sweep**: Todos os objetos não marcados são removidos do `HashMap` interno do Heap, liberando memória.
+
+### 3. Arquitetura Modular do Interpretador
+
+O `Interpreter` foi refatorado para reduzir o acoplamento, delegando responsabilidades para dois sub-módulos principais:
+
+#### 3.1 Environment (`environment.rs`)
+
+Gerencia todo o estado mutável do programa:
+
+- **Scopes**: Pilha de escopos para variáveis locais (`call_stack_vars`).
+- **Store**: Armazenamento de `variables`, `constants`, `classes` e `imported_modules`.
+- **Contexto**: Mantém o `current_instance` para suporte ao `this`.
+
+#### 3.2 NativeRegistry (`native_registry.rs`)
+
+Encapsula o `NativeModuleManager` e simplifica a interface de chamadas nativas:
+
+- **Despacho**: Resolve e executa funções nativas síncronas e assíncronas.
+- **Ativação**: Gerencia a ativação estrita de categorias de módulos (ex: `#console_io`).
 
 ---
 
-## 📚 Referências e Paralelos
+## 🛡️ Segurança e Hardening
 
-- **Concordância**: [Crossbeam Documentation](https://docs.rs/crossbeam/latest/crossbeam/).
-- **Gerenciamento de Memória**: [Automatic Reference Counting (ARC)](https://en.wikipedia.org/wiki/Automatic_Reference_Counting).
-- **Arquitetura VM**: "Virtual Machine Design and Implementation in Rust" (Artigo de referência para o design do interpretador).
+### 4.1 Sandbox Security (Fase 1)
 
----
+O runtime implementa um modelo de "Least Privilege" para funções nativas:
 
-## 4. Segurança e Isolamento
+- **Sandbox Root**: Restringe o acesso ao sistema de arquivos a um diretório específico. Tentativas de acesso fora da raiz resultam em erro.
+- **Flags de Permissão**: Funções críticas (ex: `exec`) só são habilitadas se a flag `allow_unsafe` for passada explicitamente.
+- **Código de Erro 6001**: Erro padrão para diretiva de ativação de módulo nativo inválida ou não encontrada.
 
-Cada thread gerada pelo Dryad possui seu próprio contexto de variáveis locais, mas compartilha o acesso a módulos globais de forma imutável (Read-Only), eliminando a maioria das condições de corrida por design.
+### 4.2 Limite de Recursão
 
-### 4.1 Runtime Hardening
-
-- **Limite de Recursão**: O interpretador impõe um limite de recursão de 1000 chamadas (`MAX_RECURSION_DEPTH`) para evitar stack overflows. Quando excedido, um erro `E3040` é disparado.
-- **Sandbox Security**: Funções nativas potencialmente perigosas (como `native_exec`) agora requerem a flag `--allow-unsafe` no runtime. Sem esta flag, o `NativeModuleManager` bloqueia a execução por segurança.
+O interpretador impõe um limite de recursão de 1000 chamadas (`MAX_RECURSION_DEPTH`) para evitar Stack Overflows. Quando excedido, o erro `E3040` é lançado.
 
 ---
 
-## 5. Ecossistema Oak (Package Manager)
+## 📦 Ecossistema Oak (Package Manager)
 
-O Oak foi refatorado para seguir uma arquitetura modular:
+O Oak segue uma arquitetura modular focada em extensibilidade:
 
-- **Core**: Contém a lógica de configuração (`core/config.rs`) e definições de CLI (`core/cli.rs`).
-- **Commands**: Cada funcionalidade (init, install, run, etc.) reside em seu próprio módulo em `commands/`.
-- **Registry**: Sistema de resolução de pacotes multi-registry com suporte a resolução de conflitos.
+- **Core**: Lógica de configuração (`core/config.rs`) e CLI (`core/cli.rs`).
+- **Commands**: Divisão de subcomandos em arquivos independentes.
+- **Registry**: Sistema de resolução de pacotes com suporte a integridade via hashes SHA-256 no futuro.
+
+---
+
+## 📚 Referências de Implementação
+
+- **GC Implementation**: Localizado em `crates/dryad_runtime/src/heap.rs`.
+- **Structural Refactor Docs**: Localizado em `docs/implementation/done/t3/`.

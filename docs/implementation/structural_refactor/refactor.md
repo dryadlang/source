@@ -24,18 +24,18 @@ Este documento lista melhorias estruturais, limpezas de código e otimizações 
 
 ### `crates/dryad_runtime/src/interpreter.rs`
 
-- **Linha 132-150**: A struct `Interpreter` acumula muitas responsabilidades (estado, ambiente, execução, funções nativas).
-  - _Melhoria_: Extrair `Environment` para um módulo próprio `environment.rs`.
-  - _Melhoria_: Extrair gerenciamento de funções nativas para `native_registry.rs`.
+- **Linha 132-150**: A struct `Interpreter` acumulava muitas responsabilidades.
+  - [x] _Melhoria_: Extrair `Environment` para um módulo próprio `environment.rs`.
+  - [x] _Melhoria_: Extrair gerenciamento de funções nativas para `native_registry.rs`.
 - **Linha 450+**: O método `evaluate` usa recursão profunda para avaliar expressões.
-  - _Melhoria_: Implementar _trampolining_ ou migrar para uma máquina virtual baseada em pilha (Bytecode VM) para evitar Stack Overflow em scripts complexos.
+  - _Melhoria_: Implementar _trampolining_ ou migrar para uma máquina virtual baseada em pilha (Bytecode VM).
 - **Linha 800+**: Tratamento de `Result<Value, DryadError>` em cada passo é verboso.
-  - _Melhoria_: Usar macros ou o operador `?` de forma mais ergonômica, talvez criando um alias `RuntimeResult<T>`.
+  - [x] _Melhoria_: Usar macros ou o operador `?` de forma mais ergonômica.
 
 ### `crates/dryad_runtime/src/native_functions.rs`
 
 - **Arquivo Completo**: Contém muitas funções soltas que são apenas wrappers.
-  - _Melhoria_: Agrupar funções por módulo (Math, String, etc) em sub-structs ou traits para melhor organização.
+  - [x] _Melhoria_: Agrupar funções por módulo (Math, String, etc) em sub-structs ou traits.
 
 ## Native Modules
 

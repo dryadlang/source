@@ -1,6 +1,7 @@
 // crates/dryad_parser/src/parser.rs
 use crate::ast::{
-    ClassMember, Expr, ImportKind, Literal, MatchArm, Pattern, Program, Stmt, Visibility,
+    ClassMember, Expr, ImportKind, InterfaceMember, InterfaceMethod, Literal, MatchArm, Pattern,
+    Program, Stmt, Visibility,
 };
 use dryad_errors::{DryadError, SourceLocation};
 use dryad_lexer::{
@@ -119,6 +120,9 @@ impl Parser {
                 }
             }
             Token::Keyword(keyword) if keyword == "class" => Ok(Some(self.class_declaration()?)),
+            Token::Keyword(keyword) if keyword == "interface" => {
+                Ok(Some(self.interface_declaration()?))
+            }
             Token::Keyword(keyword) if keyword == "export" => Ok(Some(self.export_statement()?)),
             Token::Keyword(keyword) if keyword == "import" => Ok(Some(self.import_statement()?)),
             Token::Keyword(keyword) if keyword == "use" => Ok(Some(self.use_statement()?)),
@@ -1829,13 +1833,16 @@ impl Parser {
         };
 
         // Check for inheritance (extends)
-        let parent = if matches!(self.peek(), Token::Keyword(k) if k == "extends") {
+        let (parent, interfaces) = if matches!(self.peek(), Token::Keyword(k) if k == "extends") {
             self.advance(); // consume 'extends'
             match self.peek() {
                 Token::Identifier(parent_name) => {
                     let parent = parent_name.clone();
                     self.advance();
-                    Some(parent)
+
+                    // Check for implements after extends
+                    let interfaces = self.parse_implements_list();
+                    (Some(parent), interfaces)
                 }
                 _ => {
                     return Err(DryadError::new(
@@ -1844,8 +1851,12 @@ impl Parser {
                     ))
                 }
             }
+        } else if matches!(self.peek(), Token::Keyword(k) if k == "implements") {
+            // Implements without extends
+            let interfaces = self.parse_implements_list();
+            (None, interfaces)
         } else {
-            None
+            (None, Vec::new())
         };
 
         // Expect opening brace
@@ -1869,7 +1880,155 @@ impl Parser {
         }
         self.advance(); // consume '}'
 
-        Ok(Stmt::ClassDeclaration(name, parent, members, location))
+        Ok(Stmt::ClassDeclaration(
+            name, parent, interfaces, members, location,
+        ))
+    }
+
+    fn parse_implements_list(&mut self) -> Vec<String> {
+        let mut interfaces = Vec::new();
+
+        if matches!(self.peek(), Token::Keyword(k) if k == "implements") {
+            self.advance(); // consume 'implements'
+
+            loop {
+                match self.peek() {
+                    Token::Identifier(id) => {
+                        interfaces.push(id.clone());
+                        self.advance();
+
+                        if matches!(self.peek(), Token::Symbol(',')) {
+                            self.advance(); // consume ','
+                        } else {
+                            break;
+                        }
+                    }
+                    _ => break,
+                }
+            }
+        }
+
+        interfaces
+    }
+
+    fn interface_declaration(&mut self) -> Result<Stmt, DryadError> {
+        let location = self.current_location();
+
+        self.advance(); // consume 'interface'
+
+        // Parse interface name
+        let name = match self.peek() {
+            Token::Identifier(id) => {
+                let name = id.clone();
+                self.advance();
+                name
+            }
+            _ => {
+                return Err(DryadError::new(
+                    2105,
+                    "Esperado nome da interface após 'interface'",
+                ))
+            }
+        };
+
+        // Expect opening brace
+        if !matches!(self.peek(), Token::Symbol('{')) {
+            return Err(DryadError::new(
+                2106,
+                "Esperado '{' após declaração da interface",
+            ));
+        }
+        self.advance(); // consume '{'
+
+        // Parse interface members
+        let mut members = Vec::new();
+        while !matches!(self.peek(), Token::Symbol('}') | Token::Eof) {
+            members.push(self.interface_member()?);
+        }
+
+        // Expect closing brace
+        if !matches!(self.peek(), Token::Symbol('}')) {
+            return Err(DryadError::new(2107, "Esperado '}' para fechar interface"));
+        }
+        self.advance(); // consume '}'
+
+        Ok(Stmt::InterfaceDeclaration(name, members, location))
+    }
+
+    fn interface_member(&mut self) -> Result<InterfaceMember, DryadError> {
+        // Parse optional visibility
+        let _visibility = self.parse_visibility();
+
+        // Expect 'function' keyword
+        if !matches!(self.peek(), Token::Keyword(k) if k == "function") {
+            return Err(DryadError::new(2108, "Esperado 'function' em interface"));
+        }
+        self.advance(); // consume 'function'
+
+        // Parse method name
+        let name = match self.peek() {
+            Token::Identifier(id) => {
+                let name = id.clone();
+                self.advance();
+                name
+            }
+            _ => return Err(DryadError::new(2109, "Esperado nome do método")),
+        };
+
+        // Parse parameters
+        if !matches!(self.peek(), Token::Symbol('(')) {
+            return Err(DryadError::new(2110, "Esperado '(' após nome do método"));
+        }
+        self.advance(); // consume '('
+
+        let mut params = Vec::new();
+        if !matches!(self.peek(), Token::Symbol(')')) {
+            loop {
+                if let Token::Identifier(param_name) = self.peek() {
+                    let param_name = param_name.clone();
+                    self.advance();
+                    let param_type = if matches!(self.peek(), Token::Symbol(':')) {
+                        self.advance(); // consume ':'
+                        Some(self.parse_type()?)
+                    } else {
+                        None
+                    };
+                    params.push((param_name, param_type));
+
+                    if matches!(self.peek(), Token::Symbol(',')) {
+                        self.advance(); // consume ','
+                    } else {
+                        break;
+                    }
+                } else {
+                    return Err(DryadError::new(2111, "Esperado nome do parâmetro"));
+                }
+            }
+        }
+
+        if !matches!(self.peek(), Token::Symbol(')')) {
+            return Err(DryadError::new(2112, "Esperado ')' após parâmetros"));
+        }
+        self.advance(); // consume ')'
+
+        // Parse optional return type
+        let return_type = if matches!(self.peek(), Token::Symbol(':')) {
+            self.advance(); // consume ':'
+            Some(self.parse_type()?)
+        } else {
+            None
+        };
+
+        // Expect semicolon
+        if matches!(self.peek(), Token::Symbol(';')) {
+            self.advance(); // consume ';'
+        }
+
+        Ok(InterfaceMember::Method(InterfaceMethod {
+            name,
+            params,
+            return_type,
+        }))
     }
 
     fn class_member(&mut self) -> Result<ClassMember, DryadError> {
@@ -2028,6 +2187,92 @@ impl Parser {
                     name,
                     params,
                     return_type,
+                    body,
+                })
+            }
+            Token::Keyword(k) if k == "get" => {
+                self.advance(); // consume 'get'
+
+                // Parse property name
+                let name = match self.peek() {
+                    Token::Identifier(id) => {
+                        let name = id.clone();
+                        self.advance();
+                        name
+                    }
+                    _ => {
+                        return Err(DryadError::new(
+                            2097,
+                            "Esperado nome da propriedade após 'get'",
+                        ))
+                    }
+                };
+
+                // Expect '(' and ')'
+                if !matches!(self.peek(), Token::Symbol('(')) {
+                    return Err(DryadError::new(2098, "Esperado '(' após nome do getter"));
+                }
+                self.advance(); // consume '('
+                if !matches!(self.peek(), Token::Symbol(')')) {
+                    return Err(DryadError::new(2099, "Esperado ')' no getter"));
+                }
+                self.advance(); // consume ')'
+
+                // Parse getter body
+                let body = Box::new(self.block_statement()?);
+
+                Ok(ClassMember::Getter {
+                    visibility,
+                    name,
+                    body,
+                })
+            }
+            Token::Keyword(k) if k == "set" => {
+                self.advance(); // consume 'set'
+
+                // Parse property name
+                let name = match self.peek() {
+                    Token::Identifier(id) => {
+                        let name = id.clone();
+                        self.advance();
+                        name
+                    }
+                    _ => {
+                        return Err(DryadError::new(
+                            2100,
+                            "Esperado nome da propriedade após 'set'",
+                        ))
+                    }
+                };
+
+                // Expect '(' and parameter
+                if !matches!(self.peek(), Token::Symbol('(')) {
+                    return Err(DryadError::new(2101, "Esperado '(' após nome do setter"));
+                }
+                self.advance(); // consume '('
+
+                // Parse parameter name
+                let param = match self.peek() {
+                    Token::Identifier(id) => {
+                        let param = id.clone();
+                        self.advance();
+                        param
+                    }
+                    _ => return Err(DryadError::new(2102, "Esperado parâmetro no setter")),
+                };
+
+                if !matches!(self.peek(), Token::Symbol(')')) {
+                    return Err(DryadError::new(2103, "Esperado ')' no setter"));
+                }
+                self.advance(); // consume ')'
+
+                // Parse setter body
+                let body = Box::new(self.block_statement()?);
+
+                Ok(ClassMember::Setter {
+                    visibility,
+                    name,
+                    param,
                     body,
                 })
             }

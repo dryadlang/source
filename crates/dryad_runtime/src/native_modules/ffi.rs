@@ -36,6 +36,46 @@ pub fn register_ffi_functions(functions: &mut HashMap<String, NativeFunction>) {
     functions.insert("ffi_list_libraries".to_string(), ffi_list_libraries);
 }
 
+pub fn test_ffi_load_library(
+    args: &[Value],
+    manager: &crate::native_modules::NativeModuleManager,
+    heap: &mut crate::heap::Heap,
+) -> Result<Value, RuntimeError> {
+    ffi_load_library(args, manager, heap)
+}
+
+pub fn test_ffi_unload_library(
+    args: &[Value],
+    manager: &crate::native_modules::NativeModuleManager,
+    heap: &mut crate::heap::Heap,
+) -> Result<Value, RuntimeError> {
+    ffi_unload_library(args, manager, heap)
+}
+
+pub fn test_ffi_call(
+    args: &[Value],
+    manager: &crate::native_modules::NativeModuleManager,
+    heap: &mut crate::heap::Heap,
+) -> Result<Value, RuntimeError> {
+    ffi_call(args, manager, heap)
+}
+
+pub fn test_ffi_get_symbol(
+    args: &[Value],
+    manager: &crate::native_modules::NativeModuleManager,
+    heap: &mut crate::heap::Heap,
+) -> Result<Value, RuntimeError> {
+    ffi_get_symbol(args, manager, heap)
+}
+
+pub fn test_ffi_list_libraries(
+    args: &[Value],
+    manager: &crate::native_modules::NativeModuleManager,
+    heap: &mut crate::heap::Heap,
+) -> Result<Value, RuntimeError> {
+    ffi_list_libraries(args, manager, heap)
+}
+
 fn ffi_load_library(
     args: &[Value],
     _manager: &crate::native_modules::NativeModuleManager,

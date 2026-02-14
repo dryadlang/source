@@ -18,6 +18,138 @@ O Dryad utiliza um modelo de Orientação a Objetos baseado em classes, focado e
 
 ---
 
+## 2.1 Classes
+
+### 2.1.1 Declaração de Classes
+
+```dryad
+class NomeDaClasse {
+    // Propriedades
+    let propriedade = valor;
+    
+    // Métodos
+    function metodo() {
+        // corpo
+    }
+}
+```
+
+### 2.1.2 Modificadores de Acesso
+
+O Dryad suporta modificadores de visibilidade para controlar o acesso a membros da classe.
+
+| Modificador | Descrição | Implementado |
+|-------------|-----------|--------------|
+| `public` | Acessível de qualquer lugar | ✅ |
+| `private` | Acessível apenas na classe | ✅ |
+| `protected` | Acessível na classe e subclasses | ❌ |
+
+```dryad
+class Exemplo {
+    public let valorPublico = 1;
+    private let valorPrivado = 2;
+    protected let valorProtegido = 3;
+    
+    public function metodoPublico() { }
+    private function metodoPrivado() { }
+}
+```
+
+**Status atual**: 
+- **Propriedades**: Verificação completa para `public` e `private`.
+- **Métodos**: Verificação completa para `public` e `private`.
+- **Protected**: Aceito pelo parser, mas tratado como `public` em runtime (precisa implementar verificação de herança).
+
+### 2.1.3 Getters e Setters
+
+Permitem controlar o acesso a propriedades com lógica personalizada.
+
+```dryad
+class Pessoa {
+    private let _nome = "";
+    private let _idade = 0;
+    
+    get nome() {
+        return this._nome;
+    }
+    
+    set nome(novoNome) {
+        this._nome = novoNome;
+    }
+    
+    get idade() {
+        return this._idade;
+    }
+    
+    set idade(novaIdade) {
+        if (novaIdade >= 0) {
+            this._idade = novaIdade;
+        }
+    }
+}
+
+let p = new Pessoa();
+p.nome = "João";      // chama set nome("João")
+print(p.nome);        // chama get nome()
+p.idade = 25;
+```
+
+**Status atual**: ✅ Implementado.
+
+### 2.1.4 Propriedades Estáticas
+
+Propriedades que pertencem à classe, não às instâncias.
+
+```dryad
+class Contador {
+    static let quantidade = 0;
+    
+    constructor() {
+        Contador.quantidade = Contador.quantidade + 1;
+    }
+}
+
+print(Contador.quantidade);  // 0
+let c1 = new Contador();
+let c2 = new Contador();
+print(Contador.quantidade);  // 2
+```
+
+**Status atual**: ✅ Implementado para propriedades e métodos. Verificação de visibilidade também funciona.
+
+### 2.1.5 Interfaces (Traits)
+
+Contratos que definem um conjunto de métodos que uma classe deve implementar.
+
+```dryad
+interface Printable {
+    function print();
+    function toString();
+}
+
+interface Serializable {
+    function toJson();
+}
+
+class Relatorio implements Printable, Serializable {
+    function print() {
+        // implementação
+    }
+    
+    function toString() {
+        return "Relatório";
+    }
+    
+    function toJson() {
+        return "{}";
+    }
+}
+```
+
+**Status atual**: ❌ Não implementado. Sistema de contratos ou tipos abstratos não existe.
+
+---
+
 ## ⚙️ Visão Técnica
 
 O sistema de classes do Dryad é uma abstração sobre o motor de execução baseada em **Protótipos Dinâmicos** e **Ambientes Vinculados**.

@@ -1,6 +1,6 @@
-use dryad_parser::ast::{Stmt, Expr, Visibility};
-use std::collections::HashMap;
 use crate::heap::HeapId;
+use dryad_parser::ast::{Expr, Stmt, Visibility};
+use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub enum FlowControl {
@@ -73,6 +73,21 @@ pub struct ClassProperty {
     pub default_value: Option<Value>,
 }
 
+#[derive(Debug, Clone)]
+pub struct ClassGetter {
+    pub visibility: Visibility,
+    pub name: String,
+    pub body: Stmt,
+}
+
+#[derive(Debug, Clone)]
+pub struct ClassSetter {
+    pub visibility: Visibility,
+    pub name: String,
+    pub param: String,
+    pub body: Stmt,
+}
+
 impl Value {
     pub fn to_string(&self) -> String {
         match self {
@@ -114,10 +129,16 @@ impl Value {
             Value::Null => false,
             Value::Number(n) => *n != 0.0,
             Value::String(s) => !s.is_empty(),
-            Value::Array(_) | Value::Tuple(_) | Value::Lambda(_) | 
-            Value::Class(_) | Value::Instance(_) | Value::Object(_) => true,
+            Value::Array(_)
+            | Value::Tuple(_)
+            | Value::Lambda(_)
+            | Value::Class(_)
+            | Value::Instance(_)
+            | Value::Object(_) => true,
             Value::Exception(_) => false,
-            Value::Function { .. } | Value::AsyncFunction { .. } | Value::ThreadFunction { .. } => true,
+            Value::Function { .. } | Value::AsyncFunction { .. } | Value::ThreadFunction { .. } => {
+                true
+            }
             Value::Thread { is_running, .. } => *is_running,
             Value::Mutex { .. } => true,
             Value::Promise { resolved, .. } => *resolved,

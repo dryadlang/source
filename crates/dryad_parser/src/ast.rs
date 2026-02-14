@@ -205,6 +205,17 @@ pub enum ClassMember {
         body: Box<Stmt>,
     },
     Property(Visibility, bool, String, Option<Type>, Option<Expr>), // visibility, is_static, name, type, default_value
+    Getter {
+        visibility: Visibility,
+        name: String,
+        body: Box<Stmt>,
+    },
+    Setter {
+        visibility: Visibility,
+        name: String,
+        param: String,
+        body: Box<Stmt>,
+    },
 }
 
 #[derive(Debug, Clone)]

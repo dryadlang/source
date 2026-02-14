@@ -2031,6 +2031,92 @@ impl Parser {
                     body,
                 })
             }
+            Token::Keyword(k) if k == "get" => {
+                self.advance(); // consume 'get'
+
+                // Parse property name
+                let name = match self.peek() {
+                    Token::Identifier(id) => {
+                        let name = id.clone();
+                        self.advance();
+                        name
+                    }
+                    _ => {
+                        return Err(DryadError::new(
+                            2097,
+                            "Esperado nome da propriedade após 'get'",
+                        ))
+                    }
+                };
+
+                // Expect '(' and ')'
+                if !matches!(self.peek(), Token::Symbol('(')) {
+                    return Err(DryadError::new(2098, "Esperado '(' após nome do getter"));
+                }
+                self.advance(); // consume '('
+                if !matches!(self.peek(), Token::Symbol(')')) {
+                    return Err(DryadError::new(2099, "Esperado ')' no getter"));
+                }
+                self.advance(); // consume ')'
+
+                // Parse getter body
+                let body = Box::new(self.block_statement()?);
+
+                Ok(ClassMember::Getter {
+                    visibility,
+                    name,
+                    body,
+                })
+            }
+            Token::Keyword(k) if k == "set" => {
+                self.advance(); // consume 'set'
+
+                // Parse property name
+                let name = match self.peek() {
+                    Token::Identifier(id) => {
+                        let name = id.clone();
+                        self.advance();
+                        name
+                    }
+                    _ => {
+                        return Err(DryadError::new(
+                            2100,
+                            "Esperado nome da propriedade após 'set'",
+                        ))
+                    }
+                };
+
+                // Expect '(' and parameter
+                if !matches!(self.peek(), Token::Symbol('(')) {
+                    return Err(DryadError::new(2101, "Esperado '(' após nome do setter"));
+                }
+                self.advance(); // consume '('
+
+                // Parse parameter name
+                let param = match self.peek() {
+                    Token::Identifier(id) => {
+                        let param = id.clone();
+                        self.advance();
+                        param
+                    }
+                    _ => return Err(DryadError::new(2102, "Esperado parâmetro no setter")),
+                };
+
+                if !matches!(self.peek(), Token::Symbol(')')) {
+                    return Err(DryadError::new(2103, "Esperado ')' no setter"));
+                }
+                self.advance(); // consume ')'
+
+                // Parse setter body
+                let body = Box::new(self.block_statement()?);
+
+                Ok(ClassMember::Setter {
+                    visibility,
+                    name,
+                    param,
+                    body,
+                })
+            }
             Token::Keyword(k) if k == "let" => {
                 self.advance(); // consume 'let'
 

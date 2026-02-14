@@ -4,7 +4,9 @@ use crate::environment::Environment;
 use crate::heap::{Heap, HeapId, ManagedObject};
 use crate::native_modules::NativeModuleManager;
 use crate::native_registry::NativeRegistry;
-pub use crate::value::{ClassMethod, ClassProperty, FlowControl, ObjectMethod, Value};
+pub use crate::value::{
+    ClassGetter, ClassMethod, ClassProperty, ClassSetter, FlowControl, ObjectMethod, Value,
+};
 use dryad_errors::{DryadError, SourceLocation, StackFrame, StackTrace};
 use dryad_parser::ast::{
     ClassMember, Expr, ImportKind, Literal, MatchArm, ObjectProperty, Pattern, Program, Stmt,
@@ -462,8 +464,57 @@ impl Interpreter {
                 let object = self.evaluate(object_expr)?;
 
                 match object {
-                    Value::Instance(id) => {
-                        let heap_obj = self.heap.get_mut(id).ok_or_else(|| {
+                    Value::Instance(instance_id) => {
+                        // Get class info to check for setter
+                        let class_name = {
+                            let heap_obj = self.heap.get(instance_id).ok_or_else(|| {
+                                DryadError::new(3100, "Heap error: Instance reference not found")
+                            })?;
+                            if let ManagedObject::Instance { class_name, .. } = heap_obj {
+                                class_name.clone()
+                            } else {
+                                return Err(DryadError::new(3101, "Heap error: Expected Instance"));
+                            }
+                        };
+
+                        // Check for setter in class
+                        let setter_to_run = if let Some(Value::Class(cid)) = self.env.classes.get(&class_name) {
+                            if let Some(class_obj) = self.heap.get(*cid) {
+                                if let ManagedObject::Class { setters, .. } = class_obj {
+                                    setters.get(property_name).cloned()
+                                } else {
+                                    None
+                                }
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        };
+
+                        if let Some(setter) = setter_to_run {
+                            match setter.visibility {
+                                Visibility::Private => {
+                                    return Err(DryadError::new(
+                                        3029,
+                                        &format!("Setter '{}' é privado", property_name),
+                                    ));
+                                }
+                                _ => {
+                                    // Execute setter with 'this' and parameter
+                                    let mut setter_env = self.env.clone();
+                                    setter_env.variables.insert("this".to_string(), object.clone());
+                                    setter_env.variables.insert(setter.param.clone(), value.clone());
+                                    let prev_env = std::mem::replace(&mut self.env, setter_env);
+                                    let _ = self.execute_statement(&setter.body);
+                                    self.env = prev_env;
+                                    return Ok(value);
+                                }
+                            }
+                        }
+
+                        // No setter found, assign directly to instance
+                        let heap_obj = self.heap.get_mut(instance_id).ok_or_else(|| {
                             DryadError::new(3100, "Heap error: Instance reference not found")
                         })?;
                         
@@ -638,6 +689,8 @@ impl Interpreter {
             Stmt::ClassDeclaration(name, parent, members, _) => {
                 let mut methods = HashMap::new();
                 let mut properties = HashMap::new();
+                let mut getters = HashMap::new();
+                let mut setters = HashMap::new();
 
                 // Process class members
                 for member in members {
@@ -645,7 +698,7 @@ impl Interpreter {
                         ClassMember::Method {
                             visibility,
                             is_static,
-                            is_async,
+                            is_async: _,
                             name: method_name,
                             params,
                             body,
@@ -653,8 +706,6 @@ impl Interpreter {
                         } => {
                             let params_vec: Vec<String> =
                                 params.iter().map(|(p, _)| p.clone()).collect();
-                            // No interpreter, tratamos métodos async como métodos normais por enquanto
-                            // mas poderíamos diferenciar no Value::ClassMethod se necessário
                             let method = ClassMethod {
                                 visibility: visibility.clone(),
                                 is_static: *is_static,
@@ -681,6 +732,32 @@ impl Interpreter {
                             };
                             properties.insert(prop_name.clone(), property);
                         }
+                        ClassMember::Getter {
+                            visibility,
+                            name: getter_name,
+                            body,
+                        } => {
+                            let getter = ClassGetter {
+                                visibility: visibility.clone(),
+                                name: getter_name.clone(),
+                                body: *(*body).clone(),
+                            };
+                            getters.insert(getter_name.clone(), getter);
+                        }
+                        ClassMember::Setter {
+                            visibility,
+                            name: setter_name,
+                            param,
+                            body,
+                        } => {
+                            let setter = ClassSetter {
+                                visibility: visibility.clone(),
+                                name: setter_name.clone(),
+                                param: param.clone(),
+                                body: *(*body).clone(),
+                            };
+                            setters.insert(setter_name.clone(), setter);
+                        }
                     }
                 }
 
@@ -689,6 +766,8 @@ impl Interpreter {
                     parent: parent.clone(),
                     methods,
                     properties,
+                    getters,
+                    setters,
                 };
                 let class_id = self.heap.allocate(managed_class);
                 self.maybe_collect_garbage();
@@ -2546,31 +2625,68 @@ impl Interpreter {
                         return Ok(value.clone());
                     }
 
-                    // Then check class properties
-                    if let Some(Value::Class(cid)) = self.env.classes.get(class_name) {
-                        let class_obj = self.heap.get(*cid).ok_or_else(|| {
-                            DryadError::new(3100, "Heap error: Inconsistent class reference")
-                        })?;
+                    // Then check class properties and getters
+                    let (class_props, getter_to_run) =
+                        if let Some(Value::Class(cid)) = self.env.classes.get(class_name) {
+                            if let Some(class_obj) = self.heap.get(*cid) {
+                                if let ManagedObject::Class {
+                                    properties: class_props,
+                                    getters,
+                                    ..
+                                } = class_obj
+                                {
+                                    (
+                                        Some(class_props.clone()),
+                                        getters.get(property_name).cloned(),
+                                    )
+                                } else {
+                                    (None, None)
+                                }
+                            } else {
+                                (None, None)
+                            }
+                        } else {
+                            (None, None)
+                        };
 
-                        if let ManagedObject::Class {
-                            properties: class_props,
-                            ..
-                        } = class_obj
-                        {
-                            if let Some(class_prop) = class_props.get(property_name) {
-                                match class_prop.visibility {
-                                    Visibility::Private => {
-                                        return Err(DryadError::new(
-                                            3029,
-                                            &format!("Propriedade '{}' é privada", property_name),
-                                        ));
-                                    }
-                                    _ => {
-                                        if let Some(default_value) = &class_prop.default_value {
-                                            return Ok(default_value.clone());
-                                        } else {
-                                            return Ok(Value::Null);
-                                        }
+                    // Check for getter first
+                    if let Some(getter) = getter_to_run {
+                        match getter.visibility {
+                            Visibility::Private => {
+                                return Err(DryadError::new(
+                                    3029,
+                                    &format!("Getter '{}' é privado", property_name),
+                                ));
+                            }
+                            _ => {
+                                // Execute getter with 'this' bound to instance
+                                let mut getter_env = self.env.clone();
+                                getter_env
+                                    .variables
+                                    .insert("this".to_string(), object.clone());
+                                let prev_env = std::mem::replace(&mut self.env, getter_env);
+                                let result = self.execute_statement(&getter.body);
+                                self.env = prev_env;
+                                return result;
+                            }
+                        }
+                    }
+
+                    // Then check class properties
+                    if let Some(class_props) = class_props {
+                        if let Some(class_prop) = class_props.get(property_name) {
+                            match class_prop.visibility {
+                                Visibility::Private => {
+                                    return Err(DryadError::new(
+                                        3029,
+                                        &format!("Propriedade '{}' é privada", property_name),
+                                    ));
+                                }
+                                _ => {
+                                    if let Some(default_value) = &class_prop.default_value {
+                                        return Ok(default_value.clone());
+                                    } else {
+                                        return Ok(Value::Null);
                                     }
                                 }
                             }

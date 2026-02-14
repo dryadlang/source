@@ -99,6 +99,12 @@ impl AstOptimizer {
                     self.optimize_expression(expr);
                 }
             }
+            ClassMember::Getter { body, .. } => {
+                self.optimize_statement(body);
+            }
+            ClassMember::Setter { body, .. } => {
+                self.optimize_statement(body);
+            }
         }
     }
 

@@ -1,11 +1,13 @@
-use std::collections::HashMap;
 use crate::value::Value;
+use dryad_parser::ast::InterfaceMember;
+use std::collections::HashMap;
 
 #[derive(Clone, Debug)]
 pub struct Environment {
     pub variables: HashMap<String, Value>,
     pub constants: HashMap<String, Value>,
     pub classes: HashMap<String, Value>,
+    pub interfaces: HashMap<String, Vec<InterfaceMember>>,
     pub current_instance: Option<Value>,
     pub imported_modules: HashMap<String, HashMap<String, Value>>,
     pub call_stack_vars: Vec<HashMap<String, Value>>,
@@ -17,6 +19,7 @@ impl Environment {
             variables: HashMap::new(),
             constants: HashMap::new(),
             classes: HashMap::new(),
+            interfaces: HashMap::new(),
             current_instance: None,
             imported_modules: HashMap::new(),
             call_stack_vars: Vec::new(),
@@ -64,6 +67,7 @@ impl Environment {
         self.variables.clear();
         self.constants.clear();
         self.classes.clear();
+        self.interfaces.clear();
         self.current_instance = None;
         self.imported_modules.clear();
         self.call_stack_vars.clear();

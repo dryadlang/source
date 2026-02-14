@@ -95,10 +95,17 @@ pub enum Stmt {
         body: Box<Stmt>,
         location: SourceLocation,
     },
-    ClassDeclaration(String, Option<String>, Vec<ClassMember>, SourceLocation), // class Name [extends Parent] { members... }
-    Export(Box<Stmt>, SourceLocation),                                          // export statement
-    Use(String, SourceLocation),                                                // use "module/path"
-    Import(ImportKind, String, SourceLocation),                                 // import statement
+    ClassDeclaration(
+        String,
+        Option<String>,
+        Vec<String>,
+        Vec<ClassMember>,
+        SourceLocation,
+    ), // class Name [extends Parent] [implements Interfaces] { members... }
+    InterfaceDeclaration(String, Vec<InterfaceMember>, SourceLocation), // interface Name { methods... }
+    Export(Box<Stmt>, SourceLocation),                                  // export statement
+    Use(String, SourceLocation),                                        // use "module/path"
+    Import(ImportKind, String, SourceLocation),                         // import statement
 }
 
 #[derive(Debug, Clone)]
@@ -230,3 +237,18 @@ impl Default for Visibility {
         Visibility::Public
     }
 }
+
+#[derive(Debug, Clone)]
+pub struct InterfaceMethod {
+    pub name: String,
+    pub params: Vec<(String, Option<Type>)>,
+    pub return_type: Option<Type>,
+}
+
+#[derive(Debug, Clone)]
+pub enum InterfaceMember {
+    Method(InterfaceMethod),
+    // Future: Property, StaticMethod, etc.
+}
+
+pub type InterfaceDeclaration = Vec<InterfaceMember>;

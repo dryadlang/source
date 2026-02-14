@@ -9,8 +9,8 @@ pub use crate::value::{
 };
 use dryad_errors::{DryadError, SourceLocation, StackFrame, StackTrace};
 use dryad_parser::ast::{
-    ClassMember, Expr, ImportKind, Literal, MatchArm, ObjectProperty, Pattern, Program, Stmt,
-    Visibility,
+    ClassMember, Expr, ImportKind, InterfaceMember, Literal, MatchArm, ObjectProperty, Pattern,
+    Program, Stmt, Visibility,
 };
 use serde_json::{self, Value as JsonValue};
 use std::collections::HashMap;
@@ -351,7 +351,8 @@ impl Interpreter {
             Stmt::Throw(_, loc) => loc,
             Stmt::FunctionDeclaration { location, .. } => location,
             Stmt::ThreadFunctionDeclaration { location, .. } => location,
-            Stmt::ClassDeclaration(_, _, _, loc) => loc,
+            Stmt::ClassDeclaration(_, _, _, _, loc) => loc,
+            Stmt::InterfaceDeclaration(_, _, loc) => loc,
             Stmt::Return(_, loc) => loc,
             Stmt::NativeDirective(_, loc) => loc,
             Stmt::Export(_, loc) => loc,
@@ -686,7 +687,7 @@ impl Interpreter {
                 self.env.variables.insert(name.clone(), thread_function);
                 Ok(Value::Null)
             }
-            Stmt::ClassDeclaration(name, parent, members, _) => {
+            Stmt::ClassDeclaration(name, parent, interfaces, members, _) => {
                 let mut methods = HashMap::new();
                 let mut properties = HashMap::new();
                 let mut getters = HashMap::new();
@@ -761,9 +762,38 @@ impl Interpreter {
                     }
                 }
 
+                // Verify interfaces are implemented
+                for interface_name in interfaces {
+                    if !self.env.interfaces.contains_key(interface_name) {
+                        return Err(DryadError::new(
+                            3102,
+                            &format!("Interface '{}' não encontrada", interface_name),
+                        ));
+                    }
+
+                    // Verify class implements all interface methods
+                    let interface = self.env.interfaces.get(interface_name).unwrap();
+                    for interface_method in interface {
+                        let method_name = match interface_method {
+                            InterfaceMember::Method(m) => &m.name,
+                        };
+
+                        if !methods.contains_key(method_name) {
+                            return Err(DryadError::new(
+                                3103,
+                                &format!(
+                                    "Classe '{}' deve implementar o método '{}' da interface '{}'",
+                                    name, method_name, interface_name
+                                ),
+                            ));
+                        }
+                    }
+                }
+
                 let managed_class = ManagedObject::Class {
                     name: name.clone(),
                     parent: parent.clone(),
+                    interfaces: interfaces.clone(),
                     methods,
                     properties,
                     getters,
@@ -775,6 +805,11 @@ impl Interpreter {
 
                 self.env.classes.insert(name.clone(), class.clone());
                 self.env.variables.insert(name.clone(), class); // Também disponível como variável
+                Ok(Value::Null)
+            }
+            Stmt::InterfaceDeclaration(name, members, _) => {
+                // Register interface in environment
+                self.env.interfaces.insert(name.clone(), members.clone());
                 Ok(Value::Null)
             }
             Stmt::Return(expr, _) => {
@@ -3284,7 +3319,7 @@ impl Interpreter {
                                 exported_symbols.insert(name.clone(), value.clone());
                             }
                         }
-                        Stmt::ClassDeclaration(name, _, _, _) => {
+                        Stmt::ClassDeclaration(name, _, _, _, _) => {
                             if let Some(value) = self.env.classes.get(name) {
                                 exported_symbols.insert(name.clone(), value.clone());
                             }

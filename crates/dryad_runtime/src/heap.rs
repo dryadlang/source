@@ -23,6 +23,7 @@ pub enum ManagedObject {
     Class {
         name: String,
         parent: Option<String>,
+        interfaces: Vec<String>,
         methods: HashMap<String, ClassMethod>,
         properties: HashMap<String, ClassProperty>,
         getters: HashMap<String, ClassGetter>,

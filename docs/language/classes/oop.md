@@ -124,29 +124,44 @@ Contratos que definem um conjunto de métodos que uma classe deve implementar.
 ```dryad
 interface Printable {
     function print();
-    function toString();
+    function toString(): string;
 }
 
 interface Serializable {
-    function toJson();
+    function toJson(): string;
 }
 
 class Relatorio implements Printable, Serializable {
     function print() {
-        // implementação
+        print("Imprimindo relatório...");
     }
     
-    function toString() {
+    function toString(): string {
         return "Relatório";
     }
     
-    function toJson() {
-        return "{}";
+    function toJson(): string {
+        return '{"tipo": "relatorio"}';
     }
 }
+
+let r = new Relatorio();
+r.print();
 ```
 
-**Status atual**: ❌ Não implementado. Sistema de contratos ou tipos abstratos não existe.
+**Status atual**: ✅ Implementado.
+
+Funcionalidades:
+- Declaração de interfaces com métodos
+- Implementação múltipla com `implements Interface1, Interface2`
+- Verificação em tempo de execução se a classe implementa todos os métodos da interface
+
+```dryad
+// Exemplo de erro se método não implementado
+class RelatorioIncompleto implements Printable {
+    // Erro em runtime: "Classe 'RelatorioIncompleto' deve implementar o método 'toString' da interface 'Printable'"
+}
+```
 
 ---
 

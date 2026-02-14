@@ -65,7 +65,7 @@ impl AstOptimizer {
             Stmt::FunctionDeclaration { body, .. } => {
                 self.optimize_statement(body);
             }
-            Stmt::ClassDeclaration(_, _, members, _) => {
+            Stmt::ClassDeclaration(_, _, _, members, _) => {
                 for member in members {
                     self.optimize_class_member(member);
                 }

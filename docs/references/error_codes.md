@@ -1,8 +1,8 @@
 ---
 title: "Códigos de Erro"
 description: "Catálogo completo de erros do compilador e do runtime."
-category: "Erros"
-order: 2
+category: "Referências"
+order: 101
 ---
 
 # Referência de Códigos de Erro

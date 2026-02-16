@@ -1,3 +1,11 @@
+---
+title: "Banco de Dados"
+description: "Conexão e operações com SQLite e PostgreSQL."
+category: "Bibliotecas Padrão"
+subcategory: "Database"
+order: 35
+---
+
 # Database
 
 Módulo para conexão e operações com bancos de dados SQLite e PostgreSQL.

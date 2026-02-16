@@ -2,7 +2,7 @@
 title: "Gestão de Pacotes"
 description: "Arquitetura do gerenciador Oak e resolução de módulos."
 category: "Desenvolvimento"
-order: 5
+order: 66
 ---
 
 # Gerenciamento de Pacotes e Módulos

@@ -104,40 +104,24 @@ impl Disassembler {
             OpCode::JumpIfTrue(offset_val) => {
                 Self::print_jump_instruction("JUMP_IF_TRUE", *offset_val, offset)
             }
-            OpCode::Loop(offset_val) => {
-                Self::print_loop_instruction("LOOP", *offset_val, offset)
-            }
+            OpCode::Loop(offset_val) => Self::print_loop_instruction("LOOP", *offset_val, offset),
             OpCode::Break => Self::print_simple_instruction("BREAK", offset),
             OpCode::Continue => Self::print_simple_instruction("CONTINUE", offset),
 
             // Funções
-            OpCode::Call(arg_count) => {
-                Self::print_byte_instruction("CALL", *arg_count, offset)
-            }
+            OpCode::Call(arg_count) => Self::print_byte_instruction("CALL", *arg_count, offset),
             OpCode::Return => Self::print_simple_instruction("RETURN", offset),
-            OpCode::Closure(idx) => {
-                Self::print_byte_instruction("CLOSURE", *idx, offset)
-            }
-            OpCode::GetUpvalue(idx) => {
-                Self::print_byte_instruction("GET_UPVALUE", *idx, offset)
-            }
-            OpCode::SetUpvalue(idx) => {
-                Self::print_byte_instruction("SET_UPVALUE", *idx, offset)
-            }
+            OpCode::Closure(idx) => Self::print_byte_instruction("CLOSURE", *idx, offset),
+            OpCode::GetUpvalue(idx) => Self::print_byte_instruction("GET_UPVALUE", *idx, offset),
+            OpCode::SetUpvalue(idx) => Self::print_byte_instruction("SET_UPVALUE", *idx, offset),
             OpCode::CloseUpvalue => Self::print_simple_instruction("CLOSE_UPVALUE", offset),
 
             // Objetos
             OpCode::Class(idx) => Self::print_byte_instruction("CLASS", *idx, offset),
             OpCode::Method(idx) => Self::print_byte_instruction("METHOD", *idx, offset),
-            OpCode::Invoke(arg_count) => {
-                Self::print_byte_instruction("INVOKE", *arg_count, offset)
-            }
-            OpCode::GetProperty(idx) => {
-                Self::print_byte_instruction("GET_PROPERTY", *idx, offset)
-            }
-            OpCode::SetProperty(idx) => {
-                Self::print_byte_instruction("SET_PROPERTY", *idx, offset)
-            }
+            OpCode::Invoke(arg_count) => Self::print_byte_instruction("INVOKE", *arg_count, offset),
+            OpCode::GetProperty(idx) => Self::print_byte_instruction("GET_PROPERTY", *idx, offset),
+            OpCode::SetProperty(idx) => Self::print_byte_instruction("SET_PROPERTY", *idx, offset),
             OpCode::This => Self::print_simple_instruction("THIS", offset),
             OpCode::Super(idx) => Self::print_byte_instruction("SUPER", *idx, offset),
 
@@ -146,9 +130,7 @@ impl Disassembler {
             OpCode::Index => Self::print_simple_instruction("INDEX", offset),
             OpCode::SetIndex => Self::print_simple_instruction("SET_INDEX", offset),
             OpCode::Tuple(count) => Self::print_byte_instruction("TUPLE", *count, offset),
-            OpCode::TupleAccess(idx) => {
-                Self::print_byte_instruction("TUPLE_ACCESS", *idx, offset)
-            }
+            OpCode::TupleAccess(idx) => Self::print_byte_instruction("TUPLE_ACCESS", *idx, offset),
 
             // Pilha
             OpCode::Pop => Self::print_simple_instruction("POP", offset),
@@ -162,6 +144,18 @@ impl Disassembler {
             OpCode::PrintLn => Self::print_simple_instruction("PRINT_LN", offset),
             OpCode::Nop => Self::print_simple_instruction("NOP", offset),
             OpCode::Halt => Self::print_simple_instruction("HALT", offset),
+
+            // Exceções
+            OpCode::TryBegin(catch_off, finally_off) => {
+                Self::print_short_instruction("TRY_BEGIN", *catch_off as u16, offset);
+                offset + 5 // 1 + 2 + 2 bytes
+            }
+            OpCode::TryEnd => Self::print_simple_instruction("TRY_END", offset),
+            OpCode::Throw => Self::print_simple_instruction("THROW", offset),
+            OpCode::NewException(idx) => {
+                Self::print_byte_instruction("NEW_EXCEPTION", *idx, offset)
+            }
+            OpCode::Catch(idx) => Self::print_byte_instruction("CATCH", *idx, offset),
         }
     }
 
@@ -180,12 +174,7 @@ impl Disassembler {
         offset + 3
     }
 
-    fn print_constant_instruction(
-        name: &str,
-        chunk: &Chunk,
-        idx: u16,
-        offset: usize,
-    ) -> usize {
+    fn print_constant_instruction(name: &str, chunk: &Chunk, idx: u16, offset: usize) -> usize {
         let constant = chunk.get_constant_long(idx);
         print!("{:16} {:4} '", name, idx);
         if let Some(val) = constant {

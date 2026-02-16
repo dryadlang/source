@@ -2,7 +2,7 @@
 title: "Operadores e Precedência"
 description: "Guia completo de operadores matemáticos, lógicos e bitwise no Dryad."
 category: "Linguagem"
-order: 6
+order: 16
 ---
 
 # Operadores e Precedência

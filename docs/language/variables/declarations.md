@@ -1,3 +1,10 @@
+---
+title: "Variáveis e Escopo"
+description: "Declaração de variáveis com let e const, escopo léxico e shadowing."
+category: "Linguagem"
+order: 14
+---
+
 # Variáveis e Escopo
 
 O gerenciamento de estado no Dryad é feito através de declarações de variáveis com escopo léxico rigoroso.

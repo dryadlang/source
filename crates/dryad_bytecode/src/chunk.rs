@@ -13,7 +13,7 @@ use crate::value::Value;
 /// - Código (vetor de opcodes)
 /// - Constantes (tabela de valores)
 /// - Linhas (mapeamento opcode -> linha no código fonte)
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Chunk {
     /// Vetor de opcodes
     pub code: Vec<OpCode>,
@@ -205,12 +205,17 @@ mod tests {
     fn test_add_constant() {
         let mut chunk = Chunk::empty();
         let idx1 = chunk.add_constant(Value::Number(1.0)).unwrap();
-        let idx2 = chunk.add_constant(Value::String("hello".to_string())).unwrap();
+        let idx2 = chunk
+            .add_constant(Value::String("hello".to_string()))
+            .unwrap();
 
         assert_eq!(idx1, 0);
         assert_eq!(idx2, 1);
         assert_eq!(chunk.get_constant(0), Some(&Value::Number(1.0)));
-        assert_eq!(chunk.get_constant(1), Some(&Value::String("hello".to_string())));
+        assert_eq!(
+            chunk.get_constant(1),
+            Some(&Value::String("hello".to_string()))
+        );
     }
 
     #[test]

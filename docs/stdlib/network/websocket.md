@@ -1,3 +1,11 @@
+---
+title: "WebSocket"
+description: "Conexões WebSocket para comunicação bidirecional em tempo real."
+category: "Bibliotecas Padrão"
+subcategory: "Rede"
+order: 33
+---
+
 # WebSocket
 
 Módulo para conexões WebSocket cliente e servidor.

@@ -3,7 +3,7 @@ title: "Entrada e Saída (IO)"
 description: "API de manipulação de arquivos e diretórios."
 category: "Bibliotecas Padrão"
 subcategory: "File I/O"
-order: 1
+order: 34
 ---
 
 # File I/O (Entrada e Saída de Arquivos)

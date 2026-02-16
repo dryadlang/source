@@ -1,3 +1,10 @@
+---
+title: "Pattern Matching"
+description: "Sistema de correspondência de padrões com match, desestruturação e guardas."
+category: "Linguagem"
+order: 18
+---
+
 # Pattern Matching (match)
 
 O Dryad oferece um sistema de pattern matching poderoso e expressivo através da palavra-chave `match`. Ele permite comparar um valor contra uma série de padrões e executar o código correspondente ao primeiro padrão que coincidir.

@@ -1,3 +1,10 @@
+---
+title: "Guia Detalhado de Sintaxe"
+description: "Referência completa da gramática, identificadores e estruturas da linguagem Dryad."
+category: "Linguagem"
+order: 12
+---
+
 # Guia de Sintaxe da Linguagem Dryad
 
 Este documento serve como referência definitiva para a sintaxe da linguagem Dryad, detalhando regras gramaticais, estruturas de controle e convenções. Abaixo estão as principais diretrizes para escrever código na linguagem Dryad.

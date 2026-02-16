@@ -20,11 +20,11 @@ impl Backend for Arm64Backend {
         // TODO: Implementar backend ARM64
         Err("Backend ARM64 ainda não implementado".to_string())
     }
-    
+
     fn name(&self) -> &'static str {
         "arm64"
     }
-    
+
     fn target_triple(&self) -> &'static str {
         "aarch64-unknown-linux-gnu"
     }

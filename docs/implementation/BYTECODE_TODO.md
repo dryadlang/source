@@ -78,4 +78,4 @@ Projeto implementado com sucesso!
 
 ---
 
-*Última atualização: Fevereiro 2026*
+*Última atualização: 16 de fevereiro de 2026*

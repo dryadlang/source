@@ -1,8 +1,8 @@
 ---
 title: "Guia de Erros"
 description: "Como interpretar diagnósticos e resolver problemas de execução."
-category: "Erros"
-order: 1
+category: "Referências"
+order: 102
 ---
 
 # Códigos de Erro e Diagnósticos

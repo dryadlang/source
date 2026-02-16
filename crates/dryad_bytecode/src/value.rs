@@ -4,10 +4,10 @@
 //! Este módulo implementa os valores que a VM pode manipular.
 //! Suporta tipos primitivos e referências a objetos gerenciados.
 
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt;
 use std::rc::Rc;
-use std::cell::RefCell;
 
 /// Um valor na máquina virtual
 ///
@@ -72,16 +72,50 @@ pub enum Object {
     /// Tupla imutável
     Tuple(Vec<Value>),
     /// Função/Closure
-    Closure(Rc<Function>, Vec<Value>), // função + upvalues
+    Closure(Rc<Function>, Vec<HeapId>), // função + upvalues (HeapIds para Upvalue objects)
     /// HashMap (objeto literal)
     Map(HashMap<String, Value>),
+    /// Upvalue - variável capturada por closure
+    Upvalue(RefCell<Upvalue>),
 }
 
 impl PartialEq for Object {
-    fn eq(&self, other: &Self) -> bool {
+    fn eq(&self, _other: &Self) -> bool {
         // Dois objetos são iguais apenas se forem o mesmo objeto (mesmo HeapId)
         // Isso é verificado externamente através dos HeapId
         false
+    }
+}
+
+/// Informação sobre um upvalue em uma função
+/// 
+/// Armazena metadados sobre como capturar variáveis de escopos externos
+#[derive(Debug, Clone, PartialEq)]
+pub struct UpvalueInfo {
+    /// Índice da variável local ou upvalue no escopo pai
+    pub index: u8,
+    /// Se captura de escopo imediato (true) ou de closure pai (false)
+    pub is_local: bool,
+}
+
+/// Upvalue - referência a variável capturada por uma closure
+/// 
+/// Upvalues podem estar "abertos" (apontando para pilha) ou "fechados" (valor copiado para heap)
+#[derive(Debug, Clone)]
+pub enum Upvalue {
+    /// Open: variável ainda está na pilha (escopo ativo)
+    Open(usize),
+    /// Closed: variável foi movida para heap (escopo fechado)
+    Closed(Value),
+}
+
+impl PartialEq for Upvalue {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Upvalue::Open(a), Upvalue::Open(b)) => a == b,
+            (Upvalue::Closed(a), Upvalue::Closed(b)) => a == b,
+            _ => false,
+        }
     }
 }
 
@@ -92,7 +126,10 @@ pub struct Function {
     pub arity: usize,
     pub chunk: Chunk,
     pub upvalue_count: usize,
+    /// Informações sobre upvalues capturados
+    pub upvalue_info: Vec<UpvalueInfo>,
 }
+
 
 /// Chunk de bytecode (importado de chunk.rs)
 use crate::chunk::Chunk;
@@ -113,6 +150,8 @@ impl Value {
             Value::Number(n) => *n != 0.0,
             Value::String(s) => !s.is_empty(),
             Value::Object(_) => true,
+            Value::Function(_) => true,
+            Value::NativeFunction(_) => true,
         }
     }
 
@@ -227,10 +266,7 @@ impl Value {
     pub fn negate(&self) -> Result<Value, String> {
         match self {
             Value::Number(n) => Ok(Value::Number(-n)),
-            _ => Err(format!(
-                "Não é possível negar {}",
-                self.type_name()
-            )),
+            _ => Err(format!("Não é possível negar {}", self.type_name())),
         }
     }
 
@@ -299,9 +335,7 @@ impl Value {
     pub fn bit_and(&self, other: &Value) -> Result<Value, String> {
         match (self.as_i64(), other.as_i64()) {
             (Some(a), Some(b)) => Ok(Value::Number((a & b) as f64)),
-            _ => Err(format!(
-                "Operação bitwise AND requer números inteiros"
-            )),
+            _ => Err(format!("Operação bitwise AND requer números inteiros")),
         }
     }
 
@@ -309,9 +343,7 @@ impl Value {
     pub fn bit_or(&self, other: &Value) -> Result<Value, String> {
         match (self.as_i64(), other.as_i64()) {
             (Some(a), Some(b)) => Ok(Value::Number((a | b) as f64)),
-            _ => Err(format!(
-                "Operação bitwise OR requer números inteiros"
-            )),
+            _ => Err(format!("Operação bitwise OR requer números inteiros")),
         }
     }
 
@@ -319,9 +351,7 @@ impl Value {
     pub fn bit_xor(&self, other: &Value) -> Result<Value, String> {
         match (self.as_i64(), other.as_i64()) {
             (Some(a), Some(b)) => Ok(Value::Number((a ^ b) as f64)),
-            _ => Err(format!(
-                "Operação bitwise XOR requer números inteiros"
-            )),
+            _ => Err(format!("Operação bitwise XOR requer números inteiros")),
         }
     }
 
@@ -329,9 +359,7 @@ impl Value {
     pub fn bit_not(&self) -> Result<Value, String> {
         match self.as_i64() {
             Some(a) => Ok(Value::Number((!a) as f64)),
-            _ => Err(format!(
-                "Operação bitwise NOT requer número inteiro"
-            )),
+            _ => Err(format!("Operação bitwise NOT requer número inteiro")),
         }
     }
 
@@ -339,9 +367,7 @@ impl Value {
     pub fn shift_left(&self, other: &Value) -> Result<Value, String> {
         match (self.as_i64(), other.as_i64()) {
             (Some(a), Some(b)) => Ok(Value::Number((a << b) as f64)),
-            _ => Err(format!(
-                "Operação shift left requer números inteiros"
-            )),
+            _ => Err(format!("Operação shift left requer números inteiros")),
         }
     }
 
@@ -349,9 +375,7 @@ impl Value {
     pub fn shift_right(&self, other: &Value) -> Result<Value, String> {
         match (self.as_i64(), other.as_i64()) {
             (Some(a), Some(b)) => Ok(Value::Number((a >> b) as f64)),
-            _ => Err(format!(
-                "Operação shift right requer números inteiros"
-            )),
+            _ => Err(format!("Operação shift right requer números inteiros")),
         }
     }
 

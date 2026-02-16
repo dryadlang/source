@@ -1,8 +1,8 @@
 ---
 title: "API do Registro"
 description: "Documentação da API REST do registro de pacotes Oak."
-category: "Guia de Uso"
-order: 3
+category: "Ferramentas"
+order: 52
 ---
 
 # Oak Registry API

@@ -49,19 +49,6 @@ order: 2
 
 ## 2. Ecossistema e Ferramentas
 
-### 2.1 Package Manager (Seed) (Rejeitado - Já )
-
-**Descrição**: Criar gerenciador de pacotes oficial `seed`.
-**Requisitos**:
-
-- [ ] Manifesto `dryad.toml`.
-- [ ] Registro central de pacotes.
-- [ ] Resolução de dependências (instalação em `dryad_modules/`).
-      **DoD**:
-- Comando `seed install <pkg>`.
-- Comando `seed publish`.
-- Versionamento semântico suportado.
-
 ### 2.2 Standard Library 2.0
 
 **Descrição**: Expandir a stdlib para cobrir casos de uso comuns de backend.

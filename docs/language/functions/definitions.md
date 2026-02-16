@@ -2,7 +2,7 @@
 title: "Funções e Procedimentos"
 description: "Declaração de funções, closures e modelos de execução concorrente."
 category: "Linguagem"
-order: 5
+order: 19
 ---
 
 # Funções e Procedimentos

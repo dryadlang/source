@@ -1,3 +1,11 @@
+---
+title: "Criptografia"
+description: "Funções de hash, criptografia, assinaturas digitais e HMAC."
+category: "Bibliotecas Padrão"
+subcategory: "Segurança"
+order: 37
+---
+
 # Crypto
 
 Módulo de criptografia e utilitários de segurança.

@@ -16,7 +16,7 @@ impl PeGenerator {
     pub fn new() -> Self {
         Self { subsystem: 3 } // CONSOLE por padrão
     }
-    
+
     /// Define o subsystem
     pub fn set_subsystem(mut self, subsystem: u16) -> Self {
         self.subsystem = subsystem;
@@ -30,11 +30,11 @@ impl Generator for PeGenerator {
         // Por enquanto, retorna erro
         Err("Gerador PE ainda não implementado".to_string())
     }
-    
+
     fn format_name(&self) -> &'static str {
         "PE"
     }
-    
+
     fn file_extension(&self) -> &'static str {
         ".exe"
     }

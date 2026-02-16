@@ -1,0 +1,59 @@
+// Teste de closures básico
+fn makeCounter() {
+    let count = 0;
+    
+    fn increment() {
+        count = count + 1;
+        return count;
+    }
+    
+    return increment;
+}
+
+let counter = makeCounter();
+print(counter()); // Deve imprimir 1
+print(counter()); // Deve imprimir 2
+print(counter()); // Deve imprimir 3
+
+// Teste de closures aninhadas
+fn outer() {
+    let x = 10;
+    
+    fn middle() {
+        let y = 20;
+        
+        fn inner() {
+            return x + y;
+        }
+        
+        return inner;
+    }
+    
+    return middle;
+}
+
+let f = outer()();
+print(f()); // Deve imprimir 30
+
+// Teste de múltiplas closures compartilhando variável
+fn makeShared() {
+    let shared = 0;
+    
+    fn increment() {
+        shared = shared + 1;
+        return shared;
+    }
+    
+    fn decrement() {
+        shared = shared - 1;
+        return shared;
+    }
+    
+    return [increment, decrement];
+}
+
+let [inc, dec] = makeShared();
+print(inc()); // 1
+print(inc()); // 2
+print(dec()); // 1
+print(dec()); // 0

@@ -1,8 +1,8 @@
 ---
 title: "CLI do Oak"
 description: "Comandos e uso do gerenciador de pacotes da linha de comando."
-category: "Guia de Uso"
-order: 2
+category: "Ferramentas"
+order: 51
 ---
 
 # Oak CLI Reference

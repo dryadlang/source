@@ -9,6 +9,15 @@ order: 1
 
 Bem-vindo à documentação técnica oficial da linguagem Dryad. Aqui você encontrará informações detalhadas sobre a linguagem, sua implementação e manuais de desenvolvimento.
 
+## Status rápido
+
+| Subsystem | Status |
+|---|---|
+| Bytecode VM | ✅ Completo (~95%) |
+| AOT Compiler | 🚧 Em desenvolvimento (55%) — ver `docs/aot/status.md` |
+| Oak (package manager) | 🟡 Em desenvolvimento |
+| Runtime / Interpreter | ✅ Estável |
+
 ## Índice
 
 ### 1. Referência da Linguagem

@@ -3,7 +3,7 @@ title: "Utilidades Gerais"
 description: "JSON, Random, Base64 e outras ferramentas utilitárias."
 category: "Bibliotecas Padrão"
 subcategory: "Utilitários"
-order: 1
+order: 39
 ---
 
 # Utilidades Gerais (Utils)

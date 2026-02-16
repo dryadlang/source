@@ -1,3 +1,11 @@
+---
+title: "JSON Stream"
+description: "Parsing e codificação de JSON incremental e em streaming."
+category: "Bibliotecas Padrão"
+subcategory: "JSON"
+order: 36
+---
+
 # JSON Stream
 
 Módulo para parsing e codificação de JSON incremental e em streaming.

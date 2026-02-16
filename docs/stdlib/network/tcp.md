@@ -1,3 +1,11 @@
+---
+title: "Rede TCP"
+description: "Comunicação via sockets TCP para cliente e servidor."
+category: "Bibliotecas Padrão"
+subcategory: "Rede"
+order: 32
+---
+
 # Networking: TCP
 
 A biblioteca de rede TCP da Dryad permite comunicação eficiente via sockets TCP. Este documento descreve as funções disponíveis e fornece exemplos de uso.
@@ -5,16 +13,21 @@ A biblioteca de rede TCP da Dryad permite comunicação eficiente via sockets TC
 ## Cliente
 
 ### `tcp_client_connect(host: string, port: number): connection`
+
 Estabelece conexão com um servidor.
+
 - **Retorno**: Um objeto/handle de conexão opaco.
 
 ### `tcp_client_send(conn: connection, data: string)`
+
 Envia dados pela conexão estabelecida.
 
 ### `tcp_client_receive(conn: connection): string`
+
 Lê dados da conexão (bloqueante).
 
 ### `tcp_client_disconnect(conn: connection)`
+
 Fecha a conexão.
 
 ## Exemplo de Uso

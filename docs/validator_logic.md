@@ -2,7 +2,7 @@
 title: "Validação e LSP"
 description: "Lógica de análise estática e integração com Language Server Protocol."
 category: "Desenvolvimento"
-order: 6
+order: 69
 ---
 
 # Lógica para Validador Sintático (IDE)

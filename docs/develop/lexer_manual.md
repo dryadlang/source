@@ -2,7 +2,7 @@
 title: "Manual do Lexer"
 description: "Detalhes técnicos sobre o analisador léxico e tokens."
 category: "Desenvolvimento"
-order: 2
+order: 62
 ---
 
 # Manual Técnico: Lexer (Analisador Léxico)

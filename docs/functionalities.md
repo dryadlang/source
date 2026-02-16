@@ -1,8 +1,8 @@
 ---
 title: "Funcionalidades Implementadas"
 description: "Lista detalhada das funcionalidades implementadas na linguagem Dryad."
-category: "Guia de Uso"
-order: 1
+category: "Introdução"
+order: 3
 ---
 
 # Funcionalidades Implementadas

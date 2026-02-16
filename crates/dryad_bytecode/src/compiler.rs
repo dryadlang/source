@@ -8,7 +8,10 @@ use crate::chunk::Chunk;
 use crate::opcode::OpCode;
 use crate::value::Value;
 use dryad_errors::SourceLocation;
-use dryad_parser::ast::{ClassMember, Expr, ImportKind, InterfaceMember, Literal, MatchArm, ObjectProperty, Pattern, Program, Stmt, Type, Visibility};
+use dryad_parser::ast::{
+    ClassMember, Expr, ImportKind, InterfaceMember, Literal, MatchArm, ObjectProperty, Pattern,
+    Program, Stmt, Type, Visibility,
+};
 
 /// Informações sobre um loop atual (para break/continue)
 #[derive(Debug, Clone)]
@@ -33,6 +36,10 @@ pub struct Compiler {
     chunks: Vec<Chunk>,
     /// Pilha de loops ativos (para break/continue)
     loop_stack: Vec<LoopInfo>,
+    /// Upvalues capturados pela função atual
+    upvalues: Vec<crate::value::UpvalueInfo>,
+    /// Compilador pai (para acessar escopos externos)
+    enclosing: Option<Box<Compiler>>,
 }
 
 /// Uma variável local
@@ -75,6 +82,8 @@ impl Compiler {
             scope_depth: 0,
             chunks: Vec::new(),
             loop_stack: Vec::new(),
+            upvalues: Vec::new(),
+            enclosing: None,
         }
     }
 
@@ -148,9 +157,7 @@ impl Compiler {
                 self.compile_if(condition, *then_branch, Some(*else_branch), loc.line)
             }
 
-            Stmt::While(condition, body, loc) => {
-                self.compile_while(condition, *body, loc.line)
-            }
+            Stmt::While(condition, body, loc) => self.compile_while(condition, *body, loc.line),
 
             Stmt::DoWhile(body, condition, loc) => {
                 self.compile_do_while(*body, condition, loc.line)
@@ -176,15 +183,15 @@ impl Compiler {
                             self.emit_op(OpCode::PopN(pop_count as u8), loc.line);
                         }
                     }
-                    
+
                     // Emite jump que será resolvido no final do loop
                     let break_jump = self.emit_jump(OpCode::Jump(0), loc.line);
-                    
+
                     // Registra o break no loop atual
                     if let Some(loop_info) = self.loop_stack.last_mut() {
                         loop_info.breaks.push(break_jump);
                     }
-                    
+
                     Ok(())
                 } else {
                     Err("'break' fora de um loop".to_string())
@@ -194,8 +201,12 @@ impl Compiler {
             Stmt::Continue(loc) => {
                 // Sai do escopo do loop para ir para a atualização/condição
                 if let Some(loop_info) = self.loop_stack.last() {
+                    // Copia os valores necessários antes de fazer borrow mutável
+                    let start_pos = loop_info.start_pos;
+                    let scope_depth = loop_info.scope_depth;
+
                     // Remove variáveis locais até a profundidade do loop
-                    let pop_count = self.locals.len() - loop_info.scope_depth;
+                    let pop_count = self.locals.len() - scope_depth;
                     if pop_count > 0 {
                         if pop_count == 1 {
                             self.emit_op(OpCode::Pop, loc.line);
@@ -203,11 +214,11 @@ impl Compiler {
                             self.emit_op(OpCode::PopN(pop_count as u8), loc.line);
                         }
                     }
-                    
+
                     // Jump de volta ao início do loop
-                    let offset = self.current_chunk.len() - loop_info.start_pos + 1;
+                    let offset = self.current_chunk.len() - start_pos + 1;
                     self.emit_op(OpCode::Loop(offset as u16), loc.line);
-                    
+
                     Ok(())
                 } else {
                     Err("'continue' fora de um loop".to_string())
@@ -224,16 +235,15 @@ impl Compiler {
                 Ok(())
             }
 
-            Stmt::FunctionDeclaration { name, params, body, location, .. } => {
-                self.compile_function_declaration(name, params, *body, location.line)
-            }
+            Stmt::FunctionDeclaration {
+                name,
+                params,
+                body,
+                location,
+                ..
+            } => self.compile_function_declaration(name, params, *body, location.line),
 
-            Stmt::Print(expr, loc) => {
-                self.compile_expression(expr)?;
-                self.emit_op(OpCode::PrintLn, loc.line);
-                Ok(())
-            }
-
+            // Stmt::Print foi removido - print é tratado como função nativa
             Stmt::ClassDeclaration(name, superclass, _interfaces, members, loc) => {
                 self.compile_class_declaration(name, superclass, members, loc.line)
             }
@@ -251,7 +261,10 @@ impl Compiler {
             // Statements não implementados ainda
             _ => {
                 // Para statements não suportados
-                Err(format!("Statement ainda não suportado pelo bytecode: {:?}", stmt))
+                Err(format!(
+                    "Statement ainda não suportado pelo bytecode: {:?}",
+                    stmt
+                ))
             }
         }
     }
@@ -301,6 +314,9 @@ impl Compiler {
                 if let Some(local_idx) = self.resolve_local(&name) {
                     // Atribuição a variável local
                     self.emit_op(OpCode::SetLocal(local_idx), line);
+                } else if let Some(upvalue_idx) = self.resolve_upvalue(&name) {
+                    // Atribuição a upvalue
+                    self.emit_op(OpCode::SetUpvalue(upvalue_idx), line);
                 } else {
                     // Atribuição a variável global
                     let idx = self.make_constant(Value::String(name), line)?;
@@ -325,12 +341,12 @@ impl Compiler {
         // Compila o objeto, valor e índice
         self.compile_expression(object)?;
         self.compile_expression(value)?;
-        
+
         // TODO: Implementar set property
         // Por enquanto, apenas deixamos os valores na pilha
         self.emit_op(OpCode::Pop, line);
         self.emit_op(OpCode::Pop, line);
-        
+
         Err(format!("Atribuição de propriedade ainda não implementada"))
     }
 
@@ -345,10 +361,10 @@ impl Compiler {
         self.compile_expression(array)?;
         self.compile_expression(index)?;
         self.compile_expression(value)?;
-        
+
         // TODO: Implementar SetIndex
         self.emit_op(OpCode::SetIndex, line);
-        
+
         Ok(())
     }
 
@@ -364,7 +380,7 @@ impl Compiler {
 
         // Jump para else (ou fim do if)
         let then_jump = self.emit_jump(OpCode::JumpIfFalse(0), line);
-        
+
         // Remove a condição da pilha
         self.emit_op(OpCode::Pop, line);
 
@@ -376,7 +392,7 @@ impl Compiler {
 
         // Patch do jump then
         self.patch_jump(then_jump);
-        
+
         // Remove a condição (caso o jump não tenha sido tomado)
         self.emit_op(OpCode::Pop, line);
 
@@ -391,12 +407,7 @@ impl Compiler {
         Ok(())
     }
 
-    fn compile_while(
-        &mut self,
-        condition: Expr,
-        body: Stmt,
-        line: usize,
-    ) -> Result<(), String> {
+    fn compile_while(&mut self, condition: Expr, body: Stmt, line: usize) -> Result<(), String> {
         // Marca o início do loop
         let loop_start = self.current_chunk.len();
 
@@ -425,7 +436,7 @@ impl Compiler {
 
         // Patch do exit jump
         self.patch_jump(exit_jump);
-        
+
         // Remove a condição final
         self.emit_op(OpCode::Pop, line);
 
@@ -439,12 +450,7 @@ impl Compiler {
         Ok(())
     }
 
-    fn compile_do_while(
-        &mut self,
-        body: Stmt,
-        condition: Expr,
-        line: usize,
-    ) -> Result<(), String> {
+    fn compile_do_while(&mut self, body: Stmt, condition: Expr, line: usize) -> Result<(), String> {
         // Marca o início
         let loop_start = self.current_chunk.len();
 
@@ -558,15 +564,24 @@ impl Compiler {
 
         // Verifica se índice < tamanho do array
         // Compila: __index < len(__iterable)
-        self.emit_op(OpCode::GetLocal(self.resolve_local("__index").unwrap()), line);
-        
+        self.emit_op(
+            OpCode::GetLocal(self.resolve_local("__index").unwrap()),
+            line,
+        );
+
         // Para obter o tamanho, precisamos de um opcode de len
         // Por enquanto, vamos usar uma abordagem diferente:
         // Tentamos acessar o índice e se falhar (nil), saímos do loop
-        self.emit_op(OpCode::GetLocal(self.resolve_local("__iterable").unwrap()), line);
-        self.emit_op(OpCode::GetLocal(self.resolve_local("__index").unwrap()), line);
+        self.emit_op(
+            OpCode::GetLocal(self.resolve_local("__iterable").unwrap()),
+            line,
+        );
+        self.emit_op(
+            OpCode::GetLocal(self.resolve_local("__index").unwrap()),
+            line,
+        );
         self.emit_op(OpCode::Index, line);
-        
+
         // Se o resultado for nil, sai do loop
         let exit_jump = self.emit_jump(OpCode::JumpIfFalse(0), line);
         self.emit_op(OpCode::Pop, line); // Remove o valor nil/falso
@@ -595,11 +610,17 @@ impl Compiler {
         self.add_local("__index".to_string());
 
         // Incrementa o índice: __index = __index + 1
-        self.emit_op(OpCode::GetLocal(self.resolve_local("__index").unwrap()), line);
+        self.emit_op(
+            OpCode::GetLocal(self.resolve_local("__index").unwrap()),
+            line,
+        );
         let one_idx = self.make_constant(Value::Number(1.0), line)?;
         self.emit_op(OpCode::Constant(one_idx), line);
         self.emit_op(OpCode::Add, line);
-        self.emit_op(OpCode::SetLocal(self.resolve_local("__index").unwrap()), line);
+        self.emit_op(
+            OpCode::SetLocal(self.resolve_local("__index").unwrap()),
+            line,
+        );
         self.emit_op(OpCode::Pop, line);
 
         // Loop de volta
@@ -643,15 +664,16 @@ impl Compiler {
         // Compila o catch se existir
         if let Some((var_name, catch_body)) = catch_clause {
             self.begin_scope();
-            
+
             // Captura a exceção na variável
-            let var_idx = self.make_constant(Value::String(var_name), line)?;
+            let var_name_clone = var_name.clone();
+            let var_idx = self.make_constant(Value::String(var_name_clone), line)?;
             self.emit_op(OpCode::Catch(var_idx), line);
             self.add_local(var_name);
-            
+
             // Compila o corpo do catch
             self.compile_statement(*catch_body)?;
-            
+
             self.end_scope(line);
         }
 
@@ -667,8 +689,9 @@ impl Compiler {
         self.patch_jump(finally_jump);
 
         // Patch do TryBegin com os offsets corretos
-        if let Some(OpCode::TryBegin(ref mut catch_offset, ref mut finally_offset)) = 
-            self.current_chunk.code.get_mut(try_begin_pos) {
+        if let Some(OpCode::TryBegin(ref mut catch_offset, ref mut finally_offset)) =
+            self.current_chunk.code.get_mut(try_begin_pos)
+        {
             *catch_offset = (catch_pos - try_begin_pos) as u16;
             *finally_offset = (finally_pos - try_begin_pos) as u16;
         }
@@ -683,44 +706,65 @@ impl Compiler {
         body: Stmt,
         line: usize,
     ) -> Result<(), String> {
-        // Salva o chunk atual
-        let enclosing_chunk = std::mem::replace(&mut self.current_chunk, Chunk::new(&name));
-        let enclosing_locals = std::mem::take(&mut self.locals);
-        let enclosing_scope = self.scope_depth;
-        
-        // Reseta para novo escopo de função
-        self.scope_depth = 1;  // Começa em 1 para permitir variáveis locais
-        self.locals.clear();
-        
+        // Cria um novo compilador para a função (com referência ao pai)
+        let mut function_compiler = Compiler {
+            current_chunk: Chunk::new(&name),
+            locals: Vec::new(),
+            scope_depth: 1, // Começa em 1 para permitir variáveis locais
+            chunks: Vec::new(),
+            loop_stack: Vec::new(),
+            upvalues: Vec::new(),
+            enclosing: None, // Será configurado abaixo
+        };
+
         // Adiciona parâmetros como variáveis locais
         for (param_name, _) in &params {
-            self.add_local(param_name.clone());
+            function_compiler.add_local(param_name.clone());
         }
+
+        // Move self para enclosing (temporariamente)
+        let mut enclosing_compiler = std::mem::replace(self, function_compiler);
         
+        // Configura a referência ao compilador pai
+        self.enclosing = Some(Box::new(enclosing_compiler));
+
         // Compila o corpo da função
         self.compile_statement(body)?;
-        
+
         // Garante que há um retorno no final
         self.emit_op(OpCode::Nil, line);
         self.emit_op(OpCode::Return, line);
-        
-        // Cria a função
-        let function_chunk = std::mem::replace(&mut self.current_chunk, enclosing_chunk);
+
+        // Extrai informações da função compilada
+        let function_chunk = self.current_chunk.clone();
+        let upvalue_info = self.upvalues.clone();
+        let upvalue_count = upvalue_info.len();
+
+        // Restaura o compilador pai
+        let mut parent = self.enclosing.take().unwrap();
+        *self = *parent;
+
+        // Cria a função com informações de upvalues
         let function = crate::value::Function {
             name: name.clone(),
             arity: params.len(),
             chunk: function_chunk,
-            upvalue_count: 0,
+            upvalue_count,
+            upvalue_info,
         };
-        
-        // Restaura estado anterior
-        self.locals = enclosing_locals;
-        self.scope_depth = enclosing_scope;
-        
-        // Emite instrução para criar a função
-        let idx = self.make_constant(crate::value::Value::Function(std::rc::Rc::new(function)), line)?;
+
+        // Emite instrução para criar a closure
+        let idx = self.make_constant(
+            crate::value::Value::Function(std::rc::Rc::new(function)),
+            line,
+        )?;
         self.emit_op(OpCode::Constant(idx), line);
-        
+
+        // Se há upvalues, emite instrução Closure
+        if upvalue_count > 0 {
+            self.emit_op(OpCode::Closure(upvalue_count as u8), line);
+        }
+
         // Define a função como variável global ou local
         if self.scope_depth > 0 {
             self.add_local(name);
@@ -728,7 +772,7 @@ impl Compiler {
             let name_idx = self.make_constant(crate::value::Value::String(name), line)?;
             self.emit_op(OpCode::DefineGlobal(name_idx), line);
         }
-        
+
         Ok(())
     }
 
@@ -767,22 +811,22 @@ impl Compiler {
                     // Compila o método como uma função
                     let mut method_compiler = Compiler::new();
                     method_compiler.scope_depth = 1;
-                    
+
                     // Adiciona 'this' como primeira variável local
                     method_compiler.add_local("this".to_string());
-                    
+
                     // Adiciona parâmetros
                     for (param_name, _) in &params {
                         method_compiler.add_local(param_name.clone());
                     }
-                    
+
                     // Compila corpo
                     method_compiler.compile_statement(*body)?;
-                    
+
                     // Garante retorno
                     method_compiler.emit_op(OpCode::Nil, line);
                     method_compiler.emit_op(OpCode::Return, line);
-                    
+
                     // Cria a função do método
                     let method_function = crate::value::Function {
                         name: method_name.clone(),
@@ -790,28 +834,24 @@ impl Compiler {
                         chunk: method_compiler.current_chunk,
                         upvalue_count: 0,
                     };
-                    
+
                     // Emite o método
                     let method_idx = self.make_constant(
                         crate::value::Value::Function(std::rc::Rc::new(method_function)),
-                        line
+                        line,
                     )?;
                     self.emit_op(OpCode::Constant(method_idx), line);
-                    
-                    let method_name_idx = self.make_constant(
-                        crate::value::Value::String(method_name),
-                        line
-                    )?;
+
+                    let method_name_idx =
+                        self.make_constant(crate::value::Value::String(method_name), line)?;
                     self.emit_op(OpCode::Method(method_name_idx), line);
                 }
                 ClassMember::Property(_, _, prop_name, _, default) => {
                     // Propriedade - se tiver valor default, compila
                     if let Some(default_expr) = default {
                         self.compile_expression(default_expr)?;
-                        let prop_name_idx = self.make_constant(
-                            crate::value::Value::String(prop_name),
-                            line
-                        )?;
+                        let prop_name_idx =
+                            self.make_constant(crate::value::Value::String(prop_name), line)?;
                         self.emit_op(OpCode::SetProperty(prop_name_idx), line);
                     }
                 }
@@ -834,53 +874,29 @@ impl Compiler {
 
     fn compile_expression(&mut self, expr: Expr) -> Result<(), String> {
         match expr {
-            Expr::Literal(lit, loc) => {
-                self.compile_literal(lit, loc.line)
-            }
+            Expr::Literal(lit, loc) => self.compile_literal(lit, loc.line),
 
-            Expr::Variable(name, loc) => {
-                self.compile_variable(name, loc.line)
-            }
+            Expr::Variable(name, loc) => self.compile_variable(name, loc.line),
 
-            Expr::Binary(left, op, right, loc) => {
-                self.compile_binary(*left, op, *right, loc.line)
-            }
+            Expr::Binary(left, op, right, loc) => self.compile_binary(*left, op, *right, loc.line),
 
-            Expr::Unary(op, expr, loc) => {
-                self.compile_unary(op, *expr, loc.line)
-            }
+            Expr::Unary(op, expr, loc) => self.compile_unary(op, *expr, loc.line),
 
-            Expr::PostIncrement(expr, loc) => {
-                self.compile_post_increment(*expr, true, loc.line)
-            }
+            Expr::PostIncrement(expr, loc) => self.compile_post_increment(*expr, true, loc.line),
 
-            Expr::PostDecrement(expr, loc) => {
-                self.compile_post_increment(*expr, false, loc.line)
-            }
+            Expr::PostDecrement(expr, loc) => self.compile_post_increment(*expr, false, loc.line),
 
-            Expr::PreIncrement(expr, loc) => {
-                self.compile_pre_increment(*expr, true, loc.line)
-            }
+            Expr::PreIncrement(expr, loc) => self.compile_pre_increment(*expr, true, loc.line),
 
-            Expr::PreDecrement(expr, loc) => {
-                self.compile_pre_increment(*expr, false, loc.line)
-            }
+            Expr::PreDecrement(expr, loc) => self.compile_pre_increment(*expr, false, loc.line),
 
-            Expr::Array(elements, loc) => {
-                self.compile_array(elements, loc.line)
-            }
+            Expr::Array(elements, loc) => self.compile_array(elements, loc.line),
 
-            Expr::Tuple(elements, loc) => {
-                self.compile_tuple(elements, loc.line)
-            }
+            Expr::Tuple(elements, loc) => self.compile_tuple(elements, loc.line),
 
-            Expr::Index(array, index, loc) => {
-                self.compile_index(*array, *index, loc.line)
-            }
+            Expr::Index(array, index, loc) => self.compile_index(*array, *index, loc.line),
 
-            Expr::TupleAccess(tuple, idx, loc) => {
-                self.compile_tuple_access(*tuple, idx, loc.line)
-            }
+            Expr::TupleAccess(tuple, idx, loc) => self.compile_tuple_access(*tuple, idx, loc.line),
 
             Expr::PropertyAccess(object, property, loc) => {
                 self.compile_property_access(*object, property, loc.line)
@@ -890,18 +906,17 @@ impl Compiler {
                 self.compile_method_call(*object, method, args, loc.line)
             }
 
-            Expr::Call(callee, args, loc) => {
-                self.compile_call(*callee, args, loc.line)
-            }
+            Expr::Call(callee, args, loc) => self.compile_call(*callee, args, loc.line),
 
             Expr::ClassInstantiation(class_name, args, loc) => {
                 self.compile_class_instantiation(class_name, args, loc.line)
             }
 
             // Expressões não implementadas
-            _ => {
-                Err(format!("Expressão ainda não suportada pelo bytecode: {:?}", expr))
-            }
+            _ => Err(format!(
+                "Expressão ainda não suportada pelo bytecode: {:?}",
+                expr
+            )),
         }
     }
 
@@ -931,6 +946,9 @@ impl Compiler {
         if let Some(local_idx) = self.resolve_local(&name) {
             // Variável local
             self.emit_op(OpCode::GetLocal(local_idx), line);
+        } else if let Some(upvalue_idx) = self.resolve_upvalue(&name) {
+            // Upvalue (variável capturada)
+            self.emit_op(OpCode::GetUpvalue(upvalue_idx), line);
         } else {
             // Variável global
             let idx = self.make_constant(Value::String(name), line)?;
@@ -1003,21 +1021,21 @@ impl Compiler {
             Expr::Variable(name, _) => {
                 // Carrega o valor atual
                 self.compile_variable(name.clone(), line)?;
-                
+
                 // Duplica para manter o valor original no topo (retorno)
                 self.emit_op(OpCode::Dup, line);
-                
+
                 // Empilha 1
                 let one_idx = self.make_constant(Value::Number(1.0), line)?;
                 self.emit_op(OpCode::Constant(one_idx), line);
-                
+
                 // Adiciona ou subtrai
                 if is_increment {
                     self.emit_op(OpCode::Add, line);
                 } else {
                     self.emit_op(OpCode::Subtract, line);
                 }
-                
+
                 // Armazena de volta
                 if let Some(local_idx) = self.resolve_local(&name) {
                     self.emit_op(OpCode::SetLocal(local_idx), line);
@@ -1026,7 +1044,7 @@ impl Compiler {
                     self.emit_op(OpCode::SetGlobal(name_idx), line);
                 }
                 self.emit_op(OpCode::Pop, line); // Remove o resultado do Set
-                
+
                 // O valor original ainda está no topo (por causa do Dup)
                 Ok(())
             }
@@ -1045,21 +1063,21 @@ impl Compiler {
             Expr::Variable(name, _) => {
                 // Carrega o valor atual
                 self.compile_variable(name.clone(), line)?;
-                
+
                 // Empilha 1
                 let one_idx = self.make_constant(Value::Number(1.0), line)?;
                 self.emit_op(OpCode::Constant(one_idx), line);
-                
+
                 // Adiciona ou subtrai
                 if is_increment {
                     self.emit_op(OpCode::Add, line);
                 } else {
                     self.emit_op(OpCode::Subtract, line);
                 }
-                
+
                 // Duplica o novo valor (para retornar e armazenar)
                 self.emit_op(OpCode::Dup, line);
-                
+
                 // Armazena de volta
                 if let Some(local_idx) = self.resolve_local(&name) {
                     self.emit_op(OpCode::SetLocal(local_idx), line);
@@ -1068,7 +1086,7 @@ impl Compiler {
                     self.emit_op(OpCode::SetGlobal(name_idx), line);
                 }
                 self.emit_op(OpCode::Pop, line); // Remove o resultado do Set
-                
+
                 // O novo valor está no topo (por causa do Dup)
                 Ok(())
             }
@@ -1077,13 +1095,15 @@ impl Compiler {
     }
 
     fn compile_array(&mut self, elements: Vec<Expr>, line: usize) -> Result<(), String> {
+        // Pega a contagem antes de mover
+        let count = elements.len();
+
         // Compila os elementos
         for elem in elements {
             self.compile_expression(elem)?;
         }
 
         // Cria o array
-        let count = elements.len();
         if count > u16::MAX as usize {
             return Err("Array muito grande".to_string());
         }
@@ -1093,13 +1113,15 @@ impl Compiler {
     }
 
     fn compile_tuple(&mut self, elements: Vec<Expr>, line: usize) -> Result<(), String> {
+        // Pega a contagem antes de mover
+        let count = elements.len();
+
         // Compila os elementos
         for elem in elements {
             self.compile_expression(elem)?;
         }
 
         // Cria o tuple
-        let count = elements.len();
         if count > u8::MAX as usize {
             return Err("Tuple muito grande".to_string());
         }
@@ -1108,12 +1130,7 @@ impl Compiler {
         Ok(())
     }
 
-    fn compile_index(
-        &mut self,
-        array: Expr,
-        index: Expr,
-        line: usize,
-    ) -> Result<(), String> {
+    fn compile_index(&mut self, array: Expr, index: Expr, line: usize) -> Result<(), String> {
         // Compila array e índice
         self.compile_expression(array)?;
         self.compile_expression(index)?;
@@ -1124,12 +1141,7 @@ impl Compiler {
         Ok(())
     }
 
-    fn compile_tuple_access(
-        &mut self,
-        tuple: Expr,
-        idx: usize,
-        line: usize,
-    ) -> Result<(), String> {
+    fn compile_tuple_access(&mut self, tuple: Expr, idx: usize, line: usize) -> Result<(), String> {
         // Compila o tuple
         self.compile_expression(tuple)?;
 
@@ -1180,12 +1192,7 @@ impl Compiler {
         Ok(())
     }
 
-    fn compile_call(
-        &mut self,
-        callee: Expr,
-        args: Vec<Expr>,
-        line: usize,
-    ) -> Result<(), String> {
+    fn compile_call(&mut self, callee: Expr, args: Vec<Expr>, line: usize) -> Result<(), String> {
         // Compila a função
         self.compile_expression(callee)?;
 
@@ -1239,15 +1246,19 @@ impl Compiler {
         while let Some(local) = self.locals.last() {
             if local.depth > self.scope_depth {
                 if local.is_captured {
-                    // TODO: Implementar CloseUpvalue
+                    // Variável foi capturada por closure - move para heap
+                    self.emit_op(OpCode::CloseUpvalue, line);
+                } else {
+                    // Variável não capturada - apenas remove da pilha
+                    pop_count += 1;
                 }
                 self.locals.pop();
-                pop_count += 1;
             } else {
                 break;
             }
         }
 
+        // Emite Pop para variáveis não capturadas
         if pop_count == 1 {
             self.emit_op(OpCode::Pop, line);
         } else if pop_count > 1 {
@@ -1272,6 +1283,49 @@ impl Compiler {
         None
     }
 
+    /// Resolve uma variável como upvalue (capturada de escopo externo)
+    fn resolve_upvalue(&mut self, name: &str) -> Option<u8> {
+        // Se não há compilador pai, não pode ser upvalue
+        let enclosing = match self.enclosing.as_mut() {
+            Some(enc) => enc,
+            None => return None,
+        };
+
+        // Tenta resolver como local no escopo pai
+        if let Some(local_idx) = enclosing.resolve_local(name) {
+            // Marca a variável como capturada
+            if let Some(local) = enclosing.locals.get_mut(local_idx as usize) {
+                local.is_captured = true;
+            }
+
+            // Adiciona upvalue que captura variável local do pai
+            return Some(self.add_upvalue(local_idx, true));
+        }
+
+        // Tenta resolver como upvalue no escopo pai (captura transitiva)
+        if let Some(upvalue_idx) = enclosing.resolve_upvalue(name) {
+            // Adiciona upvalue que captura upvalue do pai
+            return Some(self.add_upvalue(upvalue_idx, false));
+        }
+
+        None
+    }
+
+    /// Adiciona um upvalue à lista e retorna seu índice
+    fn add_upvalue(&mut self, index: u8, is_local: bool) -> u8 {
+        // Verifica se já existe
+        for (i, upvalue) in self.upvalues.iter().enumerate() {
+            if upvalue.index == index && upvalue.is_local == is_local {
+                return i as u8;
+            }
+        }
+
+        // Adiciona novo upvalue
+        self.upvalues.push(crate::value::UpvalueInfo { index, is_local });
+        (self.upvalues.len() - 1) as u8
+    }
+
+
     // ============================================
     // Emissão de Código
     // ============================================
@@ -1281,7 +1335,7 @@ impl Compiler {
     }
 
     fn make_constant(&mut self, value: Value, line: usize) -> Result<u8, String> {
-        match self.current_chunk.add_constant(value) {
+        match self.current_chunk.add_constant(value.clone()) {
             Ok(idx) => Ok(idx),
             Err(_) => {
                 // Tabela cheia, tenta com ConstantLong
@@ -1328,6 +1382,8 @@ mod tests {
             line: 1,
             column: 1,
             file: None,
+            position: 0,
+            source_line: None,
         }
     }
 
@@ -1336,17 +1392,15 @@ mod tests {
         let mut compiler = Compiler::new();
         // Programa simples: 1 + 2
         let program = Program {
-            statements: vec![
-                Stmt::Expression(
-                    Expr::Binary(
-                        Box::new(Expr::Literal(Literal::Number(1.0), dummy_loc())),
-                        "+".to_string(),
-                        Box::new(Expr::Literal(Literal::Number(2.0), dummy_loc())),
-                        dummy_loc(),
-                    ),
+            statements: vec![Stmt::Expression(
+                Expr::Binary(
+                    Box::new(Expr::Literal(Literal::Number(1.0), dummy_loc())),
+                    "+".to_string(),
+                    Box::new(Expr::Literal(Literal::Number(2.0), dummy_loc())),
                     dummy_loc(),
-                )
-            ]
+                ),
+                dummy_loc(),
+            )],
         };
 
         let result = compiler.compile(program);

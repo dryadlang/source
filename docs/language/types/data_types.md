@@ -2,7 +2,7 @@
 title: "Tipos de Dados"
 description: "Explicação dos tipos de dados dinâmicos e representação interna no Dryad."
 category: "Linguagem"
-order: 2
+order: 15
 ---
 
 # Tipos de Dados

@@ -162,7 +162,6 @@ pub enum OpCode {
     NewException(u8), // índice da mensagem
     /// Captura exceção em variável
     Catch(u8), // índice do nome da variável
-    Super(u8),
 
     // ============================================
     // Arrays e Tuples
@@ -310,7 +309,7 @@ impl OpCode {
             OpCode::TupleAccess(_) => 2,
             OpCode::PopN(_) => 2,
             OpCode::DupN(_) => 2,
-            OpCode::TryBegin(_, _) => 5,  // 1 + 2 + 2 bytes
+            OpCode::TryBegin(_, _) => 5, // 1 + 2 + 2 bytes
             OpCode::NewException(_) => 2,
             OpCode::Catch(_) => 2,
             _ => 1,
@@ -340,40 +339,66 @@ impl OpCode {
     /// Retorna a categoria do opcode
     pub fn category(&self) -> OpCodeCategory {
         match self {
-            OpCode::Constant(_) | OpCode::ConstantLong(_) | OpCode::Nil | OpCode::True | OpCode::False => {
-                OpCodeCategory::Constants
-            }
-            OpCode::Add | OpCode::Subtract | OpCode::Multiply | OpCode::Divide | OpCode::Modulo | OpCode::Negate => {
-                OpCodeCategory::Arithmetic
-            }
-            OpCode::Equal | OpCode::Greater | OpCode::Less | OpCode::GreaterEqual | OpCode::LessEqual => {
-                OpCodeCategory::Comparison
-            }
+            OpCode::Constant(_)
+            | OpCode::ConstantLong(_)
+            | OpCode::Nil
+            | OpCode::True
+            | OpCode::False => OpCodeCategory::Constants,
+            OpCode::Add
+            | OpCode::Subtract
+            | OpCode::Multiply
+            | OpCode::Divide
+            | OpCode::Modulo
+            | OpCode::Negate => OpCodeCategory::Arithmetic,
+            OpCode::Equal
+            | OpCode::Greater
+            | OpCode::Less
+            | OpCode::GreaterEqual
+            | OpCode::LessEqual => OpCodeCategory::Comparison,
             OpCode::Not | OpCode::And | OpCode::Or => OpCodeCategory::Logical,
-            OpCode::BitAnd | OpCode::BitOr | OpCode::BitXor | OpCode::BitNot | OpCode::ShiftLeft | OpCode::ShiftRight => {
-                OpCodeCategory::Bitwise
-            }
-            OpCode::DefineGlobal(_) | OpCode::GetGlobal(_) | OpCode::SetGlobal(_) | OpCode::GetLocal(_) | OpCode::SetLocal(_) => {
-                OpCodeCategory::Variables
-            }
-            OpCode::Jump(_) | OpCode::JumpIfFalse(_) | OpCode::JumpIfTrue(_) | OpCode::Loop(_) | OpCode::Break | OpCode::Continue => {
-                OpCodeCategory::ControlFlow
-            }
-            OpCode::Call(_) | OpCode::Return | OpCode::Closure(_) | OpCode::GetUpvalue(_) | OpCode::SetUpvalue(_) | OpCode::CloseUpvalue => {
-                OpCodeCategory::Functions
-            }
-            OpCode::Class(_) | OpCode::Method(_) | OpCode::Invoke(_) | OpCode::GetProperty(_) | OpCode::SetProperty(_) | OpCode::This | OpCode::Super(_) => {
-                OpCodeCategory::Objects
-            }
-            OpCode::Array(_) | OpCode::Index | OpCode::SetIndex | OpCode::Tuple(_) | OpCode::TupleAccess(_) => {
-                OpCodeCategory::Collections
-            }
+            OpCode::BitAnd
+            | OpCode::BitOr
+            | OpCode::BitXor
+            | OpCode::BitNot
+            | OpCode::ShiftLeft
+            | OpCode::ShiftRight => OpCodeCategory::Bitwise,
+            OpCode::DefineGlobal(_)
+            | OpCode::GetGlobal(_)
+            | OpCode::SetGlobal(_)
+            | OpCode::GetLocal(_)
+            | OpCode::SetLocal(_) => OpCodeCategory::Variables,
+            OpCode::Jump(_)
+            | OpCode::JumpIfFalse(_)
+            | OpCode::JumpIfTrue(_)
+            | OpCode::Loop(_)
+            | OpCode::Break
+            | OpCode::Continue => OpCodeCategory::ControlFlow,
+            OpCode::Call(_)
+            | OpCode::Return
+            | OpCode::Closure(_)
+            | OpCode::GetUpvalue(_)
+            | OpCode::SetUpvalue(_)
+            | OpCode::CloseUpvalue => OpCodeCategory::Functions,
+            OpCode::Class(_)
+            | OpCode::Method(_)
+            | OpCode::Invoke(_)
+            | OpCode::GetProperty(_)
+            | OpCode::SetProperty(_)
+            | OpCode::This
+            | OpCode::Super(_) => OpCodeCategory::Objects,
+            OpCode::Array(_)
+            | OpCode::Index
+            | OpCode::SetIndex
+            | OpCode::Tuple(_)
+            | OpCode::TupleAccess(_) => OpCodeCategory::Collections,
             OpCode::Pop | OpCode::PopN(_) | OpCode::Dup | OpCode::DupN(_) | OpCode::Swap => {
                 OpCodeCategory::Stack
             }
-            OpCode::TryBegin(_, _) | OpCode::TryEnd | OpCode::Throw | OpCode::NewException(_) | OpCode::Catch(_) => {
-                OpCodeCategory::Exceptions
-            }
+            OpCode::TryBegin(_, _)
+            | OpCode::TryEnd
+            | OpCode::Throw
+            | OpCode::NewException(_)
+            | OpCode::Catch(_) => OpCodeCategory::Exceptions,
             _ => OpCodeCategory::Misc,
         }
     }

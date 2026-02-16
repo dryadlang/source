@@ -6,7 +6,7 @@
 
 use crate::chunk::Chunk;
 use crate::opcode::OpCode;
-use crate::value::{Function, Heap, HeapId, NativeFn, Object, Value};
+use crate::value::{Function, Heap, NativeFn, Object, Value};
 use std::collections::HashMap;
 use std::rc::Rc;
 
@@ -24,12 +24,14 @@ pub enum InterpretResult {
 /// Frame de chamada para funções
 #[derive(Debug)]
 struct CallFrame {
-    /// Função sendo executada
+    /// Função sendo executada (armazenada como chunk)
     function: Chunk,
     /// Instruction pointer (índice do próximo opcode)
     ip: usize,
     /// Posição base na pilha para este frame
     stack_start: usize,
+    /// Upvalues capturados por esta closure
+    upvalues: Vec<crate::value::HeapId>,
 }
 
 /// Frame para tratamento de exceções (try/catch)
@@ -51,6 +53,7 @@ impl CallFrame {
             function,
             ip: 0,
             stack_start,
+            upvalues: Vec::new(),
         }
     }
 
@@ -145,36 +148,62 @@ impl VM {
     }
 
     /// Loop principal de execução
+    /// Refatorado para evitar problemas de borrow checker em Rust 1.93+
+    /// Usa padrão read-execute-update ao invés de passar &mut frame para execute_op
     fn run(&mut self) -> Result<(), String> {
-        while let Some(frame) = self.frames.last_mut() {
-            // Debug: mostra estado atual
-            if self.debug_mode {
-                self.debug_stack();
-                if let Some(op) = frame.peek_op() {
-                    self.debug_instruction(frame, op);
-                }
+        loop {
+            // Se não há frames, terminamos
+            if self.frames.is_empty() {
+                break;
             }
 
-            // Executa o próximo opcode
-            if let Some(op) = frame.read_op() {
-                match self.execute_op(op, frame)? {
-                    ExecutionControl::Continue => {}
-                    ExecutionControl::Return => {
-                        // Retorna da função atual
-                        self.frames.pop();
-                    }
-                    ExecutionControl::Break => {
-                        // TODO: Implementar break
-                        return Err("Break não implementado".to_string());
-                    }
-                    ExecutionControl::ContinueLoop => {
-                        // TODO: Implementar continue
-                        return Err("Continue não implementado".to_string());
+            // PASSO 1: Ler opcode SEM manter borrow do frame
+            let op = {
+                let frame = self
+                    .frames
+                    .last()
+                    .ok_or("Não há frame para executar")?;
+                
+                frame
+                    .peek_op()
+                    .ok_or("Fim inesperado do bytecode")?
+                    .clone()
+            }; // borrow termina aqui
+
+            // Debug: mostrar instrução atual
+            if self.debug_mode {
+                let frame = self.frames.last().unwrap();
+                self.debug_instruction(frame, &op);
+                self.debug_stack();
+            }
+
+            // Avança IP ANTES de executar (para que jumps funcionem)
+            if let Some(frame) = self.frames.last_mut() {
+                frame.ip += 1;
+            }
+
+            // PASSO 2: Executar opcode com apenas &mut self
+            let control = self.execute_op(&op)?;
+
+            // PASSO 3: Processar controle de fluxo
+            match control {
+                ExecutionControl::Continue => {
+                    // Continua normalmente
+                }
+                ExecutionControl::Return => {
+                    // Se retornar do frame principal, terminamos
+                    if self.frames.is_empty() {
+                        break;
                     }
                 }
-            } else {
-                // Fim do chunk
-                break;
+                ExecutionControl::Break | ExecutionControl::ContinueLoop => {
+                    // Estes são tratados pelo compilador que gera jumps apropriados
+                    // Não deveriam chegar aqui na prática
+                    return Err(format!(
+                        "Controle de fluxo {:?} fora de contexto",
+                        control
+                    ));
+                }
             }
         }
 
@@ -182,24 +211,23 @@ impl VM {
     }
 
     /// Executa um único opcode
-    fn execute_op(&mut self, op: &OpCode, frame: &mut CallFrame) -> Result<ExecutionControl, String> {
+    /// Refatorado para não receber &mut frame - toda mutação de frame é feita em run()
+    fn execute_op(&mut self, op: &OpCode) -> Result<ExecutionControl, String> {
         match op {
             // ============================================
             // Constantes
             // ============================================
             OpCode::Constant(idx) => {
-                let value = frame
-                    .function
-                    .get_constant(*idx)
+                let value = self
+                    .read_constant(*idx)
                     .ok_or("Índice de constante inválido")?
                     .clone();
                 self.push(value);
             }
 
             OpCode::ConstantLong(idx) => {
-                let value = frame
-                    .function
-                    .get_constant_long(*idx)
+                let value = self
+                    .read_constant_long(*idx)
                     .ok_or("Índice de constante longo inválido")?
                     .clone();
                 self.push(value);
@@ -342,9 +370,8 @@ impl VM {
             // Variáveis
             // ============================================
             OpCode::DefineGlobal(idx) => {
-                let name = frame
-                    .function
-                    .get_constant(*idx)
+                let name = self
+                    .read_constant(*idx)
                     .ok_or("Índice de constante inválido")?
                     .to_string();
                 let value = self.pop()?;
@@ -352,9 +379,8 @@ impl VM {
             }
 
             OpCode::GetGlobal(idx) => {
-                let name = frame
-                    .function
-                    .get_constant(*idx)
+                let name = self
+                    .read_constant(*idx)
                     .ok_or("Índice de constante inválido")?
                     .to_string();
                 let value = self
@@ -366,9 +392,8 @@ impl VM {
             }
 
             OpCode::SetGlobal(idx) => {
-                let name = frame
-                    .function
-                    .get_constant(*idx)
+                let name = self
+                    .read_constant(*idx)
                     .ok_or("Índice de constante inválido")?
                     .to_string();
                 let value = self.peek(0)?.clone();
@@ -382,37 +407,43 @@ impl VM {
 
             OpCode::GetLocal(idx) => {
                 let idx = *idx as usize;
-                let value = self.stack[frame.stack_start + idx].clone();
+                let stack_start = self.current_frame_stack_start().ok_or("Sem frame atual")?;
+                let value = self.stack[stack_start + idx].clone();
                 self.push(value);
             }
 
             OpCode::SetLocal(idx) => {
                 let idx = *idx as usize;
+                let stack_start = self.current_frame_stack_start().ok_or("Sem frame atual")?;
                 let value = self.peek(0)?.clone();
-                self.stack[frame.stack_start + idx] = value;
+                self.stack[stack_start + idx] = value;
             }
 
             // ============================================
             // Controle de Fluxo
             // ============================================
             OpCode::Jump(offset) => {
-                frame.jump(*offset);
+                let new_ip = self.current_frame_ip().ok_or("Sem frame atual")? + *offset as usize;
+                self.set_frame_ip(new_ip);
             }
 
             OpCode::JumpIfFalse(offset) => {
                 if !self.peek(0)?.is_truthy() {
-                    frame.jump(*offset);
+                    let new_ip = self.current_frame_ip().ok_or("Sem frame atual")? + *offset as usize;
+                    self.set_frame_ip(new_ip);
                 }
             }
 
             OpCode::JumpIfTrue(offset) => {
                 if self.peek(0)?.is_truthy() {
-                    frame.jump(*offset);
+                    let new_ip = self.current_frame_ip().ok_or("Sem frame atual")? + *offset as usize;
+                    self.set_frame_ip(new_ip);
                 }
             }
 
             OpCode::Loop(offset) => {
-                frame.loop_back(*offset);
+                let new_ip = self.current_frame_ip().ok_or("Sem frame atual")? - *offset as usize;
+                self.set_frame_ip(new_ip);
             }
 
             OpCode::Break => {
@@ -428,7 +459,7 @@ impl VM {
             // ============================================
             OpCode::Call(arg_count) => {
                 let callee = self.peek(*arg_count as usize)?;
-                
+
                 match callee {
                     Value::Function(function) => {
                         self.call_function(Rc::clone(function), *arg_count)?;
@@ -445,22 +476,160 @@ impl VM {
             OpCode::Return => {
                 // Pega o valor de retorno
                 let result = self.pop()?;
-                
+
                 // Remove argumentos e função da pilha
                 let frame = self.frames.pop().ok_or("Não há frame para retornar")?;
                 while self.stack.len() > frame.stack_start {
                     self.stack.pop();
                 }
-                
+
                 // Empilha o resultado
                 self.push(result);
-                
+
                 return Ok(ExecutionControl::Return);
             }
 
-            OpCode::Closure(_idx) => {
-                // TODO: Implementar criação de closure
-                return Err("Closure não implementado".to_string());
+            OpCode::Closure(upvalue_count) =\u003e {
+                // A função já está no topo da pilha (colocada por Constant)
+                let function_value = self.peek(0)?.clone();
+                
+                let function = match function_value {
+                    Value::Function(f) => f,
+                    _ => return Err("Closure requer uma função".to_string()),
+                };
+
+                // Cria upvalues para a closure
+                let mut upvalue_ids = Vec::new();
+                for i in 0..*upvalue_count {
+                    let upvalue_info = function.upvalue_info.get(i as usize)
+                        .ok_or("Informação de upvalue inválida")?;
+
+                    let upvalue_id = if upvalue_info.is_local {
+                        // Captura variável local do frame atual
+                        let stack_start = self.current_frame_stack_start()
+                            .ok_or("Sem frame atual")?;
+                        let local_slot = stack_start + upvalue_info.index as usize;
+                        
+                        // Cria upvalue "aberto" (apontando para pilha)
+                        self.heap.allocate(crate::value::Object::Upvalue(
+                            std::cell::RefCell::new(crate::value::Upvalue::Open(local_slot))
+                        ))
+                    } else {
+                        // Captura upvalue do frame pai
+                        let parent_upvalue = self.frames.last()
+                            .and_then(|f| f.upvalues.get(upvalue_info.index as usize))
+                            .ok_or("Upvalue pai não encontrado")?;
+                        *parent_upvalue
+                    };
+
+                    upvalue_ids.push(upvalue_id);
+                }
+
+                // Remove a função da pilha
+                self.pop()?;
+
+                // Cria a closure no heap
+                let closure_id = self.heap.allocate(crate::value::Object::Closure(
+                    function,
+                    upvalue_ids.clone(),
+                ));
+
+                // Empilha a closure
+                self.push(Value::Object(closure_id));
+
+                // Atualiza o frame atual com os upvalues (se for uma chamada)
+                if let Some(frame) = self.frames.last_mut() {
+                    frame.upvalues = upvalue_ids;
+                }
+            }
+
+            OpCode::GetUpvalue(idx) => {
+                // Obtém o upvalue do frame atual
+                let upvalue_id = self.frames.last()
+                    .and_then(|f| f.upvalues.get(*idx as usize))
+                    .ok_or("Upvalue não encontrado")?;
+
+                // Lê o valor do upvalue
+                if let Some(upvalue_obj) = self.heap.get(*upvalue_id) {
+                    let upvalue_ref = upvalue_obj.borrow();
+                    if let crate::value::Object::Upvalue(upvalue_cell) = &*upvalue_ref {
+                        let upvalue = upvalue_cell.borrow();
+                        let value = match &*upvalue {
+                            crate::value::Upvalue::Open(stack_idx) => {
+                                self.stack.get(*stack_idx)
+                                    .ok_or("Índice de pilha inválido")?
+                                    .clone()
+                            }
+                            crate::value::Upvalue::Closed(val) => val.clone(),
+                        };
+                        drop(upvalue);
+                        drop(upvalue_ref);
+                        self.push(value);
+                    } else {
+                        return Err("Objeto não é um upvalue".to_string());
+                    }
+                } else {
+                    return Err("Upvalue inválido no heap".to_string());
+                }
+            }
+
+            OpCode::SetUpvalue(idx) => {
+                // Obtém o upvalue do frame atual
+                let upvalue_id = self.frames.last()
+                    .and_then(|f| f.upvalues.get(*idx as usize))
+                    .ok_or("Upvalue não encontrado")?;
+
+                let value = self.peek(0)?.clone();
+
+                // Escreve o valor no upvalue
+                if let Some(upvalue_obj) = self.heap.get(*upvalue_id) {
+                    let upvalue_ref = upvalue_obj.borrow();
+                    if let crate::value::Object::Upvalue(upvalue_cell) = &*upvalue_ref {
+                        let mut upvalue = upvalue_cell.borrow_mut();
+                        match &mut *upvalue {
+                            crate::value::Upvalue::Open(stack_idx) => {
+                                if let Some(slot) = self.stack.get_mut(*stack_idx) {
+                                    *slot = value;
+                                } else {
+                                    return Err("Índice de pilha inválido".to_string());
+                                }
+                            }
+                            crate::value::Upvalue::Closed(val) => {
+                                *val = value;
+                            }
+                        }
+                    } else {
+                        return Err("Objeto não é um upvalue".to_string());
+                    }
+                } else {
+                    return Err("Upvalue inválido no heap".to_string());
+                }
+            }
+
+            OpCode::CloseUpvalue => {
+                // Move o upvalue da pilha para o heap (fecha o upvalue)
+                let value = self.pop()?;
+                
+                // Procura upvalues abertos que apontam para esta posição da pilha
+                let stack_pos = self.stack.len();
+                
+                // Itera sobre todos os frames e fecha upvalues que apontam para esta posição
+                for frame in &self.frames {
+                    for upvalue_id in &frame.upvalues {
+                        if let Some(upvalue_obj) = self.heap.get(*upvalue_id) {
+                            let upvalue_ref = upvalue_obj.borrow();
+                            if let crate::value::Object::Upvalue(upvalue_cell) = &*upvalue_ref {
+                                let mut upvalue = upvalue_cell.borrow_mut();
+                                if let crate::value::Upvalue::Open(idx) = *upvalue {
+                                    if idx == stack_pos {
+                                        // Fecha o upvalue (move valor para heap)
+                                        *upvalue = crate::value::Upvalue::Closed(value.clone());
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
 
             // ============================================
@@ -490,10 +659,10 @@ impl VM {
 
                 // Pega a função do método (topo da pilha)
                 let method = self.pop()?;
-                
+
                 // Pega a classe (abaixo da função)
                 let class_value = self.peek(0)?;
-                
+
                 if let Value::Object(class_id) = class_value {
                     if let Some(obj) = self.heap.get(*class_id) {
                         let mut obj_ref = obj.borrow_mut();
@@ -516,24 +685,39 @@ impl VM {
 
                 // Pega a instância
                 let instance = self.peek(*arg_count as usize)?;
-                
+
                 if let Value::Object(instance_id) = instance {
                     if let Some(obj) = self.heap.get(*instance_id) {
                         let obj_ref = obj.borrow();
-                        if let Object::Instance { class_name, fields: _ } = &*obj_ref {
+                        if let Object::Instance {
+                            class_name,
+                            fields: _,
+                        } = &*obj_ref
+                        {
+                            // Clona class_name antes de fazer drop do borrow
+                            let class_name_owned = class_name.clone();
+                            let method_name_owned = method_name.clone();
+
                             // Busca o método na classe
-                            if let Some(class_value) = self.globals.get(class_name) {
+                            if let Some(class_value) = self.globals.get(&class_name_owned) {
                                 if let Value::Object(class_id) = class_value {
                                     if let Some(class_obj) = self.heap.get(*class_id) {
                                         let class_ref = class_obj.borrow();
                                         if let Object::Class { methods, .. } = &*class_ref {
-                                            if let Some(method) = methods.get(&method_name) {
-                                                // Chama o método
-                                                drop(class_ref);
-                                                drop(obj_ref);
-                                                self.call_function(std::rc::Rc::clone(method), *arg_count)?;
+                                            // Pega o método e faz clone do Rc antes de fazer drop
+                                            let method = methods
+                                                .get(&method_name_owned)
+                                                .map(|m| Rc::clone(m));
+                                            drop(class_ref);
+                                            drop(obj_ref);
+
+                                            if let Some(method) = method {
+                                                self.call_function(method, *arg_count)?;
                                             } else {
-                                                return Err(format!("Método '{}' não encontrado na classe '{}'", method_name, class_name));
+                                                return Err(format!(
+                                                    "Método '{}' não encontrado na classe '{}'",
+                                                    method_name_owned, class_name_owned
+                                                ));
                                             }
                                         }
                                     }
@@ -553,7 +737,7 @@ impl VM {
                 };
 
                 let object = self.pop()?;
-                
+
                 if let Value::Object(object_id) = object {
                     if let Some(obj) = self.heap.get(object_id) {
                         let obj_ref = obj.borrow();
@@ -591,7 +775,7 @@ impl VM {
 
                 let value = self.pop()?;
                 let object = self.pop()?;
-                
+
                 if let Value::Object(object_id) = object {
                     if let Some(obj) = self.heap.get(object_id) {
                         let mut obj_ref = obj.borrow_mut();
@@ -610,18 +794,15 @@ impl VM {
                 } else {
                     return Err("Apenas objetos têm propriedades".to_string());
                 }
-                
+
                 self.push(value);
             }
 
             OpCode::This => {
                 // 'this' é sempre a primeira variável local no frame atual
-                if let Some(frame) = self.frames.last() {
-                    let this_value = self.stack[frame.stack_start].clone();
-                    self.push(this_value);
-                } else {
-                    return Err("'this' fora de método".to_string());
-                }
+                let stack_start = self.current_frame_stack_start().ok_or("'this' fora de método")?;
+                let this_value = self.stack[stack_start].clone();
+                self.push(this_value);
             }
 
             OpCode::Super(_idx) => {
@@ -638,8 +819,8 @@ impl VM {
                 for _ in 0..*count {
                     elements.push(self.pop()?);
                 }
-                elements.reverse();  // Ordem correta
-                
+                elements.reverse(); // Ordem correta
+
                 // Aloca no heap
                 let array_id = self.heap.allocate(Object::Array(elements));
                 self.push(Value::Object(array_id));
@@ -648,12 +829,12 @@ impl VM {
             OpCode::Index => {
                 let index_val = self.pop()?;
                 let collection = self.pop()?;
-                
+
                 let index = match index_val {
                     Value::Number(n) => n as usize,
                     _ => return Err("Índice deve ser um número".to_string()),
                 };
-                
+
                 match collection {
                     Value::Object(id) => {
                         if let Some(obj) = self.heap.get(id) {
@@ -661,13 +842,21 @@ impl VM {
                             match &*obj_ref {
                                 Object::Array(arr) => {
                                     if index >= arr.len() {
-                                        return Err(format!("Índice {} fora dos limites do array (tamanho: {})", index, arr.len()));
+                                        return Err(format!(
+                                            "Índice {} fora dos limites do array (tamanho: {})",
+                                            index,
+                                            arr.len()
+                                        ));
                                     }
                                     self.push(arr[index].clone());
                                 }
                                 Object::Tuple(tup) => {
                                     if index >= tup.len() {
-                                        return Err(format!("Índice {} fora dos limites do tuple (tamanho: {})", index, tup.len()));
+                                        return Err(format!(
+                                            "Índice {} fora dos limites do tuple (tamanho: {})",
+                                            index,
+                                            tup.len()
+                                        ));
                                     }
                                     self.push(tup[index].clone());
                                 }
@@ -676,7 +865,10 @@ impl VM {
                                     let key = match index_val {
                                         Value::Number(n) => n.to_string(),
                                         Value::String(s) => s,
-                                        _ => return Err("Chave de mapa deve ser string ou número".to_string()),
+                                        _ => {
+                                            return Err("Chave de mapa deve ser string ou número"
+                                                .to_string())
+                                        }
                                     };
                                     match map.get(&key) {
                                         Some(val) => self.push(val.clone()),
@@ -689,7 +881,9 @@ impl VM {
                             return Err("Objeto inválido no heap".to_string());
                         }
                     }
-                    _ => return Err("Apenas arrays, tuples e mapas podem ser indexados".to_string()),
+                    _ => {
+                        return Err("Apenas arrays, tuples e mapas podem ser indexados".to_string())
+                    }
                 }
             }
 
@@ -697,12 +891,12 @@ impl VM {
                 let value = self.pop()?;
                 let index_val = self.pop()?;
                 let collection = self.pop()?;
-                
+
                 let index = match index_val {
                     Value::Number(n) => n as usize,
                     _ => return Err("Índice deve ser um número".to_string()),
                 };
-                
+
                 match collection {
                     Value::Object(id) => {
                         if let Some(obj) = self.heap.get(id) {
@@ -710,27 +904,42 @@ impl VM {
                             match &mut *obj_ref {
                                 Object::Array(arr) => {
                                     if index >= arr.len() {
-                                        return Err(format!("Índice {} fora dos limites do array (tamanho: {})", index, arr.len()));
+                                        return Err(format!(
+                                            "Índice {} fora dos limites do array (tamanho: {})",
+                                            index,
+                                            arr.len()
+                                        ));
                                     }
-                                    arr[index] = value;
+                                    arr[index] = value.clone();
                                 }
                                 Object::Map(map) => {
                                     let key = match index_val {
                                         Value::Number(n) => n.to_string(),
                                         Value::String(s) => s,
-                                        _ => return Err("Chave de mapa deve ser string ou número".to_string()),
+                                        _ => {
+                                            return Err("Chave de mapa deve ser string ou número"
+                                                .to_string())
+                                        }
                                     };
-                                    map.insert(key, value);
+                                    map.insert(key, value.clone());
                                 }
-                                _ => return Err("Não é possível modificar índice deste objeto".to_string()),
+                                _ => {
+                                    return Err(
+                                        "Não é possível modificar índice deste objeto".to_string()
+                                    )
+                                }
                             }
                         } else {
                             return Err("Objeto inválido no heap".to_string());
                         }
                     }
-                    _ => return Err("Apenas arrays e mapas podem ter índices modificados".to_string()),
+                    _ => {
+                        return Err(
+                            "Apenas arrays e mapas podem ter índices modificados".to_string()
+                        )
+                    }
                 }
-                
+
                 // Empilha o valor atribuído (para permitir encadeamento: a[0] = b[1] = 2)
                 self.push(value);
             }
@@ -741,8 +950,8 @@ impl VM {
                 for _ in 0..*count {
                     elements.push(self.pop()?);
                 }
-                elements.reverse();  // Ordem correta
-                
+                elements.reverse(); // Ordem correta
+
                 // Aloca no heap
                 let tuple_id = self.heap.allocate(Object::Tuple(elements));
                 self.push(Value::Object(tuple_id));
@@ -751,7 +960,7 @@ impl VM {
             OpCode::TupleAccess(idx) => {
                 let tuple = self.pop()?;
                 let index = *idx as usize;
-                
+
                 match tuple {
                     Value::Object(id) => {
                         if let Some(obj) = self.heap.get(id) {
@@ -759,7 +968,11 @@ impl VM {
                             match &*obj_ref {
                                 Object::Tuple(tup) => {
                                     if index >= tup.len() {
-                                        return Err(format!("Índice {} fora dos limites do tuple (tamanho: {})", index, tup.len()));
+                                        return Err(format!(
+                                            "Índice {} fora dos limites do tuple (tamanho: {})",
+                                            index,
+                                            tup.len()
+                                        ));
                                     }
                                     self.push(tup[index].clone());
                                 }
@@ -769,7 +982,9 @@ impl VM {
                             return Err("Objeto inválido no heap".to_string());
                         }
                     }
-                    _ => return Err("Apenas tuples podem ser acessados com TupleAccess".to_string()),
+                    _ => {
+                        return Err("Apenas tuples podem ser acessados com TupleAccess".to_string())
+                    }
                 }
             }
 
@@ -793,7 +1008,11 @@ impl VM {
 
             OpCode::DupN(n) => {
                 let idx = self.stack.len() - 1 - *n as usize;
-                let value = self.stack.get(idx).ok_or("Índice inválido na pilha")?.clone();
+                let value = self
+                    .stack
+                    .get(idx)
+                    .ok_or("Índice inválido na pilha")?
+                    .clone();
                 self.push(value);
             }
 
@@ -831,9 +1050,14 @@ impl VM {
             // ============================================
             OpCode::TryBegin(catch_offset, finally_offset) => {
                 // Empilha informação de try frame
+                let frame_ip = self.current_frame_ip().ok_or("Sem frame atual")?;
                 self.try_frames.push(TryFrame {
-                    catch_ip: frame.ip + *catch_offset as usize,
-                    finally_ip: if *finally_offset > 0 { Some(frame.ip + *finally_offset as usize) } else { None },
+                    catch_ip: frame_ip + *catch_offset as usize,
+                    finally_ip: if *finally_offset > 0 {
+                        Some(frame_ip + *finally_offset as usize)
+                    } else {
+                        None
+                    },
                     stack_start: self.stack.len(),
                     frame_depth: self.frames.len(),
                 });
@@ -846,7 +1070,7 @@ impl VM {
 
             OpCode::Throw => {
                 let exception = self.pop()?;
-                return self.handle_exception(exception, frame);
+                return self.handle_exception(exception);
             }
 
             OpCode::NewException(msg_idx) => {
@@ -854,34 +1078,27 @@ impl VM {
                     Some(Value::String(s)) => s.clone(),
                     _ => "Exceção desconhecida".to_string(),
                 };
-                
+
                 // Cria objeto de exceção
                 let mut fields = std::collections::HashMap::new();
                 fields.insert("message".to_string(), Value::String(msg));
                 fields.insert("type".to_string(), Value::String("Exception".to_string()));
-                
+
                 let exception_id = self.heap.allocate(Object::Instance {
                     class_name: "Exception".to_string(),
                     fields,
                 });
-                
+
                 self.push(Value::Object(exception_id));
             }
 
-            OpCode::Catch(var_idx) => {
+            OpCode::Catch(_var_idx) => {
                 // A exceção já está no topo da pilha
                 // Vamos apenas associar à variável (o compilador já criou a variável local)
                 // Não precisamos fazer nada aqui, pois o Catch é seguido de uma atribuição
             }
 
-            // ============================================
-            // Upvalues (não implementados)
-            // ============================================
-            OpCode::GetUpvalue(_)
-            | OpCode::SetUpvalue(_)
-            | OpCode::CloseUpvalue => {
-                return Err("Upvalues não implementados".to_string());
-            }
+
         }
 
         Ok(ExecutionControl::Continue)
@@ -907,8 +1124,45 @@ impl VM {
         self.stack.get(idx).ok_or_else(|| "Pilha vazia".to_string())
     }
 
+
+
     // ============================================
     // Chamadas de Função
+    // ============================================
+
+    // ============================================
+    // Métodos Auxiliares
+    // ============================================
+
+    /// Lê uma constante do frame atual (índice de 8 bits)
+    fn read_constant(&self, idx: u8) -> Option<&Value> {
+        self.frames.last()?.function.get_constant(idx)
+    }
+
+    /// Lê uma constante do frame atual (índice de 16 bits)
+    fn read_constant_long(&self, idx: u16) -> Option<&Value> {
+        self.frames.last()?.function.get_constant_long(idx)
+    }
+
+    /// Obtém o stack_start do frame atual
+    fn current_frame_stack_start(&self) -> Option<usize> {
+        self.frames.last().map(|f| f.stack_start)
+    }
+
+    /// Atualiza o IP do frame atual
+    fn set_frame_ip(&mut self, new_ip: usize) {
+        if let Some(frame) = self.frames.last_mut() {
+            frame.ip = new_ip;
+        }
+    }
+
+    /// Obtém o IP atual do frame
+    fn current_frame_ip(&self) -> Option<usize> {
+        self.frames.last().map(|f| f.ip)
+    }
+
+    // ============================================
+    // Funções
     // ============================================
 
     /// Chama uma função definida pelo usuário
@@ -930,7 +1184,8 @@ impl VM {
         let stack_start = self.stack.len() - arg_count as usize - 1; // -1 para a função
 
         // Cria novo frame
-        self.frames.push(CallFrame::new(function.chunk.clone(), stack_start));
+        self.frames
+            .push(CallFrame::new(function.chunk.clone(), stack_start));
 
         Ok(())
     }
@@ -942,7 +1197,7 @@ impl VM {
         for _ in 0..arg_count {
             args.push(self.pop()?);
         }
-        args.reverse();  // Reverte para ordem correta
+        args.reverse(); // Reverte para ordem correta
 
         // Remove a função da pilha
         self.pop()?;
@@ -961,7 +1216,10 @@ impl VM {
     // ============================================
 
     /// Trata uma exceção lançada
-    fn handle_exception(&mut self, exception: Value, current_frame: &mut CallFrame) -> Result<ExecutionControl, String> {
+    fn handle_exception(
+        &mut self,
+        exception: Value,
+    ) -> Result<ExecutionControl, String> {
         // Procura um try frame que possa lidar com a exceção
         while let Some(try_frame) = self.try_frames.pop() {
             // Restaura o estado da pilha
@@ -977,8 +1235,8 @@ impl VM {
             // Empilha a exceção para o catch
             self.push(exception.clone());
 
-            // Define o IP para o catch handler
-            current_frame.ip = try_frame.catch_ip;
+            // Define o IP para o catch handler usando helper method
+            self.set_frame_ip(try_frame.catch_ip);
 
             return Ok(ExecutionControl::Continue);
         }
@@ -1051,6 +1309,7 @@ impl Default for VM {
 }
 
 /// Controle de execução retornado por opcodes
+#[derive(Debug)]
 enum ExecutionControl {
     /// Continua execução normal
     Continue,
@@ -1069,8 +1328,11 @@ mod tests {
     #[test]
     fn test_simple_arithmetic() {
         let mut chunk = Chunk::new("test");
-        chunk.push_op(OpCode::Constant(0), 1);
-        chunk.push_op(OpCode::Constant(1), 1);
+        // Adiciona constantes primeiro
+        let idx1 = chunk.add_constant(Value::Number(10.0)).unwrap();
+        let idx2 = chunk.add_constant(Value::Number(20.0)).unwrap();
+        chunk.push_op(OpCode::Constant(idx1), 1);
+        chunk.push_op(OpCode::Constant(idx2), 1);
         chunk.push_op(OpCode::Add, 1);
         chunk.push_op(OpCode::Return, 1);
 

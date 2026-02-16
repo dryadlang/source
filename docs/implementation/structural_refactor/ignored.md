@@ -1,4 +1,4 @@
-# Ignored Code / Mockups
+   # Ignored Code / Mockups
 
 Este documento lista funcionalidades que existem no código fonte mas não estão completamente implementadas ou são apenas stubs/mockups.
 

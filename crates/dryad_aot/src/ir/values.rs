@@ -10,13 +10,13 @@ use super::IrType;
 pub enum IrValue {
     /// Constante
     Constant(IrConstant),
-    
+
     /// Referência a um registrador
     Register(IrRegister),
-    
+
     /// Referência a um global
     Global(u32),
-    
+
     /// Referência a um label/bloco
     Label(super::BlockId),
 }
@@ -26,34 +26,34 @@ pub enum IrValue {
 pub enum IrConstant {
     /// Inteiro de 8 bits
     I8(i8),
-    
+
     /// Inteiro de 16 bits
     I16(i16),
-    
+
     /// Inteiro de 32 bits
     I32(i32),
-    
+
     /// Inteiro de 64 bits
     I64(i64),
-    
+
     /// Ponto flutuante de 32 bits
     F32(f32),
-    
+
     /// Ponto flutuante de 64 bits
     F64(f64),
-    
+
     /// Booleano
     Bool(bool),
-    
+
     /// String (para constantes)
     String(String),
-    
+
     /// Nulo
     Null,
-    
+
     /// Array de constantes
     Array(Vec<IrConstant>),
-    
+
     /// Struct de constantes
     Struct(Vec<IrConstant>),
 }
@@ -73,18 +73,21 @@ impl IrConstant {
             IrConstant::Null => IrType::Ptr(Box::new(IrType::Void)),
             IrConstant::Array(elems) => {
                 if let Some(first) = elems.first() {
-                    IrType::Array { 
-                        elem: Box::new(first.get_type()), 
-                        len: elems.len() 
+                    IrType::Array {
+                        elem: Box::new(first.get_type()),
+                        len: elems.len(),
                     }
                 } else {
-                    IrType::Array { elem: Box::new(IrType::Void), len: 0 }
+                    IrType::Array {
+                        elem: Box::new(IrType::Void),
+                        len: 0,
+                    }
                 }
             }
             IrConstant::Struct(_) => IrType::Struct { fields: vec![] },
         }
     }
-    
+
     /// Converte para i64 (se possível)
     pub fn as_i64(&self) -> Option<i64> {
         match self {
@@ -96,7 +99,7 @@ impl IrConstant {
             _ => None,
         }
     }
-    
+
     /// Converte para f64 (se possível)
     pub fn as_f64(&self) -> Option<f64> {
         match self {
@@ -112,11 +115,11 @@ impl IrConstant {
 }
 
 /// Referência a um registrador virtual
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct IrRegister {
     /// ID do registrador
     pub id: super::RegisterId,
-    
+
     /// Tipo do valor no registrador
     pub ty: IrType,
 }

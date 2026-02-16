@@ -2,7 +2,7 @@
 title: "Manual do Parser"
 description: "Detalhes técnicos sobre o analisador sintático e Pratt Parsing."
 category: "Desenvolvimento"
-order: 3
+order: 63
 ---
 
 # Manual Técnico: Parser (Analisador Sintático)

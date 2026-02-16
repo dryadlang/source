@@ -1,3 +1,10 @@
+---
+title: "Controle de Fluxo"
+description: "Estruturas condicionais e loops: if, while, for e for-in."
+category: "Linguagem"
+order: 17
+---
+
 # Controle de Fluxo
 
 O controle de fluxo no Dryad segue a sintaxe imperativa clássica (C-Style), permitindo ramificações e iterações complexas.

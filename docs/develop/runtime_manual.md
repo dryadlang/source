@@ -2,7 +2,7 @@
 title: "Manual do Runtime"
 description: "Detalhes técnicos sobre a execução da AST e gestão de memória."
 category: "Desenvolvimento"
-order: 4
+order: 64
 ---
 
 # Manual Técnico: Runtime (Interpretador)

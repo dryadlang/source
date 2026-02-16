@@ -637,6 +637,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "dryad_aot"
+version = "0.1.0"
+dependencies = [
+ "dryad_bytecode",
+ "dryad_lexer",
+ "dryad_parser",
+]
+
+[[package]]
 name = "dryad_benchmark"
 version = "0.1.0"
 dependencies = [
@@ -653,6 +662,14 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+]
+
+[[package]]
+name = "dryad_bytecode"
+version = "0.1.0"
+dependencies = [
+ "dryad_errors",
+ "dryad_parser",
 ]
 
 [[package]]
@@ -706,6 +723,7 @@ dependencies = [
  "base64 0.22.1",
  "chrono",
  "csv",
+ "dryad_bytecode",
  "dryad_errors",
  "dryad_lexer",
  "dryad_parser",

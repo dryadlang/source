@@ -2,7 +2,7 @@
 title: "Funcionamento Interno"
 description: "Pipeline do compilador, M-N threads e gestão de memória avançada."
 category: "Desenvolvimento"
-order: 7
+order: 67
 ---
 
 # Funcionamento Interno do Dryad

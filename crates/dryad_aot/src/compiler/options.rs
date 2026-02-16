@@ -33,7 +33,7 @@ impl Target {
             Target::Arm64MacOS => "aarch64-apple-darwin",
         }
     }
-    
+
     /// Cria o backend apropriado
     pub fn create_backend(&self) -> Box<dyn Backend> {
         match self {
@@ -46,23 +46,19 @@ impl Target {
             }
         }
     }
-    
+
     /// Cria o gerador apropriado
     pub fn create_generator(&self) -> Box<dyn Generator> {
         match self {
-            Target::X86_64Linux | Target::Arm64Linux => {
-                Box::new(ElfGenerator::new())
-            }
-            Target::X86_64Windows | Target::Arm64Windows => {
-                Box::new(PeGenerator::new())
-            }
+            Target::X86_64Linux | Target::Arm64Linux => Box::new(ElfGenerator::new()),
+            Target::X86_64Windows | Target::Arm64Windows => Box::new(PeGenerator::new()),
             Target::X86_64MacOS | Target::Arm64MacOS => {
                 // macOS usa Mach-O, mas podemos começar com ELF
                 Box::new(ElfGenerator::new())
             }
         }
     }
-    
+
     /// Retorna o linker padrão
     pub fn default_linker(&self) -> &'static str {
         match self {
@@ -71,17 +67,17 @@ impl Target {
             Target::X86_64MacOS | Target::Arm64MacOS => "clang",
         }
     }
-    
+
     /// Verifica se é Windows
     pub fn is_windows(&self) -> bool {
         matches!(self, Target::X86_64Windows | Target::Arm64Windows)
     }
-    
+
     /// Verifica se é Linux
     pub fn is_linux(&self) -> bool {
         matches!(self, Target::X86_64Linux | Target::Arm64Linux)
     }
-    
+
     /// Verifica se é macOS
     pub fn is_macos(&self) -> bool {
         matches!(self, Target::X86_64MacOS | Target::Arm64MacOS)
@@ -118,31 +114,31 @@ impl OptimizationLevel {
 pub struct CompileOptions {
     /// Alvo de compilação
     pub target: Target,
-    
+
     /// Nível de otimização
     pub optimization: OptimizationLevel,
-    
+
     /// Linker a usar
     pub linker: String,
-    
+
     /// Bibliotecas a linkar
     pub libraries: Vec<String>,
-    
+
     /// Caminhos de busca de bibliotecas
     pub library_paths: Vec<String>,
-    
+
     /// Flags adicionais para o linker
     pub linker_flags: Vec<String>,
-    
+
     /// Linkagem estática
     pub static_linking: bool,
-    
+
     /// Remover arquivo objeto após linkagem
     pub cleanup_object: bool,
-    
+
     /// Incluir símbolos de debug
     pub debug_symbols: bool,
-    
+
     /// Stripar símbolos do executável final
     pub strip_symbols: bool,
 }
@@ -163,43 +159,43 @@ impl CompileOptions {
             strip_symbols: false,
         }
     }
-    
+
     /// Define o linker
     pub fn set_linker(&mut self, linker: impl Into<String>) -> &mut Self {
         self.linker = linker.into();
         self
     }
-    
+
     /// Adiciona uma biblioteca
     pub fn add_library(&mut self, lib: impl Into<String>) -> &mut Self {
         self.libraries.push(lib.into());
         self
     }
-    
+
     /// Adiciona um caminho de biblioteca
     pub fn add_library_path(&mut self, path: impl Into<String>) -> &mut Self {
         self.library_paths.push(path.into());
         self
     }
-    
+
     /// Adiciona uma flag ao linker
     pub fn add_linker_flag(&mut self, flag: impl Into<String>) -> &mut Self {
         self.linker_flags.push(flag.into());
         self
     }
-    
+
     /// Ativa linkagem estática
     pub fn set_static(&mut self) -> &mut Self {
         self.static_linking = true;
         self
     }
-    
+
     /// Ativa símbolos de debug
     pub fn set_debug(&mut self) -> &mut Self {
         self.debug_symbols = true;
         self
     }
-    
+
     /// Ativa stripping de símbolos
     pub fn set_strip(&mut self) -> &mut Self {
         self.strip_symbols = true;

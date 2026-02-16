@@ -66,6 +66,8 @@ mod tests {
             line: 1,
             column: 1,
             file: None,
+            position: 0,
+            source_line: None,
         }
     }
 
@@ -96,7 +98,9 @@ mod tests {
     #[test]
     fn test_vm_execution() {
         let mut chunk = Chunk::new("test");
-        chunk.push_op(OpCode::Constant(0), 1);
+        // Adiciona uma constante primeiro
+        let idx = chunk.add_constant(Value::Number(42.0)).unwrap();
+        chunk.push_op(OpCode::Constant(idx), 1);
         chunk.push_op(OpCode::Return, 1);
 
         let mut vm = VM::new();

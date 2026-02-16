@@ -3,7 +3,7 @@ title: "Ambiente do Sistema"
 description: "Interação com o SO, variáveis de ambiente e execução de comandos."
 category: "Bibliotecas Padrão"
 subcategory: "Sistema"
-order: 1
+order: 38
 ---
 
 # Ambiente do Sistema (System Env)

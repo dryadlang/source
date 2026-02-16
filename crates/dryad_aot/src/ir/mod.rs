@@ -5,17 +5,17 @@
 //! mas ainda independente de arquitetura específica.
 
 pub mod instructions;
+pub mod module;
 pub mod types;
 pub mod values;
-pub mod module;
 
-pub use instructions::{IrInstruction, IrBlock, IrTerminator};
+pub use instructions::{IrBlock, IrInstruction, IrTerminator};
+pub use module::{IrFunction, IrGlobal, IrModule};
 pub use types::IrType;
-pub use values::{IrValue, IrConstant, IrRegister};
-pub use module::{IrModule, IrFunction, IrGlobal};
+pub use values::{IrConstant, IrRegister, IrValue};
 
 /// ID único para blocos básicos
-type BlockId = u32;
+pub type BlockId = u32;
 
 /// ID único para registradores virtuais
-type RegisterId = u32;
+pub type RegisterId = u32;

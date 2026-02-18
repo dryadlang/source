@@ -19,8 +19,9 @@ pub mod tcp;
 pub mod udp;
 pub mod ffi;
 pub mod json_stream;
-pub mod websocket;
-pub mod database;
+ pub mod websocket;
+pub mod events;
+// pub mod database;
 
 // Módulos futuros:
 // pub mod websocket;
@@ -166,9 +167,14 @@ impl NativeModuleManager {
         self.categories.insert("websocket".to_string(), websocket_functions);
 
         // Registra Database
-        let mut database_functions = HashMap::new();
-        database::register_database_functions(&mut database_functions);
-        self.categories.insert("database".to_string(), database_functions);
+        // let mut database_functions = HashMap::new();
+        // database::register_database_functions(&mut database_functions);
+        // self.categories.insert("database".to_string(), database_functions);
+
+        // Registra Events
+        let mut events_functions = HashMap::new();
+        events::register_events_functions(&mut events_functions);
+        self.categories.insert("events".to_string(), events_functions);
     }
     
     /// Ativa uma categoria específica através de diretiva #<categoria>

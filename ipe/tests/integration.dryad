@@ -1,0 +1,52 @@
+import { ipe } from "../lib/ipe.dryad";
+
+function test_ffi_lifecycle() {
+    println("--- Iniciando Teste de Integração Ipe ---");
+    
+    // 1. Teste de Init
+    println("Testando ipe.init()...");
+    if (!ipe.init()) {
+        println("ERRO: Falha no init");
+        return false;
+    }
+    println("Init OK.");
+
+    // 2. Teste de Criação de Janela
+    println("Testando ipe.createWindow()...");
+    let win = ipe.createWindow(400, 300, "Integration Test Window");
+    if (win == null) {
+        println("ERRO: Janela não criada");
+        return false;
+    }
+    println("Janela OK.");
+
+    // 3. Teste de Estado
+    println("Testando ipe.isOpen()...");
+    if (!ipe.isOpen()) {
+        println("ERRO: Janela reportada como fechada");
+        return false;
+    }
+    println("Estado OK.");
+
+    // 4. Teste de Eventos e Desenho (curto)
+    println("Testando processEvents e clear...");
+    ipe.clear(0x00FF00); // Verde
+    ipe.processEvents();
+    println("Funções de loop OK.");
+
+    // 5. Shutdown
+    println("Testando ipe.close()...");
+    ipe.close();
+    println("Close OK.");
+
+    println("--- Teste de Integração Concluído com Sucesso ---");
+    return true;
+}
+
+if (test_ffi_lifecycle()) {
+    print("SUCCESS");
+} else {
+    print("FAILURE");
+    // Forçar saída com erro se possível no Dryad? 
+    // Por enquanto apenas printamos.
+}

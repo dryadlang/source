@@ -15,8 +15,8 @@ Resumo
 - Embora `ipe.dll` esteja no repositório, é recomendado rebuild local e validação dos símbolos exportados.
 
 ## ⬜ Pendente — Prioridade ALTA
-- [ ] Compilar e validar `ipe.dll` localmente (`ipe/native`).
-- [ ] Corrigir sintaxe em `ipe/tests/demo.dryad` e executar a demo end‑to‑end.
+- [x] Compilar e validar `ipe.dll` localmente (`ipe/native`).
+- [x] Corrigir sintaxe em `ipe/tests/demo.dryad` e executar a demo end‑to‑end.
 - [ ] Teste de integração automatizado (load library → ipe_init → createWindow → isOpen → close).
 - [ ] Adicionar job de CI (Windows runner) para build da DLL e testes de integração.
 
@@ -27,7 +27,7 @@ Resumo
 
 ## ⬜ Pendente — Prioridade BAIXA (Nice-to-have)
 - [ ] Harness headless / mock para testes de janela em CI.
-- [ ] Documentação do módulo `ipe` (API, exemplos, pré-requisitos do sistema).
+- [x] Documentação do módulo `ipe` (API, exemplos, pré-requisitos do sistema).
 - [ ] Publicar exemplo Oak/Ipe e empacotar como módulo opcional.
 
 ## Próximos passos imediatos (recomendado)

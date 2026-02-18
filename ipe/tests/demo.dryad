@@ -1,0 +1,29 @@
+use "./ipe/lib/ipe"
+
+fn main() {
+    println("Iniciando Ipe Framework (Oak)...");
+    
+    if (!ipe::init()) {
+        println("Falha ao inicializar Ipe");
+        return;
+    }
+
+    println("Criando janela...");
+    ipe::createWindow(800, 600, "Ipe Framework - Oak Refactor");
+
+    let count = 0;
+    while (ipe::isOpen() && count < 100) {
+        ipe::clear(0x333333); // Cinza escuro
+        
+        // Desenha um retângulo vermelho que se move
+        ipe::drawRect(100 + count, 100, 200, 150, 0xFF0000);
+        
+        ipe::processEvents();
+        count++;
+    }
+
+    ipe::close();
+    println("Demo finalizado com sucesso!");
+}
+
+main();

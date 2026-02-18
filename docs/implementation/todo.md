@@ -53,6 +53,10 @@ Este documento centraliza todas as tarefas pendentes, oportunidades de refatora�
 
 ---
 
+
+
+---
+
 ## Prioridade Média 🟡
 
 ### OOP e Classes

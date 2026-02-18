@@ -49,7 +49,7 @@ impl fmt::Display for Type {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Stmt {
     Expression(Expr, SourceLocation),
     VarDeclaration(Pattern, Option<Type>, Option<Expr>, SourceLocation), // padrão, tipo opcional, valor opcional
@@ -110,14 +110,14 @@ pub enum Stmt {
     Namespace(String, Vec<Stmt>, SourceLocation),                       // namespace Name { ... }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ImportKind {
     Named(Vec<String>), // import { func1, func2 } from "module"
     Namespace(String),  // import * as name from "module"
     SideEffect,         // import "module"
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Expr {
     Literal(Literal, SourceLocation),
     Binary(Box<Expr>, String, Box<Expr>, SourceLocation),
@@ -153,7 +153,7 @@ pub enum Expr {
     Try(Box<Expr>, SourceLocation),                            // expr?
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Pattern {
     Identifier(String),
     Literal(Literal),
@@ -174,7 +174,7 @@ impl Pattern {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct MatchArm {
     pub pattern: Pattern,
     pub guard: Option<Expr>,
@@ -182,7 +182,7 @@ pub struct MatchArm {
     pub location: SourceLocation,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Literal {
     Number(f64),
     String(String),
@@ -190,7 +190,7 @@ pub enum Literal {
     Null,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ObjectProperty {
     Property(String, Expr), // key: value
     Method {
@@ -201,12 +201,12 @@ pub enum ObjectProperty {
     },
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct Program {
     pub statements: Vec<Stmt>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum ClassMember {
     Method {
         visibility: Visibility,
@@ -233,7 +233,7 @@ pub enum ClassMember {
     },
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Visibility {
     Public,
     Private,
@@ -246,14 +246,14 @@ impl Default for Visibility {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct InterfaceMethod {
     pub name: String,
     pub params: Vec<(String, Option<Type>, Option<Expr>)>,
     pub return_type: Option<Type>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum InterfaceMember {
     Method(InterfaceMethod),
     // Future: Property, StaticMethod, etc.

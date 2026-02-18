@@ -216,6 +216,36 @@ fn ffi_call(
         }
     };
 
+    let ffi_args = &args[3..];
+    if ffi_args.len() > 6 {
+        return Err(RuntimeError::ArgumentError(
+            "ffi_call suporta no máximo 6 argumentos".to_string(),
+        ));
+    }
+
+    let mut arg_values = Vec::new();
+    let mut _string_holders = Vec::new();
+
+    for val in ffi_args {
+        match val {
+            Value::Number(n) => arg_values.push(*n as usize),
+            Value::String(s) => {
+                let c_str = CString::new(s.clone()).map_err(|_| {
+                    RuntimeError::Generic("Erro ao converter string para C".to_string())
+                })?;
+                arg_values.push(c_str.as_ptr() as usize);
+                _string_holders.push(c_str);
+            }
+            Value::Bool(b) => arg_values.push(if *b { 1 } else { 0 }),
+            Value::Null => arg_values.push(0),
+            _ => {
+                return Err(RuntimeError::TypeError(
+                    "Tipo de argumento não suportado para FFI".to_string(),
+                ))
+            }
+        }
+    }
+
     let state = FFI_STATE
         .lock()
         .map_err(|_| RuntimeError::SystemError("Erro ao acessar estado FFI".to_string()))?;
@@ -227,77 +257,82 @@ fn ffi_call(
     let symbol_name_c = CString::new(symbol_name.clone())
         .map_err(|_| RuntimeError::Generic("Nome de símbolo inválido".to_string()))?;
 
-    match return_type.as_str() {
-        "void" => {
-            type FfiVoidFn = unsafe extern "C" fn();
-            let func: Symbol<FfiVoidFn> = unsafe {
-                library_wrapper
-                    .library
-                    .get(symbol_name_c.as_bytes())
-                    .map_err(|e| RuntimeError::Generic(format!("Símbolo não encontrado: {}", e)))?
-            };
-            unsafe {
-                func();
+    macro_rules! dispatch_ffi {
+        ($ret_dryad:ident, $ret_type:ty, $conv:expr) => {{
+            match arg_values.len() {
+                0 => {
+                    let func: Symbol<unsafe extern "C" fn() -> $ret_type> = unsafe {
+                        library_wrapper.library.get(symbol_name_c.as_bytes())
+                            .map_err(|e| RuntimeError::Generic(format!("Símbolo não encontrado: {}", e)))?
+                    };
+                    let res = unsafe { func() };
+                    Ok($conv(res))
+                }
+                1 => {
+                    let func: Symbol<unsafe extern "C" fn(usize) -> $ret_type> = unsafe {
+                        library_wrapper.library.get(symbol_name_c.as_bytes())
+                            .map_err(|e| RuntimeError::Generic(format!("Símbolo não encontrado: {}", e)))?
+                    };
+                    let res = unsafe { func(arg_values[0]) };
+                    Ok($conv(res))
+                }
+                2 => {
+                    let func: Symbol<unsafe extern "C" fn(usize, usize) -> $ret_type> = unsafe {
+                        library_wrapper.library.get(symbol_name_c.as_bytes())
+                            .map_err(|e| RuntimeError::Generic(format!("Símbolo não encontrado: {}", e)))?
+                    };
+                    let res = unsafe { func(arg_values[0], arg_values[1]) };
+                    Ok($conv(res))
+                }
+                3 => {
+                    let func: Symbol<unsafe extern "C" fn(usize, usize, usize) -> $ret_type> = unsafe {
+                        library_wrapper.library.get(symbol_name_c.as_bytes())
+                            .map_err(|e| RuntimeError::Generic(format!("Símbolo não encontrado: {}", e)))?
+                    };
+                    let res = unsafe { func(arg_values[0], arg_values[1], arg_values[2]) };
+                    Ok($conv(res))
+                }
+                4 => {
+                    let func: Symbol<unsafe extern "C" fn(usize, usize, usize, usize) -> $ret_type> = unsafe {
+                        library_wrapper.library.get(symbol_name_c.as_bytes())
+                            .map_err(|e| RuntimeError::Generic(format!("Símbolo não encontrado: {}", e)))?
+                    };
+                    let res = unsafe { func(arg_values[0], arg_values[1], arg_values[2], arg_values[3]) };
+                    Ok($conv(res))
+                }
+                5 => {
+                    let func: Symbol<unsafe extern "C" fn(usize, usize, usize, usize, usize) -> $ret_type> = unsafe {
+                        library_wrapper.library.get(symbol_name_c.as_bytes())
+                            .map_err(|e| RuntimeError::Generic(format!("Símbolo não encontrado: {}", e)))?
+                    };
+                    let res = unsafe { func(arg_values[0], arg_values[1], arg_values[2], arg_values[3], arg_values[4]) };
+                    Ok($conv(res))
+                }
+                6 => {
+                    let func: Symbol<unsafe extern "C" fn(usize, usize, usize, usize, usize, usize) -> $ret_type> = unsafe {
+                        library_wrapper.library.get(symbol_name_c.as_bytes())
+                            .map_err(|e| RuntimeError::Generic(format!("Símbolo não encontrado: {}", e)))?
+                    };
+                    let res = unsafe { func(arg_values[0], arg_values[1], arg_values[2], arg_values[3], arg_values[4], arg_values[5]) };
+                    Ok($conv(res))
+                }
+                _ => unreachable!(),
             }
-            Ok(Value::Null)
-        }
-        "i32" => {
-            type FfiI32Fn = unsafe extern "C" fn() -> i32;
-            let func: Symbol<FfiI32Fn> = unsafe {
-                library_wrapper
-                    .library
-                    .get(symbol_name_c.as_bytes())
-                    .map_err(|e| RuntimeError::Generic(format!("Símbolo não encontrado: {}", e)))?
-            };
-            let result = unsafe { func() };
-            Ok(Value::Number(result as f64))
-        }
-        "i64" => {
-            type FfiI64Fn = unsafe extern "C" fn() -> i64;
-            let func: Symbol<FfiI64Fn> = unsafe {
-                library_wrapper
-                    .library
-                    .get(symbol_name_c.as_bytes())
-                    .map_err(|e| RuntimeError::Generic(format!("Símbolo não encontrado: {}", e)))?
-            };
-            let result = unsafe { func() };
-            Ok(Value::Number(result as f64))
-        }
-        "f64" => {
-            type FfiF64Fn = unsafe extern "C" fn() -> f64;
-            let func: Symbol<FfiF64Fn> = unsafe {
-                library_wrapper
-                    .library
-                    .get(symbol_name_c.as_bytes())
-                    .map_err(|e| RuntimeError::Generic(format!("Símbolo não encontrado: {}", e)))?
-            };
-            let result = unsafe { func() };
-            Ok(Value::Number(result))
-        }
-        "string" | "cstring" => {
-            type FfiStringFn = unsafe extern "C" fn() -> *const c_char;
-            let func: Symbol<FfiStringFn> = unsafe {
-                library_wrapper
-                    .library
-                    .get(symbol_name_c.as_bytes())
-                    .map_err(|e| RuntimeError::Generic(format!("Símbolo não encontrado: {}", e)))?
-            };
-            let c_str = unsafe { CStr::from_ptr(func()) };
-            let rust_string = c_str.to_string_lossy().into_owned();
-            Ok(Value::String(rust_string))
-        }
-        "pointer" => {
-            type FfiPointerFn = unsafe extern "C" fn() -> *const std::os::raw::c_void;
-            let func: Symbol<FfiPointerFn> = unsafe {
-                library_wrapper
-                    .library
-                    .get(symbol_name_c.as_bytes())
-                    .map_err(|e| RuntimeError::Generic(format!("Símbolo não encontrado: {}", e)))?
-            };
-            let ptr = unsafe { func() };
-            let ptr_num = ptr as usize as f64;
-            Ok(Value::Number(ptr_num))
-        }
+        }};
+    }
+
+    match return_type.as_str() {
+        "void" => dispatch_ffi!(void, (), |_| Value::Null),
+        "i32" => dispatch_ffi!(i32, i32, |r| Value::Number(r as f64)),
+        "i64" => dispatch_ffi!(i64, i64, |r| Value::Number(r as f64)),
+        "f64" => dispatch_ffi!(f64, f64, |r| Value::Number(r)),
+        "string" | "cstring" => dispatch_ffi!(string, *const c_char, |r| {
+            let c_str = unsafe { CStr::from_ptr(r) };
+            Value::String(c_str.to_string_lossy().into_owned())
+        }),
+        "pointer" => dispatch_ffi!(pointer, *const std::os::raw::c_void, |r| {
+            Value::Number(r as usize as f64)
+        }),
         _ => Err(RuntimeError::Generic(format!(
             "Tipo de retorno não suportado: {}",
             return_type

@@ -81,6 +81,7 @@ fn native_typeof(args: &[Value], _manager: &crate::native_modules::NativeModuleM
         Value::Class(_) => "class",
         Value::Instance(_) => "instance",
         Value::Object(_) => "object",
+        Value::Result(_, _) => "result",
     };
     
     Ok(Value::String(type_name.to_string()))
@@ -330,6 +331,7 @@ fn native_assert_type(args: &[Value], _manager: &crate::native_modules::NativeMo
         Value::Class(_) => "class",
         Value::Instance(_) => "instance",
         Value::Object(_) => "object",
+        Value::Result(_, _) => "result",
     };
     
     if actual_type != expected_type {

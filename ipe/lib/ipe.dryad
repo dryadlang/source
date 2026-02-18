@@ -4,15 +4,29 @@ module ipe {
     let lib_loaded = false;
     let lib_path = "./ipe/native/ipe.dll";
 
+    // Tenta carregar a biblioteca usando uma lista de caminhos comuns
     fn load() {
-        if (!lib_loaded) {
-            if (ffi_load_library(lib_path, "ipe")) {
+        if (lib_loaded) return true;
+
+        let candidates = [
+            lib_path,
+            "./ipe/native/ipe.dll",
+            "./ipe/native/libipe.dll",
+            "./ipe/native/ipe.so",
+            "./ipe/native/libipe.so",
+            "./ipe/native/ipe.dylib",
+        ];
+
+        for (p in candidates) {
+            // tenta carregar cada candidato com o alias fixo "ipe"
+            if (ffi_load_library(p, "ipe")) {
                 lib_loaded = true;
+                lib_path = p;
                 return true;
             }
-            return false;
         }
-        return true;
+
+        return false;
     }
 
     fn init() {

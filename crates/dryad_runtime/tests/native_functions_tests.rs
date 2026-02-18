@@ -218,6 +218,47 @@ fn test_native_typeof_all_types() {
     );
 }
 
+// Smoke test: importar o wrapper Dryad `ipe` e chamar load() + init() (Windows only).
+#[test]
+#[cfg(target_os = "windows")]
+fn test_ipe_wrapper_via_interpreter() {
+    use std::path::PathBuf;
+    use std::path::Path;
+
+    // se a DLL não existir no repositório (ipe/native/ipe.dll), pulamos o teste
+    let dll_path = Path::new("../../ipe/native/ipe.dll");
+    if !dll_path.exists() {
+        eprintln!("ipe.dll não encontrada em {:?} — pulando teste", dll_path);
+        return;
+    }
+
+    let code = r#"
+        use "./ipe/lib/ipe";
+        let loaded = ipe::load();
+        let ok = (ipe::init() != 0);
+        loaded && ok
+    "#;
+
+    // Tokenizar, parsear e executar com Interpreter configurado para resolver imports relativos
+    let mut lexer = Lexer::new(code);
+    let mut tokens = Vec::new();
+    loop {
+        let t = lexer.next_token().unwrap();
+        if matches!(t.token, Token::Eof) { tokens.push(t); break; }
+        tokens.push(t);
+    }
+
+    let mut parser = Parser::new(tokens);
+    let program = parser.parse().unwrap();
+
+    let mut interpreter = Interpreter::new();
+    // define current file para que imports relativos sejam resolvidos a partir da raiz do repositório
+    interpreter.set_current_file(PathBuf::from("../../README.md"));
+
+    let result = interpreter.execute_and_return_value(&program).expect("exec falhou");
+    assert_eq!(result, Value::Bool(true));
+}
+
 #[test]
 fn test_native_sleep_function() {
     let code = r#"

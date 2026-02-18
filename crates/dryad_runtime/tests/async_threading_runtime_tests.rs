@@ -60,7 +60,7 @@ fn test_thread_function_declaration() {
         Value::ThreadFunction { name, params, .. } => {
             assert_eq!(name, "backgroundTask");
             assert_eq!(params.len(), 1);
-            assert_eq!(params[0], "data");
+            assert_eq!(params[0].0, "data");
         }
         _ => panic!("Esperado ThreadFunction, encontrado: {:?}", result),
     }

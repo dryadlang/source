@@ -1,6 +1,6 @@
-use "./ipe/lib/ipe"
+use "./ipe/lib/ipe";
 
-fn main() {
+function main() {
     println("Iniciando Ipe Framework (Oak)...");
     
     if (!ipe::init()) {

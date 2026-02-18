@@ -6,141 +6,70 @@ subcategory: "Database"
 order: 35
 ---
 
-# Database
+# Database (SQL Connectors)
 
-Módulo para conexão e operações com bancos de dados SQLite e PostgreSQL.
+Este módulo fornece uma interface unificada para interação com bancos de dados relacionais.
 
-## Ativação
+> [!IMPORTANT]
+> **Status Atual: Totalmente Funcional (SQLite & PostgreSQL)**.
+> Ambos os motores de banco de dados estão implementados. PostgreSQL utiliza `tokio-postgres` para conexões reais.
 
-```dryad
-#<database>
-```
+## 🚀 Leitura Rápida
 
-## SQLite
+- **SQLite**: Banco local baseado em arquivo. Ativado via `#<database>`.
+- **PostgreSQL**: Suporte completo para produção via `pg_connect`.
+- **Interface**: Baseada em handles de conexão.
+- **Segurança**: Suporte a parâmetros para evitar SQL Injection.
 
-### sqlite_open(path: string) -> connection
+---
 
-Abre ou cria um banco de dados SQLite.
+## ⚙️ Visão Técnica
 
-```dryad
-#<database>
-let db = sqlite_open("myapp.db");
-```
+O módulo `database` utiliza o padrão de **Handles Opacos**. O script não acessa a estrutura do driver Rust diretamente, mas recebe um identificador que o runtime usa para localizar a conexão em seu registro interno.
 
-### sqlite_close(connection: object) -> boolean
+### 1. Fluxo de Trabalho Recomendado
 
-Fecha a conexão com o banco de dados.
+1.  **Open/Connect**: Abrir conexão (`sqlite_open` ou `pg_connect`).
+2.  **Exec/Query**: Executar (`sqlite_execute` / `pg_execute`) para comandos sem retorno ou consultar (`sqlite_query` / `pg_query`) para obter dados.
+3.  **Close**: Fechar explicitamente (`sqlite_close` / `pg_close`) para evitar vazamento de memória.
 
-### sqlite_execute(connection: object, sql: string) -> result
+### 2. Funções Disponíveis (Referência)
 
-Executa uma instrução SQL (INSERT, UPDATE, DELETE).
+| Categoria      | Funções                                                         |
+| :------------- | :-------------------------------------------------------------- |
+| **SQLite**     | `sqlite_open`, `sqlite_execute`, `sqlite_query`, `sqlite_close` |
+| **PostgreSQL** | `pg_connect`, `pg_execute`, `pg_query`, `pg_close`              |
 
-```dryad
-#<database>
-let db = sqlite_open("myapp.db");
-let result = sqlite_execute(db, "CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)");
-sqlite_close(db);
-```
+---
 
-### sqlite_query(connection: object, sql: string) -> array
+## 📚 Referências e Paralelos
 
-Executa uma consulta SELECT e retorna os resultados.
+- **Rust Drivers**: Suporte via [rusqlite](https://docs.rs/rusqlite/).
+- **API Design**: Focada em simplicidade e performance para scripts rápidos.
+- **Standards**: [SQL-92 Standard](https://en.wikipedia.org/wiki/SQL-92).
 
-```dryad
-#<database>
-let db = sqlite_open("myapp.db");
-let results = sqlite_query(db, "SELECT * FROM users WHERE age > 18");
-sqlite_close(db);
-```
+---
 
-### sqlite_prepare(connection: object, sql: string) -> statement
-
-Prepara uma instrução SQL para execução.
-
-```dryad
-#<database>
-let stmt = sqlite_prepare(db, "INSERT INTO users (name) VALUES (?)");
-```
-
-### sqlite_bind(statement: object, index: number, value: value) -> boolean
-
-Associa um valor a um parâmetro na instrução preparada.
-
-### sqlite_step(statement: object) -> boolean
-
-Executa a próxima etapa da instrução.
-
-### sqlite_columns(statement: object) -> array
-
-Retorna os nomes das colunas do resultado.
-
-## PostgreSQL
-
-### pg_connect(connection_string: string) -> connection
-
-Conecta a um banco de dados PostgreSQL.
-
-```dryad
-#<database>
-let conn = pg_connect("host=localhost port=5432 dbname=mydb user=myuser password=mypass");
-```
-
-### pg_close(connection: object) -> boolean
-
-Fecha a conexão PostgreSQL.
-
-### pg_execute(connection: object, query: string, params: array) -> result
-
-Executa uma instrução SQL com parâmetros.
-
-```dryad
-#<database>
-let conn = pg_connect("host=localhost dbname=mydb");
-let result = pg_execute(conn, "INSERT INTO users (name) VALUES ($1)", ["John"]);
-pg_close(conn);
-```
-
-### pg_query(connection: object, sql: string) -> array
-
-Executa uma consulta SELECT.
-
-```dryad
-#<database>
-let results = pg_query(conn, "SELECT * FROM users");
-```
-
-### pg_prepare(connection: object, name: string, sql: string) -> statement
-
-Prepara uma instrução SQL nomeada.
-
-### pg_bind(connection: object, statement_name: string, params: array) -> boolean
-
-Associa parâmetros a uma instrução preparada.
-
-### pg_query_params(connection: object, query: string, params: array) -> array
-
-Executa uma consulta com parâmetros.
-
-```dryad
-#<database>
-let results = pg_query_params(conn, "SELECT * FROM users WHERE age > $1", [18]);
-```
-
-## Exemplo Completo
+## Exemplo de Uso
 
 ```dryad
 #<database>
 
-// SQLite
-let db = sqlite_open("myapp.db");
-sqlite_execute(db, "CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, name TEXT)");
-sqlite_execute(db, "INSERT INTO users (name) VALUES ('Alice')");
-let users = sqlite_query(db, "SELECT * FROM users");
-sqlite_close(db);
+// 1. Abrir (ou criar) o banco de dados
+let db = sqlite_open("app.db");
 
-// PostgreSQL
-let conn = pg_connect("host=localhost dbname=mydb");
-pg_execute(conn, "INSERT INTO users (name) VALUES ($1)", ["Bob"]);
-let users = pg_query(conn, "SELECT * FROM users");
-pg_close(conn);
+// 2. Criar uma tabela
+sqlite_execute(db.id, "CREATE TABLE IF NOT EXISTS logs (msg TEXT)");
+
+// 3. Inserir dados
+sqlite_execute(db.id, "INSERT INTO logs (msg) VALUES ('Acesso detectado')");
+
+// 4. Consultar dados
+let rows = sqlite_query(db.id, "SELECT * FROM logs");
+for (let row in rows) {
+    println("Log: " + row.msg);
+}
+
+// 5. Fechar conexão
+sqlite_close(db.id);
 ```

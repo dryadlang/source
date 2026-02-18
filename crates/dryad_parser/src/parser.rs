@@ -876,7 +876,8 @@ impl Parser {
                     self.advance(); // consume '=>'
                     let body = self.expression()?;
                     return Ok(Expr::Lambda {
-                        params: vec![(var_name, None)],
+                        params: vec![(var_name, None, None)],
+                        rest_param: None,
                         body: Box::new(body),
                         return_type: None,
                         location,
@@ -946,6 +947,7 @@ impl Parser {
                         let body = self.expression()?;
                         return Ok(Expr::Lambda {
                             params: Vec::new(),
+                            rest_param: None,
                             body: Box::new(body),
                             return_type: None,
                             location,
@@ -970,7 +972,7 @@ impl Parser {
                             self.advance(); // consome ')'
                             if matches!(self.peek(), Token::Arrow) {
                                 is_lambda = true;
-                                params.push((param_name, None));
+                                params.push((param_name, None, None));
                             } else {
                                 // Reset position e parse como expressão normal
                                 self.position = start_pos;
@@ -987,7 +989,15 @@ impl Parser {
                             } else {
                                 None
                             };
-                            params.push((param_name, param_type));
+
+                            let default_value = if matches!(self.peek(), Token::Symbol('=')) {
+                                self.advance(); // consume '='
+                                Some(self.expression()?)
+                            } else {
+                                None
+                            };
+
+                            params.push((param_name, param_type, default_value));
 
                             if matches!(self.peek(), Token::Symbol(',')) {
                                 self.advance(); // consome ','
@@ -1002,7 +1012,15 @@ impl Parser {
                                     } else {
                                         None
                                     };
-                                    params.push((p_name, p_type));
+                                    
+                                    let p_default = if matches!(self.peek(), Token::Symbol('=')) {
+                                        self.advance(); // consume '='
+                                        Some(self.expression()?)
+                                    } else {
+                                        None
+                                    };
+
+                                    params.push((p_name, p_type, p_default));
                                 } else {
                                     return Err(DryadError::new(
                                         2019,
@@ -1050,6 +1068,7 @@ impl Parser {
                     let body = self.expression()?;
                     return Ok(Expr::Lambda {
                         params,
+                        rest_param: None,
                         body: Box::new(body),
                         return_type,
                         location,
@@ -1577,7 +1596,15 @@ impl Parser {
                         } else {
                             None
                         };
-                        params.push((name, param_type));
+
+                        let default_value = if matches!(self.peek(), Token::Symbol('=')) {
+                            self.advance(); // consume '='
+                            Some(self.expression()?)
+                        } else {
+                            None
+                        };
+
+                        params.push((name, param_type, default_value));
                     }
                     _ => return Err(DryadError::new(2014, "Esperado nome do parâmetro")),
                 }
@@ -1617,6 +1644,7 @@ impl Parser {
         Ok(Stmt::FunctionDeclaration {
             name,
             params,
+            rest_param: None,
             return_type,
             body,
             location,
@@ -1661,7 +1689,15 @@ impl Parser {
                         } else {
                             None
                         };
-                        params.push((name, param_type));
+
+                        let default_value = if matches!(self.peek(), Token::Symbol('=')) {
+                            self.advance(); // consume '='
+                            Some(self.expression()?)
+                        } else {
+                            None
+                        };
+
+                        params.push((name, param_type, default_value));
                     }
                     _ => {
                         return Err(DryadError::new(
@@ -1709,6 +1745,7 @@ impl Parser {
         Ok(Stmt::FunctionDeclaration {
             name,
             params,
+            rest_param: None,
             return_type,
             body,
             location,
@@ -1753,7 +1790,7 @@ impl Parser {
                         } else {
                             None
                         };
-                        params.push((name, param_type));
+                        params.push((name, param_type, None));
                     }
                     _ => {
                         return Err(DryadError::new(
@@ -1993,7 +2030,7 @@ impl Parser {
                     } else {
                         None
                     };
-                    params.push((param_name, param_type));
+                    params.push((param_name, param_type, None));
 
                     if matches!(self.peek(), Token::Symbol(',')) {
                         self.advance(); // consume ','
@@ -2076,13 +2113,21 @@ impl Parser {
                         loop {
                             if let Token::Identifier(param_name) = self.advance() {
                                 let name = param_name.clone();
-                                let param_type = if matches!(self.peek(), Token::Symbol(':')) {
-                                    self.advance(); // consume ':'
-                                    Some(self.parse_type()?)
+                    let param_type = if matches!(self.peek(), Token::Symbol(':')) {
+                        self.advance(); // consume ':'
+                        Some(self.parse_type()?)
+                    } else {
+                        None
+                    };
+                                
+                                let default_value = if matches!(self.peek(), Token::Symbol('=')) {
+                                    self.advance(); // consume '='
+                                    Some(self.expression()?)
                                 } else {
                                     None
                                 };
-                                params.push((name, param_type));
+
+                                params.push((name, param_type, default_value));
                             } else {
                                 return Err(DryadError::new(2094, "Esperado nome do parâmetro"));
                             }
@@ -2153,7 +2198,15 @@ impl Parser {
                             } else {
                                 None
                             };
-                            params.push((name, param_type));
+
+                            let default_value = if matches!(self.peek(), Token::Symbol('=')) {
+                                self.advance(); // consume '='
+                                Some(self.expression()?)
+                            } else {
+                                None
+                            };
+
+                            params.push((name, param_type, default_value));
 
                             if matches!(self.peek(), Token::Symbol(',')) {
                                 self.advance(); // consome ','
@@ -2223,6 +2276,7 @@ impl Parser {
 
                 Ok(ClassMember::Getter {
                     visibility,
+                    is_static,
                     name,
                     body,
                 })
@@ -2271,6 +2325,7 @@ impl Parser {
 
                 Ok(ClassMember::Setter {
                     visibility,
+                    is_static,
                     name,
                     param,
                     body,
@@ -2655,7 +2710,15 @@ impl Parser {
                             } else {
                                 None
                             };
-                            params.push((name, param_type));
+
+                            let default_value = if matches!(self.peek(), Token::Symbol('=')) {
+                                self.advance(); // consume '='
+                                Some(self.expression()?)
+                            } else {
+                                None
+                            };
+
+                            params.push((name, param_type, default_value));
                         } else {
                             return Err(DryadError::new(
                                 2073,
@@ -2684,7 +2747,7 @@ impl Parser {
                 }
 
                 let return_type = if matches!(self.peek(), Token::Symbol(':')) {
-                    self.advance();
+                    self.advance(); // consume ':'
                     Some(self.parse_type()?)
                 } else {
                     None
@@ -2706,12 +2769,10 @@ impl Parser {
                     body,
                 })
             }
-            _ => {
-                return Err(DryadError::new(
-                    2077,
-                    "Esperado ':' ou '(' após chave da propriedade",
-                ))
-            }
+            _ => Err(DryadError::new(
+                2077,
+                "Esperado ':' ou '(' após chave da propriedade",
+            )),
         }
     }
 

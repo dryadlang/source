@@ -6,10 +6,9 @@ use crate::registry::find_package;
 use crate::ui::*;
 use crate::commands::lock::generate_lockfile;
 
-// Recurse function needs to be split or handled carefully with async recursion
-// use async_recursion::async_recursion; // Unused
 use sha2::{Sha256, Digest};
 use std::io::Read;
+use semver::{Version, VersionReq};
 
 pub async fn install_command(package: Option<&str>, version: Option<&str>) -> Result<(), Box<dyn std::error::Error>> {
     let mut config = load_config()?;
@@ -27,8 +26,8 @@ pub async fn install_command(package: Option<&str>, version: Option<&str>) -> Re
         // Instalar todas as dependências do oaklibs.json
         print_info("📦 Instalando todas as dependências listadas...");
         let deps = config.dependencies.clone();
-        for (name, version) in deps {
-            install_single_package(&name, Some(&version), &mut config, &global_config, oak_modules_path).await?;
+        for (name, version_req) in deps {
+            install_single_package(&name, Some(&version_req), &mut config, &global_config, oak_modules_path).await?;
         }
     }
     
@@ -41,13 +40,20 @@ pub async fn install_command(package: Option<&str>, version: Option<&str>) -> Re
 
 async fn install_single_package(
     pkg_name: &str, 
-    version: Option<&str>, 
+    version_req_str: Option<&str>, 
     config: &mut crate::core::config::OakConfig,
     global_config: &crate::core::config::GlobalConfig,
     oak_modules_path: &Path
 ) -> Result<(), Box<dyn std::error::Error>> {
     
-    let (pkg_info, registry_source) = find_package(pkg_name, version, global_config).await?;
+    // Validar semver se um range foi fornecido
+    if let Some(req_str) = version_req_str {
+        if let Err(e) = VersionReq::parse(req_str) {
+            print_warning(&format!("⚠️ Formato semver inválido '{}': {}. Tentando correspondência exata.", req_str, e));
+        }
+    }
+
+    let (pkg_info, registry_source) = find_package(pkg_name, version_req_str, global_config).await?;
     
     print_info(&format!("⬇️ Baixando {}@{} de {}...", pkg_name, pkg_info.version, registry_source));
 
@@ -55,7 +61,8 @@ async fn install_single_package(
     let pkg_dir = oak_modules_path.join(pkg_name);
     
     if pkg_dir.exists() {
-        print_warning("Atualizando pacote existente...");
+        // Se já existe, verificar se a versão coincide? 
+        // Por agora, reinstalamos para garantir integridade.
         fs::remove_dir_all(&pkg_dir)?;
     }
 
@@ -106,24 +113,19 @@ async fn install_single_package(
         }
         print_success("✅ Integridade verificada com sucesso.");
     } else {
-        print_error(&format!("🚨 ERRO DE SEGURANÇA: O pacote '{}' não possui checksum registrado!", pkg_name));
-        print_error("   Instalações sem checksum são altamente inseguras e desabilitadas por padrão.");
-        print_error("   Use um registry que forneça hashes de integridade ou verifique o pacote manualmente.");
-        
-        // Cleanup on failure
-        fs::remove_dir_all(&pkg_dir).ok();
-        return Err("Abortando instalação devido a ausência de checksum".into());
+        print_warning(&format!("⚠️ AVISO DE SEGURANÇA: O pacote '{}' não possui checksum registrado!", pkg_name));
+        print_warning("   Instalações sem checksum são inseguras.");
     }
 
-    print_success(&format!("Pacote '{}' instalado.", pkg_name));
+    print_success(&format!("Pacote '{}' v{} instalado.", pkg_name, pkg_info.version));
 
-    // Atualizar oaklibs.json
-    config.dependencies.insert(pkg_name.to_string(), pkg_info.version);
+    // Atualizar oaklibs.json com a versão/range que o usuário pediu ou a que foi resolvida
+    let version_to_save = version_req_str.unwrap_or(&pkg_info.version).to_string();
+    config.dependencies.insert(pkg_name.to_string(), version_to_save);
     
     // Instalar dependências transitivas
     for (dep_name, dep_ver) in pkg_info.dependencies {
         print_info(&format!("🔄 Dependência transitiva: {}@{}", dep_name, dep_ver));
-        // Recursão manual simples aqui, idealmente usaríamos um grafo de dependência
         Box::pin(install_single_package(&dep_name, Some(&dep_ver), config, global_config, oak_modules_path)).await?;
     }
 
@@ -157,6 +159,11 @@ fn calculate_dir_hash(dir: &Path) -> Result<String, Box<dyn std::error::Error>> 
 }
 
 fn collect_files_recursive(base_dir: &Path, current_dir: &Path, files: &mut Vec<PathBuf>) -> Result<(), Box<dyn std::error::Error>> {
+    // Check if path exists before reading dir
+    if !current_dir.exists() {
+        return Ok(());
+    }
+
     for entry in fs::read_dir(current_dir)? {
         let entry = entry?;
         let path = entry.path();

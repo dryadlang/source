@@ -1,0 +1,36 @@
+function greet(name, greeting = "Hello") {
+    print(greeting + ", " + name);
+}
+
+greet("World"); // Hello, World
+greet("Alice", "Hi"); // Hi, Alice
+
+async function fetch(url, timeout = 5000) {
+    print("Fetching " + url + " with timeout " + timeout);
+}
+
+fetch("https://example.com"); // Fetching ... with timeout 5000
+
+let add = (a, b = 10) => a + b;
+print(add(5)); // 15
+print(add(5, 20)); // 25
+
+class Calculator {
+    multiply(a, b = 2) {
+        return a * b;
+    }
+}
+
+let calc = new Calculator();
+print(calc.multiply(10)); // 20
+print(calc.multiply(10, 3)); // 30
+
+let obj = {
+    x: 10,
+    double(scalar = 2) {
+        return this.x * scalar;
+    }
+};
+
+print(obj.double()); // 20
+print(obj.double(3)); // 30

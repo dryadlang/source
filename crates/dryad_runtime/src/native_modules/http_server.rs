@@ -11,10 +11,29 @@ use std::time::Duration;
 use std::sync::mpsc;
 
 lazy_static! {
+    static ref RUNTIME: Runtime = Runtime::new().expect("Falha ao criar runtime Tokio para HTTP Server");
     static ref HTTP_SERVERS: Arc<Mutex<HashMap<String, ServerInstance>>> = Arc::new(Mutex::new(HashMap::new()));
     static ref ROUTE_HANDLERS: Arc<Mutex<HashMap<String, HashMap<String, RouteHandler>>>> = Arc::new(Mutex::new(HashMap::new()));
+    static ref DYNAMIC_HANDLERS: Arc<Mutex<HashMap<String, HashMap<String, HeapId>>>> = Arc::new(Mutex::new(HashMap::new()));
     static ref STATIC_CONTENT: Arc<Mutex<HashMap<String, HashMap<String, StaticContent>>>> = Arc::new(Mutex::new(HashMap::new()));
     static ref SERVER_THREADS: Arc<Mutex<HashMap<String, thread::JoinHandle<()>>>> = Arc::new(Mutex::new(HashMap::new()));
+    
+    // New: A queue for requests that need to be handled by the interpreter
+    static ref PENDING_REQUESTS: Arc<Mutex<Vec<HttpRequestEvent>>> = Arc::new(Mutex::new(Vec::new()));
+}
+
+struct HttpRequestEvent {
+    server_id: String,
+    method: String,
+    path: String,
+    lambda_id: HeapId,
+    // Add request data if needed
+    response_channel: tokio::sync::oneshot::Sender<HttpResponse>,
+}
+
+struct HttpResponse {
+    status: u16,
+    body: String,
 }
 
 #[derive(Clone, Debug)]
@@ -121,7 +140,46 @@ fn handle_http_connection(mut stream: std::net::TcpStream, server_id: String) {
 fn generate_response(server_id: &str, method: &str, path: &str) -> String {
     let route_key = format!("{}:{}", method, path);
     
-    // Verifica rotas primeiro
+    // Verifica conteúdo dinâmico (lambdas)
+    let dynamic_lambda = {
+        let handlers = DYNAMIC_HANDLERS.lock().unwrap();
+        handlers.get(server_id).and_then(|routes| routes.get(&route_key).cloned())
+    };
+
+    if let Some(lambda_id) = dynamic_lambda {
+        // Envia para o interpreter e aguarda resposta
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        
+        PENDING_REQUESTS.lock().unwrap().push(HttpRequestEvent {
+            server_id: server_id.to_string(),
+            method: method.to_string(),
+            path: path.to_string(),
+            lambda_id,
+            response_channel: tx,
+        });
+
+        // Aguarda a resposta (bloqueia a thread da conexão HTTP)
+        // Como estamos em uma thread de thread::spawn, podemos usar block_on ou similar do Tokio
+        // Mas o tokio está disponível via RUNTIME no websocket.rs/database.rs. 
+        // Vamos usar um loop de espera aqui por simplicidade ou o runtime se disponível.
+        
+        match RUNTIME.block_on(async {
+            tokio::time::timeout(Duration::from_secs(30), rx).await
+        }) {
+            Ok(Ok(resp)) => {
+                return format!(
+                    "HTTP/1.1 {} OK\r\nContent-Type: text/html; charset=utf-8\r\n\r\n{}",
+                    resp.status,
+                    resp.body
+                );
+            }
+            _ => {
+                return "HTTP/1.1 500 Internal Server Error\r\n\r\nTimeout no processamento da requisição".to_string();
+            }
+        }
+    }
+
+    // Verifica rotas estáticas
     if let Some(handler) = ROUTE_HANDLERS.lock().unwrap()
         .get(server_id)
         .and_then(|routes| routes.get(&route_key)) {
@@ -178,6 +236,7 @@ pub fn register_http_server_functions(functions: &mut HashMap<String, NativeFunc
     
     // Configuração de rotas
     functions.insert("native_http_server_route".to_string(), native_http_server_route);
+    functions.insert("native_http_server_handle".to_string(), native_http_server_handle);
     functions.insert("native_http_server_get".to_string(), native_http_server_get);
     functions.insert("native_http_server_post".to_string(), native_http_server_post);
     functions.insert("native_http_server_put".to_string(), native_http_server_put);
@@ -606,6 +665,67 @@ async fn handle_request(
     // ... código original aqui ...
 }
 */
+
+/// native_http_server_handle(server_id, method, path, lambda) -> null
+/// Registra um handler dinâmico (lambda) para uma rota
+fn native_http_server_handle(args: &[Value], _manager: &crate::native_modules::NativeModuleManager, _heap: &mut crate::heap::Heap) -> Result<Value, RuntimeError> {
+    if args.len() != 4 {
+        return Err(RuntimeError::ArgumentError("native_http_server_handle espera 4 argumentos (server_id, method, path, lambda)".to_string()));
+    }
+    
+    let server_id = match &args[0] {
+        Value::String(s) => s.clone(),
+        _ => return Err(RuntimeError::TypeError("Primeiro argumento deve ser string (server_id)".to_string())),
+    };
+    
+    let method = match &args[1] {
+        Value::String(s) => s.to_uppercase(),
+        _ => return Err(RuntimeError::TypeError("Segundo argumento deve ser string (method)".to_string())),
+    };
+    
+    let path = match &args[2] {
+        Value::String(s) => s.clone(),
+        _ => return Err(RuntimeError::TypeError("Terceiro argumento deve ser string (path)".to_string())),
+    };
+    
+    let lambda_id = match &args[3] {
+        Value::Lambda(id) => *id,
+        _ => return Err(RuntimeError::TypeError("Quarto argumento deve ser uma lambda".to_string())),
+    };
+    
+    let route_key = format!("{}:{}", method, path);
+    DYNAMIC_HANDLERS.lock().unwrap()
+        .entry(server_id)
+        .or_insert_with(HashMap::new())
+        .insert(route_key, lambda_id);
+    
+    Ok(Value::Null)
+}
+
+/// Função chamada pelo interpreter para processar requisições pendentes
+pub fn process_pending_requests<F>(callback: F) -> Result<(), RuntimeError> 
+where F: Fn(String, String, String, HeapId) -> Result<(u16, String), RuntimeError> {
+    let mut requests = {
+        let mut pending = PENDING_REQUESTS.lock().unwrap();
+        if pending.is_empty() {
+            return Ok(());
+        }
+        std::mem::take(&mut *pending)
+    };
+
+    for mut req in requests.drain(..) {
+        match callback(req.server_id, req.method, req.path, req.lambda_id) {
+            Ok((status, body)) => {
+                let _ = req.response_channel.send(HttpResponse { status, body });
+            }
+            Err(e) => {
+                let _ = req.response_channel.send(HttpResponse { status: 500, body: e.to_string() });
+            }
+        }
+    }
+
+    Ok(())
+}
 
 /// Determina tipo de conteúdo baseado na extensão do arquivo
 fn get_content_type(file_path: &str) -> String {

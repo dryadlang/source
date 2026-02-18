@@ -489,7 +489,7 @@ impl VM {
                 return Ok(ExecutionControl::Return);
             }
 
-            OpCode::Closure(upvalue_count) =\u003e {
+            OpCode::Closure(upvalue_count) => {
                 // A função já está no topo da pilha (colocada por Constant)
                 let function_value = self.peek(0)?.clone();
                 

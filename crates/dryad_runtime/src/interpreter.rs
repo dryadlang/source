@@ -48,6 +48,7 @@ pub struct Interpreter {
     call_depth: usize,
     compile_mode: bool,
     jit_mode: bool,
+    pending_return_value: Option<Value>,
 }
 
 const MAX_RECURSION_DEPTH: usize = 1000;
@@ -71,6 +72,7 @@ impl Interpreter {
             call_depth: 0,
             compile_mode: false,
             jit_mode: false,
+            pending_return_value: None,
         }
     }
 
@@ -131,6 +133,53 @@ impl Interpreter {
         Ok(last_value.to_string())
     }
 
+    fn check_visibility(&self, visibility: &Visibility, defining_class: &str) -> bool {
+        match visibility {
+            Visibility::Public => true,
+            Visibility::Private => {
+                self.env.current_class.as_ref() == Some(&defining_class.to_string())
+            }
+            Visibility::Protected => {
+                if let Some(current_class) = &self.env.current_class {
+                    self.is_subclass_of(current_class, defining_class)
+                        || self.is_subclass_of(defining_class, current_class)
+                } else {
+                    false
+                }
+            }
+        }
+    }
+
+    fn is_subclass_of(&self, sub_class: &str, target_parent: &str) -> bool {
+        if sub_class == target_parent {
+            return true;
+        }
+
+        let mut current = sub_class.to_string();
+        let mut visited = std::collections::HashSet::new();
+        visited.insert(current.clone());
+
+        while let Some(Value::Class(id)) = self.env.classes.get(&current) {
+            if let Some(ManagedObject::Class { parent, .. }) = self.heap.get(*id) {
+                if let Some(parent_name) = parent {
+                    if parent_name == target_parent {
+                        return true;
+                    }
+                    if visited.contains(parent_name) {
+                        break; // Cycle detected
+                    }
+                    current = parent_name.clone();
+                    visited.insert(current.clone());
+                } else {
+                    break;
+                }
+            } else {
+                break;
+            }
+        }
+        false
+    }
+
     /// Executa o programa usando bytecode VM
     fn execute_bytecode(&mut self, program: &Program) -> Result<String, DryadError> {
         use dryad_bytecode::DebugChunk;
@@ -140,10 +189,13 @@ impl Interpreter {
         let chunk = match compiler.compile(program.clone()) {
             Ok(chunk) => chunk,
             Err(e) => {
-                return Err(DryadError::Runtime(
-                    dryad_errors::ErrorLocation::new(1, 1),
-                    format!("Erro de compilação bytecode: {}", e),
-                ));
+                return Err(DryadError::Runtime {
+                    code: 3000,
+                    message: format!("Erro de compilação bytecode: {}", e),
+                    location: dryad_errors::SourceLocation::unknown(),
+                    stack_trace: dryad_errors::StackTrace::new(),
+                    debug_context: None,
+                });
             }
         };
 
@@ -175,16 +227,22 @@ impl Interpreter {
                 Ok(String::new())
             }
             BytecodeInterpretResult::CompileError => {
-                Err(DryadError::Runtime(
-                    dryad_errors::ErrorLocation::new(1, 1),
-                    "Erro de compilação bytecode".to_string(),
-                ))
+                Err(DryadError::Runtime {
+                    code: 3001,
+                    message: "Erro de compilação bytecode".to_string(),
+                    location: dryad_errors::SourceLocation::unknown(),
+                    stack_trace: dryad_errors::StackTrace::new(),
+                    debug_context: None,
+                })
             }
             BytecodeInterpretResult::RuntimeError => {
-                Err(DryadError::Runtime(
-                    dryad_errors::ErrorLocation::new(1, 1),
-                    "Erro em tempo de execução bytecode".to_string(),
-                ))
+                Err(DryadError::Runtime {
+                    code: 3002,
+                    message: "Erro em tempo de execução bytecode".to_string(),
+                    location: dryad_errors::SourceLocation::unknown(),
+                    stack_trace: dryad_errors::StackTrace::new(),
+                    debug_context: None,
+                })
             }
         }
     }
@@ -193,14 +251,16 @@ impl Interpreter {
     fn value_to_bytecode_value(&self, value: &Value) -> Result<dryad_bytecode::Value, String> {
         match value {
             Value::Null => Ok(dryad_bytecode::Value::Nil),
-            Value::Boolean(b) => Ok(dryad_bytecode::Value::Boolean(*b)),
+            Value::Bool(b) => Ok(dryad_bytecode::Value::Boolean(*b)),
             Value::Number(n) => Ok(dryad_bytecode::Value::Number(*n)),
             Value::String(s) => Ok(dryad_bytecode::Value::String(s.clone())),
             Value::Array(arr) => {
                 // Converte array de runtime para array de bytecode
                 let mut bc_values = Vec::new();
-                for v in arr {
-                    bc_values.push(self.value_to_bytecode_value(v)?);
+                if let Some(ManagedObject::Array(elements)) = self.heap.get(*arr) {
+                    for v in elements {
+                        bc_values.push(self.value_to_bytecode_value(v)?);
+                    }
                 }
                 // Cria um objeto array no heap da VM
                 Ok(dryad_bytecode::Value::Object(dryad_bytecode::HeapId(0))) // Placeholder
@@ -459,6 +519,9 @@ impl Interpreter {
         // Hook de depuração
         self.check_debug_hooks(location)?;
 
+        // Poll for native events (like HTTP requests)
+        let _ = self.poll_native_events();
+
         // Proteção contra recursão infinita
         self.call_depth += 1;
         if self.call_depth > MAX_RECURSION_DEPTH {
@@ -589,25 +652,26 @@ impl Interpreter {
                             None
                         };
 
-                        if let Some(setter) = setter_to_run {
-                            match setter.visibility {
-                                Visibility::Private => {
-                                    return Err(DryadError::new(
-                                        3029,
-                                        &format!("Setter '{}' é privado", property_name),
-                                    ));
-                                }
-                                _ => {
-                                    // Execute setter with 'this' and parameter
-                                    let mut setter_env = self.env.clone();
-                                    setter_env.variables.insert("this".to_string(), object.clone());
-                                    setter_env.variables.insert(setter.param.clone(), value.clone());
-                                    let prev_env = std::mem::replace(&mut self.env, setter_env);
-                                    let _ = self.execute_statement(&setter.body);
-                                    self.env = prev_env;
-                                    return Ok(value);
-                                }
-                            }
+                        let is_visible = self.check_visibility(&setter.visibility, &class_name);
+
+                        if !is_visible {
+                            return Err(DryadError::new(
+                                3029,
+                                &format!("Setter '{}' não é acessível (visibilidade: {:?})", property_name, setter.visibility),
+                            ));
+                        }
+
+                            // Execute setter with 'this' and parameter
+                            let mut setter_env = self.env.clone();
+                            let saved_class = self.env.current_class.clone();
+                            setter_env.variables.insert("this".to_string(), object.clone());
+                            setter_env.current_class = Some(class_name.clone());
+                            setter_env.variables.insert(setter.param.clone(), value.clone());
+                            let prev_env = std::mem::replace(&mut self.env, setter_env);
+                            let _ = self.execute_statement(&setter.body);
+                            self.env = prev_env;
+                            self.env.current_class = saved_class;
+                            return Ok(value);
                         }
 
                         // No setter found, assign directly to instance
@@ -616,6 +680,19 @@ impl Interpreter {
                         })?;
                         
                         if let ManagedObject::Instance { properties, .. } = heap_obj {
+                            // Check visibility for direct property write if it's defined in the class
+                            if let Some(Value::Class(cid)) = self.env.classes.get(&class_name) {
+                                if let Some(ManagedObject::Class { properties: class_props, .. }) = self.heap.get(*cid) {
+                                    if let Some(prop_def) = class_props.get(property_name) {
+                                        if !self.check_visibility(&prop_def.visibility, &class_name) {
+                                            return Err(DryadError::new(
+                                                3029,
+                                                &format!("Propriedade '{}' não é acessível para escrita (visibilidade: {:?})", property_name, prop_def.visibility),
+                                            ));
+                                        }
+                                    }
+                                }
+                            }
                             properties.insert(property_name.clone(), value.clone());
                             Ok(value)
                         } else {
@@ -634,7 +711,79 @@ impl Interpreter {
                             Err(DryadError::new(3101, "Heap error: Expected Object"))
                         }
                     }
-                    _ => Err(self.runtime_error(3034, "Tentativa de atribuir propriedade a valor que não é uma instância ou objeto"))
+                    Value::Class(id) => {
+                        let heap_obj = self.heap.get_mut(id).ok_or_else(|| {
+                            DryadError::new(3100, "Heap error: Class reference not found")
+                        })?;
+
+                        if let ManagedObject::Class {
+                            name: class_name,
+                            properties,
+                            setters,
+                            ..
+                        } = heap_obj
+                        {
+                            let class_name = class_name.clone();
+                            let setters = setters.clone();
+
+                            // Check for static setter first
+                            if let Some(setter) = setters.get(property_name) {
+                                if !setter.is_static {
+                                    return Err(DryadError::new(
+                                        3029,
+                                        &format!("Setter '{}' não é estático", property_name),
+                                    ));
+                                }
+
+                                if !self.check_visibility(&setter.visibility, &class_name) {
+                                    return Err(DryadError::new(
+                                        3029,
+                                        &format!("Setter '{}' não é acessível (visibilidade: {:?})", property_name, setter.visibility),
+                                    ));
+                                }
+
+                                // Execute setter with 'current_class' set
+                                let mut setter_env = self.env.clone();
+                                let saved_class = self.env.current_class.clone();
+                                setter_env.current_class = Some(class_name.clone());
+                                setter_env.variables.insert(setter.param.clone(), value.clone());
+                                let prev_env = std::mem::replace(&mut self.env, setter_env);
+                                let _ = self.execute_statement(&setter.body);
+                                self.env = prev_env;
+                                self.env.current_class = saved_class;
+                                return Ok(value);
+                            }
+
+                            if let Some(prop) = properties.get_mut(property_name) {
+                                // Check if property is static
+                                if !prop.is_static {
+                                    return Err(DryadError::new(
+                                        3029,
+                                        &format!("Propriedade '{}' não é estática na classe '{}'", property_name, class_name),
+                                    ));
+                                }
+
+                                // Check visibility
+                                if !self.check_visibility(&prop.visibility, &class_name) {
+                                    return Err(DryadError::new(
+                                        3029,
+                                        &format!("Propriedade estática '{}' não é acessível para escrita (visibilidade: {:?})", property_name, prop.visibility),
+                                    ));
+                                }
+
+                                prop.default_value = Some(value.clone());
+                                Ok(value)
+                            } else {
+                                Err(DryadError::new(
+                                    3030,
+                                    &format!("Propriedade estática '{}' não encontrada na classe '{}'", property_name, class_name),
+                                ))
+                            }
+                        } else {
+                            Err(DryadError::new(3101, "Heap error: Expected Class"))
+                        }
+                    }
+                    _ => Err(self.runtime_error(3034, "Tentativa de atribuir propriedade a valor que não é uma instância, classe ou objeto"))
                 }
             }
             Stmt::IndexAssignment(array_expr, index_expr, value_expr, _) => {
@@ -749,15 +898,17 @@ impl Interpreter {
             Stmt::FunctionDeclaration {
                 name,
                 params,
+                rest_param,
                 body,
                 is_async,
                 ..
             } => {
-                let params_vec: Vec<String> = params.iter().map(|(p, _)| p.clone()).collect();
+                let params_vec: Vec<(String, Option<Expr>)> = params.iter().map(|(p, _, d)| (p.clone(), d.clone())).collect();
                 if *is_async {
                     let async_function = Value::AsyncFunction {
                         name: name.clone(),
                         params: params_vec,
+                        rest_param: rest_param.clone(),
                         body: (**body).clone(),
                     };
                     self.env.variables.insert(name.clone(), async_function);
@@ -765,6 +916,7 @@ impl Interpreter {
                     let function = Value::Function {
                         name: name.clone(),
                         params: params_vec,
+                        rest_param: rest_param.clone(),
                         body: (**body).clone(),
                     };
                     self.env.variables.insert(name.clone(), function);
@@ -774,7 +926,7 @@ impl Interpreter {
             Stmt::ThreadFunctionDeclaration {
                 name, params, body, ..
             } => {
-                let params_vec: Vec<String> = params.iter().map(|(p, _)| p.clone()).collect();
+                let params_vec: Vec<(String, Option<Expr>)> = params.iter().map(|(p, _, d)| (p.clone(), d.clone())).collect();
                 let thread_function = Value::ThreadFunction {
                     name: name.clone(),
                     params: params_vec,
@@ -801,8 +953,8 @@ impl Interpreter {
                             body,
                             ..
                         } => {
-                            let params_vec: Vec<String> =
-                                params.iter().map(|(p, _)| p.clone()).collect();
+                            let params_vec: Vec<(String, Option<Expr>)> =
+                                params.iter().map(|(p, _, d)| (p.clone(), d.clone())).collect();
                             let method = ClassMethod {
                                 visibility: visibility.clone(),
                                 is_static: *is_static,
@@ -913,29 +1065,8 @@ impl Interpreter {
                     Some(e) => self.evaluate(e)?,
                     None => Value::Null,
                 };
-                // Use uma convenção específica para distinguir returns de outros erros
-                match value {
-                    Value::Number(n) => Err(DryadError::new(3021, &format!("RETURN_NUMBER:{}", n))),
-                    Value::String(s) => Err(DryadError::new(3021, &format!("RETURN_STRING:{}", s))),
-                    Value::Bool(b) => Err(DryadError::new(3021, &format!("RETURN_BOOL:{}", b))),
-                    Value::Null => Err(DryadError::new(3021, "RETURN_NULL")),
-                    Value::Array(_)
-                    | Value::Tuple(_)
-                    | Value::Lambda(_)
-                    | Value::Class(_)
-                    | Value::Instance(_)
-                    | Value::Object(_)
-                    | Value::Exception(_)
-                    | Value::Function { .. }
-                    | Value::AsyncFunction { .. }
-                    | Value::ThreadFunction { .. }
-                    | Value::Thread { .. }
-                    | Value::Mutex { .. }
-                    | Value::Promise { .. } => Err(DryadError::new(
-                        3021,
-                        &format!("RETURN_OTHER:{}", value.to_string()),
-                    )),
-                }
+                self.pending_return_value = Some(value);
+                return Err(DryadError::new(3021, "RETURN_PENDING"));
             }
             Stmt::Export(stmt, _) => {
                 // Por enquanto, simplesmente executa o statement interno
@@ -949,6 +1080,37 @@ impl Interpreter {
             Stmt::Import(kind, module_path, _) => {
                 // Importa o módulo com diferentes estratégias
                 self.import_module_with_kind(kind, module_path)
+            }
+            Stmt::Namespace(name, statements, _) => {
+                // Salva estado atual
+                self.env.call_stack_vars.push(self.env.variables.clone());
+                
+                // Limpa variáveis para capturar apenas o que for definido no namespace
+                // Nota: Em uma implementação ideal, namespaces poderiam ver o escopo externo.
+                // Mas para "Organização de código", isolamento é melhor.
+                self.env.variables.clear();
+                
+                // Executa statements
+                for stmt in statements {
+                    self.execute_statement(stmt)?;
+                }
+                
+                // Captura variáveis definidas como propriedades do objeto namespace
+                let properties = self.env.variables.clone();
+                
+                // Restaura estado original
+                if let Some(saved) = self.env.call_stack_vars.pop() {
+                    self.env.variables = saved;
+                }
+                
+                // Cria e registra o objeto namespace
+                let obj_id = self.heap.allocate(ManagedObject::Object {
+                    properties,
+                    methods: HashMap::new(),
+                });
+                self.env.variables.insert(name.clone(), Value::Object(obj_id));
+                
+                Ok(Value::Null)
             }
         };
 
@@ -972,7 +1134,7 @@ impl Interpreter {
             Expr::Index(array_expr, index_expr, _) => self.eval_index(array_expr, index_expr),
             Expr::TupleAccess(tuple_expr, index, _) => self.eval_tuple_access(tuple_expr, *index),
             Expr::Lambda { params, body, .. } => {
-                let params_vec: Vec<String> = params.iter().map(|(p, _)| p.clone()).collect();
+                let params_vec: Vec<(String, Option<Expr>)> = params.iter().map(|(p, _, d)| (p.clone(), d.clone())).collect();
                 let managed_lambda = ManagedObject::Lambda {
                     params: params_vec,
                     body: *body.clone(),
@@ -1011,6 +1173,17 @@ impl Interpreter {
             Expr::Await(expr, _) => self.eval_await(expr),
             Expr::ThreadCall(func_expr, args, _) => self.eval_thread_call(func_expr, args),
             Expr::MutexCreation(_) => self.eval_mutex_creation(),
+            Expr::Try(expr, _) => {
+                let result = self.evaluate(expr)?;
+                match result {
+                    Value::Result(true, val) => Ok(*val),
+                    Value::Result(false, err) => {
+                        self.pending_return_value = Some(Value::Result(false, err));
+                        Err(DryadError::new(3021, "RETURN_PENDING"))
+                    }
+                    _ => Err(self.runtime_error(3050, "Operador '?' só pode ser usado em valores do tipo Result")),
+                }
+            }
         }
     }
 
@@ -1097,8 +1270,8 @@ impl Interpreter {
         let function_value = self.evaluate(func_expr)?;
 
         match function_value {
-            Value::Function { name, params, body } => {
-                self.call_user_function(name, params, body, args, location)
+            Value::Function { name, params, rest_param, body } => {
+                self.call_user_function(name, params, rest_param, body, args, location)
             }
             Value::Lambda(id) => {
                 let heap_obj = self.heap.get(id).cloned().ok_or_else(|| {
@@ -1174,13 +1347,13 @@ impl Interpreter {
             _ => {
                 // Verificar se é uma função definida pelo usuário
                 if let Some(function_value) = self.env.variables.get(name).cloned() {
-                    match function_value {
                         Value::Function {
                             name: _,
                             params,
+                            rest_param,
                             body,
                         } => {
-                            self.call_user_function(name.to_string(), params, body, args, location)
+                            self.call_user_function(name.to_string(), params, rest_param, body, args, location)
                         }
                         Value::Lambda(id) => {
                             let heap_obj = self.heap.get(id).ok_or_else(|| {
@@ -1243,22 +1416,33 @@ impl Interpreter {
     fn call_user_function(
         &mut self,
         function_name: String,
-        params: Vec<String>,
+        params: Vec<(String, Option<Expr>)>,
+        rest_param: Option<String>,
         body: Stmt,
         args: &[Expr],
         location: &SourceLocation,
     ) -> Result<Value, DryadError> {
         let mut arg_values = Vec::new();
         for arg in args {
-            arg_values.push(self.evaluate(arg)?);
+            if let Expr::Spread(expr, _) = arg {
+                let val = self.evaluate(expr)?;
+                if let Value::Array(id) = val {
+                    if let Some(ManagedObject::Array(elements)) = self.heap.get(id) {
+                        arg_values.extend(elements.clone());
+                    }
+                }
+            } else {
+                arg_values.push(self.evaluate(arg)?);
+            }
         }
-        self.call_user_function_values(function_name, params, body, arg_values, location)
+        self.call_user_function_values(function_name, params, rest_param, body, arg_values, location)
     }
 
     fn call_user_function_values(
         &mut self,
         function_name: String,
-        params: Vec<String>,
+        params: Vec<(String, Option<Expr>)>,
+        rest_param: Option<String>,
         body: Stmt,
         arg_values: Vec<Value>,
         location: &SourceLocation,
@@ -1270,18 +1454,6 @@ impl Interpreter {
             return Err(self.runtime_error(3040, "Stack overflow: limite de recursão excedido"));
         }
 
-        // Verificar número de argumentos (allow extra arguments, JavaScript-style)
-        if arg_values.len() < params.len() {
-            self.call_depth -= 1;
-            return Err(self.runtime_error(
-                3004,
-                &format!(
-                    "Número incorreto de argumentos: esperado pelo menos {}, encontrado {}",
-                    params.len(),
-                    arg_values.len()
-                ),
-            ));
-        }
 
         // Salvar estado atual das variáveis para escopo e GC roots
         self.env.call_stack_vars.push(self.env.variables.clone());
@@ -1290,11 +1462,48 @@ impl Interpreter {
         let frame = StackFrame::new(function_name.clone(), location.clone());
         self.current_stack_trace.push_frame(frame);
 
-        // Bind parameters
-        for (i, param) in params.iter().enumerate() {
-            self.env
-                .variables
-                .insert(param.clone(), arg_values[i].clone());
+        // Bind regular parameters
+        for (i, (param_name, default_expr)) in params.iter().enumerate() {
+            let value_result = if i < arg_values.len() {
+                Ok(arg_values[i].clone())
+            } else if let Some(expr) = default_expr {
+                self.evaluate(expr)
+            } else {
+                Err(self.runtime_error(
+                    3004,
+                    &format!(
+                        "Argumento obrigatório '{}' não fornecido na chamada da função '{}'",
+                        param_name, function_name
+                    ),
+                ))
+            };
+
+            match value_result {
+                Ok(val) => {
+                    self.env.variables.insert(param_name.clone(), val);
+                }
+                Err(err) => {
+                    self.call_depth -= 1;
+                    if !self.current_stack_trace.frames.is_empty() {
+                         self.current_stack_trace.frames.pop();
+                    }
+                    if let Some(saved) = self.env.call_stack_vars.pop() {
+                        self.env.variables = saved;
+                    }
+                    return Err(err);
+                }
+            }
+        }
+
+        // Bind rest parameter if present
+        if let Some(rest_name) = rest_param {
+            let rest_elements = if arg_values.len() > params.len() {
+                arg_values[params.len()..].to_vec()
+            } else {
+                Vec::new()
+            };
+            let array_id = self.heap.allocate(ManagedObject::Array(rest_elements));
+            self.env.variables.insert(rest_name, Value::Array(array_id));
         }
 
         // Executar corpo da função
@@ -1303,27 +1512,7 @@ impl Interpreter {
             Err(err) => {
                 // Verificar se é um retorno especial
                 if err.code() == 3021 {
-                    if err.message() == "RETURN_NULL" {
-                        Ok(Value::Null)
-                    } else if let Some(num_str) = err.message().strip_prefix("RETURN_NUMBER:") {
-                        if let Ok(num) = num_str.parse::<f64>() {
-                            Ok(Value::Number(num))
-                        } else {
-                            Ok(Value::Null)
-                        }
-                    } else if let Some(str_val) = err.message().strip_prefix("RETURN_STRING:") {
-                        Ok(Value::String(str_val.to_string()))
-                    } else if let Some(bool_str) = err.message().strip_prefix("RETURN_BOOL:") {
-                        if let Ok(bool_val) = bool_str.parse::<bool>() {
-                            Ok(Value::Bool(bool_val))
-                        } else {
-                            Ok(Value::Null)
-                        }
-                    } else if let Some(other_val) = err.message().strip_prefix("RETURN_OTHER:") {
-                        Ok(Value::String(other_val.to_string()))
-                    } else {
-                        Ok(Value::Null)
-                    }
+                    self.parse_return_value(err.message())
                 } else {
                     Err(err)
                 }
@@ -1344,7 +1533,7 @@ impl Interpreter {
 
     fn call_lambda(
         &mut self,
-        params: Vec<String>,
+        params: Vec<(String, Option<Expr>)>,
         body: Expr,
         closure: HashMap<String, Value>,
         args: &[Expr],
@@ -1359,7 +1548,7 @@ impl Interpreter {
 
     fn call_lambda_values(
         &mut self,
-        params: Vec<String>,
+        params: Vec<(String, Option<Expr>)>,
         body: Expr,
         closure: HashMap<String, Value>,
         arg_values: Vec<Value>,
@@ -1375,30 +1564,40 @@ impl Interpreter {
             ));
         }
 
-        // Verificar número de argumentos (allow extra arguments, JavaScript-style)
-        if arg_values.len() < params.len() {
-            self.call_depth -= 1;
-            return Err(DryadError::new(
-                3004,
-                &format!(
-                    "Número incorreto de argumentos: esperado pelo menos {}, encontrado {}",
-                    params.len(),
-                    arg_values.len()
-                ),
-            ));
-        }
-
         // Salvar estado atual das variáveis para escopo e GC roots
         self.env.call_stack_vars.push(self.env.variables.clone());
 
         // Restaurar o closure (escopo onde a lambda foi criada)
         self.env.variables = closure;
 
-        // Criar parâmetros com os valores já avaliados
-        for (i, param) in params.iter().enumerate() {
-            self.env
-                .variables
-                .insert(param.clone(), arg_values[i].clone());
+        // Bind parameters
+        for (i, (param_name, default_expr)) in params.iter().enumerate() {
+            let value_result = if i < arg_values.len() {
+                Ok(arg_values[i].clone())
+            } else if let Some(expr) = default_expr {
+                self.evaluate(expr)
+            } else {
+                Err(DryadError::new(
+                    3004,
+                    &format!(
+                        "Argumento obrigatório '{}' não fornecido na lambda",
+                        param_name
+                    ),
+                ))
+            };
+
+            match value_result {
+                Ok(val) => {
+                    self.env.variables.insert(param_name.clone(), val);
+                }
+                Err(err) => {
+                    self.call_depth -= 1;
+                    if let Some(saved) = self.env.call_stack_vars.pop() {
+                        self.env.variables = saved;
+                    }
+                    return Err(err);
+                }
+            }
         }
 
         // Executar corpo da lambda (é uma expressão)
@@ -2084,17 +2283,29 @@ impl Interpreter {
         self.env.variables.insert(name, value);
     }
 
-    fn eval_array(&mut self, elements: &[Expr]) -> Result<Value, DryadError> {
+    fn eval_array(&mut self, elements: &[Expr], _location: &SourceLocation) -> Result<Value, DryadError> {
         let mut values = Vec::new();
-
-        for element in elements {
-            let value = self.evaluate(element)?;
-            values.push(value);
+        for expr in elements {
+            if let Expr::Spread(inner_expr, _) = expr {
+                let val = self.evaluate(inner_expr)?;
+                if let Value::Array(id) = val {
+                    if let Some(ManagedObject::Array(inner_elements)) = self.heap.get(id) {
+                        values.extend(inner_elements.clone());
+                    }
+                } else if let Value::Tuple(id) = val {
+                     if let Some(ManagedObject::Tuple(inner_elements)) = self.heap.get(id) {
+                        values.extend(inner_elements.clone());
+                    }
+                } else {
+                    return Err(self.runtime_error(3006, "Somente arrays e tuplas podem ser usados com o operador spread em literais de array"));
+                }
+            } else {
+                values.push(self.evaluate(expr)?);
+            }
         }
-
-        let array_id = self.heap.allocate(ManagedObject::Array(values));
+        let id = self.heap.allocate(ManagedObject::Array(values));
         self.maybe_collect_garbage();
-        Ok(Value::Array(array_id))
+        Ok(Value::Array(id))
     }
 
     fn eval_tuple(&mut self, elements: &[Expr]) -> Result<Value, DryadError> {
@@ -2409,14 +2620,11 @@ impl Interpreter {
                         }
 
                         // Check visibility
-                        match method.visibility {
-                            Visibility::Private => {
-                                return Err(DryadError::new(
-                                    3024,
-                                    &format!("Método '{}' é privado", method_name),
-                                ));
-                            }
-                            _ => {}
+                        if !self.check_visibility(&method.visibility, class_name) {
+                            return Err(DryadError::new(
+                                3024,
+                                &format!("Método '{}' não é acessível (visibilidade: {:?})", method_name, method.visibility),
+                            ));
                         }
 
                         // Evaluate arguments
@@ -2425,24 +2633,32 @@ impl Interpreter {
                             arg_values.push(self.evaluate(arg)?);
                         }
 
-                        if arg_values.len() != method.params.len() {
-                            return Err(DryadError::new(
-                                3025,
-                                &format!(
-                                    "Método '{}' espera {} argumentos, mas recebeu {}",
-                                    method_name,
-                                    method.params.len(),
-                                    arg_values.len()
-                                ),
-                            ));
-                        }
-
                         let saved_vars = self.env.variables.clone();
                         let saved_instance = self.env.current_instance.clone();
-                        self.env.current_instance = None;
+                        let saved_class = self.env.current_class.clone();
 
-                        for (param, value) in method.params.iter().zip(arg_values.iter()) {
-                            self.env.variables.insert(param.clone(), value.clone());
+                        self.env.current_instance = None;
+                        self.env.current_class = Some(class_name.clone());
+
+                        // Bind parameters
+                        for (i, (param_name, default_expr)) in method.params.iter().enumerate() {
+                            let value = if i < arg_values.len() {
+                                arg_values[i].clone()
+                            } else if let Some(expr) = default_expr {
+                                self.evaluate(expr)?
+                            } else {
+                                self.env.variables = saved_vars;
+                                self.env.current_instance = saved_instance;
+                                self.env.current_class = saved_class;
+                                return Err(DryadError::new(
+                                    3025,
+                                    &format!(
+                                        "Argumento obrigatório '{}' não fornecido no método estático '{}'",
+                                        param_name, method_name
+                                    ),
+                                ));
+                            };
+                            self.env.variables.insert(param_name.clone(), value);
                         }
 
                         let result = match self.execute_statement(&method.body) {
@@ -2458,6 +2674,7 @@ impl Interpreter {
 
                         self.env.variables = saved_vars;
                         self.env.current_instance = saved_instance;
+                        self.env.current_class = saved_class;
                         result
                     } else {
                         Err(DryadError::new(
@@ -2491,14 +2708,11 @@ impl Interpreter {
 
                         if let ManagedObject::Class { methods, .. } = class_obj {
                             if let Some(method) = methods.get(method_name) {
-                                match method.visibility {
-                                    Visibility::Private => {
-                                        return Err(DryadError::new(
-                                            3024,
-                                            &format!("Método '{}' é privado", method_name),
-                                        ));
-                                    }
-                                    _ => {}
+                                if !self.check_visibility(&method.visibility, &class_name) {
+                                    return Err(DryadError::new(
+                                        3024,
+                                        &format!("Método '{}' não é acessível (visibilidade: {:?})", method_name, method.visibility),
+                                    ));
                                 }
 
                                 let mut arg_values = Vec::new();
@@ -2506,25 +2720,32 @@ impl Interpreter {
                                     arg_values.push(self.evaluate(arg)?);
                                 }
 
-                                if arg_values.len() != method.params.len() {
-                                    return Err(DryadError::new(
-                                        3025,
-                                        &format!(
-                                            "Método '{}' espera {} argumentos, mas recebeu {}",
-                                            method_name,
-                                            method.params.len(),
-                                            arg_values.len()
-                                        ),
-                                    ));
-                                }
-
                                 let saved_vars = self.env.variables.clone();
                                 let saved_instance = self.env.current_instance.clone();
+                                let saved_class = self.env.current_class.clone();
 
                                 self.env.current_instance = Some(Value::Instance(id));
+                                self.env.current_class = Some(class_name.clone());
 
-                                for (param, value) in method.params.iter().zip(arg_values.iter()) {
-                                    self.env.variables.insert(param.clone(), value.clone());
+                                // Bind parameters
+                                for (i, (param_name, default_expr)) in method.params.iter().enumerate() {
+                                    let value = if i < arg_values.len() {
+                                        arg_values[i].clone()
+                                    } else if let Some(expr) = default_expr {
+                                        self.evaluate(expr)?
+                                    } else {
+                                        self.env.variables = saved_vars;
+                                        self.env.current_instance = saved_instance;
+                                        self.env.current_class = saved_class;
+                                        return Err(DryadError::new(
+                                            3025,
+                                            &format!(
+                                                "Argumento obrigatório '{}' não fornecido no método '{}'",
+                                                param_name, method_name
+                                            ),
+                                        ));
+                                    };
+                                    self.env.variables.insert(param_name.clone(), value);
                                 }
 
                                 let result = match self.execute_statement(&method.body) {
@@ -2540,6 +2761,7 @@ impl Interpreter {
 
                                 self.env.variables = saved_vars;
                                 self.env.current_instance = saved_instance;
+                                self.env.current_class = saved_class;
                                 result
                             } else {
                                 Err(DryadError::new(
@@ -2586,25 +2808,29 @@ impl Interpreter {
                             arg_values.push(self.evaluate(arg)?);
                         }
 
-                        if arg_values.len() != method.params.len() {
-                            return Err(DryadError::new(
-                                3025,
-                                &format!(
-                                    "Método '{}' espera {} argumentos, mas recebeu {}",
-                                    method_name,
-                                    method.params.len(),
-                                    arg_values.len()
-                                ),
-                            ));
-                        }
-
                         let saved_vars = self.env.variables.clone();
                         let saved_instance = self.env.current_instance.clone();
 
                         self.env.current_instance = Some(Value::Object(id));
 
-                        for (param, value) in method.params.iter().zip(arg_values.iter()) {
-                            self.env.variables.insert(param.clone(), value.clone());
+                        // Bind parameters
+                        for (i, (param_name, default_expr)) in method.params.iter().enumerate() {
+                            let value = if i < arg_values.len() {
+                                arg_values[i].clone()
+                            } else if let Some(expr) = default_expr {
+                                self.evaluate(expr)?
+                            } else {
+                                self.env.variables = saved_vars;
+                                self.env.current_instance = saved_instance;
+                                return Err(DryadError::new(
+                                    3025,
+                                    &format!(
+                                        "Argumento obrigatório '{}' não fornecido no método '{}'",
+                                        param_name, method_name
+                                    ),
+                                ));
+                            };
+                            self.env.variables.insert(param_name.clone(), value);
                         }
 
                         let result = match self.execute_statement(&method.body) {
@@ -2629,22 +2855,25 @@ impl Interpreter {
                                     arg_values.push(self.evaluate(arg)?);
                                 }
 
-                                if arg_values.len() != params.len() {
-                                    return Err(DryadError::new(
-                                        3025,
-                                        &format!(
-                                            "Função '{}' espera {} argumentos, mas recebeu {}",
-                                            method_name,
-                                            params.len(),
-                                            arg_values.len()
-                                        ),
-                                    ));
-                                }
-
                                 let saved_vars = self.env.variables.clone();
 
-                                for (param, value) in params.iter().zip(arg_values.iter()) {
-                                    self.env.variables.insert(param.clone(), value.clone());
+                                // Bind parameters
+                                for (i, (param_name, default_expr)) in params.iter().enumerate() {
+                                    let value = if i < arg_values.len() {
+                                        arg_values[i].clone()
+                                    } else if let Some(expr) = default_expr {
+                                        self.evaluate(expr)?
+                                    } else {
+                                        self.env.variables = saved_vars;
+                                        return Err(DryadError::new(
+                                            3025,
+                                            &format!(
+                                                "Argumento obrigatório '{}' não fornecido na função '{}'",
+                                                param_name, method_name
+                                            ),
+                                        ));
+                                    };
+                                    self.env.variables.insert(param_name.clone(), value);
                                 }
 
                                 let result = match self.execute_statement(body) {
@@ -2702,6 +2931,35 @@ impl Interpreter {
                     ..
                 } = heap_obj
                 {
+                    let (class_props, getters) = (properties.clone(), getters.clone());
+
+                    // Check for getter first
+                    if let Some(getter) = getters.get(property_name) {
+                        if !getter.is_static {
+                            return Err(DryadError::new(
+                                3029,
+                                &format!("Getter '{}' não é estático", property_name),
+                            ));
+                        }
+
+                        if !self.check_visibility(&getter.visibility, &class_name) {
+                            return Err(DryadError::new(
+                                3029,
+                                &format!("Getter '{}' não é acessível (visibilidade: {:?})", property_name, getter.visibility),
+                            ));
+                        }
+
+                        // Execute getter with 'current_class' set
+                        let mut getter_env = self.env.clone();
+                        let saved_class = self.env.current_class.clone();
+                        getter_env.current_class = Some(class_name.clone());
+                        let prev_env = std::mem::replace(&mut self.env, getter_env);
+                        let result = self.execute_statement(&getter.body);
+                        self.env = prev_env;
+                        self.env.current_class = saved_class;
+                        return result;
+                    }
+
                     // Static property access on a class
                     if let Some(class_prop) = class_props.get(property_name) {
                         // Check if property is static
@@ -2712,21 +2970,18 @@ impl Interpreter {
                             ));
                         }
 
-                        // Check visibility (simplified - public only for now)
-                        match class_prop.visibility {
-                            Visibility::Private => {
-                                return Err(DryadError::new(
-                                    3029,
-                                    &format!("Propriedade '{}' é privada", property_name),
-                                ));
-                            }
-                            _ => {
-                                if let Some(default_value) = &class_prop.default_value {
-                                    return Ok(default_value.clone());
-                                } else {
-                                    return Ok(Value::Null);
-                                }
-                            }
+                        // Check visibility
+                        if !self.check_visibility(&class_prop.visibility, &class_name) {
+                            return Err(DryadError::new(
+                                3029,
+                                &format!("Propriedade '{}' não é acessível (visibilidade: {:?})", property_name, class_prop.visibility),
+                            ));
+                        }
+
+                        if let Some(default_value) = &class_prop.default_value {
+                            return Ok(default_value.clone());
+                        } else {
+                            return Ok(Value::Null);
                         }
                     } else {
                         Err(DryadError::new(
@@ -2751,84 +3006,68 @@ impl Interpreter {
                     properties,
                 } = heap_obj
                 {
-                    // First check instance properties
+                    let class_name = class_name.clone();
+                    
+                    // Resolve class definition for visibility checks
+                    let class_info = if let Some(Value::Class(cid)) = self.env.classes.get(&class_name) {
+                        if let Some(ManagedObject::Class { properties: class_props, getters, .. }) = self.heap.get(*cid) {
+                            Some((class_props.clone(), getters.clone()))
+                        } else { None }
+                    } else { None };
+
+                    if let Some((class_props, getters)) = class_info {
+                        // Check for getter first
+                        if let Some(getter) = getters.get(property_name) {
+                            if !self.check_visibility(&getter.visibility, &class_name) {
+                                return Err(DryadError::new(
+                                    3029,
+                                    &format!("Getter '{}' não é acessível (visibilidade: {:?})", property_name, getter.visibility),
+                                ));
+                            }
+
+                            // Execute getter with 'this' bound to instance
+                            let mut getter_env = self.env.clone();
+                            let saved_class = self.env.current_class.clone();
+                            getter_env.variables.insert("this".to_string(), object.clone());
+                            getter_env.current_class = Some(class_name.clone());
+                            let prev_env = std::mem::replace(&mut self.env, getter_env);
+                            let result = self.execute_statement(&getter.body);
+                            self.env = prev_env;
+                            self.env.current_class = saved_class;
+                            return result;
+                        }
+
+                        // Check for property definition
+                        if let Some(prop_def) = class_props.get(property_name) {
+                            if !self.check_visibility(&prop_def.visibility, &class_name) {
+                                return Err(DryadError::new(
+                                    3029,
+                                    &format!("Propriedade '{}' não é acessível (visibilidade: {:?})", property_name, prop_def.visibility),
+                                ));
+                            }
+
+                            if let Some(value) = properties.get(property_name) {
+                                return Ok(value.clone());
+                            }
+                            if let Some(default_value) = &prop_def.default_value {
+                                return Ok(default_value.clone());
+                            }
+                            return Ok(Value::Null);
+                        }
+                    }
+
+                    // Dynamic property access (not in class def)
                     if let Some(value) = properties.get(property_name) {
                         return Ok(value.clone());
                     }
 
-                    // Then check class properties and getters
-                    let (class_props, getter_to_run) =
-                        if let Some(Value::Class(cid)) = self.env.classes.get(class_name) {
-                            if let Some(class_obj) = self.heap.get(*cid) {
-                                if let ManagedObject::Class {
-                                    properties: class_props,
-                                    getters,
-                                    ..
-                                } = class_obj
-                                {
-                                    (
-                                        Some(class_props.clone()),
-                                        getters.get(property_name).cloned(),
-                                    )
-                                } else {
-                                    (None, None)
-                                }
-                            } else {
-                                (None, None)
-                            }
-                        } else {
-                            (None, None)
-                        };
-
-                    // Check for getter first
-                    if let Some(getter) = getter_to_run {
-                        match getter.visibility {
-                            Visibility::Private => {
-                                return Err(DryadError::new(
-                                    3029,
-                                    &format!("Getter '{}' é privado", property_name),
-                                ));
-                            }
-                            _ => {
-                                // Execute getter with 'this' bound to instance
-                                let mut getter_env = self.env.clone();
-                                getter_env
-                                    .variables
-                                    .insert("this".to_string(), object.clone());
-                                let prev_env = std::mem::replace(&mut self.env, getter_env);
-                                let result = self.execute_statement(&getter.body);
-                                self.env = prev_env;
-                                return result;
-                            }
-                        }
-                    }
-
-                    // Then check class properties
-                    if let Some(class_props) = class_props {
-                        if let Some(class_prop) = class_props.get(property_name) {
-                            match class_prop.visibility {
-                                Visibility::Private => {
-                                    return Err(DryadError::new(
-                                        3029,
-                                        &format!("Propriedade '{}' é privada", property_name),
-                                    ));
-                                }
-                                _ => {
-                                    if let Some(default_value) = &class_prop.default_value {
-                                        return Ok(default_value.clone());
-                                    } else {
-                                        return Ok(Value::Null);
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    Err(DryadError::new(
+                        3030,
+                        &format!("Propriedade '{}' não encontrada na instância de '{}'", property_name, class_name),
+                    ))
+                } else {
+                    Err(DryadError::new(3101, "Heap error: Expected Instance"))
                 }
-
-                Err(DryadError::new(
-                    3030,
-                    &format!("Propriedade '{}' não encontrada", property_name),
-                ))
             }
             Value::Object(id) => {
                 let heap_obj = self.heap.get(id).ok_or_else(|| {
@@ -2928,28 +3167,33 @@ impl Interpreter {
                     }
 
                     // Check parameter count
-                    if arg_values.len() != init_method.params.len() {
-                        return Err(DryadError::new(
-                            3032,
-                            &format!(
-                                "Construtor da classe '{}' espera {} argumentos, mas recebeu {}",
-                                class_name,
-                                init_method.params.len(),
-                                arg_values.len()
-                            ),
-                        ));
-                    }
 
                     // Save current state
                     self.env.call_stack_vars.push(self.env.variables.clone());
                     let saved_instance = self.env.current_instance.clone();
+                    let saved_class = self.env.current_class.clone();
 
                     // Set up constructor context
                     self.env.current_instance = Some(instance.clone());
+                    self.env.current_class = Some(class_name.clone());
 
                     // Bind parameters
-                    for (param, value) in init_method.params.iter().zip(arg_values.iter()) {
-                        self.env.variables.insert(param.clone(), value.clone());
+                    // Bind parameters
+                    for (i, (param_name, default_expr)) in init_method.params.iter().enumerate() {
+                        let value = if i < arg_values.len() {
+                            arg_values[i].clone()
+                        } else if let Some(expr) = default_expr {
+                            self.evaluate(expr)?
+                        } else {
+                             return Err(DryadError::new(
+                                3033,
+                                &format!(
+                                    "Argumento obrigatório '{}' não fornecido no construtor da classe '{}'",
+                                    param_name, class_name
+                                ),
+                            ));
+                        };
+                        self.env.variables.insert(param_name.clone(), value);
                     }
 
                     // Execute constructor
@@ -2963,6 +3207,7 @@ impl Interpreter {
                                     self.env.variables = saved;
                                 }
                                 self.env.current_instance = saved_instance;
+                                self.env.current_class = saved_class;
                                 return Err(e);
                             }
                         }
@@ -2973,6 +3218,7 @@ impl Interpreter {
                         self.env.variables = saved;
                     }
                     self.env.current_instance = saved_instance;
+                    self.env.current_class = saved_class;
                 } else if !args.is_empty() {
                     return Err(DryadError::new(
                         3033,
@@ -2996,7 +3242,14 @@ impl Interpreter {
         }
     }
 
-    fn parse_return_value(&self, error_message: &str) -> Result<Value, DryadError> {
+    fn parse_return_value(&mut self, error_message: &str) -> Result<Value, DryadError> {
+        if error_message == "RETURN_PENDING" {
+            if let Some(val) = self.pending_return_value.take() {
+                return Ok(val);
+            }
+        }
+        
+        // Mantém suporte legado para returns string-based se necessário
         if error_message.starts_with("RETURN_NUMBER:") {
             let number_str = &error_message[14..];
             if let Ok(n) = number_str.parse::<f64>() {
@@ -3098,13 +3351,28 @@ impl Interpreter {
             Pattern::Array(patterns) => {
                 if let Value::Array(id) = value {
                     if let Some(ManagedObject::Array(elements)) = self.heap.get(*id) {
-                        if elements.len() != patterns.len() {
-                            return false;
-                        }
+                        let mut element_idx = 0;
                         for (i, p) in patterns.iter().enumerate() {
-                            if !self.match_pattern(&elements[i], p, bindings) {
-                                return false;
+                            if let Pattern::Rest(name) = p {
+                                // Greedily capture remaining elements
+                                let remaining: Vec<Value> = elements[element_idx..].to_vec();
+                                let array_id = self.heap.allocate(ManagedObject::Array(remaining));
+                                // Note: we can't easily trigger GC here as we are in middle of match_pattern (immutable self)
+                                // But match_pattern is &self currently in the file. Wait, I should check if it's &mut self.
+                                // The previous view showed: fn match_pattern(&self, ...)
+                                bindings.insert(name.clone(), Value::Array(array_id));
+                                element_idx = elements.len();
+                                break;
+                            } else {
+                                if element_idx >= elements.len() || !self.match_pattern(&elements[element_idx], p, bindings) {
+                                    return false;
+                                }
+                                element_idx += 1;
                             }
+                        }
+                        // Ensure all elements were matched if no rest pattern was used
+                        if element_idx < elements.len() && !patterns.iter().any(|p| matches!(p, Pattern::Rest(_))) {
+                            return false;
                         }
                         true
                     } else {
@@ -3153,6 +3421,13 @@ impl Interpreter {
                     false
                 }
             }
+            Pattern::Rest(name) => {
+                // Pattern::Rest(name) outside of an Array/Object pattern should probably be an error or equivalent to Identifier.
+                // However, the current structure handles it inside Array/Object logic.
+                // For completeness, we bind it if used alone:
+                bindings.insert(name.clone(), value.clone());
+                true
+            }
         }
     }
 
@@ -3172,7 +3447,7 @@ impl Interpreter {
                     body,
                     ..
                 } => {
-                    let params_vec: Vec<String> = params.iter().map(|(p, _)| p.clone()).collect();
+                    let params_vec: Vec<(String, Option<Expr>)> = params.iter().map(|(p, _, d)| (p.clone(), d.clone())).collect();
                     let method = ObjectMethod {
                         params: params_vec,
                         body: *body.clone(),

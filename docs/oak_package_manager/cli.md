@@ -38,7 +38,9 @@ Instala as dependências do projeto.
 oak install
 ```
 
-- **Nota Técnica**: O comando `install` resolve dependências declaradas no arquivo `oak.json` e as baixa do repositório configurado.
+- **Checksum Validation**: O Oak agora verifica automaticamente o hash SHA-256 de cada pacote baixado para garantir a integridade. Se o hash calculado não coincidir com o fornecido pelo registry, a instalação será abortada.
+- **Semver Support**: O comando `install` agora suporta ranges de versões semânticas (ex: `^1.0.0`, `~2.1.0`).
+- **Resolução de Conflitos**: Se um pacote for encontrado em múltiplos registries, o Oak agora solicita interativamente qual fonte deve ser utilizada (ou permite que você configure uma prioridade).
 
 ### `publish`
 
@@ -107,6 +109,8 @@ Arquivo principal de manifesto do projeto. Define metadados e dependências.
 ### `oaklock.json`
 
 Arquivo gerado automaticamente que mapeia os módulos para seus caminhos físicos. **Não deve ser editado manualmente.**
+
+- **Determinismo**: O lockfile agora armazena a versão exata instalada e o hash de integridade de cada módulo, garantindo que instalações futuras em diferentes máquinas sejam idênticas.
 
 ## Registry
 

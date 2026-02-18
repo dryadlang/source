@@ -38,6 +38,15 @@ Retorna metadados de um pacote.
 - `tag`: Tag ou branch do Git correspondente à versão.
 - `dependencies`: Dependências deste pacote.
 
+- [ ] **T2.1** Validação de Checksum/Integridade [/]
+  - [ ] Calcular SHA-256 do arquivo baixado
+  - [ ] Comparar com hash do registry
+  - [ ] Abortar se falhar
+- [ ] **T2.2** Semantic Versioning Real [/]
+  - [ ] Implementar semver na resolução de dependências
+- [ ] **T2.3** Lockfile Determinístico [/]
+  - [ ] Corrigir e melhorar arquivo de lock
+
 ### `GET /search?q=:query`
 
 Pesquisa pacotes por nome.

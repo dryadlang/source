@@ -6,104 +6,66 @@ subcategory: "Rede"
 order: 33
 ---
 
-# WebSocket
+# WebSockets (Real-time Comms)
 
-Módulo para conexões WebSocket cliente e servidor.
+Interface para comunicação bidirecional de baixa latência através do protocolo WebSocket (RFC 6455).
 
-## Ativação
+> [!IMPORTANT]
+> **Status Atual: Totalmente Operacional (Cliente & Servidor)**.
+> Suporte completo para comunicação WebSocket em ambos os lados.
 
-```dryad
-#<websocket>
-```
+## Referência de Funções (Cliente)
 
-## Funções de Cliente
+### `ws_connect(url: string): object`
 
-### ws_connect(url: string) -> connection
+### `ws_connect(url: string): object`
 
-Conecta a um servidor WebSocket.
+Abre uma conexão WebSocket e retorna um objeto de conexão.
 
-```dryad
-#<websocket>
-let conn = ws_connect("ws://localhost:8080/ws");
-```
+### `ws_send(id: string, message: string): bool`
 
-### ws_send(connection: object, message: string) -> boolean
+Envia uma mensagem de texto para o servidor.
 
-Envia uma mensagem através da conexão WebSocket.
+### `ws_receive(id: string): object | null`
 
-```dryad
-#<websocket>
-ws_send(conn, "Hello, server!");
-```
+Recebe uma mensagem. Retorna um objeto com `{ type: "text" | "binary", data: string | array }` ou `null` se não houver dados.
 
-### ws_receive(connection: object) -> message
+### `ws_close(id: string): bool`
 
-Recebe uma mensagem da conexão WebSocket.
+Encerra a conexão WebSocket.
 
-```dryad
-#<websocket>
-let msg = ws_receive(conn);
-```
+---
 
-### ws_close(connection: object) -> boolean
+## Referência de Funções (Servidor)
 
-Fecha a conexão WebSocket.
+### `ws_server_create(id: string, host: string, port: number): bool`
 
-```dryad
-#<websocket>
-ws_close(conn);
-```
+Cria uma nova instância de servidor WebSocket.
 
-## Funções de Servidor
+### `ws_server_start(id: string): bool`
 
-### ws_create_server(port: number) -> server
+Inicia o servidor e começa a escutar conexões.
 
-Cria um servidor WebSocket.
+### `ws_server_stop(id: string): bool`
 
-```dryad
-#<websocket>
-let server = ws_create_server(8080);
-```
+Encerra o servidor.
 
-### ws_server_accept(server: object) -> connection
+### `ws_server_status(id: string): object`
 
-Aceita uma conexão de cliente.
+Retorna o status do servidor `{ host, port, running }`.
 
-```dryad
-#<websocket>
-let client = ws_server_accept(server);
-```
+---
 
-### ws_server_send(connection: object, message: string) -> boolean
-
-Envia uma mensagem para o cliente.
-
-```dryad
-#<websocket>
-ws_server_send(client, "Welcome!");
-```
-
-### ws_server_receive(connection: object) -> message
-
-Recebe uma mensagem do cliente.
-
-```dryad
-#<websocket>
-let msg = ws_server_receive(client);
-```
-
-## Exemplo Completo
+## Exemplo de Uso
 
 ```dryad
 #<websocket>
 
-// Servidor WebSocket
-let server = ws_create_server(8080);
-let client = ws_server_accept(server);
-
-// Enviar e receber mensagens
-ws_server_send(client, "Connected!");
-let msg = ws_server_receive(client);
-
-ws_close(client);
+let conn = ws_connect("wss://echo.websocket.org");
+if (conn) {
+    ws_send(conn.id, "Olá Dryad!");
+    let msg = ws_receive(conn.id);
+    println("Echo: " + msg.data);
+    ws_close(conn.id);
+}
 ```

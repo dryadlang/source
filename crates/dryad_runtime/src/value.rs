@@ -20,17 +20,19 @@ pub enum Value {
     Exception(String),
     Function {
         name: String,
-        params: Vec<String>,
+        params: Vec<(String, Option<Expr>)>,
+        rest_param: Option<String>,
         body: Stmt,
     },
     AsyncFunction {
         name: String,
-        params: Vec<String>,
+        params: Vec<(String, Option<Expr>)>,
+        rest_param: Option<String>,
         body: Stmt,
     },
     ThreadFunction {
         name: String,
-        params: Vec<String>,
+        params: Vec<(String, Option<Expr>)>,
         body: Stmt,
     },
     Lambda(HeapId),
@@ -50,11 +52,12 @@ pub enum Value {
     Class(HeapId),
     Instance(HeapId),
     Object(HeapId),
+    Result(bool, Box<Value>), // (is_ok, value/error)
 }
 
 #[derive(Debug, Clone)]
 pub struct ObjectMethod {
-    pub params: Vec<String>,
+    pub params: Vec<(String, Option<Expr>)>,
     pub body: Stmt,
 }
 
@@ -62,7 +65,7 @@ pub struct ObjectMethod {
 pub struct ClassMethod {
     pub visibility: Visibility,
     pub is_static: bool,
-    pub params: Vec<String>,
+    pub params: Vec<(String, Option<Expr>)>,
     pub body: Stmt,
 }
 
@@ -76,6 +79,7 @@ pub struct ClassProperty {
 #[derive(Debug, Clone)]
 pub struct ClassGetter {
     pub visibility: Visibility,
+    pub is_static: bool,
     pub name: String,
     pub body: Stmt,
 }
@@ -83,6 +87,7 @@ pub struct ClassGetter {
 #[derive(Debug, Clone)]
 pub struct ClassSetter {
     pub visibility: Visibility,
+    pub is_static: bool,
     pub name: String,
     pub param: String,
     pub body: Stmt,

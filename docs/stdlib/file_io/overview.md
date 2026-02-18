@@ -44,6 +44,53 @@ Para operações de escrita repetitivas (como em loops), as funções de alto n�
 
 ---
 
+## Referência de Funções
+
+### `read_file(path: string): string` (Alias: `native_read_file`)
+
+Lê todo o conteúdo de um arquivo de texto. Requer codificação UTF-8.
+
+### `write_file(path: string, content: string): void` (Alias: `native_write_file`)
+
+Cria ou sobrescreve um arquivo com o conteúdo fornecido.
+
+### `native_append_file(path: string, content: string): void`
+
+Adiciona o conteúdo ao final do arquivo existente sem sobrescrever.
+
+### `file_exists(path: string): bool` (Alias: `native_file_exists`)
+
+Verifica se o arquivo ou diretório existe no disco.
+
+### `list_dir(path: string): [string]` (Alias: `native_list_dir`)
+
+Retorna um array com o nome de todos os arquivos e pastas dentro de um diretório.
+
+### `mkdir(path: string): void` (Alias: `native_mkdir`)
+
+Cria um novo diretório. Suporta criação recursiva se necessário.
+
+### `remove_file(path: string): void` (Alias: `native_remove_file`)
+
+Exclui permanentemente um arquivo.
+
+---
+
+## Exemplo de Uso
+
+```dryad
+#<file_io>
+
+if (!file_exists("logs/app.txt")) {
+    mkdir("logs");
+    write_file("logs/app.txt", "Iniciando log...\n");
+}
+
+native_append_file("logs/app.txt", "Novo evento as " + time.native_time() + "\n");
+```
+
+---
+
 ## 📚 Referências e Paralelos
 
 - **API Base**: [Rust `std::fs` Module](https://doc.rust-lang.org/std/fs/index.html).

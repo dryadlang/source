@@ -83,7 +83,8 @@ pub enum Stmt {
     NativeDirective(String, SourceLocation),   // #<module_name>
     FunctionDeclaration {
         name: String,
-        params: Vec<(String, Option<Type>)>,
+        params: Vec<(String, Option<Type>, Option<Expr>)>,
+        rest_param: Option<String>,
         return_type: Option<Type>,
         body: Box<Stmt>,
         location: SourceLocation,
@@ -91,7 +92,7 @@ pub enum Stmt {
     },
     ThreadFunctionDeclaration {
         name: String,
-        params: Vec<(String, Option<Type>)>,
+        params: Vec<(String, Option<Type>, Option<Expr>)>,
         body: Box<Stmt>,
         location: SourceLocation,
     },
@@ -106,6 +107,7 @@ pub enum Stmt {
     Export(Box<Stmt>, SourceLocation),                                  // export statement
     Use(String, SourceLocation),                                        // use "module/path"
     Import(ImportKind, String, SourceLocation),                         // import statement
+    Namespace(String, Vec<Stmt>, SourceLocation),                       // namespace Name { ... }
 }
 
 #[derive(Debug, Clone)]
@@ -131,7 +133,8 @@ pub enum Expr {
     Index(Box<Expr>, Box<Expr>, SourceLocation),   // array[index]
     TupleAccess(Box<Expr>, usize, SourceLocation), // tuple.index
     Lambda {
-        params: Vec<(String, Option<Type>)>,
+        params: Vec<(String, Option<Type>, Option<Expr>)>,
+        rest_param: Option<String>,
         body: Box<Expr>,
         return_type: Option<Type>,
         location: SourceLocation,
@@ -146,16 +149,19 @@ pub enum Expr {
     ThreadCall(Box<Expr>, Vec<Expr>, SourceLocation),         // thread(func, args...)
     MutexCreation(SourceLocation),                            // mutex()
     Match(Box<Expr>, Vec<MatchArm>, SourceLocation),          // match expr { pat => body, ... }
+    Spread(Box<Expr>, SourceLocation),                         // ...expr
+    Try(Box<Expr>, SourceLocation),                            // expr?
 }
 
 #[derive(Debug, Clone)]
 pub enum Pattern {
+    Identifier(String),
     Literal(Literal),
-    Identifier(String), // Binding
-    Wildcard,           // _
+    Wildcard,
     Array(Vec<Pattern>),
     Tuple(Vec<Pattern>),
     Object(Vec<(String, Pattern)>),
+    Rest(String), // ...rest
 }
 
 impl Pattern {
@@ -189,7 +195,7 @@ pub enum ObjectProperty {
     Property(String, Expr), // key: value
     Method {
         name: String,
-        params: Vec<(String, Option<Type>)>,
+        params: Vec<(String, Option<Type>, Option<Expr>)>,
         return_type: Option<Type>,
         body: Box<Stmt>,
     },
@@ -207,18 +213,20 @@ pub enum ClassMember {
         is_static: bool,
         is_async: bool,
         name: String,
-        params: Vec<(String, Option<Type>)>,
+        params: Vec<(String, Option<Type>, Option<Expr>)>,
         return_type: Option<Type>,
         body: Box<Stmt>,
     },
     Property(Visibility, bool, String, Option<Type>, Option<Expr>), // visibility, is_static, name, type, default_value
     Getter {
         visibility: Visibility,
+        is_static: bool,
         name: String,
         body: Box<Stmt>,
     },
     Setter {
         visibility: Visibility,
+        is_static: bool,
         name: String,
         param: String,
         body: Box<Stmt>,
@@ -241,7 +249,7 @@ impl Default for Visibility {
 #[derive(Debug, Clone)]
 pub struct InterfaceMethod {
     pub name: String,
-    pub params: Vec<(String, Option<Type>)>,
+    pub params: Vec<(String, Option<Type>, Option<Expr>)>,
     pub return_type: Option<Type>,
 }
 

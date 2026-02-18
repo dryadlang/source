@@ -16,7 +16,7 @@ pub enum ManagedObject {
     Array(Vec<Value>),
     Tuple(Vec<Value>),
     Lambda {
-        params: Vec<String>,
+        params: Vec<(String, Option<Expr>)>,
         body: Expr,
         closure: HashMap<String, Value>,
     },

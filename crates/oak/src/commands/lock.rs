@@ -1,10 +1,12 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::fs;
 use std::collections::HashMap;
-use crate::core::config::{OakLock, ModuleConfig};
+use crate::core::config::{OakLock, ModuleConfig, load_config};
 use crate::ui::*;
+use crate::commands::install::calculate_dir_hash;
 
 pub fn generate_lockfile() -> Result<(), Box<dyn std::error::Error>> {
+    let config = load_config()?;
     print_info("🔐 Gerando oaklock.json...");
     let oak_modules_dir = Path::new("oak_modules");
     if !oak_modules_dir.exists() {
@@ -19,7 +21,16 @@ pub fn generate_lockfile() -> Result<(), Box<dyn std::error::Error>> {
         let path = entry.path();
         if path.is_dir() {
              if let Some(pkg_name) = path.file_name().and_then(|n| n.to_str()) {
+                 // Tentar ler a versão do próprio pacote (se ele tiver um oaklibs.json)
+                 // Ou usar a versão registrada no config global se disponível
+                 let pkg_version = config.dependencies.get(pkg_name).cloned().unwrap_or_else(|| "unknown".to_string());
+                 
+                 // Calcular hash real do diretório para o lock
+                 let pkg_hash = calculate_dir_hash(&path).ok();
+
                  let mut module_config = ModuleConfig {
+                     version: pkg_version,
+                     hash: pkg_hash,
                      paths: HashMap::new(),
                  };
 

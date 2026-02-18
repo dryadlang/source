@@ -1,86 +1,66 @@
 ---
-title: "Lista de Códigos de Erro"
-description: "Referência rápida de todos os códigos de erro implementados."
+title: "Guia de Erros"
+description: "Como interpretar diagnósticos e resolver problemas de execução."
 category: "Referências"
-order: 103
+order: 102
 ---
 
-# Códigos de Erro Implementados
+# Guia de Erros e Diagnósticos
 
-Lista completa e correta dos códigos de erro implementados no sistema `dryad_errors`.
+O sistema de erros do Dryad é projetado para ser informativo, preciso e amigável ao desenvolvedor, fornecendo não apenas o que deu errado, mas **onde** e **como** corrigir.
 
-## 1xxx: Erros Léxicos
+## 🚀 Leitura Rápida
 
-| Código   | Descrição                         |
-| :------- | :-------------------------------- |
-| **1001** | Caractere inesperado              |
-| **1002** | Literal de string não terminado   |
-| **1003** | Bloco de comentário não terminado |
-| **1004** | Formato de número inválido        |
-| **1005** | Sequência de escape inválida      |
-| **1006** | Diretiva nativa inválida          |
+- **Identificável**: Cada erro possui um código único de 4 dígitos (ex: E1001).
+- **Informativo**: Mensagens incluem trechos do código fonte (Visual Snippets).
+- **Categorizado**: Faixas numéricas indicam o componente responsável (1xxx: Lexer, 2xxx: Parser, 3xxx: Runtime, etc).
+- **Formatado**: Diagnósticos ricos com cores e ponteiros visuais no terminal.
 
-## 2xxx: Erros de Parser (Sintaxe)
+---
 
-| Código   | Descrição                                  |
-| :------- | :----------------------------------------- |
-| **2001** | Token inesperado                           |
-| **2003** | Ponto e vírgula hiante (missing semicolon) |
-| **2005** | Parêntese de fechamento ausente            |
-| **2011** | Declaração de variável inválida            |
-| **2017** | Parâmetros de função ausentes (esperado)   |
-| **2018** | Condição de while ausente (esperado)       |
-| **2019** | Componentes de for ausentes (esperado)     |
+## ⚙️ Visão Técnica
 
-## 3xxx: Erros de Runtime
+O motor de diagnósticos reside na crate `dryad_errors`. Ele utiliza uma estrutura centralizada para garantir consistência em todo o pipeline de compilação e execução.
 
-| Código   | Descrição                          |
-| :------- | :--------------------------------- |
-| **3001** | Variável não definida              |
-| **3005** | Operação aritmética inválida       |
-| **3006** | Multiplicação inválida             |
-| **3007** | Divisão por zero                   |
-| **3009** | Comparação inválida                |
-| **3010** | Break fora de loop                 |
-| **3011** | Continue fora de loop              |
-| **3020** | Exceção lançada (usuário)          |
-| **3021** | Retorno de função inválido         |
-| **3022** | Contexto `this` inválido           |
-| **3023** | `super` não implementado           |
-| **3034** | Atribuição de propriedade inválida |
+### 1. A Crate `dryad_errors`
 
-## 4xxx: Erros de Tipo (Planejados)
+Diferente de simples strings de erro, o Dryad utiliza o tipo `DryadError` que captura metadados contextuais:
 
-| Código   | Descrição           |
-| :------- | :------------------ |
-| **4001** | Tipos incompatíveis |
-| **4002** | Conversão inválida  |
+- **`code`**: O identificador único para busca rápida na documentação.
+- **`span`**: A localização exata (offset) no arquivo de origem.
+- **`context`**: Linhas adjacentes para exibição visual clara.
 
-## 5xxx: Erros de I/O
+### 2. Formatação Rica (Visual Diagnostics)
 
-| Código   | Descrição              |
-| :------- | :--------------------- |
-| **5001** | Arquivo não encontrado |
-| **5002** | Permissão negada       |
+Inspirado por compiladores modernos como Rust e Elm, o Dryad utiliza bibliotecas como `miette` e `ariadne` para renderizar erros no terminal:
 
-## 6xxx: Erros de Módulo
+```ansi
+error[2003]: missing semicolon
+  --> main.dryad:10:5
+   |
+10 |     let x = 10
+   |               ^ esperado ';' aqui
+```
 
-| Código   | Descrição                  |
-| :------- | :------------------------- |
-| **6001** | Módulo nativo desconhecido |
-| **6002** | Importação circular        |
+### 3. Categorias de Códigos
 
-## 8xxx: Warnings
+| Faixa    | Componente  | Descrição                                               |
+| :------- | :---------- | :------------------------------------------------------ |
+| **1xxx** | **Lexer**   | Erros de baixo nível (caracteres inválidos, strings).   |
+| **2xxx** | **Parser**  | Erros de estrutura gramatical e sintaxe.                |
+| **3xxx** | **Runtime** | Erros durante a execução (tipos, lógica, divisão zero). |
+| **6xxx** | **Module**  | Problemas com importação e resolução de nomes.          |
+| **9xxx** | **System**  | Erros graves do host (memória, stack overflow).         |
 
-| Código   | Descrição                      |
-| :------- | :----------------------------- |
-| **8001** | Variável não utilizada         |
-| **8002** | Função depreciada              |
-| **8003** | Potencial vazamento de memória |
+---
 
-## 9xxx: Erros de Sistema
+## 📚 Referências e Paralelos
 
-| Código   | Descrição                          |
-| :------- | :--------------------------------- |
-| **9001** | Memória insuficiente               |
-| **9002** | Estouros de pilha (Stack Overflow) |
+- **Catálogo Completo**: Consulte a [Lista de Códigos de Erro](errors/error_codes.md).
+- **Inspiração**: [Rust Error Index](https://doc.rust-lang.org/error-index.html).
+- **Ferramentas**: [Crate Miette](https://github.com/zkat/miette).
+
+---
+
+> [!TIP]
+> **Dica**: Use o comando `dryad check` para rodar o `dryad_checker` e identificar erros de tipo (3xxx) antes mesmo de rodar o código.

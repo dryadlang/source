@@ -9,6 +9,7 @@ pub struct Environment {
     pub classes: HashMap<String, Value>,
     pub interfaces: HashMap<String, Vec<InterfaceMember>>,
     pub current_instance: Option<Value>,
+    pub current_class: Option<String>,
     pub imported_modules: HashMap<String, HashMap<String, Value>>,
     pub call_stack_vars: Vec<HashMap<String, Value>>,
 }
@@ -21,6 +22,7 @@ impl Environment {
             classes: HashMap::new(),
             interfaces: HashMap::new(),
             current_instance: None,
+            current_class: None,
             imported_modules: HashMap::new(),
             call_stack_vars: Vec::new(),
         }
@@ -69,6 +71,7 @@ impl Environment {
         self.classes.clear();
         self.interfaces.clear();
         self.current_instance = None;
+        self.current_class = None;
         self.imported_modules.clear();
         self.call_stack_vars.clear();
     }

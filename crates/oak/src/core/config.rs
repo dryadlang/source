@@ -25,13 +25,15 @@ pub enum ProjectType {
     Library,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct OakLock {
     pub modules: HashMap<String, ModuleConfig>,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct ModuleConfig {
+    pub version: String,
+    pub hash: Option<String>,
     pub paths: HashMap<String, String>,
 }
 

@@ -702,7 +702,7 @@ impl Compiler {
     fn compile_function_declaration(
         &mut self,
         name: String,
-        params: Vec<(String, Option<Type>)>,
+        params: Vec<(String, Option<Type>, Option<Expr>)>,
         body: Stmt,
         line: usize,
     ) -> Result<(), String> {
@@ -718,7 +718,7 @@ impl Compiler {
         };
 
         // Adiciona parâmetros como variáveis locais
-        for (param_name, _) in &params {
+        for (param_name, _, _) in &params {
             function_compiler.add_local(param_name.clone());
         }
 
@@ -816,7 +816,7 @@ impl Compiler {
                     method_compiler.add_local("this".to_string());
 
                     // Adiciona parâmetros
-                    for (param_name, _) in &params {
+                    for (param_name, _, _) in &params {
                         method_compiler.add_local(param_name.clone());
                     }
 
@@ -833,6 +833,7 @@ impl Compiler {
                         arity: params.len(),
                         chunk: method_compiler.current_chunk,
                         upvalue_count: 0,
+                        upvalue_info: Vec::new(),
                     };
 
                     // Emite o método

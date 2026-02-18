@@ -5,6 +5,18 @@ use std::collections::HashMap;
 pub struct TypeChecker {
     scopes: Vec<HashMap<String, Type>>,
     errors: Vec<DryadError>,
+    classes: HashMap<String, ClassType>,
+    interfaces: HashMap<String, InterfaceType>,
+}
+
+struct ClassType {
+    parent: Option<String>,
+    interfaces: Vec<String>,
+    members: HashMap<String, Type>, // For simplicity, map member names to types
+}
+
+struct InterfaceType {
+    methods: HashMap<String, Type>,
 }
 
 impl TypeChecker {
@@ -12,6 +24,8 @@ impl TypeChecker {
         Self {
             scopes: vec![HashMap::new()],
             errors: Vec::new(),
+            classes: HashMap::new(),
+            interfaces: HashMap::new(),
         }
     }
 
@@ -84,6 +98,7 @@ impl TypeChecker {
                 body,
                 location: _,
                 is_async: _,
+                rest_param: _,
             } => {
                 // Pre-define function for recursion
                 // For now, simplify function type representation
@@ -94,12 +109,46 @@ impl TypeChecker {
                 );
 
                 self.begin_scope();
-                for (param_name, param_type) in params {
+                for (param_name, param_type, _) in params {
                     self.define(param_name.clone(), param_type.clone().unwrap_or(Type::Any));
                 }
                 self.check_stmt(body);
                 // TODO: Check if all return paths match return_type
                 self.end_scope();
+            }
+            Stmt::ClassDeclaration(name, parent, interfaces, members, _location) => {
+                let mut member_types = HashMap::new();
+                for member in members {
+                    match member {
+                        ClassMember::Method { name, params, return_type, .. } => {
+                            let param_types: Vec<Type> = params.iter().map(|(_, t, _)| t.clone().unwrap_or(Type::Any)).collect();
+                            let ret_type = return_type.clone().unwrap_or(Type::Any);
+                            member_types.insert(name.clone(), Type::Function(param_types, Box::new(ret_type)));
+                        }
+                        ClassMember::Property(_, _, name, prop_type, _) => {
+                            member_types.insert(name.clone(), prop_type.clone().unwrap_or(Type::Any));
+                        }
+                        _ => {}
+                    }
+                }
+                self.classes.insert(name.clone(), ClassType {
+                    parent: parent.clone(),
+                    interfaces: interfaces.clone(),
+                    members: member_types,
+                });
+                self.define(name.clone(), Type::Class(name.clone()));
+            }
+            Stmt::InterfaceDeclaration(name, members, _location) => {
+                let mut methods = HashMap::new();
+                for member in members {
+                    if let dryad_parser::ast::InterfaceMember::Method(m) = member {
+                        let param_types: Vec<Type> = m.params.iter().map(|(_, t, _)| t.clone().unwrap_or(Type::Any)).collect();
+                        let ret_type = m.return_type.clone().unwrap_or(Type::Any);
+                        methods.insert(m.name.clone(), Type::Function(param_types, Box::new(ret_type)));
+                    }
+                }
+                self.interfaces.insert(name.clone(), InterfaceType { methods });
+                self.define(name.clone(), Type::Class(name.clone())); // Interfaces also act as types
             }
             _ => {
                 // Implement other statements as needed
@@ -150,6 +199,35 @@ impl TypeChecker {
                 // TODO: Check argument types against function signature
                 Type::Any
             }
+            Expr::PropertyAccess(object, property, _location) => {
+                let obj_type = self.check_expr(object);
+                if let Type::Class(class_name) = obj_type {
+                    if let Some(cls) = self.classes.get(&class_name) {
+                        if let Some(t) = cls.members.get(property) {
+                            return t.clone();
+                        }
+                    }
+                }
+                Type::Any
+            }
+            Expr::MethodCall(object, method, args, _location) => {
+                let obj_type = self.check_expr(object);
+                for arg in args { self.check_expr(arg); }
+                if let Type::Class(class_name) = obj_type {
+                    if let Some(cls) = self.classes.get(&class_name) {
+                        if let Some(t) = cls.members.get(method) {
+                            if let Type::Function(_, ret) = t {
+                                return (**ret).clone();
+                            }
+                        }
+                    }
+                }
+                Type::Any
+            }
+            Expr::ClassInstantiation(name, args, _location) => {
+                for arg in args { self.check_expr(arg); }
+                Type::Class(name.clone())
+            }
             _ => Type::Any,
         }
     }
@@ -158,7 +236,47 @@ impl TypeChecker {
         if target == &Type::Any || source == &Type::Any {
             return true;
         }
-        target == source
+        if target == source {
+            return true;
+        }
+
+        // Check inheritance and interfaces
+        if let (Type::Class(target_name), Type::Class(source_name)) = (target, source) {
+            if self.is_subtype(source_name, target_name) {
+                return true;
+            }
+        }
+
+        false
+    }
+
+    fn is_subtype(&self, source: &str, target: &str) -> bool {
+        if source == target {
+            return true;
+        }
+
+        if let Some(cls) = self.classes.get(source) {
+            if let Some(parent) = &cls.parent {
+                if self.is_subtype(parent, target) {
+                    return true;
+                }
+            }
+            for interface in &cls.interfaces {
+                if self.is_subtype_interface(interface, target) {
+                    return true;
+                }
+            }
+        }
+
+        false
+    }
+
+    fn is_subtype_interface(&self, interface_name: &str, target: &str) -> bool {
+        if interface_name == target {
+            return true;
+        }
+        // Future: interface inheritance
+        false
     }
 
     fn begin_scope(&mut self) {

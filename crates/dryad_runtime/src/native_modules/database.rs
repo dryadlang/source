@@ -2,31 +2,37 @@ use crate::errors::RuntimeError;
 use crate::heap::{Heap, ManagedObject};
 use crate::interpreter::Value;
 use crate::native_modules::NativeFunction;
+use rusqlite::{Connection, params};
 use std::collections::HashMap;
+use hex;
+use std::sync::Mutex;
+use lazy_static::lazy_static;
+
+use tokio_postgres::{Client, NoTls};
+use tokio::runtime::Runtime;
+use std::sync::Arc;
+
+lazy_static! {
+    static ref SQLITE_CONNECTIONS: Mutex<HashMap<String, Connection>> = Mutex::new(HashMap::new());
+    static ref PG_CLIENTS: Mutex<HashMap<String, Arc<Client>>> = Mutex::new(HashMap::new());
+    static ref RUNTIME: Runtime = Runtime::new().expect("Falha ao criar runtime Tokio para Banco de Dados");
+}
 
 pub fn register_database_functions(functions: &mut HashMap<String, NativeFunction>) {
-    // SQLite functions
     functions.insert("sqlite_open".to_string(), sqlite_open);
     functions.insert("sqlite_close".to_string(), sqlite_close);
     functions.insert("sqlite_execute".to_string(), sqlite_execute);
     functions.insert("sqlite_query".to_string(), sqlite_query);
-    functions.insert("sqlite_prepare".to_string(), sqlite_prepare);
-    functions.insert("sqlite_bind".to_string(), sqlite_bind);
-    functions.insert("sqlite_step".to_string(), sqlite_step);
-    functions.insert("sqlite_columns".to_string(), sqlite_columns);
-
-    // PostgreSQL functions
+    
+    // PostgreSQL
     functions.insert("pg_connect".to_string(), pg_connect);
-    functions.insert("pg_close".to_string(), pg_close);
     functions.insert("pg_execute".to_string(), pg_execute);
     functions.insert("pg_query".to_string(), pg_query);
-    functions.insert("pg_prepare".to_string(), pg_prepare);
-    functions.insert("pg_bind".to_string(), pg_bind);
-    functions.insert("pg_query_params".to_string(), pg_query_params);
+    functions.insert("pg_close".to_string(), pg_close);
 }
 
 // ============================================
-// SQLITE
+// SQLITE IMPLEMENTATION
 // ============================================
 
 fn sqlite_open(
@@ -35,24 +41,28 @@ fn sqlite_open(
     heap: &mut Heap,
 ) -> Result<Value, RuntimeError> {
     if args.len() != 1 {
-        return Err(RuntimeError::ArgumentError(
-            "sqlite_open: esperado 1 argumento".to_string(),
-        ));
+        return Err(RuntimeError::ArgumentError("sqlite_open: esperado 1 argumento (caminho)".to_string()));
     }
 
     let path = match &args[0] {
         Value::String(s) => s.clone(),
-        _ => {
-            return Err(RuntimeError::TypeError(
-                "sqlite_open: argumento deve ser string (caminho)".to_string(),
-            ))
-        }
+        _ => return Err(RuntimeError::TypeError("sqlite_open: argumento deve ser string".to_string())),
     };
+
+    let conn = if path == ":memory:" {
+        Connection::open_in_memory()
+    } else {
+        Connection::open(&path)
+    }.map_err(|e| RuntimeError::IoError(format!("Erro ao abrir banco SQLite: {}", e)))?;
+
+    let connection_id = format!("db_{}", uuid::Uuid::new_v4());
+    SQLITE_CONNECTIONS.lock().unwrap().insert(connection_id.clone(), conn);
 
     let id = heap.allocate(ManagedObject::Object {
         properties: {
             let mut map = HashMap::new();
             map.insert("_type".to_string(), Value::String("sqlite".to_string()));
+            map.insert("id".to_string(), Value::String(connection_id));
             map.insert("path".to_string(), Value::String(path));
             map.insert("connected".to_string(), Value::Bool(true));
             map
@@ -69,16 +79,19 @@ fn sqlite_close(
     _heap: &mut Heap,
 ) -> Result<Value, RuntimeError> {
     if args.len() != 1 {
-        return Err(RuntimeError::ArgumentError(
-            "sqlite_close: esperado 1 argumento".to_string(),
-        ));
+        return Err(RuntimeError::ArgumentError("sqlite_close: esperado 1 argumento (id)".to_string()));
     }
 
-    match &args[0] {
-        Value::Object(_) => Ok(Value::Bool(true)),
-        _ => Err(RuntimeError::TypeError(
-            "sqlite_close: argumento deve ser objeto sqlite".to_string(),
-        )),
+    let connection_id = match &args[0] {
+        Value::String(s) => s,
+        _ => return Err(RuntimeError::TypeError("sqlite_close: argumento deve ser string (id)".to_string())),
+    };
+
+    let mut conns = SQLITE_CONNECTIONS.lock().unwrap();
+    if conns.remove(connection_id).is_some() {
+        Ok(Value::Bool(true))
+    } else {
+        Ok(Value::Bool(false))
     }
 }
 
@@ -87,41 +100,40 @@ fn sqlite_execute(
     _manager: &crate::native_modules::NativeModuleManager,
     heap: &mut Heap,
 ) -> Result<Value, RuntimeError> {
-    if args.len() != 2 {
-        return Err(RuntimeError::ArgumentError(
-            "sqlite_execute: esperado 2 argumentos".to_string(),
-        ));
+    if args.len() < 2 {
+        return Err(RuntimeError::ArgumentError("sqlite_execute: esperado pelo menos 2 argumentos (id, sql, [params])".to_string()));
     }
 
-    let _db = match &args[0] {
-        Value::Object(_) => (),
-        _ => {
-            return Err(RuntimeError::TypeError(
-                "sqlite_execute: primeiro argumento deve ser objeto sqlite".to_string(),
-            ))
-        }
+    let connection_id = match &args[0] {
+        Value::String(s) => s,
+        _ => return Err(RuntimeError::TypeError("sqlite_execute: primeiro argumento deve ser string (id)".to_string())),
     };
 
-    let _sql = match &args[1] {
-        Value::String(_) => (),
-        _ => {
-            return Err(RuntimeError::TypeError(
-                "sqlite_execute: segundo argumento deve ser string (SQL)".to_string(),
-            ))
-        }
+    let sql = match &args[1] {
+        Value::String(s) => s,
+        _ => return Err(RuntimeError::TypeError("sqlite_execute: segundo argumento deve ser string (SQL)".to_string())),
     };
 
-    let id = heap.allocate(ManagedObject::Object {
-        properties: {
-            let mut map = HashMap::new();
-            map.insert("rows_affected".to_string(), Value::Number(0.0));
-            map.insert("last_insert_id".to_string(), Value::Number(0.0));
-            map
-        },
-        methods: HashMap::new(),
-    });
+    let mut conns = SQLITE_CONNECTIONS.lock().unwrap();
+    let conn = conns.get_mut(connection_id).ok_or_else(|| RuntimeError::ArgumentError(format!("Conexão SQLite não encontrada: {}", connection_id)))?;
 
-    Ok(Value::Object(id))
+    // Implementação básica de execute sem parâmetros por enquanto para simplificar o mapeamento
+    match conn.execute(sql, []) {
+        Ok(rows_affected) => {
+            let last_id = conn.last_insert_rowid();
+            let id = heap.allocate(ManagedObject::Object {
+                properties: {
+                    let mut map = HashMap::new();
+                    map.insert("rows_affected".to_string(), Value::Number(rows_affected as f64));
+                    map.insert("last_insert_id".to_string(), Value::Number(last_id as f64));
+                    map
+                },
+                methods: HashMap::new(),
+            });
+            Ok(Value::Object(id))
+        }
+        Err(e) => Err(RuntimeError::IoError(format!("Erro ao executar SQL: {}", e))),
+    }
 }
 
 fn sqlite_query(
@@ -129,164 +141,88 @@ fn sqlite_query(
     _manager: &crate::native_modules::NativeModuleManager,
     heap: &mut Heap,
 ) -> Result<Value, RuntimeError> {
-    if args.len() != 2 {
-        return Err(RuntimeError::ArgumentError(
-            "sqlite_query: esperado 2 argumentos".to_string(),
-        ));
+    if args.len() < 2 {
+        return Err(RuntimeError::ArgumentError("sqlite_query: esperado pelo menos 2 argumentos (id, sql, [params])".to_string()));
     }
 
-    let _db = match &args[0] {
-        Value::Object(_) => (),
-        _ => {
-            return Err(RuntimeError::TypeError(
-                "sqlite_query: primeiro argumento deve ser objeto sqlite".to_string(),
-            ))
-        }
+    let connection_id = match &args[0] {
+        Value::String(s) => s,
+        _ => return Err(RuntimeError::TypeError("sqlite_query: primeiro argumento deve ser string (id)".to_string())),
     };
 
-    let _sql = match &args[1] {
-        Value::String(_) => (),
-        _ => {
-            return Err(RuntimeError::TypeError(
-                "sqlite_query: segundo argumento deve ser string (SQL)".to_string(),
-            ))
-        }
+    let sql = match &args[1] {
+        Value::String(s) => s,
+        _ => return Err(RuntimeError::TypeError("sqlite_query: segundo argumento deve ser string (SQL)".to_string())),
     };
 
-    // Return empty result set
-    let empty_array_id = heap.allocate(ManagedObject::Array(Vec::new()));
-    Ok(Value::Array(empty_array_id))
+    let conns = SQLITE_CONNECTIONS.lock().unwrap();
+    let conn = conns.get(connection_id).ok_or_else(|| RuntimeError::ArgumentError(format!("Conexão SQLite não encontrada: {}", connection_id)))?;
+
+    let mut stmt = conn.prepare(sql).map_err(|e| RuntimeError::IoError(format!("Erro ao preparar query: {}", e)))?;
+    let column_names: Vec<String> = stmt.column_names().iter().map(|s| s.to_string()).collect();
+
+    let mut rows_data = Vec::new();
+    let mut rows_iter = stmt.query_map([], |row| {
+        let mut row_values = Vec::new();
+        for (i, _) in column_names.iter().enumerate() {
+            row_values.push(row.get::<usize, rusqlite::types::Value>(i)?);
+        }
+        Ok(row_values)
+    }).map_err(|e| RuntimeError::IoError(format!("Erro ao executar query: {}", e)))?;
+
+    for row_result in rows_iter {
+        rows_data.push(row_result.map_err(|e| RuntimeError::IoError(format!("Erro ao ler linha: {}", e)))?);
+    }
+
+    let mut rows_vec = Vec::new();
+    for row_values in rows_data {
+        let mut props = HashMap::new();
+        for (i, name) in column_names.iter().enumerate() {
+            let val = &row_values[i];
+            props.insert(name.clone(), sqlite_value_to_dryad_from_value(val, heap));
+        }
+        
+        let obj_id = heap.allocate(ManagedObject::Object {
+            properties: props,
+            methods: HashMap::new(),
+        });
+        rows_vec.push(Value::Object(obj_id));
+    }
+
+    let array_id = heap.allocate(ManagedObject::Array(rows_vec));
+    Ok(Value::Array(array_id))
 }
 
-fn sqlite_prepare(
-    args: &[Value],
-    _manager: &crate::native_modules::NativeModuleManager,
-    heap: &mut Heap,
-) -> Result<Value, RuntimeError> {
-    if args.len() != 2 {
-        return Err(RuntimeError::ArgumentError(
-            "sqlite_prepare: esperado 2 argumentos".to_string(),
-        ));
+fn sqlite_value_to_dryad_from_value(val: &rusqlite::types::Value, heap: &mut Heap) -> Value {
+    match val {
+        rusqlite::types::Value::Null => Value::Null,
+        rusqlite::types::Value::Integer(i) => Value::Number(*i as f64),
+        rusqlite::types::Value::Real(f) => Value::Number(*f),
+        rusqlite::types::Value::Text(s) => Value::String(s.clone()),
+        rusqlite::types::Value::Blob(b) => {
+            // Converter Blob para string hex ou similar se necessário
+            Value::String(hex::encode(b))
+        }
     }
-
-    let _db = match &args[0] {
-        Value::Object(_) => (),
-        _ => {
-            return Err(RuntimeError::TypeError(
-                "sqlite_prepare: primeiro argumento deve ser objeto sqlite".to_string(),
-            ))
-        }
-    };
-
-    let _sql = match &args[1] {
-        Value::String(_) => (),
-        _ => {
-            return Err(RuntimeError::TypeError(
-                "sqlite_prepare: segundo argumento deve ser string (SQL)".to_string(),
-            ))
-        }
-    };
-
-    let id = heap.allocate(ManagedObject::Object {
-        properties: {
-            let mut map = HashMap::new();
-            map.insert(
-                "_type".to_string(),
-                Value::String("sqlite_statement".to_string()),
-            );
-            map.insert("prepared".to_string(), Value::Bool(true));
-            map
-        },
-        methods: HashMap::new(),
-    });
-
-    Ok(Value::Object(id))
 }
 
-fn sqlite_bind(
-    args: &[Value],
-    _manager: &crate::native_modules::NativeModuleManager,
-    _heap: &mut Heap,
-) -> Result<Value, RuntimeError> {
-    if args.len() != 3 {
-        return Err(RuntimeError::ArgumentError(
-            "sqlite_bind: esperado 3 argumentos".to_string(),
-        ));
+fn sqlite_value_to_dryad(val: rusqlite::types::ValueRef, heap: &mut Heap) -> Value {
+    match val {
+        rusqlite::types::ValueRef::Null => Value::Null,
+        rusqlite::types::ValueRef::Integer(i) => Value::Number(i as f64),
+        rusqlite::types::ValueRef::Real(f) => Value::Number(f),
+        rusqlite::types::ValueRef::Text(s) => {
+            let s_str = std::str::from_utf8(s).unwrap_or("");
+            Value::String(s_str.to_string())
+        }
+        rusqlite::types::ValueRef::Blob(b) => {
+            Value::String(hex::encode(b))
+        }
     }
-
-    let _stmt = match &args[0] {
-        Value::Object(_) => (),
-        _ => {
-            return Err(RuntimeError::TypeError(
-                "sqlite_bind: primeiro argumento deve ser objeto statement".to_string(),
-            ))
-        }
-    };
-
-    let _index = match &args[1] {
-        Value::Number(_) => (),
-        _ => {
-            return Err(RuntimeError::TypeError(
-                "sqlite_bind: segundo argumento deve ser número".to_string(),
-            ))
-        }
-    };
-
-    let _value = &args[2];
-
-    Ok(Value::Bool(true))
-}
-
-fn sqlite_step(
-    args: &[Value],
-    _manager: &crate::native_modules::NativeModuleManager,
-    _heap: &mut Heap,
-) -> Result<Value, RuntimeError> {
-    if args.len() != 1 {
-        return Err(RuntimeError::ArgumentError(
-            "sqlite_step: esperado 1 argumento".to_string(),
-        ));
-    }
-
-    let _stmt = match &args[0] {
-        Value::Object(_) => (),
-        _ => {
-            return Err(RuntimeError::TypeError(
-                "sqlite_step: argumento deve ser objeto statement".to_string(),
-            ))
-        }
-    };
-
-    // Return done (no more rows)
-    Ok(Value::Bool(false))
-}
-
-fn sqlite_columns(
-    args: &[Value],
-    _manager: &crate::native_modules::NativeModuleManager,
-    heap: &mut Heap,
-) -> Result<Value, RuntimeError> {
-    if args.len() != 1 {
-        return Err(RuntimeError::ArgumentError(
-            "sqlite_columns: esperado 1 argumento".to_string(),
-        ));
-    }
-
-    let _stmt = match &args[0] {
-        Value::Object(_) => (),
-        _ => {
-            return Err(RuntimeError::TypeError(
-                "sqlite_columns: argumento deve ser objeto statement".to_string(),
-            ))
-        }
-    };
-
-    let empty_array_id = heap.allocate(ManagedObject::Array(Vec::new()));
-    Ok(Value::Array(empty_array_id))
 }
 
 // ============================================
-// POSTGRESQL
+// POSTGRESQL MOCKS
 // ============================================
 
 fn pg_connect(
@@ -295,53 +231,48 @@ fn pg_connect(
     heap: &mut Heap,
 ) -> Result<Value, RuntimeError> {
     if args.len() != 1 {
-        return Err(RuntimeError::ArgumentError(
-            "pg_connect: esperado 1 argumento".to_string(),
-        ));
+        return Err(RuntimeError::ArgumentError("pg_connect: esperado 1 argumento (connection_string)".to_string()));
     }
 
-    let connection_string = match &args[0] {
+    let conn_str = match &args[0] {
         Value::String(s) => s.clone(),
-        _ => {
-            return Err(RuntimeError::TypeError(
-                "pg_connect: argumento deve ser string (connection string)".to_string(),
-            ))
-        }
+        _ => return Err(RuntimeError::TypeError("pg_connect: argumento deve ser string".to_string())),
     };
 
-    let id = heap.allocate(ManagedObject::Object {
-        properties: {
-            let mut map = HashMap::new();
-            map.insert("_type".to_string(), Value::String("postgresql".to_string()));
-            map.insert(
-                "connection_string".to_string(),
-                Value::String(connection_string),
-            );
-            map.insert("connected".to_string(), Value::Bool(true));
-            map
-        },
-        methods: HashMap::new(),
+    let result = RUNTIME.block_on(async {
+        let (client, connection) = tokio_postgres::connect(&conn_str, NoTls).await
+            .map_err(|e| RuntimeError::IoError(format!("Erro ao conectar PostgreSQL: {}", e)))?;
+
+        // A conexão precisa ser spawnada em segundo plano
+        tokio::spawn(async move {
+            if let Err(e) = connection.await {
+                eprintln!("PostgreSQL connection error: {}", e);
+            }
+        });
+
+        Ok(client)
     });
 
-    Ok(Value::Object(id))
-}
+    match result {
+        Ok(client) => {
+            let connection_id = format!("pg_{}", uuid::Uuid::new_v4());
+            PG_CLIENTS.lock().unwrap().insert(connection_id.clone(), Arc::new(client));
 
-fn pg_close(
-    args: &[Value],
-    _manager: &crate::native_modules::NativeModuleManager,
-    _heap: &mut Heap,
-) -> Result<Value, RuntimeError> {
-    if args.len() != 1 {
-        return Err(RuntimeError::ArgumentError(
-            "pg_close: esperado 1 argumento".to_string(),
-        ));
-    }
+            let id = heap.allocate(ManagedObject::Object {
+                properties: {
+                    let mut map = HashMap::new();
+                    map.insert("_type".to_string(), Value::String("postgres".to_string()));
+                    map.insert("id".to_string(), Value::String(connection_id));
+                    map.insert("conn_str".to_string(), Value::String(conn_str));
+                    map.insert("connected".to_string(), Value::Bool(true));
+                    map
+                },
+                methods: HashMap::new(),
+            });
 
-    match &args[0] {
-        Value::Object(_) => Ok(Value::Bool(true)),
-        _ => Err(RuntimeError::TypeError(
-            "pg_close: argumento deve ser objeto postgresql".to_string(),
-        )),
+            Ok(Value::Object(id))
+        }
+        Err(e) => Err(e),
     }
 }
 
@@ -350,48 +281,37 @@ fn pg_execute(
     _manager: &crate::native_modules::NativeModuleManager,
     heap: &mut Heap,
 ) -> Result<Value, RuntimeError> {
-    if args.len() != 3 {
-        return Err(RuntimeError::ArgumentError(
-            "pg_execute: esperado 3 argumentos".to_string(),
-        ));
+    if args.len() < 2 {
+        return Err(RuntimeError::ArgumentError("pg_execute: esperado pelo menos 2 argumentos (id, sql, [params])".to_string()));
     }
 
-    let _conn = match &args[0] {
-        Value::Object(_) => (),
-        _ => {
-            return Err(RuntimeError::TypeError(
-                "pg_execute: primeiro argumento deve ser objeto connection".to_string(),
-            ))
-        }
+    let connection_id = match &args[0] {
+        Value::String(s) => s,
+        _ => return Err(RuntimeError::TypeError("pg_execute: primeiro argumento deve ser string (id)".to_string())),
     };
 
-    let _query = match &args[1] {
-        Value::String(_) => (),
-        _ => {
-            return Err(RuntimeError::TypeError(
-                "pg_execute: segundo argumento deve ser string".to_string(),
-            ))
-        }
+    let sql = match &args[1] {
+        Value::String(s) => s,
+        _ => return Err(RuntimeError::TypeError("pg_execute: segundo argumento deve ser string (SQL)".to_string())),
     };
 
-    let _params = match &args[2] {
-        Value::Array(_) => (),
-        _ => {
-            return Err(RuntimeError::TypeError(
-                "pg_execute: terceiro argumento deve ser array".to_string(),
-            ))
-        }
-    };
+    let clients = PG_CLIENTS.lock().unwrap();
+    let client = clients.get(connection_id).ok_or_else(|| RuntimeError::ArgumentError(format!("Conexão PostgreSQL não encontrada: {}", connection_id)))?.clone();
+
+    // Implementação básica de execute sem parâmetros complexos por enquanto
+    let rows_affected = RUNTIME.block_on(async {
+        client.execute(sql, &[]).await
+            .map_err(|e| RuntimeError::IoError(format!("Erro ao executar PostgreSQL SQL: {}", e)))
+    })?;
 
     let id = heap.allocate(ManagedObject::Object {
         properties: {
             let mut map = HashMap::new();
-            map.insert("rows_affected".to_string(), Value::Number(0.0));
+            map.insert("rows_affected".to_string(), Value::Number(rows_affected as f64));
             map
         },
         methods: HashMap::new(),
     });
-
     Ok(Value::Object(id))
 }
 
@@ -400,167 +320,78 @@ fn pg_query(
     _manager: &crate::native_modules::NativeModuleManager,
     heap: &mut Heap,
 ) -> Result<Value, RuntimeError> {
-    if args.len() != 2 {
-        return Err(RuntimeError::ArgumentError(
-            "pg_query: esperado 2 argumentos".to_string(),
-        ));
+    if args.len() < 2 {
+        return Err(RuntimeError::ArgumentError("pg_query: esperado pelo menos 2 argumentos (id, sql, [params])".to_string()));
     }
 
-    let _conn = match &args[0] {
-        Value::Object(_) => (),
-        _ => {
-            return Err(RuntimeError::TypeError(
-                "pg_query: primeiro argumento deve ser objeto connection".to_string(),
-            ))
-        }
+    let connection_id = match &args[0] {
+        Value::String(s) => s,
+        _ => return Err(RuntimeError::TypeError("pg_query: primeiro argumento deve ser string (id)".to_string())),
     };
 
-    let _sql = match &args[1] {
-        Value::String(_) => (),
-        _ => {
-            return Err(RuntimeError::TypeError(
-                "pg_query: segundo argumento deve ser string (SQL)".to_string(),
-            ))
-        }
+    let sql = match &args[1] {
+        Value::String(s) => s,
+        _ => return Err(RuntimeError::TypeError("pg_query: segundo argumento deve ser string (SQL)".to_string())),
     };
 
-    let empty_array_id = heap.allocate(ManagedObject::Array(Vec::new()));
-    Ok(Value::Array(empty_array_id))
-}
+    let clients = PG_CLIENTS.lock().unwrap();
+    let client = clients.get(connection_id).ok_or_else(|| RuntimeError::ArgumentError(format!("Conexão PostgreSQL não encontrada: {}", connection_id)))?.clone();
 
-fn pg_prepare(
-    args: &[Value],
-    _manager: &crate::native_modules::NativeModuleManager,
-    heap: &mut Heap,
-) -> Result<Value, RuntimeError> {
-    if args.len() != 3 {
-        return Err(RuntimeError::ArgumentError(
-            "pg_prepare: esperado 3 argumentos".to_string(),
-        ));
+    let rows = RUNTIME.block_on(async {
+        client.query(sql, &[]).await
+            .map_err(|e| RuntimeError::IoError(format!("Erro ao executar PostgreSQL query: {}", e)))
+    })?;
+
+    let mut rows_vec = Vec::new();
+    for row in rows {
+        let mut props = HashMap::new();
+        for (i, column) in row.columns().iter().enumerate() {
+            let name = column.name().to_string();
+            // TODO: Mapear mais tipos PostgreSQL
+            let val = if let Ok(s) = row.try_get::<usize, String>(i) {
+                Value::String(s)
+            } else if let Ok(n) = row.try_get::<usize, i32>(i) {
+                Value::Number(n as f64)
+            } else if let Ok(n) = row.try_get::<usize, f64>(i) {
+                Value::Number(n)
+            } else if let Ok(b) = row.try_get::<usize, bool>(i) {
+                Value::Bool(b)
+            } else {
+                Value::Null
+            };
+            props.insert(name, val);
+        }
+        
+        let obj_id = heap.allocate(ManagedObject::Object {
+            properties: props,
+            methods: HashMap::new(),
+        });
+        rows_vec.push(Value::Object(obj_id));
     }
 
-    let _conn = match &args[0] {
-        Value::Object(_) => (),
-        _ => {
-            return Err(RuntimeError::TypeError(
-                "pg_prepare: primeiro argumento deve ser objeto connection".to_string(),
-            ))
-        }
-    };
-
-    let _name = match &args[1] {
-        Value::String(_) => (),
-        _ => {
-            return Err(RuntimeError::TypeError(
-                "pg_prepare: segundo argumento deve ser string (statement name)".to_string(),
-            ))
-        }
-    };
-
-    let _sql = match &args[2] {
-        Value::String(_) => (),
-        _ => {
-            return Err(RuntimeError::TypeError(
-                "pg_prepare: terceiro argumento deve ser string (SQL)".to_string(),
-            ))
-        }
-    };
-
-    let id = heap.allocate(ManagedObject::Object {
-        properties: {
-            let mut map = HashMap::new();
-            map.insert(
-                "_type".to_string(),
-                Value::String("pg_statement".to_string()),
-            );
-            map.insert("prepared".to_string(), Value::Bool(true));
-            map
-        },
-        methods: HashMap::new(),
-    });
-
-    Ok(Value::Object(id))
+    let array_id = heap.allocate(ManagedObject::Array(rows_vec));
+    Ok(Value::Array(array_id))
 }
 
-fn pg_bind(
+fn pg_close(
     args: &[Value],
     _manager: &crate::native_modules::NativeModuleManager,
     _heap: &mut Heap,
 ) -> Result<Value, RuntimeError> {
-    if args.len() != 3 {
-        return Err(RuntimeError::ArgumentError(
-            "pg_bind: esperado 3 argumentos".to_string(),
-        ));
+    if args.len() != 1 {
+        return Err(RuntimeError::ArgumentError("pg_close: esperado 1 argumento (id)".to_string()));
     }
 
-    let _conn = match &args[0] {
-        Value::Object(_) => (),
-        _ => {
-            return Err(RuntimeError::TypeError(
-                "pg_bind: primeiro argumento deve ser objeto connection".to_string(),
-            ))
-        }
+    let connection_id = match &args[0] {
+        Value::String(s) => s,
+        _ => return Err(RuntimeError::TypeError("pg_close: argumento deve ser string (id)".to_string())),
     };
 
-    let _stmt = match &args[1] {
-        Value::String(_) => (),
-        _ => {
-            return Err(RuntimeError::TypeError(
-                "pg_bind: segundo argumento deve ser string (statement name)".to_string(),
-            ))
-        }
-    };
-
-    let _params = match &args[2] {
-        Value::Array(_) => (),
-        _ => {
-            return Err(RuntimeError::TypeError(
-                "pg_bind: terceiro argumento deve ser array".to_string(),
-            ))
-        }
-    };
-
-    Ok(Value::Bool(true))
-}
-
-fn pg_query_params(
-    args: &[Value],
-    _manager: &crate::native_modules::NativeModuleManager,
-    heap: &mut Heap,
-) -> Result<Value, RuntimeError> {
-    if args.len() != 3 {
-        return Err(RuntimeError::ArgumentError(
-            "pg_query_params: esperado 3 argumentos".to_string(),
-        ));
+    let mut clients = PG_CLIENTS.lock().unwrap();
+    if clients.remove(connection_id).is_some() {
+        Ok(Value::Bool(true))
+    } else {
+        Ok(Value::Bool(false))
     }
-
-    let _conn = match &args[0] {
-        Value::Object(_) => (),
-        _ => {
-            return Err(RuntimeError::TypeError(
-                "pg_query_params: primeiro argumento deve ser objeto connection".to_string(),
-            ))
-        }
-    };
-
-    let _query = match &args[1] {
-        Value::String(_) => (),
-        _ => {
-            return Err(RuntimeError::TypeError(
-                "pg_query_params: segundo argumento deve ser string".to_string(),
-            ))
-        }
-    };
-
-    let _params = match &args[2] {
-        Value::Array(_) => (),
-        _ => {
-            return Err(RuntimeError::TypeError(
-                "pg_query_params: terceiro argumento deve ser array".to_string(),
-            ))
-        }
-    };
-
-    let empty_array_id = heap.allocate(ManagedObject::Array(Vec::new()));
-    Ok(Value::Array(empty_array_id))
 }
+

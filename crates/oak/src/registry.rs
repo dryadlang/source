@@ -6,7 +6,7 @@ use colored::*;
 
 use crate::core::config::GlobalConfig;
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct RegistryPackageInfo {
     pub version: String,
     pub gitUrl: String,
@@ -15,9 +15,14 @@ pub struct RegistryPackageInfo {
     pub dependencies: HashMap<String, String>,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+pub struct VersionResponse {
+    pub versions: Vec<RegistryPackageInfo>,
+}
+
 pub async fn find_package(
     package_name: &str,
-    version: Option<&str>,
+    version_range: Option<&str>,
     config: &GlobalConfig,
 ) -> Result<(RegistryPackageInfo, String), Box<dyn Error>> {
     println!("{}", format!("🔍 Procurando pacote '{}'...", package_name).cyan());
@@ -31,7 +36,9 @@ pub async fn find_package(
             println!("{}", format!("⚠️ AVISO: Registry '{}' usa conexão insegura ({}). Recomenda-se HTTPS.", reg_name, reg_url).yellow());
         }
 
-        let url = if let Some(ver) = version {
+        // Se uma versão específica foi pedida, tentamos buscar direto.
+        // Caso contrário, buscamos a lista de versões (ou a última disponível no registry)
+        let url = if let Some(ver) = version_range {
             format!("{}/packages/{}/{}", reg_url, package_name, ver)
         } else {
             format!("{}/packages/{}", reg_url, package_name)
@@ -39,6 +46,7 @@ pub async fn find_package(
 
         if let Ok(resp) = client.get(&url).send().await {
             if resp.status().is_success() {
+                // Tenta desserializar como pacote único ou como lista dependendo da API
                 if let Ok(pkg_info) = resp.json::<RegistryPackageInfo>().await {
                     found_packages.push((reg_name.clone(), pkg_info));
                 }
@@ -50,9 +58,13 @@ pub async fn find_package(
         return Err(format!("Pacote '{}' não encontrado em nenhum registry.", package_name).into());
     }
 
+    // Se houver range de versão, aqui deveríamos filtrar se tivéssemos múltiplas versões.
+    // Atualmente as APIs retornam a melhor correspondência simples ou falham.
+    // Vou manter a lógica de seleção manual para conflitos entre registries diferentes.
+
     if found_packages.len() == 1 {
         let (reg_name, pkg) = found_packages.remove(0);
-        println!("{}", format!("✓ Encontrado no registry '{}'", reg_name).green());
+        println!("{}", format!("✓ Encontrado no registry '{}' (v{})", reg_name, pkg.version).green());
         return Ok((pkg, reg_name));
     }
 

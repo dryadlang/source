@@ -6,169 +6,55 @@ subcategory: "Segurança"
 order: 37
 ---
 
-# Crypto
+# Cryptography and Security
 
-Módulo de criptografia e utilitários de segurança.
+Módulo para operações de segurança, hashing e proteção de dados críticos.
 
-## Ativação
+## Referência de Funções
 
-```dryad
-#<crypto>
-```
+### `sha256(data: string | array): string` (Alias: `native_hash_sha256`)
 
-## Funções de Hash
+Gera o hash SHA-256 dos dados e retorna uma string hexadecimal.
 
-### sha256(data: string | bytes) -> string
+### `native_hash_md5(data: string | array): string`
 
-Gera hash SHA-256.
+Gera o hash MD5 dos dados.
 
-```dryad
-#<crypto>
-let hash = sha256("Hello, World!");
-```
+### `native_uuid(): string`
 
-### native_hash_md5(data: string | bytes) -> string
+Gera um Identificador Único Universal (UUID) versão 4.
 
-Gera hash MD5.
+### `native_base64_encode(data: string | array): string`
 
-```dryad
-#<crypto>
-let hash = native_hash_md5("Hello");
-```
+Codifica dados para o formato Base64.
 
-## Codificação
+### `native_base64_decode(base64: string): string | array`
 
-### native_base64_encode(data: string | bytes) -> string
+Decodifica uma string Base64. Retorna String se for UTF-8 válido, caso contrário retorna Array de bytes.
 
-Codifica dados para Base64.
+### `native_encrypt_aes(data: string | array, key: string): array`
 
-### native_base64_decode(data: string) -> bytes
+Criptografa dados usando AES com a chave fornecida. Retorna o ciphertext como Array de bytes.
 
-Decodifica dados de Base64.
+### `native_generate_rsa_keypair(bits: number): object`
 
-### native_hex_encode(data: string | bytes) -> string
+Gera um par de chaves RSA (1024 a 4096 bits). Retorna um objeto com `public_key` e `private_key`.
 
-Codifica dados para formato hexadecimal.
+### `native_sign(data: string | array, private_key: string): array`
 
-### native_hex_decode(data: string) -> bytes
+Gera uma assinatura digital RSA para os dados.
 
-Decodifica dados de formato hexadecimal.
+---
 
-## Números Aleatórios
-
-### native_random_bytes(length: number) -> bytes
-
-Gera bytes aleatórios.
-
-```dryad
-#<crypto>
-let bytes = native_random_bytes(32);
-```
-
-### native_random_string(length: number) -> string
-
-Gera uma string aleatória.
-
-```dryad
-#<crypto>
-let str = native_random_string(16);
-```
-
-### native_uuid() -> string
-
-Gera um UUID v4.
-
-```dryad
-#<crypto>
-let id = native_uuid();
-```
-
-## Criptografia
-
-### native_encrypt_aes(data: bytes, key: string) -> bytes
-
-Criptografa dados usando AES.
-
-### native_decrypt_aes(data: bytes, key: string) -> string
-
-Descriptografa dados AES.
-
-### native_encrypt_rsa(data: bytes, public_key: string) -> bytes
-
-Criptografa dados usando RSA.
-
-### native_decrypt_rsa(data: bytes, private_key: string) -> string
-
-Descriptografa dados RSA.
-
-## Assinaturas Digitais
-
-### native_sign(data: bytes, private_key: string) -> bytes
-
-Assina dados com chave privada RSA.
-
-```dryad
-#<crypto>
-let signature = native_sign(data, private_key);
-```
-
-### native_verify(data: bytes, signature: bytes, public_key: string) -> boolean
-
-Verifica uma assinatura digital.
-
-```dryad
-#<crypto>
-let valid = native_verify(data, signature, public_key);
-```
-
-### native_generate_rsa_keypair(bits: number) -> object
-
-Gera um par de chaves RSA.
-
-```dryad
-#<crypto>
-let keys = native_generate_rsa_keypair(2048);
-```
-
-## HMAC
-
-### native_hmac_sha256(data: string | bytes, key: string | bytes) -> string
-
-Gera HMAC-SHA256.
-
-```dryad
-#<crypto>
-let hmac = native_hmac_sha256("message", "secret_key");
-```
-
-### native_hmac_sha512(data: string | bytes, key: string | bytes) -> string
-
-Gera HMAC-SHA512.
-
-```dryad
-#<crypto>
-let hmac = native_hmac_sha512("message", "secret_key");
-```
-
-## Exemplo Completo
+## Exemplo de Uso
 
 ```dryad
 #<crypto>
 
-// Hash
-let hash = sha256("password");
+let senha = "minha_senha_secreta";
+let hash = sha256(senha);
+println("Hash: " + hash);
 
-// UUID
-let id = native_uuid();
-
-// Gerar chaves RSA
-let keys = native_generate_rsa_keypair(2048);
-
-// Assinar e verificar
-let data = "Important message";
-let signature = native_sign(data, keys.private_key);
-let valid = native_verify(data, signature, keys.public_key);
-
-// HMAC
-let hmac = native_hmac_sha256("message", "secret");
+let token = native_uuid();
+println("Sessão: " + token);
 ```

@@ -8,7 +8,59 @@ order: 1
 
 # HTTP Client
 
-A biblioteca HTTP do Dryad permite a integração com APIs web e serviços remotos utilizando protocolos modernos e seguros.
+A biblioteca HTTP do Dryad permite## Referência de Funções
+
+### `native_http_get(url: string, headers?: object): string`
+
+Executa uma requisição GET e retorna o corpo da resposta como string.
+
+### `native_http_post(url: string, body: string, headers?: object): string`
+
+Envia uma requisição POST com o corpo fornecido.
+
+### `native_http_json(url: string): any`
+
+Realiza um GET e decodifica automaticamente o JSON da resposta para uma estrutura Dryad.
+
+### `native_http_headers(url: string): object`
+
+Retorna um objeto contendo todos os cabeçalhos (headers) da resposta.
+
+### `native_http_download(url: string, path: string): void`
+
+Baixa o conteúdo da URL diretamente para o arquivo especificado no `path`.
+
+### `native_http_status(url: string): number`
+
+Retorna apenas o código de status HTTP (ex: 200, 404).
+
+---
+
+## Configuração Global
+
+O Dryad permite configurar o comportamento do cliente HTTP por URL usando funções `native_http_set_*`.
+
+- **Timeout**: `native_http_set_timeout(url, ms)`
+- **Headers**: `native_http_set_headers(url, { "Auth": "..." })`
+- **Proxy**: `native_http_set_proxy(url, "http://proxy:8080")`
+- **Auth**: `native_http_set_auth(url, "user", "pass")`
+- **SSL**: `native_http_set_ssl_verify(url, bool)`
+
+---
+
+## Exemplo de Uso
+
+```dryad
+#<http_client>
+
+// Configura um timeout de 5 segundos
+native_http_set_timeout("https://api.github.com", 5000);
+
+let perfil = native_http_json("https://api.github.com/users/dryadlang");
+println("Seguidores: " + perfil.followers);
+```
+
+a integração com APIs web e serviços remotos utilizando protocolos modernos e seguros.
 
 ## 🚀 Leitura Rápida
 

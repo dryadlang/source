@@ -1,9 +1,0 @@
-{
-  "modules": {
-    "dryad-stdlib": {
-      "paths": {
-        "dryad-stdlib/main": "./oak_modules/dryad-stdlib/main.dryad"
-      }
-    }
-  }
-}

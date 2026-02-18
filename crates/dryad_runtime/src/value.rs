@@ -125,6 +125,13 @@ impl Value {
             Value::Class(id) => format!("class (heap:{})", id),
             Value::Instance(id) => format!("instance (heap:{})", id),
             Value::Object(id) => format!("object (heap:{})", id),
+            Value::Result(ok, val) => {
+                if *ok {
+                    format!("Ok({})", val.to_string())
+                } else {
+                    format!("Err({})", val.to_string())
+                }
+            }
         }
     }
 
@@ -147,6 +154,7 @@ impl Value {
             Value::Thread { is_running, .. } => *is_running,
             Value::Mutex { .. } => true,
             Value::Promise { resolved, .. } => *resolved,
+            Value::Result(ok, _) => *ok,
         }
     }
 }

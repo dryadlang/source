@@ -1,0 +1,46 @@
+#<ffi>
+
+module ipe {
+    let lib_loaded = false;
+    let lib_path = "./ipe/native/ipe.dll";
+
+    fn load() {
+        if (!lib_loaded) {
+            if (ffi_load_library(lib_path, "ipe")) {
+                lib_loaded = true;
+                return true;
+            }
+            return false;
+        }
+        return true;
+    }
+
+    fn init() {
+        if (!load()) return false;
+        return ffi_call("ipe", "ipe_init", "i32");
+    }
+
+    fn createWindow(width, height, title) {
+        return ffi_call("ipe", "ipe_window_create", "pointer", width, height, title);
+    }
+
+    fn clear(color) {
+        ffi_call("ipe", "ipe_clear_background", "void", color);
+    }
+
+    fn drawRect(x, y, w, h, color) {
+        ffi_call("ipe", "ipe_draw_rect", "void", x, y, w, h, color);
+    }
+
+    fn processEvents() {
+        return ffi_call("ipe", "ipe_process_events", "i32");
+    }
+
+    fn isOpen() {
+        return ffi_call("ipe", "ipe_is_window_open", "i32") != 0;
+    }
+
+    fn close() {
+        ffi_call("ipe", "ipe_window_close", "void");
+    }
+}

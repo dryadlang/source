@@ -269,6 +269,27 @@ impl Interpreter {
         }
     }
 
+    fn poll_native_events(&mut self) {
+        let _ = crate::native_modules::http_server::process_pending_requests(|server_id, method, path, lambda_id| {
+            let args = vec![
+                Value::String(server_id),
+                Value::String(method),
+                Value::String(path),
+            ];
+            
+            let location = SourceLocation::unknown();
+            
+            if let Some(ManagedObject::Lambda { params, body, closure }) = self.heap.get(lambda_id).cloned() {
+                match self.call_lambda_values(params, body, closure, args, &location) {
+                    Ok(val) => Ok((200, val.to_string())),
+                    Err(e) => Err(crate::errors::RuntimeError::Generic(e.to_string())),
+                }
+            } else {
+                Err(crate::errors::RuntimeError::Generic("Lambda not found in heap".to_string()))
+            }
+        });
+    }
+
     pub fn execute_and_return_value(&mut self, program: &Program) -> Result<Value, DryadError> {
         let mut last_value = Value::Null;
 
@@ -514,13 +535,14 @@ impl Interpreter {
             Stmt::Export(_, loc) => loc,
             Stmt::Use(_, loc) => loc,
             Stmt::Import(_, _, loc) => loc,
+            Stmt::Namespace(_, _, loc) => loc,
         };
 
         // Hook de depuração
         self.check_debug_hooks(location)?;
 
         // Poll for native events (like HTTP requests)
-        let _ = self.poll_native_events();
+        self.poll_native_events();
 
         // Proteção contra recursão infinita
         self.call_depth += 1;
@@ -637,35 +659,27 @@ impl Interpreter {
                             }
                         };
 
-                        // Check for setter in class
-                        let setter_to_run = if let Some(Value::Class(cid)) = self.env.classes.get(&class_name) {
-                            if let Some(class_obj) = self.heap.get(*cid) {
-                                if let ManagedObject::Class { setters, .. } = class_obj {
-                                    setters.get(property_name).cloned()
-                                } else {
-                                    None
-                                }
-                            } else {
-                                None
+                        // Look up setter in class (clone it out of the heap so we don't hold a borrow)
+                        let setter_clone_opt = if let Some(Value::Class(cid)) = self.env.classes.get(&class_name) {
+                            if let Some(ManagedObject::Class { setters, .. }) = self.heap.get(*cid) {
+                                setters.get(property_name).cloned()
+                            } else { None }
+                        } else { None };
+
+                        if let Some(setter) = setter_clone_opt {
+                            // Visibility check
+                            if !self.check_visibility(&setter.visibility, &class_name) {
+                                return Err(DryadError::new(
+                                    3029,
+                                    &format!("Setter '{}' não é acessível (visibilidade: {:?})", property_name, setter.visibility),
+                                ));
                             }
-                        } else {
-                            None
-                        };
 
-                        let is_visible = self.check_visibility(&setter.visibility, &class_name);
-
-                        if !is_visible {
-                            return Err(DryadError::new(
-                                3029,
-                                &format!("Setter '{}' não é acessível (visibilidade: {:?})", property_name, setter.visibility),
-                            ));
-                        }
-
-                            // Execute setter with 'this' and parameter
+                            // Execute setter with 'this' and parameter (no heap borrow held)
                             let mut setter_env = self.env.clone();
                             let saved_class = self.env.current_class.clone();
                             setter_env.variables.insert("this".to_string(), object.clone());
-                            setter_env.current_class = Some(class_name.clone());
+                            setter_env.current_class = Some(class_name.to_string());
                             setter_env.variables.insert(setter.param.clone(), value.clone());
                             let prev_env = std::mem::replace(&mut self.env, setter_env);
                             let _ = self.execute_statement(&setter.body);
@@ -674,25 +688,26 @@ impl Interpreter {
                             return Ok(value);
                         }
 
-                        // No setter found, assign directly to instance
+                        // No setter found — perform visibility checks first (no mutable heap borrow yet)
+                        if let Some(Value::Class(cid)) = self.env.classes.get(&class_name) {
+                            if let Some(ManagedObject::Class { properties: class_props, .. }) = self.heap.get(*cid) {
+                                if let Some(prop_def) = class_props.get(property_name) {
+                                    if !self.check_visibility(&prop_def.visibility, &class_name) {
+                                        return Err(DryadError::new(
+                                            3029,
+                                            &format!("Propriedade '{}' não é acessível para escrita (visibilidade: {:?})", property_name, prop_def.visibility),
+                                        ));
+                                    }
+                                }
+                            }
+                        }
+
+                        // Now acquire mutable access to the instance and set property
                         let heap_obj = self.heap.get_mut(instance_id).ok_or_else(|| {
                             DryadError::new(3100, "Heap error: Instance reference not found")
                         })?;
                         
                         if let ManagedObject::Instance { properties, .. } = heap_obj {
-                            // Check visibility for direct property write if it's defined in the class
-                            if let Some(Value::Class(cid)) = self.env.classes.get(&class_name) {
-                                if let Some(ManagedObject::Class { properties: class_props, .. }) = self.heap.get(*cid) {
-                                    if let Some(prop_def) = class_props.get(property_name) {
-                                        if !self.check_visibility(&prop_def.visibility, &class_name) {
-                                            return Err(DryadError::new(
-                                                3029,
-                                                &format!("Propriedade '{}' não é acessível para escrita (visibilidade: {:?})", property_name, prop_def.visibility),
-                                            ));
-                                        }
-                                    }
-                                }
-                            }
                             properties.insert(property_name.clone(), value.clone());
                             Ok(value)
                         } else {
@@ -712,76 +727,80 @@ impl Interpreter {
                         }
                     }
                     Value::Class(id) => {
-                        let heap_obj = self.heap.get_mut(id).ok_or_else(|| {
-                            DryadError::new(3100, "Heap error: Class reference not found")
-                        })?;
-
-                        if let ManagedObject::Class {
-                            name: class_name,
-                            properties,
-                            setters,
-                            ..
-                        } = heap_obj
-                        {
-                            let class_name = class_name.clone();
-                            let setters = setters.clone();
-
-                            // Check for static setter first
-                            if let Some(setter) = setters.get(property_name) {
-                                if !setter.is_static {
-                                    return Err(DryadError::new(
-                                        3029,
-                                        &format!("Setter '{}' não é estático", property_name),
-                                    ));
-                                }
-
-                                if !self.check_visibility(&setter.visibility, &class_name) {
-                                    return Err(DryadError::new(
-                                        3029,
-                                        &format!("Setter '{}' não é acessível (visibilidade: {:?})", property_name, setter.visibility),
-                                    ));
-                                }
-
-                                // Execute setter with 'current_class' set
-                                let mut setter_env = self.env.clone();
-                                let saved_class = self.env.current_class.clone();
-                                setter_env.current_class = Some(class_name.clone());
-                                setter_env.variables.insert(setter.param.clone(), value.clone());
-                                let prev_env = std::mem::replace(&mut self.env, setter_env);
-                                let _ = self.execute_statement(&setter.body);
-                                self.env = prev_env;
-                                self.env.current_class = saved_class;
-                                return Ok(value);
-                            }
-
-                            if let Some(prop) = properties.get_mut(property_name) {
-                                // Check if property is static
-                                if !prop.is_static {
-                                    return Err(DryadError::new(
-                                        3029,
-                                        &format!("Propriedade '{}' não é estática na classe '{}'", property_name, class_name),
-                                    ));
-                                }
-
-                                // Check visibility
-                                if !self.check_visibility(&prop.visibility, &class_name) {
-                                    return Err(DryadError::new(
-                                        3029,
-                                        &format!("Propriedade estática '{}' não é acessível para escrita (visibilidade: {:?})", property_name, prop.visibility),
-                                    ));
-                                }
-
-                                prop.default_value = Some(value.clone());
-                                Ok(value)
-                            } else {
-                                Err(DryadError::new(
-                                    3030,
-                                    &format!("Propriedade estática '{}' não encontrada na classe '{}'", property_name, class_name),
-                                ))
-                            }
+                        // Clone required data first to avoid holding mutable borrows while executing setters
+                        let (class_name_clone, setter_clone_opt, prop_def_opt) = if let Some(ManagedObject::Class { name, properties, setters, .. }) = self.heap.get(id) {
+                            (
+                                name.clone(),
+                                setters.get(property_name).cloned(),
+                                properties.get(property_name).cloned(),
+                            )
                         } else {
-                            Err(DryadError::new(3101, "Heap error: Expected Class"))
+                            return Err(DryadError::new(3101, "Heap error: Expected Class"));
+                        };
+
+                        // If there's a static setter, execute it (we have a cloned copy)
+                        if let Some(setter) = setter_clone_opt {
+                            if !setter.is_static {
+                                return Err(DryadError::new(
+                                    3029,
+                                    &format!("Setter '{}' não é estático", property_name),
+                                ));
+                            }
+
+                            if !self.check_visibility(&setter.visibility, &class_name_clone) {
+                                return Err(DryadError::new(
+                                    3029,
+                                    &format!("Setter '{}' não é acessível (visibilidade: {:?})", property_name, setter.visibility),
+                                ));
+                            }
+
+                            // Execute setter with 'current_class' set
+                            let mut setter_env = self.env.clone();
+                            let saved_class = self.env.current_class.clone();
+                            setter_env.current_class = Some(class_name_clone.clone());
+                            setter_env.variables.insert(setter.param.clone(), value.clone());
+                            let prev_env = std::mem::replace(&mut self.env, setter_env);
+                            let _ = self.execute_statement(&setter.body);
+                            self.env = prev_env;
+                            self.env.current_class = saved_class;
+                            return Ok(value);
                         }
+
+                        // If static property exists, validate visibility and update it with a fresh mutable borrow
+                        if let Some(prop_def) = prop_def_opt {
+                            if !prop_def.is_static {
+                                return Err(DryadError::new(
+                                    3029,
+                                    &format!("Propriedade '{}' não é estática na classe '{}'", property_name, class_name_clone),
+                                ));
+                            }
+
+                            if !self.check_visibility(&prop_def.visibility, &class_name_clone) {
+                                return Err(DryadError::new(
+                                    3029,
+                                    &format!("Propriedade estática '{}' não é acessível para escrita (visibilidade: {:?})", property_name, prop_def.visibility),
+                                ));
+                            }
+
+                            // Mutate the class property with a mutable borrow
+                            let heap_obj_mut = self.heap.get_mut(id).ok_or_else(|| {
+                                DryadError::new(3100, "Heap error: Class reference not found")
+                            })?;
+
+                            if let ManagedObject::Class { properties, .. } = heap_obj_mut {
+                                if let Some(prop) = properties.get_mut(property_name) {
+                                    prop.default_value = Some(value.clone());
+                                    return Ok(value);
+                                }
+                            }
+
+                            return Err(DryadError::new(
+                                3030,
+                                &format!("Propriedade estática '{}' não encontrada na classe '{}'", property_name, class_name_clone),
+                            ));
+                        }
+
+                        Err(DryadError::new(3030, &format!("Propriedade estática '{}' não encontrada na classe '{}'", property_name, class_name_clone)))
                     }
                     _ => Err(self.runtime_error(3034, "Tentativa de atribuir propriedade a valor que não é uma instância, classe ou objeto"))
                 }
@@ -983,11 +1002,13 @@ impl Interpreter {
                         }
                         ClassMember::Getter {
                             visibility,
+                            is_static,
                             name: getter_name,
                             body,
                         } => {
                             let getter = ClassGetter {
                                 visibility: visibility.clone(),
+                                is_static: *is_static,
                                 name: getter_name.clone(),
                                 body: *(*body).clone(),
                             };
@@ -995,12 +1016,14 @@ impl Interpreter {
                         }
                         ClassMember::Setter {
                             visibility,
+                            is_static,
                             name: setter_name,
                             param,
                             body,
                         } => {
                             let setter = ClassSetter {
                                 visibility: visibility.clone(),
+                                is_static: *is_static,
                                 name: setter_name.clone(),
                                 param: param.clone(),
                                 body: *(*body).clone(),
@@ -1129,7 +1152,7 @@ impl Interpreter {
             Expr::PostDecrement(expr, _) => self.eval_post_decrement(expr),
             Expr::PreIncrement(expr, _) => self.eval_pre_increment(expr),
             Expr::PreDecrement(expr, _) => self.eval_pre_decrement(expr),
-            Expr::Array(elements, _) => self.eval_array(elements),
+            Expr::Array(elements, location) => self.eval_array(elements, location),
             Expr::Tuple(elements, _) => self.eval_tuple(elements),
             Expr::Index(array_expr, index_expr, _) => self.eval_index(array_expr, index_expr),
             Expr::TupleAccess(tuple_expr, index, _) => self.eval_tuple_access(tuple_expr, *index),
@@ -1144,6 +1167,7 @@ impl Interpreter {
                 self.maybe_collect_garbage();
                 Ok(Value::Lambda(lambda_id))
             }
+            Expr::Spread(expr, _) => self.evaluate(expr),
             Expr::This(_) => {
                 if let Some(instance) = &self.env.current_instance {
                     Ok(instance.clone())
@@ -1342,74 +1366,70 @@ impl Interpreter {
                 value: None,
             });
         }
-
-        match name {
-            _ => {
-                // Verificar se é uma função definida pelo usuário
-                if let Some(function_value) = self.env.variables.get(name).cloned() {
-                        Value::Function {
-                            name: _,
-                            params,
-                            rest_param,
-                            body,
-                        } => {
-                            self.call_user_function(name.to_string(), params, rest_param, body, args, location)
-                        }
-                        Value::Lambda(id) => {
-                            let heap_obj = self.heap.get(id).ok_or_else(|| {
-                                DryadError::new(3100, "Heap error: Lambda reference not found")
-                            })?;
-                            if let ManagedObject::Lambda {
-                                params,
-                                body,
-                                closure,
-                            } = heap_obj
-                            {
-                                self.call_lambda(
-                                    params.clone(),
-                                    body.clone(),
-                                    closure.clone(),
-                                    args,
-                                    location,
-                                )
-                            } else {
-                                Err(DryadError::new(3101, "Heap error: Expected Lambda"))
-                            }
-                        }
-                        _ => Err(DryadError::new(
-                            3003,
-                            &format!("'{}' não é uma função", name),
-                        )),
-                    }
-                } else {
-                    // Verificar se a função existe em uma categoria nativa inativa
-                    if self
-                        .native_registry
-                        .manager
-                        .is_function_in_inactive_category(name)
+        // Verificar se é uma função definida pelo usuário
+        if let Some(function_value) = self.env.variables.get(name).cloned() {
+            match function_value {
+                Value::Function {
+                    name: _,
+                    params,
+                    rest_param,
+                    body,
+                } => {
+                    self.call_user_function(name.to_string(), params, rest_param, body, args, location)
+                }
+                Value::Lambda(id) => {
+                    let heap_obj = self.heap.get(id).ok_or_else(|| {
+                        DryadError::new(3100, "Heap error: Lambda reference not found")
+                    })?;
+                    if let ManagedObject::Lambda {
+                        params,
+                        body,
+                        closure,
+                    } = heap_obj
                     {
-                        if let Some(category) =
-                            self.native_registry.manager.find_function_category(name)
-                        {
-                            return Err(DryadError::runtime(
-                                6001,
-                                &format!(
-                                    "Função nativa '{}' não está disponível. \
-                                    Ative o módulo '{}' com a diretiva #<{}> antes de usar esta função.",
-                                    name, category, category
-                                ),
-                                location.clone(),
-                                self.current_stack_trace.clone(),
-                            ));
-                        }
+                        self.call_lambda(
+                            params.clone(),
+                            body.clone(),
+                            closure.clone(),
+                            args,
+                            location,
+                        )
+                    } else {
+                        Err(DryadError::new(3101, "Heap error: Expected Lambda"))
                     }
-
-                    Err(DryadError::new(
-                        3003,
-                        &format!("Função '{}' não definida", name),
-                    ))
+                }
+                _ => Err(DryadError::new(
+                    3003,
+                    &format!("'{}' não é uma função", name),
+                )),
+            }
+        } else {
+            // Verificar se a função existe em uma categoria nativa inativa
+            if self
+                .native_registry
+                .manager
+                .is_function_in_inactive_category(name)
+            {
+                if let Some(category) =
+                    self.native_registry.manager.find_function_category(name)
+                {
+                    return Err(DryadError::runtime(
+                        6001,
+                        &format!(
+                            "Função nativa '{}' não está disponível. \
+                            Ative o módulo '{}' com a diretiva #<{}> antes de usar esta função.",
+                            name, category, category
+                        ),
+                        location.clone(),
+                        self.current_stack_trace.clone(),
+                    ));
                 }
             }
+
+            Err(DryadError::new(
+                3003,
+                &format!("Função '{}' não definida", name),
+            ))
         }
     }
 
@@ -1725,6 +1745,7 @@ impl Interpreter {
             Value::Thread { is_running, .. } => *is_running,
             Value::Mutex { .. } => true,
             Value::Promise { resolved, .. } => *resolved,
+            Value::Result(ok, _) => *ok,
         }
     }
 
@@ -2257,7 +2278,8 @@ impl Interpreter {
             | Value::Promise { .. }
             | Value::Class(_)
             | Value::Instance(_)
-            | Value::Object(_) => {
+            | Value::Object(_)
+            | Value::Result(_, _) => {
                 return Err(DryadError::new(
                     3030,
                     &format!("Valor não é iterável: {}", iterable_value.to_string()),
@@ -2403,7 +2425,8 @@ impl Interpreter {
             | Value::Mutex { .. }
             | Value::Promise { .. }
             | Value::Class { .. }
-            | Value::Instance { .. } => Err(DryadError::new(
+            | Value::Instance { .. }
+            | Value::Result(_, _) => Err(DryadError::new(
                 3083,
                 "Operador [] só pode ser usado em arrays e objetos",
             )),
@@ -2450,7 +2473,8 @@ impl Interpreter {
             | Value::Promise { .. }
             | Value::Class { .. }
             | Value::Instance { .. }
-            | Value::Object { .. } => Err(DryadError::new(
+            | Value::Object { .. }
+            | Value::Result(_, _) => Err(DryadError::new(
                 3085,
                 "Operador . só pode ser usado em tuplas",
             )),
@@ -2580,7 +2604,9 @@ impl Interpreter {
             | Expr::MutexCreation(loc)
             | Expr::This(loc)
             | Expr::Super(loc)
-            | Expr::Match(_, _, loc) => loc,
+            | Expr::Match(_, _, loc)
+            | Expr::Spread(_, loc)
+            | Expr::Try(_, loc) => loc,
         };
         let result = self.eval_method_call_internal(object_expr, method_name, args, location);
         self.call_depth -= 1;
@@ -2620,7 +2646,7 @@ impl Interpreter {
                         }
 
                         // Check visibility
-                        if !self.check_visibility(&method.visibility, class_name) {
+                        if !self.check_visibility(&method.visibility, &class_name) {
                             return Err(DryadError::new(
                                 3024,
                                 &format!("Método '{}' não é acessível (visibilidade: {:?})", method_name, method.visibility),
@@ -2638,7 +2664,7 @@ impl Interpreter {
                         let saved_class = self.env.current_class.clone();
 
                         self.env.current_instance = None;
-                        self.env.current_class = Some(class_name.clone());
+                        self.env.current_class = Some(class_name.to_string());
 
                         // Bind parameters
                         for (i, (param_name, default_expr)) in method.params.iter().enumerate() {
@@ -2725,7 +2751,7 @@ impl Interpreter {
                                 let saved_class = self.env.current_class.clone();
 
                                 self.env.current_instance = Some(Value::Instance(id));
-                                self.env.current_class = Some(class_name.clone());
+                                self.env.current_class = Some(class_name.to_string());
 
                                 // Bind parameters
                                 for (i, (param_name, default_expr)) in method.params.iter().enumerate() {
@@ -2928,10 +2954,11 @@ impl Interpreter {
                 if let ManagedObject::Class {
                     name: class_name,
                     properties: class_props,
+                    getters,
                     ..
                 } = heap_obj
                 {
-                    let (class_props, getters) = (properties.clone(), getters.clone());
+                    let (class_props, getters) = (class_props.clone(), getters.clone());
 
                     // Check for getter first
                     if let Some(getter) = getters.get(property_name) {
@@ -3175,7 +3202,7 @@ impl Interpreter {
 
                     // Set up constructor context
                     self.env.current_instance = Some(instance.clone());
-                    self.env.current_class = Some(class_name.clone());
+                    self.env.current_class = Some(class_name.to_string());
 
                     // Bind parameters
                     // Bind parameters
@@ -3328,7 +3355,7 @@ impl Interpreter {
     }
 
     fn match_pattern(
-        &self,
+        &mut self,
         value: &Value,
         pattern: &Pattern,
         bindings: &mut HashMap<String, Value>,
@@ -3350,7 +3377,7 @@ impl Interpreter {
             }
             Pattern::Array(patterns) => {
                 if let Value::Array(id) = value {
-                    if let Some(ManagedObject::Array(elements)) = self.heap.get(*id) {
+                    if let Some(ManagedObject::Array(elements)) = self.heap.get(*id).cloned() {
                         let mut element_idx = 0;
                         for (i, p) in patterns.iter().enumerate() {
                             if let Pattern::Rest(name) = p {
@@ -3384,7 +3411,7 @@ impl Interpreter {
             }
             Pattern::Tuple(patterns) => {
                 if let Value::Tuple(id) = value {
-                    if let Some(ManagedObject::Tuple(elements)) = self.heap.get(*id) {
+                    if let Some(ManagedObject::Tuple(elements)) = self.heap.get(*id).cloned() {
                         if elements.len() != patterns.len() {
                             return false;
                         }
@@ -3403,7 +3430,7 @@ impl Interpreter {
             }
             Pattern::Object(patterns) => {
                 if let Value::Object(id) = value {
-                    if let Some(ManagedObject::Object { properties, .. }) = self.heap.get(*id) {
+                    if let Some(ManagedObject::Object { properties, .. }) = self.heap.get(*id).cloned() {
                         for (key, p) in patterns {
                             if let Some(val) = properties.get(key) {
                                 if !self.match_pattern(val, p, bindings) {
@@ -3511,7 +3538,7 @@ impl Interpreter {
         }
 
         match function {
-            Value::Function { name, params, body }
+            Value::Function { name, params, body, .. }
             | Value::ThreadFunction { name, params, body } => {
                 if params.len() != evaluated_args.len() {
                     return Err(DryadError::new(
@@ -3536,7 +3563,7 @@ impl Interpreter {
                     thread_context
                         .env
                         .variables
-                        .insert(param.clone(), arg.clone());
+                        .insert(param.0.clone(), arg.clone());
                 }
 
                 // Clona o body para mover para a thread
@@ -3975,9 +4002,10 @@ impl Interpreter {
         location: &SourceLocation,
     ) -> Result<Value, DryadError> {
         match func {
-            Value::Function { name, params, body } => self.call_user_function_values(
+            Value::Function { name, params, rest_param, body } => self.call_user_function_values(
                 name.clone(),
                 params.clone(),
+                rest_param.clone(),
                 body.clone(),
                 args,
                 location,

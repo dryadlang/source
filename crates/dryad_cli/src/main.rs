@@ -112,7 +112,7 @@ fn main() {
         None => {
             // Se não houver subcomando, tenta executar main.dryad
             if std::path::Path::new("main.dryad").exists() {
-                if let Err(e) = run_file("main.dryad", false, false, false, None) {
+                if let Err(e) = run_file("main.dryad", false, false, false, None, false, false) {
                     eprintln!("Erro: {}", e);
                     std::process::exit(1);
                 }

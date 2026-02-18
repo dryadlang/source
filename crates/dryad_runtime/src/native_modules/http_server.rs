@@ -1,6 +1,8 @@
 use crate::interpreter::Value;
 use crate::native_modules::NativeFunction;
 use crate::errors::RuntimeError;
+use crate::heap::HeapId;
+use tokio::runtime::Runtime;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use lazy_static::lazy_static;
@@ -142,7 +144,7 @@ fn generate_response(server_id: &str, method: &str, path: &str) -> String {
     
     // Verifica conteúdo dinâmico (lambdas)
     let dynamic_lambda = {
-        let handlers = DYNAMIC_HANDLERS.lock().unwrap();
+        let handlers = (*DYNAMIC_HANDLERS).lock().unwrap();
         handlers.get(server_id).and_then(|routes| routes.get(&route_key).cloned())
     };
 
@@ -150,7 +152,7 @@ fn generate_response(server_id: &str, method: &str, path: &str) -> String {
         // Envia para o interpreter e aguarda resposta
         let (tx, rx) = tokio::sync::oneshot::channel();
         
-        PENDING_REQUESTS.lock().unwrap().push(HttpRequestEvent {
+        (*PENDING_REQUESTS).lock().unwrap().push(HttpRequestEvent {
             server_id: server_id.to_string(),
             method: method.to_string(),
             path: path.to_string(),
@@ -180,7 +182,7 @@ fn generate_response(server_id: &str, method: &str, path: &str) -> String {
     }
 
     // Verifica rotas estáticas
-    if let Some(handler) = ROUTE_HANDLERS.lock().unwrap()
+    if let Some(handler) = (*ROUTE_HANDLERS).lock().unwrap()
         .get(server_id)
         .and_then(|routes| routes.get(&route_key)) {
         
@@ -192,7 +194,7 @@ fn generate_response(server_id: &str, method: &str, path: &str) -> String {
     }
     
     // Verifica conteúdo estático
-    if let Some(static_content) = STATIC_CONTENT.lock().unwrap()
+    if let Some(static_content) = (*STATIC_CONTENT).lock().unwrap()
         .get(server_id)
         .and_then(|content| content.get(path)) {
         
@@ -285,9 +287,9 @@ fn native_http_server_create(args: &[Value], _manager: &crate::native_modules::N
         stop_sender: None,
     };
     
-    HTTP_SERVERS.lock().unwrap().insert(server_id.clone(), instance);
-    ROUTE_HANDLERS.lock().unwrap().insert(server_id.clone(), HashMap::new());
-    STATIC_CONTENT.lock().unwrap().insert(server_id, HashMap::new());
+    (*HTTP_SERVERS).lock().unwrap().insert(server_id.clone(), instance);
+    (*ROUTE_HANDLERS).lock().unwrap().insert(server_id.clone(), HashMap::new());
+    (*STATIC_CONTENT).lock().unwrap().insert(server_id, HashMap::new());
     
     Ok(Value::Null)
 }
@@ -302,7 +304,7 @@ fn native_http_server_start(args: &[Value], _manager: &crate::native_modules::Na
     };
     
     let (host, port) = {
-        let servers = HTTP_SERVERS.lock().unwrap();
+        let servers = (*HTTP_SERVERS).lock().unwrap();
         let server = servers.get(&server_id)
             .ok_or_else(|| RuntimeError::ArgumentError(format!("Servidor '{}' não encontrado", server_id)))?;
         
@@ -323,14 +325,14 @@ fn native_http_server_start(args: &[Value], _manager: &crate::native_modules::Na
     });
     
     // Armazena o handle da thread
-    SERVER_THREADS.lock().unwrap().insert(server_id.clone(), handle);
+    (*SERVER_THREADS).lock().unwrap().insert(server_id.clone(), handle);
     
     // Aguarda um pouco para o servidor inicializar
     thread::sleep(Duration::from_millis(200));
     
     // Marca como rodando e armazena o sender
     {
-        let mut servers = HTTP_SERVERS.lock().unwrap();
+        let mut servers = (*HTTP_SERVERS).lock().unwrap();
         if let Some(server) = servers.get_mut(&server_id) {
             server.is_running = true;
             server.stop_sender = Some(stop_sender);
@@ -339,8 +341,8 @@ fn native_http_server_start(args: &[Value], _manager: &crate::native_modules::Na
     
     println!("🚀 Servidor HTTP '{}' iniciado em http://{}:{}", 
              server_id,
-             HTTP_SERVERS.lock().unwrap().get(&server_id).unwrap().host,
-             HTTP_SERVERS.lock().unwrap().get(&server_id).unwrap().port);
+             (*HTTP_SERVERS).lock().unwrap().get(&server_id).unwrap().host,
+             (*HTTP_SERVERS).lock().unwrap().get(&server_id).unwrap().port);
     
     Ok(Value::Null)
 }
@@ -356,7 +358,7 @@ fn native_http_server_stop(args: &[Value], _manager: &crate::native_modules::Nat
     
     // Para o servidor enviando sinal
     {
-        let mut servers = HTTP_SERVERS.lock().unwrap();
+        let mut servers = (*HTTP_SERVERS).lock().unwrap();
         if let Some(server) = servers.get_mut(&server_id) {
             if !server.is_running {
                 return Err(RuntimeError::Generic(format!("Servidor '{}' não está rodando", server_id)));
@@ -385,7 +387,7 @@ fn native_http_server_status(args: &[Value], _manager: &crate::native_modules::N
         None => return Err(RuntimeError::ArgumentError("native_http_server_status espera 1 argumento".to_string())),
     };
     
-    let servers = HTTP_SERVERS.lock().unwrap();
+    let servers = (*HTTP_SERVERS).lock().unwrap();
     let server = servers.get(&server_id)
         .ok_or_else(|| RuntimeError::ArgumentError(format!("Servidor '{}' não encontrado", server_id)))?;
     
@@ -444,7 +446,7 @@ fn native_http_server_route(args: &[Value], _manager: &crate::native_modules::Na
         status_code,
     };
     
-    ROUTE_HANDLERS.lock().unwrap()
+    (*ROUTE_HANDLERS).lock().unwrap()
         .get_mut(&server_id)
         .ok_or_else(|| RuntimeError::ArgumentError(format!("Servidor '{}' não encontrado", server_id)))?
         .insert(route_key, handler);
@@ -561,7 +563,7 @@ fn native_http_server_static(args: &[Value], _manager: &crate::native_modules::N
         content_type,
     };
     
-    STATIC_CONTENT.lock().unwrap()
+    (*STATIC_CONTENT).lock().unwrap()
         .get_mut(&server_id)
         .ok_or_else(|| RuntimeError::ArgumentError(format!("Servidor '{}' não encontrado", server_id)))?
         .insert(path, static_content);
@@ -694,19 +696,19 @@ fn native_http_server_handle(args: &[Value], _manager: &crate::native_modules::N
     };
     
     let route_key = format!("{}:{}", method, path);
-    DYNAMIC_HANDLERS.lock().unwrap()
+    (*DYNAMIC_HANDLERS).lock().unwrap()
         .entry(server_id)
-        .or_insert_with(HashMap::new())
+        .or_insert_with(|| HashMap::new())
         .insert(route_key, lambda_id);
     
     Ok(Value::Null)
 }
 
 /// Função chamada pelo interpreter para processar requisições pendentes
-pub fn process_pending_requests<F>(callback: F) -> Result<(), RuntimeError> 
-where F: Fn(String, String, String, HeapId) -> Result<(u16, String), RuntimeError> {
+pub fn process_pending_requests<F>(mut callback: F) -> Result<(), RuntimeError> 
+where F: FnMut(String, String, String, HeapId) -> Result<(u16, String), RuntimeError> {
     let mut requests = {
-        let mut pending = PENDING_REQUESTS.lock().unwrap();
+        let mut pending = (*PENDING_REQUESTS).lock().unwrap();
         if pending.is_empty() {
             return Ok(());
         }

@@ -195,3 +195,50 @@ fn test_ffi_symbol_not_found() {
     // Deve falhar porque a biblioteca não está carregada
     assert!(result.is_err());
 }
+
+// Integração mínima para o módulo IPE — carrega a DLL local e invoca `ipe_init`.
+// Executa apenas no Windows (testa o fluxo FFI end-to-end com a DLL fornecida).
+#[test]
+#[cfg(target_os = "windows")]
+fn test_ffi_load_and_call_ipe_dll() {
+    use std::path::Path;
+
+    let dll_path = Path::new("../../ipe/native/ipe.dll");
+    if !dll_path.exists() {
+        eprintln!("ipe.dll não encontrada em {:?} — pulando teste", dll_path);
+        return;
+    }
+
+    let mut heap = create_test_heap();
+    let manager = create_test_manager();
+
+    // Carrega a biblioteca explicitamente (alias = "ipe")
+    let path_str = dll_path.to_str().unwrap().to_string();
+    let args_load = vec![Value::String(path_str.clone()), Value::String("ipe".to_string())];
+
+    let res = test_ffi_load_library(&args_load, &manager, &mut heap);
+    assert!(res.is_ok());
+    assert_eq!(res.unwrap(), Value::Bool(true));
+
+    // Verifica se o símbolo existe
+    let args_sym = vec![Value::String("ipe".to_string()), Value::String("ipe_init".to_string())];
+    let res_sym = test_ffi_get_symbol(&args_sym, &manager, &mut heap);
+    assert!(res_sym.is_ok());
+    assert_eq!(res_sym.unwrap(), Value::Bool(true));
+
+    // Chama ipe_init e espera 1
+    let args_call = vec![
+        Value::String("ipe".to_string()),
+        Value::String("ipe_init".to_string()),
+        Value::String("i32".to_string()),
+    ];
+    let res_call = test_ffi_call(&args_call, &manager, &mut heap);
+    assert!(res_call.is_ok());
+    assert_eq!(res_call.unwrap(), Value::Number(1.0));
+
+    // Descarrega
+    let args_unload = vec![Value::String("ipe".to_string())];
+    let res_unload = test_ffi_unload_library(&args_unload, &manager, &mut heap);
+    assert!(res_unload.is_ok());
+    assert_eq!(res_unload.unwrap(), Value::Bool(true));
+}

@@ -547,7 +547,7 @@ impl<'a> Lexer<'a> {
         let location = self.current_location();
 
         let token = match text {
-            "let" | "const" | "if" | "else" | "function" | "class" | "return" | "for" | "while"
+            "let" | "const" | "if" | "else" | "function" | "fn" | "class" | "return" | "for" | "while"
             | "do" | "break" | "continue" | "import" | "export" | "use" | "try" | "catch"
             | "finally" | "throw" | "in" | "this" | "super" | "static" | "public" | "private"
             | "protected" | "extends" | "async" | "await" | "thread" | "mutex" | "as" | "from"

@@ -1,27 +1,160 @@
 #<ffi>
+#<console_io>
 
-module ipe {
+/**
+ * Base class for objects that can emit and listen to events.
+ */
+export class EventEmitter {
+    let handlers = {};
+
+    function on(event, callback) {
+        let h = this.handlers;
+        if (h[event] == null) {
+            let newList = [];
+            h[event] = newList;
+        }
+        let list = h[event];
+        list.push(callback);
+    }
+
+    function emit(event, data) {
+        let h = this.handlers;
+        let list = h[event];
+        if (list != null) {
+            for (cb in list) {
+                cb(data);
+            }
+        }
+    }
+}
+
+/**
+ * Base UI Component.
+ */
+export class Control extends EventEmitter {
+    let x = 0;
+    let y = 0;
+    let width = 100;
+    let height = 30;
+    let text = "";
+    let backColor = 0xCCCCCC;
+    let visible = true;
+
+    function render(ipe) {
+        if (!this.visible) { return; }
+        ipe.drawRect(this.x, this.y, this.width, this.height, this.backColor);
+    }
+
+    function handleEvent(ipe, eventType, data) {
+        if (!this.visible) { return false; }
+        
+        // Basic click detection for simulation
+        // 2 = MouseDown
+        if (eventType == 2) {
+            let mx = data.x;
+            let my = data.y;
+            if (mx >= this.x && mx <= (this.x + this.width) &&
+                my >= this.y && my <= (this.y + this.height)) {
+                this.emit("click", data);
+                return true;
+            }
+        }
+        return false;
+    }
+}
+
+export class Button extends Control {
+    let backColor = 0xAAAAAA;
+    
+    function render(ipe) {
+        if (!this.visible) { return; }
+        // Simple shadow/border effect
+        ipe.drawRect(this.x + 2, this.y + 2, this.width, this.height, 0x333333);
+        ipe.drawRect(this.x, this.y, this.width, this.height, this.backColor);
+        
+        // Centered text (approximate)
+        if (this.text != "") {
+            let tx = this.x + (this.width / 2) - (this.text.length() * 8 / 2);
+            let ty = this.y + (this.height / 2) - 4;
+            ipe.drawText(this.text, tx, ty, 0x000000);
+        }
+    }
+}
+
+export class Label extends Control {
+    let backColor = 0xFFFFFF; // Transparent usually, but let's default to white for now so we can see rect if debug
+    let foreColor = 0x000000;
+    
+    function render(ipe) {
+        if (!this.visible) { return; }
+        // Optional background
+        // ipe.drawRect(this.x, this.y, this.width, this.height, this.backColor);
+        ipe.drawText(this.text, this.x, this.y, this.foreColor);
+    }
+}
+
+export class Form extends Control {
+    let controls = [];
+    let backColor = 0xFFFFFF;
+    let title = "Ipe Form";
+
+    function add(control) {
+        let list = this.controls;
+        list.push(control);
+    }
+
+    function render(ipe) {
+        ipe.clear(this.backColor);
+        let list = this.controls;
+        for (c in list) {
+            c.render(ipe);
+        }
+    }
+
+    function handleEvent(ipe, eventType, data) {
+        // Bubble events to children
+        let list = this.controls;
+        for (c in list) {
+            if (c.handleEvent(ipe, eventType, data)) {
+                return true;
+            }
+        }
+        return false;
+    }
+}
+
+class Ipe {
     let lib_loaded = false;
-    let lib_path = "./ipe/native/ipe.dll";
+    let lib_path = null;
 
-    // Tenta carregar a biblioteca usando uma lista de caminhos comuns
-    fn load() {
-        if (lib_loaded) return true;
+    function init() {
+        if (this.lib_path == null) {
+            this.lib_path = "./ipe/native/ipe.so";
+        }
+        
+        if (!this.load()) {
+            return false;
+        }
+        return ffi_call("ipe", "ipe_init", "i32");
+    }
+
+    function load() {
+        if (this.lib_loaded) {
+            return true;
+        }
 
         let candidates = [
-            lib_path,
-            "./ipe/native/ipe.dll",
-            "./ipe/native/libipe.dll",
             "./ipe/native/ipe.so",
             "./ipe/native/libipe.so",
-            "./ipe/native/ipe.dylib",
+            "./ipe/native/ipe.dll",
+            "./ipe/native/libipe.dll",
+            "./ipe/native/ipe.dylib"
         ];
 
         for (p in candidates) {
-            // tenta carregar cada candidato com o alias fixo "ipe"
             if (ffi_load_library(p, "ipe")) {
-                lib_loaded = true;
-                lib_path = p;
+                this.lib_loaded = true;
+                this.lib_path = p;
                 return true;
             }
         }
@@ -29,32 +162,79 @@ module ipe {
         return false;
     }
 
-    fn init() {
-        if (!load()) return false;
-        return ffi_call("ipe", "ipe_init", "i32");
-    }
-
-    fn createWindow(width, height, title) {
+    function createWindow(width, height, title) {
         return ffi_call("ipe", "ipe_window_create", "pointer", width, height, title);
     }
 
-    fn clear(color) {
+    function clear(color) {
         ffi_call("ipe", "ipe_clear_background", "void", color);
     }
 
-    fn drawRect(x, y, w, h, color) {
+    function drawRect(x, y, w, h, color) {
         ffi_call("ipe", "ipe_draw_rect", "void", x, y, w, h, color);
     }
 
-    fn processEvents() {
+    function drawText(text, x, y, color) {
+        ffi_call("ipe", "ipe_draw_text", "void", text, x, y, color);
+    }
+
+    function present() {
+        ffi_call("ipe", "ipe_present", "void");
+    }
+
+    function processEvents() {
         return ffi_call("ipe", "ipe_process_events", "i32");
     }
 
-    fn isOpen() {
+    function getLastEvent() {
+        return ffi_call("ipe", "ipe_get_last_event", "i32");
+    }
+
+    function getMouseX() {
+        return ffi_call("ipe", "ipe_get_mouse_x", "i32");
+    }
+
+    function getMouseY() {
+        return ffi_call("ipe", "ipe_get_mouse_y", "i32");
+    }
+
+    function getKeyCode() {
+        return ffi_call("ipe", "ipe_get_key_code", "i32");
+    }
+
+    function isOpen() {
         return ffi_call("ipe", "ipe_is_window_open", "i32") != 0;
     }
 
-    fn close() {
+    function close() {
         ffi_call("ipe", "ipe_window_close", "void");
+    }
+}
+
+export let ipe = new Ipe();
+
+export class Application {
+    static function run(form) {
+        ipe.init();
+        ipe.createWindow(form.width, form.height, form.title);
+
+        while (ipe.isOpen()) {
+            ipe.processEvents();
+            
+            let ev = ipe.getLastEvent();
+            if (ev != 0) {
+                let data = {
+                    x: ipe.getMouseX(),
+                    y: ipe.getMouseY(),
+                    key: ipe.getKeyCode()
+                };
+                form.handleEvent(ipe, ev, data);
+            }
+
+            form.render(ipe);
+            ipe.present();
+        }
+
+        ipe.close();
     }
 }

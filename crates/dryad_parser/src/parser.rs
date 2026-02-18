@@ -127,6 +127,52 @@ impl Parser {
             Token::Keyword(keyword) if keyword == "import" => Ok(Some(self.import_statement()?)),
             Token::Keyword(keyword) if keyword == "use" => Ok(Some(self.use_statement()?)),
             Token::Keyword(keyword) if keyword == "return" => Ok(Some(self.return_statement()?)),
+            Token::Keyword(keyword) if keyword == "this" => {
+                let checkpoint = self.position;
+                self.advance(); // consume 'this'
+
+                match self.peek() {
+                    Token::Symbol('.') => {
+                        // Pode ser property access seguido de assignment
+                        self.advance(); // consume '.'
+                        if let Token::Identifier(_) = self.peek() {
+                            self.advance(); // consume property name
+                            if matches!(self.peek(), Token::Symbol('=')) {
+                                // É property assignment, volta ao início e processa
+                                self.position = checkpoint;
+                                let stmt = self.property_assignment_statement()?;
+                                self.consume_semicolon()?;
+                                return Ok(Some(stmt));
+                            }
+                        }
+                    }
+                    Token::Symbol('[') => {
+                        // Pode ser index assignment: this[index] = value
+                        self.advance(); // consume '['
+
+                        // Parse index expression
+                        let _index_expr = self.expression()?;
+
+                        if matches!(self.peek(), Token::Symbol(']')) {
+                            self.advance(); // consume ']'
+                            if matches!(self.peek(), Token::Symbol('=')) {
+                                // É index assignment, volta ao início e processa
+                                self.position = checkpoint;
+                                let stmt = self.index_assignment_statement()?;
+                                self.consume_semicolon()?;
+                                return Ok(Some(stmt));
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+
+                // Não é assignment, volta e trata como expressão
+                self.position = checkpoint;
+                let expr = self.expression()?;
+                self.consume_semicolon()?;
+                Ok(Some(Stmt::Expression(expr, self.current_location())))
+            }
             _ => {
                 // Verifica se é assignment (identificador seguido de = ou +=, -=, etc.)
                 if let Token::Identifier(_) = self.peek() {
@@ -155,7 +201,7 @@ impl Parser {
                             self.advance(); // consume '['
 
                             // Parse index expression
-                            let index_expr = self.expression()?;
+                            let _index_expr = self.expression()?;
 
                             if matches!(self.peek(), Token::Symbol(']')) {
                                 self.advance(); // consume ']'
@@ -2572,7 +2618,6 @@ impl Parser {
                 let else_block = Box::new(self.if_statement()?);
                 Ok(Stmt::IfElse(condition, then_block, else_block, location))
             } else {
-                // It's just "else" - expect a block
                 if !matches!(self.peek(), Token::Symbol('{')) {
                     return Err(DryadError::new(2051, "Esperado '{' após 'else'"));
                 }
@@ -2931,6 +2976,10 @@ impl Parser {
         let location = self.current_location();
         // Parse array/object expression (should be identifier)
         let array_expr = match self.peek() {
+            Token::Keyword(k) if k == "this" => {
+                self.advance(); // consume 'this'
+                Expr::This(self.current_location())
+            }
             Token::Identifier(name) => {
                 let var_name = name.clone();
                 self.advance(); // consume identifier
@@ -2939,7 +2988,7 @@ impl Parser {
             _ => {
                 return Err(DryadError::new(
                     2101,
-                    "Esperado identificador para index assignment",
+                    "Esperado 'this' ou identificador para index assignment",
                 ))
             }
         };

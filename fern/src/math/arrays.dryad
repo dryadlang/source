@@ -1,0 +1,238 @@
+
+export class MyArray {
+    data = [];
+    shape = [];
+    size = 0;
+
+    function init(data, shape) {
+        if (shape == null) {
+            this.shape = [data.length];
+        } else {
+            this.shape = shape;
+        }
+        
+        this.data = data;
+        
+        let s = 1;
+        let i = 0;
+        for (i = 0; i < this.shape.length; i++) {
+            s = s * this.shape[i];
+        }
+        this.size = s;
+        
+        if (this.data.length != this.size) {
+            println("Error: Data length does not match shape size.");
+        }
+    }
+
+    function sum() {
+        let s = 0;
+        let i = 0;
+        for (i = 0; i < this.data.length; i++) {
+            s = s + this.data[i];
+        }
+        return s;
+    }
+
+    function mean() {
+        if (this.size == 0) { return 0; }
+        return this.sum() / this.size;
+    }
+
+    function min() {
+        if (this.size == 0) { return null; }
+        let m = this.data[0];
+        let i = 1;
+        for (i = 1; i < this.data.length; i++) {
+            if (this.data[i] < m) {
+                m = this.data[i];
+            }
+        }
+        return m;
+    }
+
+    function max() {
+        if (this.size == 0) { return null; }
+        let m = this.data[0];
+        let i = 1;
+        for (i = 1; i < this.data.length; i++) {
+            if (this.data[i] > m) {
+                m = this.data[i];
+            }
+        }
+        return m;
+    }
+
+    function _get_index(indices) {
+        let idx = 0;
+        let current_stride = 1;
+        let i = 0;
+        for (i = this.shape.length - 1; i >= 0; i--) {
+            idx = idx + indices[i] * current_stride;
+            current_stride = current_stride * this.shape[i];
+        }
+        return idx;
+    }
+
+    function get_val(indices) {
+        let idx = this._get_index(indices);
+        if (idx >= 0 && idx < this.data.length) {
+            return this.data[idx];
+        }
+        return null;
+    }
+
+    function set_val(indices, value) {
+        let idx = this._get_index(indices);
+        if (idx >= 0 && idx < this.data.length) {
+            let d = this.data;
+            d[idx] = value;
+        }
+    }
+    
+    function to_string() {
+        return "Array(shape=" + this.shape + ", data=" + this.data + ")";
+    }
+}
+
+export function zeros(shape) {
+    let size = 1;
+    let i = 0;
+    for (i = 0; i < shape.length; i++) {
+        size = size * shape[i];
+    }
+    
+    let data = [];
+    for (i = 0; i < size; i++) {
+        data = data + [0]; 
+    }
+    
+    return new Array(data, shape);
+}
+
+export function ones(shape) {
+    let size = 1;
+    let i = 0;
+    for (i = 0; i < shape.length; i++) {
+        size = size * shape[i];
+    }
+    
+    let data = [];
+    for (i = 0; i < size; i++) {
+        data = data + [1];
+    }
+    
+    return new Array(data, shape);
+}
+
+export function arange(start, stop, step) {
+    let data = [];
+    let current = start;
+    while (current < stop) {
+        data = data + [current];
+        current = current + step;
+    }
+    let shape = [data.length];
+    return new Array(data, shape);
+}
+
+export function eye(n) {
+    let size = n * n;
+    let data = [];
+    let i = 0;
+    let j = 0;
+    for (i = 0; i < n; i++) {
+        for (j = 0; j < n; j++) {
+            if (i == j) {
+                data = data + [1];
+            } else {
+                data = data + [0];
+            }
+        }
+    }
+    return new Array(data, [n, n]);
+}
+
+export function add_arrays(a, b) {
+    if (a.size != b.size) {
+        println("Error: Array sizes do not match for addition");
+        return null;
+    }
+    
+    let result_data = [];
+    let i = 0;
+    for (i = 0; i < a.data.length; i++) {
+        result_data = result_data + [a.data[i] + b.data[i]];
+    }
+    
+    return new Array(result_data, a.shape);
+}
+
+export function multiply_arrays(a, b) {
+    if (a.size != b.size) {
+        println("Error: Array sizes do not match for multiplication");
+        return null;
+    }
+    
+    let result_data = [];
+    let i = 0;
+    for (i = 0; i < a.data.length; i++) {
+        result_data = result_data + [a.data[i] * b.data[i]];
+    }
+    
+    return new Array(result_data, a.shape);
+}
+
+export function dot(a, b) {
+    if (a.shape.length == 1 && b.shape.length == 1) {
+        if (a.size != b.size) {
+             println("Error: vector lengths differ for dot product");
+             return null;
+        }
+        let s = 0;
+        let i = 0;
+        for (i = 0; i < a.size; i++) {
+            s = s + (a.data[i] * b.data[i]);
+        }
+        return s;
+    }
+    
+    if (a.shape.length == 2 && b.shape.length == 2) {
+        let m = a.shape[0];
+        let n = a.shape[1];
+        let n_b = b.shape[0];
+        let p = b.shape[1];
+        
+        if (n != n_b) {
+            println("Error: Inner dimensions must match for matrix multiplication");
+            return null;
+        }
+        
+        let res_data = [];
+        let res_shape = [m, p];
+        
+        let k = 0;
+        for(k = 0; k < m * p; k++) { res_data = res_data + [0]; }
+        let res = new Array(res_data, res_shape);
+        
+        let i = 0;
+        let j = 0;
+        
+        for (i = 0; i < m; i++) {
+            for (j = 0; j < p; j++) {
+                let sum = 0;
+                let k_idx = 0;
+                for (k_idx = 0; k_idx < n; k_idx++) {
+                     let val_a = a.get_val([i, k_idx]);
+                     let val_b = b.get_val([k_idx, j]);
+                     sum = sum + val_a * val_b;
+                }
+                res.set_val([i, j], sum);
+            }
+        }
+        return res;
+    }
+    
+    println("Error: dot product currently only supports 1D vectors and 2D matrices");
+    return null;
+}

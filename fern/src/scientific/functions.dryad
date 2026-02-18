@@ -1,0 +1,214 @@
+
+// Greenleaf - Scientific Functions
+// Pure Dryad implementation of mathematical functions
+
+// Constants
+export const PI = 3.141592653589793;
+export const E = 2.718281828459045;
+export const GOLDEN_RATIO = 1.618033988749895;
+export const EULER_GAMMA = 0.5772156649015329;
+
+// Basic Functions
+
+export function abs(x) {
+    if (x < 0) { return -x; }
+    return x;
+}
+
+export function floor(x) {
+    if (x >= 0) {
+        let rem = x % 1;
+        return x - rem;
+    } else {
+        let rem = x % 1;
+        if (rem == 0) { return x; }
+        return x - rem - 1;
+    }
+}
+
+export function ceil(x) {
+    if (x == floor(x)) { return x; }
+    return floor(x) + 1;
+}
+
+export function round(x) {
+    return floor(x + 0.5);
+}
+
+// Random Number Generator (LCG)
+let _rnd_state = 123456789;
+
+export function seed(s) {
+    _rnd_state = s;
+}
+
+export function random() {
+    let a = 1103515245;
+    let c = 12345;
+    let m = 2147483648; 
+    
+    _rnd_state = (_rnd_state * a + c) % m;
+    return _rnd_state / (m - 1.0); 
+}
+
+export function pow(base, exponent) {
+    if (exponent % 1 == 0) {
+        let res = 1;
+        let p = abs(exponent);
+        let i = 0;
+        for (i = 0; i < p; i++) {
+            res = res * base;
+        }
+        if (exponent < 0) { return 1/res; }
+        return res;
+    }
+    return exp(exponent * ln(base));
+}
+
+export function sqrt(x) {
+    if (x < 0) { return null; }
+    if (x == 0) { return 0; }
+    
+    let z = x;
+    let i = 0;
+    for (i = 0; i < 10; i++) {
+        z = z - (z*z - x) / (2*z);
+    }
+    return z;
+}
+
+export function factorial(n) {
+    if (n < 0) { return null; }
+    if (n == 0) { return 1; }
+    let res = 1;
+    let i = 1;
+    for (i = 1; i <= n; i++) {
+        res = res * i;
+    }
+    return res;
+}
+
+// Trigonometric Functions
+
+export function sin(x) {
+    let term = x;
+    let sum = x;
+    let x2 = x * x;
+    
+    let i = 1;
+    for (i = 1; i < 10; i++) {
+        term = -term * x2 / ((2*i) * (2*i+1));
+        sum = sum + term;
+    }
+    return sum;
+}
+
+export function cos(x) {
+    let term = 1;
+    let sum = 1;
+    let x2 = x * x;
+    
+    let i = 1;
+    for (i = 1; i < 10; i++) {
+        term = -term * x2 / ((2*i-1) * (2*i));
+        sum = sum + term;
+    }
+    return sum;
+}
+
+export function tan(x) {
+    return sin(x) / cos(x);
+}
+
+// Exponential and Logarithmic
+
+export function exp(x) {
+    let term = 1;
+    let sum = 1;
+    
+    let i = 1;
+    for (i = 1; i < 20; i++) {
+        term = term * x / i;
+        sum = sum + term;
+    }
+    return sum;
+}
+
+export function ln(x) {
+    if (x <= 0) { return null; }
+    
+    let y = (x - 1) / (x + 1);
+    let y2 = y * y;
+    let term = y;
+    let sum = y;
+    
+    let i = 1;
+    for (i = 1; i < 10; i++) {
+         term = term * y2;
+         sum = sum + term / (2*i + 1);
+    }
+    return 2 * sum;
+}
+
+export function log10(x) {
+    return ln(x) / ln(10);
+}
+
+// Hyperbolic
+
+export function sinh(x) {
+    return (exp(x) - exp(-x)) / 2;
+}
+
+export function cosh(x) {
+    return (exp(x) + exp(-x)) / 2;
+}
+
+export function tanh(x) {
+    return sinh(x) / cosh(x);
+}
+
+// Numerical Calculus
+
+export function integrate_numerical(f, a, b, n) {
+    let h = (b - a) / n;
+    let sum = 0.5 * (f(a) + f(b));
+    let i = 1;
+    for (i = 1; i < n; i++) {
+        let x = a + i * h;
+        sum = sum + f(x);
+    }
+    return sum * h;
+}
+
+export function derivative_numerical(f, x, h) {
+    if (h == null) { h = 0.0001; }
+    return (f(x + h) - f(x - h)) / (2 * h);
+}
+
+export function find_root(f, a, b, tol) {
+    let fa = f(a);
+    let fb = f(b);
+    
+    if (fa * fb > 0) {
+        println("Error: f(a) and f(b) must have opposite signs");
+        return null;
+    }
+    
+    let mid = (a + b) / 2;
+    while ((b - a) / 2 > tol) {
+        mid = (a + b) / 2;
+        let fmid = f(mid);
+        
+        if (fmid == 0) { return mid; }
+        
+        if (fa * fmid < 0) {
+            b = mid;
+            fb = fmid;
+        } else {
+            a = mid;
+            fa = fmid;
+        }
+    }
+    return mid;
+}

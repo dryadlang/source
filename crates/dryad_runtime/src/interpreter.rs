@@ -543,21 +543,9 @@ impl Interpreter {
 
         // Poll for native events (like HTTP requests)
         self.poll_native_events();
-
-        // Proteção contra recursão infinita
-        self.call_depth += 1;
-        if self.call_depth > MAX_RECURSION_DEPTH {
-            self.call_depth -= 1;
-            return Err(DryadError::runtime(
-                3001,
-                &format!(
-                    "Limite de recursão excedido ({}). Verifique se há recursão infinita.",
-                    MAX_RECURSION_DEPTH
-                ),
-                location.clone(),
-                self.current_stack_trace.clone(),
-            ));
-        }
+        
+        // Removed call_depth tracking from statement execution to allow infinite loops (event loops)
+        // Recursion depth is now only tracked at function/method call boundaries.
 
         let result = match stmt {
             Stmt::NativeDirective(module_name, _) => {
@@ -1137,7 +1125,8 @@ impl Interpreter {
             }
         };
 
-        self.call_depth -= 1;
+        // self.call_depth -= 1;
+
         result
     }
 
@@ -2571,6 +2560,7 @@ impl Interpreter {
         args: &[Expr],
     ) -> Result<Value, DryadError> {
         self.call_depth += 1;
+
         if self.call_depth > MAX_RECURSION_DEPTH {
             self.call_depth -= 1;
             return Err(self.runtime_error(
@@ -2722,92 +2712,102 @@ impl Interpreter {
 
                 if let ManagedObject::Instance {
                     class_name,
-                    properties,
+                    properties: _,
                 } = heap_obj
                 {
-                    let class_name = class_name.clone();
+                    let mut current_class = class_name.clone();
+                    let mut found_method = None;
+                    let mut found_class_name = class_name.clone();
 
-                    if let Some(Value::Class(cid)) = self.env.classes.get(&class_name).cloned() {
+                    while let Some(Value::Class(cid)) = self.env.classes.get(&current_class).cloned() {
                         let class_obj = self.heap.get(cid).cloned().ok_or_else(|| {
                             DryadError::new(3100, "Heap error: Inconsistent class reference")
                         })?;
 
-                        if let ManagedObject::Class { methods, .. } = class_obj {
+                        if let ManagedObject::Class { 
+                            name,
+                            parent,
+                            methods, 
+                            .. 
+                        } = class_obj {
                             if let Some(method) = methods.get(method_name) {
-                                if !self.check_visibility(&method.visibility, &class_name) {
-                                    return Err(DryadError::new(
-                                        3024,
-                                        &format!("Método '{}' não é acessível (visibilidade: {:?})", method_name, method.visibility),
-                                    ));
-                                }
+                                found_method = Some(method.clone());
+                                found_class_name = name.clone();
+                                break;
+                            }
+                            if let Some(p) = parent {
+                                current_class = p.clone();
+                            } else {
+                                break;
+                            }
+                        } else {
+                            break;
+                        }
+                    }
 
-                                let mut arg_values = Vec::new();
-                                for arg in args {
-                                    arg_values.push(self.evaluate(arg)?);
-                                }
+                    if let Some(method) = found_method {
+                        if !self.check_visibility(&method.visibility, &found_class_name) {
+                            return Err(DryadError::new(
+                                3024,
+                                &format!("Método '{}' não é acessível (visibilidade: {:?})", method_name, method.visibility),
+                            ));
+                        }
 
-                                let saved_vars = self.env.variables.clone();
-                                let saved_instance = self.env.current_instance.clone();
-                                let saved_class = self.env.current_class.clone();
+                        let mut arg_values = Vec::new();
+                        for arg in args {
+                            arg_values.push(self.evaluate(arg)?);
+                        }
 
-                                self.env.current_instance = Some(Value::Instance(id));
-                                self.env.current_class = Some(class_name.to_string());
+                        let saved_vars = self.env.variables.clone();
+                        let saved_instance = self.env.current_instance.clone();
+                        let saved_class = self.env.current_class.clone();
 
-                                // Bind parameters
-                                for (i, (param_name, default_expr)) in method.params.iter().enumerate() {
-                                    let value = if i < arg_values.len() {
-                                        arg_values[i].clone()
-                                    } else if let Some(expr) = default_expr {
-                                        self.evaluate(expr)?
-                                    } else {
-                                        self.env.variables = saved_vars;
-                                        self.env.current_instance = saved_instance;
-                                        self.env.current_class = saved_class;
-                                        return Err(DryadError::new(
-                                            3025,
-                                            &format!(
-                                                "Argumento obrigatório '{}' não fornecido no método '{}'",
-                                                param_name, method_name
-                                            ),
-                                        ));
-                                    };
-                                    self.env.variables.insert(param_name.clone(), value);
-                                }
+                        self.env.current_instance = Some(Value::Instance(id));
+                        self.env.current_class = Some(class_name.to_string());
 
-                                let result = match self.execute_statement(&method.body) {
-                                    Ok(value) => Ok(value),
-                                    Err(e) => {
-                                        if e.code() == 3021 {
-                                            self.parse_return_value(e.message())
-                                        } else {
-                                            Err(e)
-                                        }
-                                    }
-                                };
-
+                        // Bind parameters
+                        for (i, (param_name, default_expr)) in method.params.iter().enumerate() {
+                            let value = if i < arg_values.len() {
+                                arg_values[i].clone()
+                            } else if let Some(expr) = default_expr {
+                                self.evaluate(expr)?
+                            } else {
                                 self.env.variables = saved_vars;
                                 self.env.current_instance = saved_instance;
                                 self.env.current_class = saved_class;
-                                result
-                            } else {
-                                Err(DryadError::new(
-                                    3026,
+                                return Err(DryadError::new(
+                                    3025,
                                     &format!(
-                                        "Método '{}' não encontrado na classe '{}'",
-                                        method_name, class_name
+                                        "Argumento obrigatório '{}' não fornecido no método '{}'",
+                                        param_name, method_name
                                     ),
-                                ))
-                            }
-                        } else {
-                            Err(DryadError::new(
-                                3101,
-                                "Heap error: Expected Class definition",
-                            ))
+                                ));
+                            };
+                            self.env.variables.insert(param_name.clone(), value);
                         }
+
+                        let result = match self.execute_statement(&method.body) {
+                            Ok(value) => Ok(value),
+                            Err(e) => {
+                                if e.code() == 3021 {
+                                    self.parse_return_value(e.message())
+                                } else {
+                                    Err(e)
+                                }
+                            }
+                        };
+
+                        self.env.variables = saved_vars;
+                        self.env.current_instance = saved_instance;
+                        self.env.current_class = saved_class;
+                        result
                     } else {
                         Err(DryadError::new(
-                            3027,
-                            &format!("Definição da classe '{}' não encontrada", class_name),
+                            3026,
+                            &format!(
+                                "Método '{}' não encontrado na classe '{}'",
+                                method_name, class_name
+                            ),
                         ))
                     }
                 } else {
@@ -3024,7 +3024,7 @@ impl Interpreter {
                 }
             }
             Value::Instance(id) => {
-                let heap_obj = self.heap.get(id).ok_or_else(|| {
+                let heap_obj = self.heap.get(id).cloned().ok_or_else(|| {
                     DryadError::new(3100, "Heap error: Instance reference not found")
                 })?;
 
@@ -3033,54 +3033,74 @@ impl Interpreter {
                     properties,
                 } = heap_obj
                 {
-                    let class_name = class_name.clone();
-                    
-                    // Resolve class definition for visibility checks
-                    let class_info = if let Some(Value::Class(cid)) = self.env.classes.get(&class_name) {
-                        if let Some(ManagedObject::Class { properties: class_props, getters, .. }) = self.heap.get(*cid) {
-                            Some((class_props.clone(), getters.clone()))
-                        } else { None }
-                    } else { None };
+                    let mut current_class_name = class_name.clone();
+                    let mut found_getter = None;
+                    let mut found_prop_def = None;
+                    let mut found_class_name = class_name.clone();
 
-                    if let Some((class_props, getters)) = class_info {
-                        // Check for getter first
-                        if let Some(getter) = getters.get(property_name) {
-                            if !self.check_visibility(&getter.visibility, &class_name) {
-                                return Err(DryadError::new(
-                                    3029,
-                                    &format!("Getter '{}' não é acessível (visibilidade: {:?})", property_name, getter.visibility),
-                                ));
+                    while let Some(Value::Class(cid)) = self.env.classes.get(&current_class_name).cloned() {
+                        let class_obj = self.heap.get(cid).cloned().ok_or_else(|| {
+                            DryadError::new(3100, "Heap error: Class reference not found")
+                        })?;
+                        
+                        if let ManagedObject::Class { name, parent, properties: class_props, getters, .. } = class_obj {
+                            if let Some(getter) = getters.get(property_name) {
+                                found_getter = Some(getter.clone());
+                                found_class_name = name.clone();
+                                break;
                             }
+                            if let Some(prop_def) = class_props.get(property_name) {
+                                found_prop_def = Some(prop_def.clone());
+                                found_class_name = name.clone();
+                                break;
+                            }
+                            if let Some(p) = parent {
+                                current_class_name = p;
+                            } else {
+                                break;
+                            }
+                        } else {
+                            break;
+                        }
+                    }
 
-                            // Execute getter with 'this' bound to instance
-                            let mut getter_env = self.env.clone();
-                            let saved_class = self.env.current_class.clone();
-                            getter_env.variables.insert("this".to_string(), object.clone());
-                            getter_env.current_class = Some(class_name.clone());
-                            let prev_env = std::mem::replace(&mut self.env, getter_env);
-                            let result = self.execute_statement(&getter.body);
-                            self.env = prev_env;
-                            self.env.current_class = saved_class;
-                            return result;
+                    if let Some(getter) = found_getter {
+                        if !self.check_visibility(&getter.visibility, &found_class_name) {
+                            return Err(DryadError::new(
+                                3029,
+                                &format!("Getter '{}' não é acessível (visibilidade: {:?})", property_name, getter.visibility),
+                            ));
                         }
 
-                        // Check for property definition
-                        if let Some(prop_def) = class_props.get(property_name) {
-                            if !self.check_visibility(&prop_def.visibility, &class_name) {
-                                return Err(DryadError::new(
-                                    3029,
-                                    &format!("Propriedade '{}' não é acessível (visibilidade: {:?})", property_name, prop_def.visibility),
-                                ));
-                            }
+                        // Execute getter with 'this' bound to instance
+                        let mut getter_env = self.env.clone();
+                        let saved_class = self.env.current_class.clone();
+                        getter_env.variables.insert("this".to_string(), object.clone());
+                        getter_env.current_class = Some(found_class_name);
+                        let prev_env = std::mem::replace(&mut self.env, getter_env);
+                        let result = self.execute_statement(&getter.body);
+                        self.env = prev_env;
+                        self.env.current_class = saved_class;
+                        return result;
+                    }
 
-                            if let Some(value) = properties.get(property_name) {
-                                return Ok(value.clone());
-                            }
-                            if let Some(default_value) = &prop_def.default_value {
-                                return Ok(default_value.clone());
-                            }
-                            return Ok(Value::Null);
+                    if let Some(prop_def) = found_prop_def {
+                        if !self.check_visibility(&prop_def.visibility, &found_class_name) {
+                            return Err(DryadError::new(
+                                3029,
+                                &format!("Propriedade '{}' não é acessível (visibilidade: {:?})", property_name, prop_def.visibility),
+                            ));
                         }
+
+                        if let Some(value) = properties.get(property_name) {
+                            return Ok(value.clone());
+                        }
+
+                        if let Some(default_value) = &prop_def.default_value {
+                            return Ok(default_value.clone());
+                        }
+
+                        return Ok(Value::Null);
                     }
 
                     // Dynamic property access (not in class def)
@@ -3113,6 +3133,33 @@ impl Interpreter {
                     }
                 } else {
                     Err(DryadError::new(3101, "Heap error: Expected Object"))
+                }
+            }
+            Value::Array(id) => {
+                if property_name == "length" {
+                    let heap_obj = self.heap.get(id).ok_or_else(|| {
+                         DryadError::new(3100, "Heap error: Array reference not found")
+                    })?;
+                    if let ManagedObject::Array(elements) = heap_obj {
+                        Ok(Value::Number(elements.len() as f64))
+                    } else {
+                        Err(DryadError::new(3101, "Heap error: Expected Array"))
+                    }
+                } else {
+                     Err(DryadError::new(
+                        3030,
+                        &format!("Propriedade '{}' não encontrada em Array", property_name),
+                    ))
+                }
+            }
+            Value::String(s) => {
+                if property_name == "length" {
+                    Ok(Value::Number(s.len() as f64))
+                } else {
+                     Err(DryadError::new(
+                        3030,
+                        &format!("Propriedade '{}' não encontrada em String", property_name),
+                    ))
                 }
             }
             _ => Err(DryadError::new(
@@ -3166,14 +3213,48 @@ impl Interpreter {
 
                 // It's a class instantiation
                 let mut instance_properties = HashMap::new();
+                let mut hierarchy = Vec::new();
+                let mut current_class_name = class_name.to_string();
 
-                // Initialize properties with default values
-                for (prop_name, class_prop) in &properties {
-                    if !class_prop.is_static {
-                        if let Some(default_value) = &class_prop.default_value {
-                            instance_properties.insert(prop_name.clone(), default_value.clone());
+                while let Some(Value::Class(cid)) = self.env.classes.get(&current_class_name).cloned() {
+                    let class_obj = self.heap.get(cid).cloned().ok_or_else(|| {
+                        DryadError::new(3100, "Heap error: Class reference not found")
+                    })?;
+                    if let ManagedObject::Class { parent, .. } = &class_obj {
+                        let parent_name = parent.clone();
+                        hierarchy.push(class_obj);
+                        if let Some(p) = parent_name {
+                            current_class_name = p;
                         } else {
-                            instance_properties.insert(prop_name.clone(), Value::Null);
+                            break;
+                        }
+                    } else {
+                        break;
+                    }
+                }
+
+                // Initialize properties from parent to child (so child overrides parent)
+                for class_obj in hierarchy.iter().rev() {
+                    if let ManagedObject::Class { properties, .. } = class_obj {
+                        for (prop_name, class_prop) in properties {
+                            if !class_prop.is_static {
+                                if let Some(default_value) = &class_prop.default_value {
+                                    instance_properties.insert(prop_name.clone(), default_value.clone());
+                                } else {
+                                    instance_properties.insert(prop_name.clone(), Value::Null);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Find the first 'init' method in the hierarchy
+                let mut found_init = None;
+                for class_obj in &hierarchy {
+                    if let ManagedObject::Class { methods, .. } = class_obj {
+                        if let Some(init_method) = methods.get("init") {
+                            found_init = Some(init_method.clone());
+                            break;
                         }
                     }
                 }
@@ -3186,7 +3267,7 @@ impl Interpreter {
                 let instance = Value::Instance(instance_id);
 
                 // Call init method if it exists
-                if let Some(init_method) = methods.get("init") {
+                if let Some(init_method) = found_init {
                     // Evaluate arguments
                     let mut arg_values = Vec::new();
                     for arg in args {
@@ -3737,7 +3818,8 @@ impl Interpreter {
         if let Some(saved) = self.env.call_stack_vars.pop() {
             self.env.variables = saved;
         }
-        self.env.classes = original_classes;
+        // NOTA: Não restaurar classes aqui, pois instâncias exportadas dependem delas
+        // self.env.classes = original_classes;
 
         Ok(exported_symbols)
     }

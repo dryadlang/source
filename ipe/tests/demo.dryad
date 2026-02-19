@@ -1,53 +1,29 @@
-import { ipe, Form, Button, Label, Application } from "../lib/ipe.dryad";
+use "./ipe/lib/ipe";
 
 function main() {
-    println("Iniciando Ipe WinForms Demo...");
-
-    // Cria o formulário principal
-    let mainForm = new Form();
-    mainForm.width = 800;
-    mainForm.height = 600;
-    mainForm.title = "Ipe Framework - WinForms Style";
-    mainForm.backColor = 0x222222; // Fundo escuro
-
-    // Cria um botão
-    let btn = new Button();
-    btn.x = 300;
-    btn.y = 250;
-    btn.width = 200;
-    btn.height = 100;
-    btn.backColor = 0xFF0000; // Vermelho inicialmente
-
-    // Função para tratar o clique
-    function onBtnClick(data) {
-        println("Botão clicado em: " + data.x + ", " + data.y);
-        
-        // Altera cor alternadamente
-        if (btn.backColor == 0xFF0000) {
-            btn.backColor = 0x00FF00; // Verde
-        } else {
-            btn.backColor = 0xFF0000; // Vermelho
-        }
+    println("Iniciando Ipe Framework (Oak)...");
+    
+    if (!ipe::init()) {
+        println("Falha ao inicializar Ipe");
+        return;
     }
 
-    // Adiciona listener de clique
-    btn.on("click", onBtnClick);
+    println("Criando janela...");
+    ipe::createWindow(800, 600, "Ipe Framework - Oak Refactor");
 
-    // Cria um label
-    let lbl = new Label();
-    lbl.x = 300;
-    lbl.y = 200;
-    lbl.width = 200;
-    lbl.height = 30;
-    lbl.text = "Ola Mundo Ipe!";
-    lbl.foreColor = 0xFFFFFF; // Branco
+    let count = 0;
+    while (ipe::isOpen() && count < 100) {
+        ipe::clear(0x333333); // Cinza escuro
+        
+        // Desenha um retângulo vermelho que se move
+        ipe::drawRect(100 + count, 100, 200, 150, 0xFF0000);
+        
+        ipe::processEvents();
+        count++;
+    }
 
-    // Adiciona componentes ao formulário
-    mainForm.add(btn);
-    mainForm.add(lbl);
-
-    // Executa a aplicação
-    Application.run(mainForm);
+    ipe::close();
+    println("Demo finalizado com sucesso!");
 }
 
 main();

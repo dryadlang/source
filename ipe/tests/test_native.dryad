@@ -1,0 +1,12 @@
+#<system_env>
+#<console_io>
+
+function main() {
+    let p = native_platform();
+    println("Plataforma detectada: " + p);
+    
+    let a = native_arch();
+    println("Arquitetura detectada: " + a);
+}
+
+main();

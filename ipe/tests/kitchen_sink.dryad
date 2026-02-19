@@ -1,0 +1,11 @@
+#<system_env>
+#<console_io>
+import { ipe, Form, Button, Label, Application, RectStyle, Control } from "../lib/ipe.dryad";
+
+function main() {
+    println("--- Iniciando Ipe Kitchen Sink Demo ---");
+    let p = native_platform();
+    println("Plataforma: " + p);
+}
+
+main();

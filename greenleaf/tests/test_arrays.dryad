@@ -1,0 +1,38 @@
+
+// Test script for Greenleaf Arrays
+import { Array, zeros, ones, arange, eye, add_arrays, dot } from "../src/math/arrays.dryad";
+
+println("Running Array Tests...");
+
+// Test Creation
+let z = zeros([2, 3]);
+println("Zeros (2x3): " + z.to_string());
+if (z.sum() != 0) println("FAIL: Zeros sum != 0");
+
+let o = ones([2, 2]);
+println("Ones (2x2): " + o.to_string());
+if (o.sum() != 4) println("FAIL: Ones sum != 4");
+
+let seq = arange(0, 5, 1);
+println("Arange(0,5): " + seq.to_string());
+if (seq.max() != 4) println("FAIL: Arange max != 4");
+
+let id = eye(3);
+println("Identity(3): " + id.to_string());
+if (id.get([0,0]) != 1) println("FAIL: Identity[0,0] != 1");
+if (id.get([0,1]) != 0) println("FAIL: Identity[0,1] != 0");
+
+// Test Operations
+let v1 = arange(1, 4, 1); // [1, 2, 3]
+let v2 = arange(1, 4, 1); // [1, 2, 3]
+let dp = dot(v1, v2);
+println("Dot product [1,2,3].[1,2,3] = " + dp);
+if (dp != 14) println("FAIL: Dot product should be 14 (" + dp + ")");
+
+let m1 = ones([2, 2]);
+let m2 = ones([2, 2]);
+let mm = dot(m1, m2);
+println("MatMul ones(2,2) * ones(2,2) = " + mm.to_string());
+if (mm.get([0,0]) != 2) println("FAIL: MatMul result wrong");
+
+println("Array Tests Completed.");

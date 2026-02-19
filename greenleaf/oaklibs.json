@@ -1,0 +1,13 @@
+{
+    "name": "greenleaf",
+    "version": "0.1.0",
+    "description": "Biblioteca matemática avançada para Dryad (NumPy/Pandas/SciPy like)",
+    "author": "Dryad Team",
+    "license": "MIT",
+    "type": "library",
+    "main": "src/lib.dryad",
+    "dependencies": {},
+    "scripts": {
+        "test": "oak exec tests/test_greenleaf.dryad"
+    }
+}

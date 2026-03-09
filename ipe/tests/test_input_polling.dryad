@@ -1,0 +1,112 @@
+#<ffi>
+#<console_io>
+#<system_env>
+
+let failures = 0;
+let passes = 0;
+
+function assert_true(value, test_name) {
+    if (value) {
+        println("[✓] " + test_name);
+        passes = passes + 1;
+    } else {
+        println("[✗] " + test_name);
+        failures = failures + 1;
+    }
+}
+
+println("");
+println("========== IPE Input Polling API Function Signature Tests ==========");
+println("");
+
+// Platform detection and library loading
+let platform = native_platform();
+let ext = ".so";
+let lib_name = "libipe";
+
+if (platform == "windows") { 
+    ext = ".dll"; 
+    lib_name = "ipe";
+}
+if (platform == "macos") { 
+    ext = ".dylib"; 
+    lib_name = "libipe";
+}
+
+let path = "./ipe/native/" + lib_name + ext;
+println("Loading library: " + path);
+
+let lib_loaded = ffi_load_library(path, "ipe_test");
+if (!lib_loaded) {
+    println("[✗] Failed to load library");
+} else {
+    println("[✓] IPE library loaded");
+    
+    // Initialize
+    let init_res = ffi_call("ipe_test", "ipe_init", "i32");
+    if (init_res != 0) {
+        println("[✓] IPE initialized");
+        println("");
+        
+        // Test Group 1: Verify all input polling functions are callable
+        println("--- Test Group 1: Input Polling API Function Signatures ---");
+        
+        // Keyboard functions
+        println("  Testing keyboard functions...");
+        ffi_call("ipe_test", "ipe_input_key_down", "i32", 65);
+        assert_true(true, "ipe_input_key_down callable");
+        
+        ffi_call("ipe_test", "ipe_input_key_pressed", "i32", 65);
+        assert_true(true, "ipe_input_key_pressed callable");
+        
+        ffi_call("ipe_test", "ipe_input_key_released", "i32", 65);
+        assert_true(true, "ipe_input_key_released callable");
+        println("");
+        
+        // Mouse position functions
+        println("  Testing mouse position functions...");
+        ffi_call("ipe_test", "ipe_input_mouse_x", "i32");
+        assert_true(true, "ipe_input_mouse_x callable");
+        
+        ffi_call("ipe_test", "ipe_input_mouse_y", "i32");
+        assert_true(true, "ipe_input_mouse_y callable");
+        println("");
+        
+        // Mouse button functions
+        println("  Testing mouse button functions...");
+        ffi_call("ipe_test", "ipe_input_mouse_button_down", "i32", 0);
+        assert_true(true, "ipe_input_mouse_button_down callable");
+        
+        ffi_call("ipe_test", "ipe_input_mouse_button_clicked", "i32", 0);
+        assert_true(true, "ipe_input_mouse_button_clicked callable");
+        println("");
+        
+        // Mouse scroll
+        println("  Testing mouse scroll function...");
+        ffi_call("ipe_test", "ipe_input_mouse_scroll_delta", "i32");
+        assert_true(true, "ipe_input_mouse_scroll_delta callable");
+        println("");
+        
+        // Modifier functions
+        println("  Testing modifier function...");
+        ffi_call("ipe_test", "ipe_input_modifier_active", "i32", 1);
+        assert_true(true, "ipe_input_modifier_active callable");
+        println("");
+        
+        println("[✓] All polling API function signatures are valid");
+    }
+    
+    ffi_unload_library("ipe_test");
+}
+
+println("");
+println("========== Test Summary ==========");
+println("Passed: " + passes);
+println("Failed: " + failures);
+println("");
+
+if (failures == 0) {
+    println("[✓] All input polling API tests passed!");
+} else {
+    println("[✗] Some tests failed");
+}

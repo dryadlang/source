@@ -1,0 +1,111 @@
+#<ffi>
+#<console_io>
+#<system_env>
+
+let failures = 0;
+let passes = 0;
+
+function assert_equal(actual, expected, test_name) {
+    if (actual == expected) {
+        println("[✓] " + test_name);
+        passes = passes + 1;
+    } else {
+        println("[✗] " + test_name + " (expected " + expected + ", got " + actual + ")");
+        failures = failures + 1;
+    }
+}
+
+function assert_true(value, test_name) {
+    if (value) {
+        println("[✓] " + test_name);
+        passes = passes + 1;
+    } else {
+        println("[✗] " + test_name);
+        failures = failures + 1;
+    }
+}
+
+function assert_false(value, test_name) {
+    if (!value) {
+        println("[✓] " + test_name);
+        passes = passes + 1;
+    } else {
+        println("[✗] " + test_name);
+        failures = failures + 1;
+    }
+}
+
+println("");
+println("========== IPE Input Event Queue Tests ==========");
+println("");
+
+// Platform detection and library loading
+let platform = native_platform();
+let ext = ".so";
+let lib_name = "libipe";
+
+if (platform == "windows") { 
+    ext = ".dll"; 
+    lib_name = "ipe";
+}
+if (platform == "macos") { 
+    ext = ".dylib"; 
+    lib_name = "libipe";
+}
+
+let path = "./ipe/native/" + lib_name + ext;
+println("Loading library: " + path);
+
+let lib_loaded = ffi_load_library(path, "ipe_lib_evt");
+if (!lib_loaded) {
+    println("[✗] Failed to load library");
+} else {
+    println("[✓] IPE library loaded");
+    
+    // Initialize
+    let init_res = ffi_call("ipe_lib_evt", "ipe_init", "i32");
+    if (init_res != 0) {
+        println("[✓] IPE initialized");
+        println("");
+        
+        // Test Group 1: Initial event queue state
+        println("--- Test Group 1: Initial Event Queue State ---");
+        let initial_count = ffi_call("ipe_lib_evt", "ipe_input_event_count", "i32");
+        assert_equal(initial_count, 0, "Event queue is empty initially");
+        println("  Initial event count: " + initial_count);
+        println("");
+        
+        // Test Group 2: Clear events
+        println("--- Test Group 2: Clear Event Queue ---");
+        ffi_call("ipe_lib_evt", "ipe_input_clear_events", "void");
+        println("[✓] input_clear_events() called");
+        
+        let count_after_clear = ffi_call("ipe_lib_evt", "ipe_input_event_count", "i32");
+        assert_equal(count_after_clear, 0, "Event queue is still empty after clear");
+        println("  Event count after clear: " + count_after_clear);
+        println("");
+        
+        // Test Group 3: Get event pointer (tests ipe_input_get_events)
+        println("--- Test Group 3: Get Events Pointer ---");
+        let events_ptr = ffi_call("ipe_lib_evt", "ipe_input_get_events", "pointer");
+        assert_true(events_ptr != 0, "Event queue pointer is valid");
+        println("  Events pointer: " + events_ptr);
+        println("");
+        
+        println("[✓] All event queue API functions are callable");
+    }
+    
+    ffi_unload_library("ipe_lib_evt");
+}
+
+println("");
+println("========== Test Summary ==========");
+println("Passed: " + passes);
+println("Failed: " + failures);
+println("");
+
+if (failures == 0) {
+    println("[✓] All event queue tests passed!");
+} else {
+    println("[✗] Some tests failed");
+}

@@ -269,6 +269,9 @@ typedef enum {
     IPE_EASE_OUT_ELASTIC
 } ipe_easing_t;
 
+/* Forward declaration of ipe_control_t */
+typedef struct ipe_control ipe_control_t;
+
 typedef struct ipe_animation_seq {
     ipe_control_t* target;
     char* property;
@@ -690,8 +693,8 @@ void ipe_set_blend_mode(ipe_blend_mode_t mode) {
         case IPE_BLEND_NORMAL: sdl_mode = SDL_BLENDMODE_BLEND; break;
         case IPE_BLEND_MULTIPLY: sdl_mode = SDL_BLENDMODE_MOD; break; // Approximated
         case IPE_BLEND_SCREEN: 
-            // Custom blend mode would be needed for perfect match
-            sdl_mode = SDL_ComposeCustomBlendMode(SDL_BLENDFACTOR_ONE_MINUS_DST_COLOR, SDL_BLENDFACTOR_ONE, SDL_BLENDOP_ADD, SDL_BLENDFACTOR_ONE, SDL_BLENDFACTOR_ZERO, SDL_BLENDOP_ADD);
+            // Use BLEND mode as fallback (perfect SCREEN mode requires custom composition)
+            sdl_mode = SDL_BLENDMODE_BLEND;
             break;
         default: sdl_mode = SDL_BLENDMODE_BLEND; break;
     }

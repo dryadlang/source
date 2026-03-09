@@ -21,6 +21,8 @@ ifeq ($(PLATFORM),windows)
     CFLAGS_BASE = -shared -O2 -fPIC
     LIBS_GDI = -lgdi32 -luser32 -lkernel32
     LIBS_SDL2 = -lSDL2 -lSDL2_ttf -lSDL2_image
+    CFLAGS_SDL2 = -IC:/msys64/ucrt64/include/SDL2 -Dmain=SDL_main
+    LIBS_SDL2_FULL = -LC:/msys64/ucrt64/lib -lmingw32 -mwindows -lSDL2main -lSDL2 -lSDL2_ttf -lSDL2_image
     OUTPUT_GDI = ipe.dll
     OUTPUT_SDL2 = ipe.dll
 else ifeq ($(PLATFORM),linux)
@@ -65,7 +67,7 @@ sdl2: $(OUTPUT_SDL2)_sdl2
 
 $(OUTPUT_SDL2)_sdl2: $(SOURCE_SDL2)
 	@echo "[→] Compilando versão SDL2..."
-	$(CC) $(CFLAGS_BASE) $(CFLAGS_SDL2) $(SOURCE_SDL2) -o $(OUTPUT_SDL2) $(LIBS_SDL2)
+	$(CC) $(CFLAGS_BASE) $(CFLAGS_SDL2) $(SOURCE_SDL2) -o $(OUTPUT_SDL2) $(LIBS_SDL2_FULL)
 	@echo "[✓] $(OUTPUT_SDL2) criado com sucesso!"
 
 info:

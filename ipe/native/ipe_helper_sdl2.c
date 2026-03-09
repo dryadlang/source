@@ -336,6 +336,66 @@ typedef struct {
   SDL_TimerID timer_id;
 } ipe_timer_t;
 
+// UI Control System - Base Control Structure
+typedef struct ipe_control {
+  // Basic properties
+  int id;
+  int x, y, w, h;
+  int visible;
+  int enabled;
+  int focused;
+  
+  // Colors and styling
+  uint32_t bg_color;
+  uint32_t border_color;
+  int border_width;
+  int corner_radius;
+  
+  // Margins
+  int margin_left;
+  int margin_right;
+  int margin_top;
+  int margin_bottom;
+  
+  // Padding
+  int padding_left;
+  int padding_right;
+  int padding_top;
+  int padding_bottom;
+  
+  // Size constraints
+  int min_width;
+  int min_height;
+  int max_width;
+  int max_height;
+  
+  // Hierarchy
+  struct ipe_control *parent;
+  struct ipe_control **children;
+  int children_count;
+  int children_capacity;
+  
+  // Callbacks
+  void (*on_click)(struct ipe_control *);
+  void (*on_focus)(struct ipe_control *);
+  void (*on_blur)(struct ipe_control *);
+  void (*on_draw)(struct ipe_control *, void *window);
+  void (*on_key)(struct ipe_control *, int keycode);
+  void (*on_mouse_move)(struct ipe_control *, int x, int y);
+  
+  // User data
+  void *user_data;
+  
+  // Type-specific data
+  char *control_type;
+  void *type_data;
+} ipe_control_t;
+
+// Global control state
+static ipe_control_t *g_control_root = NULL;
+static ipe_control_t *g_focused_control = NULL;
+static int g_next_control_id = 1;
+
 // Transformation math
 typedef struct {
     float m[3][3];
@@ -418,25 +478,9 @@ IPE_EXPORT void ipe_transform_reset() {
     ipe_matrix_identity(&g_transform_stack[g_transform_depth]);
 }
 
-// Control structure
-typedef struct ipe_control {
-  int x, y, w, h;
-  int visible;
-  char *name;
-  void (*draw)(struct ipe_control *);
-  int (*handle_event)(struct ipe_control *, int event, int x, int y);
-  void *user_data;
-  struct ipe_control *next;
-  struct ipe_control *children; // For hierarchy
-  ipe_anchors_t anchors;       // Phase 3
-  ipe_size_constraints_t size_constraints; // Phase 3
-  void* layout;                // Flow or Grid
-  int layout_type;            // 0=none, 1=flow, 2=grid
-} ipe_control_t;
-
 // Button structure
 typedef struct {
-  int x, y, w, h; // Matches start of ipe_control_t for casting
+  int x, y, w, h;
   char *text;
   uint32_t bg_color;
   uint32_t text_color;
@@ -444,8 +488,6 @@ typedef struct {
   int is_pressed;
   void (*on_click)(void *);
 } ipe_button_t;
-
-static ipe_control_t *g_root_control = NULL;
 
 // Callbacks
 typedef void (*ipe_mouse_callback)(int x, int y, int button);
@@ -645,6 +687,196 @@ static uint32_t interpolate_color(uint32_t c1, uint32_t c2, float t) {
     uint8_t b = (uint8_t)(b1 + (b2 - b1) * t);
     
     return (r << 16) | (g << 8) | b;
+}
+
+// ========== UI Control System ==========
+
+IPE_EXPORT ipe_control_t* ipe_control_create(int x, int y, int w, int h) {
+    ipe_control_t* ctrl = (ipe_control_t*)malloc(sizeof(ipe_control_t));
+    if (!ctrl) return NULL;
+    
+    memset(ctrl, 0, sizeof(ipe_control_t));
+    
+    ctrl->id = g_next_control_id++;
+    ctrl->x = x;
+    ctrl->y = y;
+    ctrl->w = w;
+    ctrl->h = h;
+    ctrl->visible = 1;
+    ctrl->enabled = 1;
+    ctrl->focused = 0;
+    
+    ctrl->bg_color = 0xCCCCCCFF;
+    ctrl->border_color = 0x000000FF;
+    ctrl->border_width = 1;
+    ctrl->corner_radius = 0;
+    
+    ctrl->margin_left = ctrl->margin_right = ctrl->margin_top = ctrl->margin_bottom = 0;
+    ctrl->padding_left = ctrl->padding_right = ctrl->padding_top = ctrl->padding_bottom = 0;
+    
+    ctrl->min_width = ctrl->min_height = 0;
+    ctrl->max_width = ctrl->max_height = 10000;
+    
+    ctrl->parent = NULL;
+    ctrl->children = NULL;
+    ctrl->children_count = 0;
+    ctrl->children_capacity = 0;
+    
+    ctrl->on_click = NULL;
+    ctrl->on_focus = NULL;
+    ctrl->on_blur = NULL;
+    ctrl->on_draw = NULL;
+    ctrl->on_key = NULL;
+    ctrl->on_mouse_move = NULL;
+    
+    ctrl->user_data = NULL;
+    ctrl->control_type = NULL;
+    ctrl->type_data = NULL;
+    
+    return ctrl;
+}
+
+IPE_EXPORT void ipe_control_destroy(ipe_control_t* ctrl) {
+    if (!ctrl) return;
+    
+    for (int i = 0; i < ctrl->children_count; i++) {
+        ipe_control_destroy(ctrl->children[i]);
+    }
+    
+    if (ctrl->children) {
+        free(ctrl->children);
+    }
+    
+    if (ctrl->control_type) {
+        free(ctrl->control_type);
+    }
+    
+    free(ctrl);
+}
+
+IPE_EXPORT void ipe_control_set_color(ipe_control_t* ctrl, uint32_t bg_color, uint32_t border_color) {
+    if (!ctrl) return;
+    ctrl->bg_color = bg_color;
+    ctrl->border_color = border_color;
+}
+
+IPE_EXPORT void ipe_control_set_position(ipe_control_t* ctrl, int x, int y) {
+    if (!ctrl) return;
+    ctrl->x = x;
+    ctrl->y = y;
+}
+
+IPE_EXPORT void ipe_control_set_size(ipe_control_t* ctrl, int w, int h) {
+    if (!ctrl) return;
+    ctrl->w = w;
+    ctrl->h = h;
+}
+
+IPE_EXPORT void ipe_control_set_visible(ipe_control_t* ctrl, int visible) {
+    if (!ctrl) return;
+    ctrl->visible = visible;
+}
+
+IPE_EXPORT void ipe_control_set_enabled(ipe_control_t* ctrl, int enabled) {
+    if (!ctrl) return;
+    ctrl->enabled = enabled;
+}
+
+IPE_EXPORT void ipe_control_add_child(ipe_control_t* parent, ipe_control_t* child) {
+    if (!parent || !child) return;
+    
+    if (parent->children_count >= parent->children_capacity) {
+        int new_capacity = parent->children_capacity == 0 ? 4 : parent->children_capacity * 2;
+        ipe_control_t** new_children = (ipe_control_t**)realloc(parent->children, 
+                                                                  new_capacity * sizeof(ipe_control_t*));
+        if (!new_children) return;
+        
+        parent->children = new_children;
+        parent->children_capacity = new_capacity;
+    }
+    
+    parent->children[parent->children_count++] = child;
+    child->parent = parent;
+}
+
+IPE_EXPORT void ipe_control_remove_child(ipe_control_t* parent, ipe_control_t* child) {
+    if (!parent || !child) return;
+    
+    for (int i = 0; i < parent->children_count; i++) {
+        if (parent->children[i] == child) {
+            for (int j = i; j < parent->children_count - 1; j++) {
+                parent->children[j] = parent->children[j + 1];
+            }
+            parent->children_count--;
+            child->parent = NULL;
+            return;
+        }
+    }
+}
+
+IPE_EXPORT void ipe_control_set_root(ipe_control_t* ctrl) {
+    if (g_control_root && g_control_root != ctrl) {
+        ipe_control_destroy(g_control_root);
+    }
+    g_control_root = ctrl;
+}
+
+IPE_EXPORT ipe_control_t* ipe_control_get_root() {
+    return g_control_root;
+}
+
+IPE_EXPORT void ipe_control_draw_base(ipe_control_t* ctrl, void* window) {
+    if (!ctrl || !ctrl->visible) return;
+    
+    ipe_window_t* win = (ipe_window_t*)window;
+    if (!win || !win->renderer) return;
+    
+    SDL_Renderer* renderer = win->renderer;
+    
+    uint8_t r = (ctrl->bg_color >> 24) & 0xFF;
+    uint8_t g = (ctrl->bg_color >> 16) & 0xFF;
+    uint8_t b = (ctrl->bg_color >> 8) & 0xFF;
+    uint8_t a = ctrl->bg_color & 0xFF;
+    
+    if (ctrl->corner_radius > 0) {
+        draw_rounded_rect(renderer, ctrl->x, ctrl->y, ctrl->w, ctrl->h,
+                         ctrl->corner_radius, ctrl->corner_radius,
+                         ctrl->corner_radius, ctrl->corner_radius,
+                         ctrl->bg_color, a / 255.0f);
+    } else {
+        SDL_SetRenderDrawColor(renderer, r, g, b, a);
+        SDL_Rect rect = { ctrl->x, ctrl->y, ctrl->w, ctrl->h };
+        SDL_RenderFillRect(renderer, &rect);
+    }
+    
+    if (ctrl->border_width > 0) {
+        r = (ctrl->border_color >> 24) & 0xFF;
+        g = (ctrl->border_color >> 16) & 0xFF;
+        b = (ctrl->border_color >> 8) & 0xFF;
+        a = ctrl->border_color & 0xFF;
+        
+        SDL_SetRenderDrawColor(renderer, r, g, b, a);
+        
+        for (int i = 0; i < ctrl->border_width; i++) {
+            SDL_Rect border = { ctrl->x + i, ctrl->y + i, 
+                               ctrl->w - 2*i, ctrl->h - 2*i };
+            SDL_RenderDrawRect(renderer, &border);
+        }
+    }
+}
+
+IPE_EXPORT void ipe_control_draw_recursive(ipe_control_t* ctrl, void* window) {
+    if (!ctrl || !ctrl->visible) return;
+    
+    if (ctrl->on_draw) {
+        ctrl->on_draw(ctrl, window);
+    } else {
+        ipe_control_draw_base(ctrl, window);
+    }
+    
+    for (int i = 0; i < ctrl->children_count; i++) {
+        ipe_control_draw_recursive(ctrl->children[i], window);
+    }
 }
 
 IPE_EXPORT int ipe_init() {
@@ -1561,9 +1793,9 @@ static void ipe_apply_flow_layout(ipe_control_t* parent, ipe_flow_layout_t* layo
     int cur_y = parent->y + layout->top_margin;
     int row_h = 0;
     
-    ipe_control_t* child = parent->children;
-    while (child) {
-        if (child->visible) {
+    for (int i = 0; i < parent->children_count; i++) {
+        ipe_control_t* child = parent->children[i];
+        if (child && child->visible) {
             child->x = cur_x;
             child->y = cur_y;
             if (child->h > row_h) row_h = child->h;
@@ -1575,18 +1807,11 @@ static void ipe_apply_flow_layout(ipe_control_t* parent, ipe_flow_layout_t* layo
                 row_h = 0;
             }
         }
-        child = child->next;
     }
-}
-
-// Layout Implementation
-void ipe_control_set_anchors(ipe_control_t* ctrl, ipe_anchors_t anchors) {
-    if (ctrl) ctrl->anchors = anchors;
 }
 
 // Animations implementation
 ipe_animation_t* ipe_animate_sequence(ipe_animation_seq_t* seq) {
-    // Start animation logic
     return NULL;
 }
 

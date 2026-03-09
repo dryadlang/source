@@ -394,4 +394,68 @@ module ipe {
         if (!lib_loaded) return 0;
         return ffi_call(lib_alias, "ipe_text_width", "i32", text, font);
     }
+    
+    // ========== UI Control System ==========
+    
+    function control_create(x, y, w, h) {
+        if (!lib_loaded) return 0;
+        return ffi_call(lib_alias, "ipe_control_create", "pointer", x, y, w, h);
+    }
+    
+    function control_destroy(ctrl) {
+        if (!lib_loaded) return;
+        ffi_call(lib_alias, "ipe_control_destroy", "void", ctrl);
+    }
+    
+    function control_set_color(ctrl, bg_color, border_color) {
+        if (!lib_loaded) return;
+        ffi_call(lib_alias, "ipe_control_set_color", "void", ctrl, bg_color, border_color);
+    }
+    
+    function control_set_position(ctrl, x, y) {
+        if (!lib_loaded) return;
+        ffi_call(lib_alias, "ipe_control_set_position", "void", ctrl, x, y);
+    }
+    
+    function control_set_size(ctrl, w, h) {
+        if (!lib_loaded) return;
+        ffi_call(lib_alias, "ipe_control_set_size", "void", ctrl, w, h);
+    }
+    
+    function control_set_visible(ctrl, visible) {
+        if (!lib_loaded) return;
+        let vis = visible ? 1 : 0;
+        ffi_call(lib_alias, "ipe_control_set_visible", "void", ctrl, vis);
+    }
+    
+    function control_set_enabled(ctrl, enabled) {
+        if (!lib_loaded) return;
+        let en = enabled ? 1 : 0;
+        ffi_call(lib_alias, "ipe_control_set_enabled", "void", ctrl, en);
+    }
+    
+    function control_add_child(parent, child) {
+        if (!lib_loaded) return;
+        ffi_call(lib_alias, "ipe_control_add_child", "void", parent, child);
+    }
+    
+    function control_remove_child(parent, child) {
+        if (!lib_loaded) return;
+        ffi_call(lib_alias, "ipe_control_remove_child", "void", parent, child);
+    }
+    
+    function control_set_root(ctrl) {
+        if (!lib_loaded) return;
+        ffi_call(lib_alias, "ipe_control_set_root", "void", ctrl);
+    }
+    
+    function control_get_root() {
+        if (!lib_loaded) return 0;
+        return ffi_call(lib_alias, "ipe_control_get_root", "pointer");
+    }
+    
+    function control_draw_recursive(ctrl, window) {
+        if (!lib_loaded) return;
+        ffi_call(lib_alias, "ipe_control_draw_recursive", "void", ctrl, window);
+    }
 }

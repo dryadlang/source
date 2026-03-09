@@ -1,0 +1,120 @@
+#<console_io>
+import * as scientific from "../scientific/functions.dryad";
+
+class Statistics {
+    let data;
+    constructor(data) {
+        this.data = data;
+    }
+
+    mean() {
+        let s = 0;
+        for (let i = 0; i < this.data.length; i++) {
+            s = s + this.data[i];
+        }
+        return s / this.data.length;
+    }
+
+    median() {
+        let sorted = this.data; 
+        let n = sorted.length;
+        if (n % 2 == 0) {
+            return (sorted[n / 2 - 1] + sorted[n / 2]) / 2;
+        }
+        return sorted[n / 2];
+    }
+
+    mode() {
+        let counts = {};
+        let max_count = 0;
+        let mode_val = this.data[0];
+        for (let i = 0; i < this.data.length; i++) {
+            let v = this.data[i];
+            if (counts[v] == null) { counts[v] = 0; }
+            counts[v] = counts[v] + 1;
+            if (counts[v] > max_count) {
+                max_count = counts[v];
+                mode_val = v;
+            }
+        }
+        return mode_val;
+    }
+
+    variance() {
+        let m = this.mean();
+        let v = 0;
+        for (let i = 0; i < this.data.length; i++) {
+            v = v + (this.data[i] - m) * (this.data[i] - m);
+        }
+        return v / this.data.length;
+    }
+
+    std_dev() {
+        return scientific.sqrt(this.variance());
+    }
+
+    quartiles() {
+        let sorted = this.data; 
+        let n = sorted.length;
+        return [sorted[n / 4], sorted[n / 2], sorted[3 * n / 4]];
+    }
+
+    iqr() {
+        let q = this.quartiles();
+        return q[2] - q[0];
+    }
+}
+
+function correlation(x, y) {
+    if (x.length != y.length) { return null; }
+    let s_x = new Statistics(x);
+    let s_y = new Statistics(y);
+    let m_x = s_x.mean();
+    let m_y = s_y.mean();
+    let num = 0;
+    let den_x = 0;
+    let den_y = 0;
+    for (let i = 0; i < x.length; i++) {
+        let dx = x[i] - m_x;
+        let dy = y[i] - m_y;
+        num = num + dx * dy;
+        den_x = den_x + dx * dx;
+        den_y = den_y + dy * dy;
+    }
+    return num / scientific.sqrt(den_x * den_y);
+}
+
+function covariance(x, y) {
+    if (x.length != y.length) { return null; }
+    let s_x = new Statistics(x);
+    let s_y = new Statistics(y);
+    let m_x = s_x.mean();
+    let m_y = s_y.mean();
+    let c = 0;
+    for (let i = 0; i < x.length; i++) {
+        c = c + (x[i] - m_x) * (y[i] - m_y);
+    }
+    return c / x.length;
+}
+
+function normal_pdf(x, mean, std) {
+    let exponent = scientific.exp(-((x - mean) * (x - mean)) / (2 * std * std));
+    return (1 / (std * scientific.sqrt(2 * scientific.PI))) * exponent;
+}
+
+function normal_cdf(x, mean, std) {
+    return 0.5 * (1 + scientific.erf((x - mean) / (std * scientific.sqrt(2))));
+}
+
+function t_test(data1, data2) {
+    let s1 = new Statistics(data1);
+    let s2 = new Statistics(data2);
+    let m1 = s1.mean();
+    let m2 = s2.mean();
+    let v1 = s1.variance();
+    let v2 = s2.variance();
+    let n1 = data1.length;
+    let n2 = data2.length;
+    let t = (m1 - m2) / scientific.sqrt(v1 / n1 + v2 / n2);
+    return t;
+}

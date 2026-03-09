@@ -1,0 +1,32 @@
+
+// Test script for Fern Scientific Functions
+import { PI, E, sin, cos, sqrt, exp, ln, gamma, bessel_j0, erf } from "../src/scientific/functions.dryad";
+
+println("Running Scientific Function Tests...");
+
+println("PI: " + PI);
+println("E: " + E);
+
+let s = sin(PI/2);
+println("sin(PI/2): " + s); 
+if (s < 0.99) println("FAIL: sin wrong");
+
+let c = cos(PI);
+println("cos(PI): " + c); 
+if (c > -0.99) println("FAIL: cos wrong");
+
+println("sqrt(16): " + sqrt(16)); 
+println("exp(1): " + exp(1)); 
+println("ln(E): " + ln(E)); 
+
+// New functions
+println("gamma(5): " + gamma(5)); // 4! = 24
+if (gamma(5) < 23 || gamma(5) > 25) println("FAIL: gamma wrong");
+
+println("bessel_j0(0): " + bessel_j0(0)); // 1.0
+if (bessel_j0(0) != 1) println("FAIL: bessel wrong");
+
+println("erf(0): " + erf(0)); // 0.0
+if (erf(0) != 0) println("FAIL: erf wrong");
+
+println("Scientific Tests Completed.");

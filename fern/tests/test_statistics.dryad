@@ -1,6 +1,6 @@
 
-// Test script for Greenleaf Statistics
-import { Statistics, correlation } from "../src/math/statistics.dryad";
+// Test script for Fern Statistics
+import { Statistics, correlation, normal_pdf, normal_cdf } from "../src/math/statistics.dryad";
 
 println("Running Statistics Tests...");
 
@@ -24,7 +24,15 @@ let x = [1, 2, 3];
 let y = [2, 4, 6]; // Perfect correlation
 let corr = correlation(x, y);
 println("Correlation: " + corr);
-// Floating point comparison might be needed, but should be close to 1
 if (corr < 0.99) println("FAIL: Correlation should be 1");
+
+// Normal Distribution
+let pdf = normal_pdf(0, 0, 1);
+println("Normal PDF at 0: " + pdf); // ~0.3989
+if (pdf < 0.3 || pdf > 0.5) println("FAIL: PDF wrong");
+
+let cdf = normal_cdf(0, 0, 1);
+println("Normal CDF at 0: " + cdf); // 0.5
+if (cdf != 0.5) println("FAIL: CDF wrong");
 
 println("Statistics Tests Completed.");

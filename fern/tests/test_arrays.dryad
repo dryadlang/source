@@ -1,0 +1,31 @@
+#<console_io>
+import * as math from "../src/math/arrays.dryad";
+
+print("Running Array Tests...");
+
+let z = math.zeros([2, 3]);
+print("Zeros (2x3): " + z.to_string());
+if (z.sum() != 0) { print("FAIL: Zeros sum != 0"); }
+
+let o = math.ones([2, 2]);
+print("Ones (2x2): " + o.to_string());
+if (o.sum() != 4) { print("FAIL: Ones sum != 4"); }
+
+let seq = math.arange(0, 5, 1);
+print("Arange(0,5): " + seq.to_string());
+
+let id = math.eye(3);
+print("Identity(3): " + id.to_string());
+if (id.get([0,0]) != 1) { print("FAIL: Identity[0,0] != 1"); }
+
+let v1 = math.arange(1, 4, 1); 
+let v2 = math.arange(1, 4, 1); 
+let dp = math.dot(v1, v2);
+print("Dot product [1,2,3].[1,2,3] = " + dp);
+if (dp != 14) { print("FAIL: Dot product should be 14"); }
+
+let m1 = math.ones([2, 3]);
+let mt = m1.transpose();
+print("Transpose 2x3 -> " + mt.shape);
+
+print("Array Tests Completed.");

@@ -1,0 +1,59 @@
+# IPE Framework - AI Assistant Reference
+
+## Overview
+IPE is a native 2D graphics library for the Dryad language, implemented in C using SDL2. It provides hardware-accelerated rendering, 2D transformations, and multiple styling options.
+
+## Project Structure
+- `ipe/lib/ipe.dryad`: Dryad wrapper (FFI bindings). Use this in Dryad projects.
+- `ipe/native/`: C source code and build scripts.
+  - `ipe_helper_sdl2.c`: Main implementation.
+  - `ipe.dll`: Compiled binary (Windows).
+- `ipe/docs/`: Human-readable documentation.
+- `ipe/tests/`: Verification and demo scripts.
+
+## Core API (C Functions / Dryad Wrappers)
+Namespace in Dryad: `ipe::`
+
+### Lifecycle
+- `init() -> bool`: Initialize SDL2 and internal state.
+- `createWindow(w, h, title) -> pointer`: Create a window.
+- `isOpen() -> bool`: Check if window is open.
+- `processEvents()`: Handle input and window events.
+- `present()`: Display the current frame.
+- `clear(color)`: Clear background with 0xRRGGBB.
+- `close()`: Shut down and cleanup.
+
+### Transformations (Stack-based)
+- `transformPush()`, `transformPop()`
+- `translate(dx, dy)`, `rotate(angle)`, `scale(sx, sy)`
+- `transformReset()`: Resets to identity.
+
+### Drawing (Basic)
+- `drawRect(x, y, w, h, color)`
+- `drawCircle(cx, cy, r, color)`
+- `drawLine(x1, y1, x2, y2, color, thickness)`
+- `drawPolygon(points_ptr, count, fill_color, border_color)`
+- `drawText(text, x, y, color)`: Simple 8x8 font.
+
+### Drawing (Advanced Styling)
+- `drawRectStyled(x, y, w, h, style_buf)`
+- `drawCircleStyled(cx, cy, r, style_buf)`
+- `drawPolygonStyled(points_ptr, count, style_buf)`
+- `createRectStyle()`, `createCircleStyle()`, `createPolygonStyle()`
+  - Write to these buffers using `ffi_write_buffer`.
+  - Fields: `fill_color`, `border_color`, `border_width`, `opacity` (f32), `gradient_type`, `gradient_start`, `gradient_end`, `shadow_enabled`, etc.
+
+### Text (Enhanced)
+- `fontLoad(path, size) -> pointer`: Load TTF font.
+- `drawTextEx(text, x, y, font_ptr, color)`
+- `textWidth(text, font_ptr) -> i32`
+
+## Dryad Syntax Reference
+- Keywords: `fn`, `var`, `se`, `senao`, `enquanto`, `retorna`, `verdadeiro`, `falso`, `nulo`.
+- Modules: `#<modname>` to import.
+- Calls: `mod::func(args)`.
+
+## Build Instructions
+- Windows: `cd ipe/native && build.cmd`
+- Linux/macOS: `cd ipe/native && ./build.sh`
+- Requires SDL2, SDL2_ttf, SDL2_image.

@@ -1,0 +1,11 @@
+// Fern - Advanced Mathematics Library for Dryad
+// Entry point
+
+import * as arrays from "./math/arrays.dryad";
+import * as statistics from "./math/statistics.dryad";
+import * as scientific from "./scientific/functions.dryad";
+import * as algebra from "./symbolic/algebra.dryad";
+import * as frames from "./data/frames.dryad";
+
+print("Fern library loaded.");
+print("Available modules: arrays, statistics, scientific, algebra, frames");

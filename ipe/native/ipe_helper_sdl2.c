@@ -44,43 +44,55 @@ typedef struct {
 
 // Phase 1: Advanced Graphics Styles
 typedef struct {
-    int x, y, w, h;
     uint32_t fill_color;
     uint32_t border_color;
     int border_width;
-    int border_style; // 0=solid, 1=dashed, 2=dotted
-    int corner_radius_tl;
-    int corner_radius_tr;
-    int corner_radius_bl;
-    int corner_radius_br;
+    int border_style;        // 0=solid, 1=dashed, 2=dotted
+    int corner_radius;       // Same radius all corners
+    int corner_radius_tl;    // Top-left
+    int corner_radius_tr;    // Top-right
+    int corner_radius_bl;    // Bottom-left
+    int corner_radius_br;    // Bottom-right
+    float opacity;           // 0.0-1.0
+    int gradient_type;       // 0=none, 1=linear_h, 2=linear_v, 3=radial
+    uint32_t gradient_start;
+    uint32_t gradient_end;
+    int shadow_enabled;
     int shadow_radius;
     int shadow_offset_x;
     int shadow_offset_y;
     uint32_t shadow_color;
-    float opacity; // 0.0 a 1.0
-    int gradient; // 0=none, 1=horizontal, 2=vertical, 3=radial
-    uint32_t gradient_color_start;
-    uint32_t gradient_color_end;
+    int blend_mode;          // IPE_BLEND_* constants
 } ipe_rect_style_t;
 
 typedef struct {
-    int x, y, radius;
-    uint32_t color_center;
-    uint32_t color_edge;
-    int border_width;
-    uint32_t border_color;
-    int start_angle;
-    int end_angle;
-    int shadow;
-} ipe_circle_style_t;
-
-typedef struct {
-    int* points; // intercalado x,y
-    int point_count;
     uint32_t fill_color;
     uint32_t border_color;
     int border_width;
-    int* corner_radius; // por vértice
+    float opacity;
+    uint32_t color_center;   // For radial gradients
+    uint32_t color_edge;
+    int shadow_enabled;
+    int shadow_radius;
+    int shadow_offset_x;
+    int shadow_offset_y;
+    uint32_t shadow_color;
+    int blend_mode;
+} ipe_circle_style_t;
+
+typedef struct {
+    uint32_t fill_color;
+    uint32_t border_color;
+    int border_width;
+    int border_style;        // 0=solid, 1=dashed, 2=dotted
+    float opacity;
+    int gradient_type;       // 0=none, 1=linear_h, 2=linear_v
+    uint32_t gradient_start;
+    uint32_t gradient_end;
+    int shadow_enabled;
+    int shadow_radius;
+    uint32_t shadow_color;
+    int blend_mode;
 } ipe_polygon_style_t;
 
 typedef enum {
@@ -324,6 +336,88 @@ typedef struct {
   SDL_TimerID timer_id;
 } ipe_timer_t;
 
+// Transformation math
+typedef struct {
+    float m[3][3];
+} ipe_matrix_t;
+
+#define IPE_MAX_TRANSFORM_DEPTH 32
+static ipe_matrix_t g_transform_stack[IPE_MAX_TRANSFORM_DEPTH];
+static int g_transform_depth = 0;
+
+static void ipe_matrix_identity(ipe_matrix_t* m) {
+    memset(m, 0, sizeof(ipe_matrix_t));
+    m->m[0][0] = 1.0f;
+    m->m[1][1] = 1.0f;
+    m->m[2][2] = 1.0f;
+}
+
+static void ipe_matrix_mul(ipe_matrix_t* res, ipe_matrix_t* a, ipe_matrix_t* b) {
+    ipe_matrix_t tmp;
+    for (int i = 0; i < 3; i++) {
+        for (int j = 0; j < 3; j++) {
+            tmp.m[i][j] = a->m[i][0] * b->m[0][j] +
+                         a->m[i][1] * b->m[1][j] +
+                         a->m[i][2] * b->m[2][j];
+        }
+    }
+    memcpy(res, &tmp, sizeof(ipe_matrix_t));
+}
+
+static void ipe_transform_point(float* px, float* py) {
+    ipe_matrix_t* m = &g_transform_stack[g_transform_depth];
+    float x = *px;
+    float y = *py;
+    *px = x * m->m[0][0] + y * m->m[0][1] + m->m[0][2];
+    *py = x * m->m[1][0] + y * m->m[1][1] + m->m[1][2];
+}
+
+IPE_EXPORT void ipe_transform_push() {
+    if (g_transform_depth < IPE_MAX_TRANSFORM_DEPTH - 1) {
+        memcpy(&g_transform_stack[g_transform_depth + 1], &g_transform_stack[g_transform_depth], sizeof(ipe_matrix_t));
+        g_transform_depth++;
+    }
+}
+
+IPE_EXPORT void ipe_transform_pop() {
+    if (g_transform_depth > 0) {
+        g_transform_depth--;
+    }
+}
+
+IPE_EXPORT void ipe_transform_translate(float dx, float dy) {
+    ipe_matrix_t t;
+    ipe_matrix_identity(&t);
+    t.m[0][2] = dx;
+    t.m[1][2] = dy;
+    ipe_matrix_mul(&g_transform_stack[g_transform_depth], &g_transform_stack[g_transform_depth], &t);
+}
+
+IPE_EXPORT void ipe_transform_scale(float sx, float sy) {
+    ipe_matrix_t s;
+    ipe_matrix_identity(&s);
+    s.m[0][0] = sx;
+    s.m[1][1] = sy;
+    ipe_matrix_mul(&g_transform_stack[g_transform_depth], &g_transform_stack[g_transform_depth], &s);
+}
+
+IPE_EXPORT void ipe_transform_rotate(float angle_degrees) {
+    float rad = angle_degrees * (M_PI / 180.0f);
+    ipe_matrix_t r;
+    ipe_matrix_identity(&r);
+    float cos_a = cosf(rad);
+    float sin_a = sinf(rad);
+    r.m[0][0] = cos_a;
+    r.m[0][1] = -sin_a;
+    r.m[1][0] = sin_a;
+    r.m[1][1] = cos_a;
+    ipe_matrix_mul(&g_transform_stack[g_transform_depth], &g_transform_stack[g_transform_depth], &r);
+}
+
+IPE_EXPORT void ipe_transform_reset() {
+    ipe_matrix_identity(&g_transform_stack[g_transform_depth]);
+}
+
 // Control structure
 typedef struct ipe_control {
   int x, y, w, h;
@@ -371,6 +465,187 @@ static int g_last_event_type = 0;
 static int g_mouse_x = 0;
 static int g_mouse_y = 0;
 static int g_key_code = 0;
+static int g_mouse_buttons = 0;       // bitmask: bit 0=left, bit 1=middle, bit 2=right
+static int g_prev_mouse_buttons = 0;
+static int g_mouse_scroll_delta = 0;
+
+// ========== Task 5: Input Polling API ==========
+typedef struct {
+    const uint8_t* key_state;
+    int num_keys;
+    uint8_t key_pressed[512];     // Track pressed this frame
+    uint8_t key_released[512];    // Track released this frame
+} ipe_input_state_t;
+
+static ipe_input_state_t g_input_state = {0};
+
+// Key code constants
+#define IPE_KEY_ESCAPE   27
+#define IPE_KEY_RETURN   13
+#define IPE_KEY_SPACE    32
+#define IPE_KEY_TAB      9
+#define IPE_KEY_A        65
+#define IPE_KEY_B        66
+#define IPE_KEY_C        67
+// ... Z = 90 (65+25)
+#define IPE_KEY_0        48
+#define IPE_KEY_1        49
+// ... IPE_KEY_9 = 57
+#define IPE_KEY_UP       1073741906
+#define IPE_KEY_DOWN     1073741905
+#define IPE_KEY_LEFT     1073741904
+#define IPE_KEY_RIGHT    1073741903
+
+#define IPE_MOD_SHIFT       0x01
+#define IPE_MOD_CTRL        0x02
+#define IPE_MOD_ALT         0x04
+#define IPE_MOD_GUI         0x08
+
+// Initialize input state
+static void ipe_input_init() {
+    g_input_state.key_state = SDL_GetKeyboardState(&g_input_state.num_keys);
+    memset(g_input_state.key_pressed, 0, sizeof(g_input_state.key_pressed));
+    memset(g_input_state.key_released, 0, sizeof(g_input_state.key_released));
+}
+
+// Polling functions
+IPE_EXPORT int ipe_input_key_down(int key_code) {
+    if (!g_input_state.key_state || key_code < 0 || key_code >= g_input_state.num_keys) return 0;
+    return g_input_state.key_state[key_code];
+}
+
+IPE_EXPORT int ipe_input_key_pressed(int key_code) {
+    if (key_code < 0 || key_code >= 512) return 0;
+    return g_input_state.key_pressed[key_code];
+}
+
+IPE_EXPORT int ipe_input_key_released(int key_code) {
+    if (key_code < 0 || key_code >= 512) return 0;
+    return g_input_state.key_released[key_code];
+}
+
+IPE_EXPORT int ipe_input_mouse_x() {
+    return g_mouse_x;
+}
+
+IPE_EXPORT int ipe_input_mouse_y() {
+    return g_mouse_y;
+}
+
+IPE_EXPORT void ipe_input_mouse_pos(int* out_x, int* out_y) {
+    if (out_x) *out_x = g_mouse_x;
+    if (out_y) *out_y = g_mouse_y;
+}
+
+IPE_EXPORT int ipe_input_mouse_button_down(int button) {
+    return (g_mouse_buttons >> button) & 1;
+}
+
+IPE_EXPORT int ipe_input_mouse_button_clicked(int button) {
+    int pressed = (g_mouse_buttons >> button) & 1;
+    int was_released = ((g_prev_mouse_buttons >> button) & 1) == 0;
+    return pressed && was_released;
+}
+
+IPE_EXPORT int ipe_input_mouse_scroll_delta() {
+    return g_mouse_scroll_delta;
+}
+
+IPE_EXPORT int ipe_input_modifier_active(int modifier) {
+    SDL_Keymod mod = SDL_GetModState();
+    int result = 0;
+    if ((modifier & IPE_MOD_SHIFT) && (mod & KMOD_SHIFT)) result |= IPE_MOD_SHIFT;
+    if ((modifier & IPE_MOD_CTRL) && (mod & KMOD_CTRL)) result |= IPE_MOD_CTRL;
+    if ((modifier & IPE_MOD_ALT) && (mod & KMOD_ALT)) result |= IPE_MOD_ALT;
+    if ((modifier & IPE_MOD_GUI) && (mod & KMOD_GUI)) result |= IPE_MOD_GUI;
+    return result;
+}
+
+// ========== Task 6: Input Event Queue ==========
+#define IPE_EVENT_KEY_DOWN         1
+#define IPE_EVENT_KEY_UP           2
+#define IPE_EVENT_MOUSE_MOVE       3
+#define IPE_EVENT_MOUSE_DOWN       4
+#define IPE_EVENT_MOUSE_UP         5
+#define IPE_EVENT_SCROLL           6
+#define IPE_EVENT_WINDOW_CLOSE     7
+#define IPE_EVENT_WINDOW_RESIZE    8
+
+typedef struct {
+    int type;
+    int key_code;
+    int x, y;
+    int button;
+    int scroll_delta;
+    uint32_t timestamp_ms;
+} ipe_input_event_t;
+
+#define IPE_MAX_EVENTS 256
+typedef struct {
+    ipe_input_event_t events[IPE_MAX_EVENTS];
+    int count;
+    int read_index;
+} ipe_event_queue_t;
+
+static ipe_event_queue_t g_event_queue = {0};
+
+IPE_EXPORT ipe_input_event_t* ipe_input_get_events() {
+    return g_event_queue.events;
+}
+
+IPE_EXPORT int ipe_input_event_count() {
+    return g_event_queue.count;
+}
+
+IPE_EXPORT void ipe_input_clear_events() {
+    g_event_queue.count = 0;
+    g_event_queue.read_index = 0;
+}
+
+// Helper to add event to queue
+static void ipe_queue_event(ipe_input_event_t event) {
+    if (g_event_queue.count < IPE_MAX_EVENTS) {
+        g_event_queue.events[g_event_queue.count++] = event;
+    }
+}
+
+/* PERF: Rounded corner drawing has O(n) cost per corner. Mark for modularization. */
+static void draw_rounded_rect(SDL_Renderer* renderer, int x, int y, int w, int h, 
+                              int tl, int tr, int bl, int br, uint32_t color, float opacity) {
+    SDL_SetRenderDrawColor(renderer, 
+                          (color >> 16) & 0xFF,
+                          (color >> 8) & 0xFF,
+                          color & 0xFF,
+                          (uint8_t)(255 * opacity));
+    
+    // Draw central rectangles
+    int max_radius = (w < h ? w : h) / 2;
+    if (tl > max_radius) tl = max_radius;
+    if (tr > max_radius) tr = max_radius;
+    if (bl > max_radius) bl = max_radius;
+    if (br > max_radius) br = max_radius;
+
+    // This is a simplified version. Full version would draw circles.
+    // For now, we draw a regular rect if no radius, or a slightly smaller one.
+    SDL_Rect rect = {x, y, w, h};
+    SDL_RenderFillRect(renderer, &rect);
+}
+
+static uint32_t interpolate_color(uint32_t c1, uint32_t c2, float t) {
+    uint8_t r1 = (c1 >> 16) & 0xFF;
+    uint8_t g1 = (c1 >> 8) & 0xFF;
+    uint8_t b1 = c1 & 0xFF;
+    
+    uint8_t r2 = (c2 >> 16) & 0xFF;
+    uint8_t g2 = (c2 >> 8) & 0xFF;
+    uint8_t b2 = c2 & 0xFF;
+    
+    uint8_t r = (uint8_t)(r1 + (r2 - r1) * t);
+    uint8_t g = (uint8_t)(g1 + (g2 - g1) * t);
+    uint8_t b = (uint8_t)(b1 + (b2 - b1) * t);
+    
+    return (r << 16) | (g << 8) | b;
+}
 
 IPE_EXPORT int ipe_init() {
   if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) < 0)
@@ -380,6 +655,14 @@ IPE_EXPORT int ipe_init() {
   int imgFlags = IMG_INIT_PNG | IMG_INIT_JPG;
   if (!(IMG_Init(imgFlags) & imgFlags))
     return 0;
+  
+  // Initialize input system
+  ipe_input_init();
+  
+  // Initialize transformation stack
+  g_transform_depth = 0;
+  ipe_matrix_identity(&g_transform_stack[0]);
+  
   return 1;
 }
 
@@ -451,13 +734,136 @@ void ipe_present() {
     SDL_RenderPresent(g_current_window->renderer);
 }
 
+I_EXPORT void ipe_draw_rect_styled(int x, int y, int w, int h, ipe_rect_style_t* style) {
+    if (!g_current_window || !g_current_window->renderer) {
+        IPE_ERR("Window not initialized. Call ipe_init() first.");
+        return;
+    }
+    
+    SDL_Renderer* renderer = g_current_window->renderer;
+    
+    // Check for complex transforms (rotation/scale)
+    ipe_matrix_t* m = &g_transform_stack[g_transform_depth];
+    int complex = (m->m[0][1] != 0.0f || m->m[1][0] != 0.0f || m->m[0][0] != 1.0f || m->m[1][1] != 1.0f);
+
+    if (complex) {
+        // Draw as polygon
+        float px[4] = { (float)x, (float)x + w, (float)x + w, (float)x };
+        float py[4] = { (float)y, (float)y, (float)y + h, (float)y + h };
+        int points[8];
+        for (int i = 0; i < 4; i++) {
+            ipe_transform_point(&px[i], &py[i]);
+            points[i*2] = (int)px[i];
+            points[i*2+1] = (int)py[i];
+        }
+        
+        ipe_polygon_style_t p_style = {0};
+        if (style) {
+            p_style.fill_color = style->fill_color;
+            p_style.border_color = style->border_color;
+            p_style.border_width = style->border_width;
+            p_style.opacity = style->opacity;
+            p_style.shadow_enabled = style->shadow_enabled;
+            p_style.shadow_radius = style->shadow_radius;
+            p_style.shadow_color = style->shadow_color;
+            p_style.blend_mode = style->blend_mode;
+            // NOTE: Corner radius and complex gradients not yet supported for transformed rects
+        }
+        ipe_draw_polygon_styled(points, 4, &p_style);
+        return;
+    }
+
+    // Simple translation
+    float fx = (float)x, fy = (float)y;
+    ipe_transform_point(&fx, &fy);
+    int tx = (int)fx, ty = (int)fy;
+
+    // Handle opacity
+    float opacity = style && style->opacity > 0 ? style->opacity : 1.0f;
+    
+    // Draw shadow first (if enabled)
+    if (style && style->shadow_enabled) {
+        uint32_t shadow_color = style->shadow_color;
+        SDL_SetRenderDrawColor(renderer,
+                              (shadow_color >> 16) & 0xFF,
+                              (shadow_color >> 8) & 0xFF,
+                              shadow_color & 0xFF,
+                              (uint8_t)(255 * opacity * 0.5f)); // Shadow is semi-transparent
+        
+        SDL_Rect shadow_rect = {
+            tx + style->shadow_offset_x,
+            ty + style->shadow_offset_y,
+            w,
+            h
+        };
+        SDL_RenderFillRect(renderer, &shadow_rect);
+    }
+    
+    // Handle Gradient / Fill
+    if (style && style->gradient_type > 0) {
+        // Simple linear gradient (horizontal or vertical)
+        int steps = (style->gradient_type == 1 ? w : h);
+        for (int i = 0; i < steps; i++) {
+            float t = (float)i / (steps - 1);
+            uint32_t color = interpolate_color(style->gradient_start, style->gradient_end, t);
+            
+            SDL_SetRenderDrawColor(renderer,
+                                  (color >> 16) & 0xFF,
+                                  (color >> 8) & 0xFF,
+                                  color & 0xFF,
+                                  (uint8_t)(255 * opacity));
+            
+            if (style->gradient_type == 1) // Horizontal
+                SDL_RenderDrawLine(renderer, tx + i, ty, tx + i, ty + h);
+            else // Vertical
+                SDL_RenderDrawLine(renderer, tx, ty + i, tx + w, ty + i);
+        }
+    } else {
+        uint32_t fill_color = style ? style->fill_color : 0xFFFFFF;
+        if (style && (style->corner_radius_tl > 0 || style->corner_radius_tr > 0 || 
+                      style->corner_radius_bl > 0 || style->corner_radius_br > 0)) {
+            draw_rounded_rect(renderer, tx, ty, w, h, 
+                              style->corner_radius_tl, style->corner_radius_tr,
+                              style->corner_radius_bl, style->corner_radius_br,
+                              fill_color, opacity);
+        } else {
+            SDL_SetRenderDrawColor(renderer,
+                                  (fill_color >> 16) & 0xFF,
+                                  (fill_color >> 8) & 0xFF,
+                                  fill_color & 0xFF,
+                                  (uint8_t)(255 * opacity));
+            SDL_Rect rect = {tx, ty, w, h};
+            SDL_RenderFillRect(renderer, &rect);
+        }
+    }
+    
+    // Draw border if width > 0
+    if (style && style->border_width > 0) {
+        uint32_t border_color = style->border_color;
+        SDL_SetRenderDrawColor(renderer,
+                              (border_color >> 16) & 0xFF,
+                              (border_color >> 8) & 0xFF,
+                              border_color & 0xFF,
+                              (uint8_t)(255 * opacity));
+        
+        // Draw border by drawing rectangle outlines
+        for (int i = 0; i < style->border_width; i++) {
+            SDL_Rect border_rect = {
+                tx - i,
+                ty - i,
+                w + (2 * i),
+                h + (2 * i)
+            };
+            SDL_RenderDrawRect(renderer, &border_rect);
+        }
+    }
+}
+
 IPE_EXPORT void ipe_draw_rect(int x, int y, int w, int h, uint32_t color) {
-  if (!g_current_window || !g_current_window->renderer)
-    return;
-  SDL_SetRenderDrawColor(g_current_window->renderer, (color >> 16) & 0xFF,
-                         (color >> 8) & 0xFF, color & 0xFF, 255);
-  SDL_Rect rect = {x, y, w, h};
-  SDL_RenderFillRect(g_current_window->renderer, &rect);
+  ipe_rect_style_t style = {0};
+  style.fill_color = color;
+  style.opacity = 1.0f;
+  ipe_draw_rect_styled(x, y, w, h, &style);
 }
 
 #include "font8x8_basic.h"
@@ -466,11 +872,15 @@ void ipe_draw_text(const char *text, int x, int y, uint32_t color) {
   if (!g_current_window || !g_current_window->renderer || !text)
     return;
 
+  float fx = (float)x, fy = (float)y;
+  ipe_transform_point(&fx, &fy);
+  int tx = (int)fx, ty = (int)fy;
+
   SDL_SetRenderDrawColor(g_current_window->renderer, (color >> 16) & 0xFF,
                          (color >> 8) & 0xFF, color & 0xFF, 255);
 
-  int cursor_x = x;
-  int cursor_y = y;
+  int cursor_x = tx;
+  int cursor_y = ty;
 
   while (*text) {
     char c = *text;
@@ -498,88 +908,300 @@ void ipe_set_keydown_callback(ipe_key_callback cb) { g_keydown_cb = cb; }
 void ipe_set_resize_callback(ipe_resize_callback cb) { g_resize_cb = cb; }
 
 // Graphics Primitives
-void ipe_draw_line(int x1, int y1, int x2, int y2, uint32_t color,
-                   int thickness) {
-  if (!g_current_window || !g_current_window->renderer)
-    return;
-  SDL_SetRenderDrawColor(g_current_window->renderer, (color >> 16) & 0xFF,
-                         (color >> 8) & 0xFF, color & 0xFF, 255);
-  if (thickness <= 1) {
-    SDL_RenderDrawLine(g_current_window->renderer, x1, y1, x2, y2);
-  } else {
-    // Draw multiple lines for thickness (simple offset based)
-    for (int i = 0; i < thickness; i++) {
-        SDL_RenderDrawLine(g_current_window->renderer, x1, y1 + i, x2, y2 + i);
+typedef struct {
+    uint32_t color;
+    int thickness;
+    int line_style;          // 0=solid, 1=dashed, 2=dotted
+    int cap_style;           // 0=butt, 1=round, 2=square
+    float opacity;
+    int blend_mode;
+} ipe_line_style_t;
+
+static void draw_dashed_line(SDL_Renderer* renderer, int x1, int y1, int x2, int y2, uint32_t color, float opacity) {
+    int dx = x2 - x1;
+    int dy = y2 - y1;
+    int steps = (abs(dx) > abs(dy)) ? abs(dx) : abs(dy);
+    if (steps == 0) steps = 1;
+    
+    float x_inc = (float)dx / steps;
+    float y_inc = (float)dy / steps;
+    
+    SDL_SetRenderDrawColor(renderer,
+                          (color >> 16) & 0xFF,
+                          (color >> 8) & 0xFF,
+                          color & 0xFF,
+                          (uint8_t)(255 * opacity));
+    
+    int dash_length = 10;
+    int gap_length = 5;
+    int current = 0;
+    
+    float x = x1, y = y1;
+    for (int i = 0; i <= steps; i++) {
+        if (current < dash_length) {
+            SDL_RenderDrawPoint(renderer, (int)x, (int)y);
+        }
+        current++;
+        if (current >= dash_length + gap_length) {
+            current = 0;
+        }
+        x += x_inc;
+        y += y_inc;
     }
-  }
 }
 
-void ipe_draw_circle(int x, int y, int radius, uint32_t color, int filled) {
-  if (!g_current_window || !g_current_window->renderer)
-    return;
-  SDL_SetRenderDrawColor(g_current_window->renderer, (color >> 16) & 0xFF,
-                         (color >> 8) & 0xFF, color & 0xFF, 255);
-
-  int offsetx = 0;
-  int offsety = radius;
-  int d = radius - 1;
-
-  while (offsety >= offsetx) {
-    if (filled) {
-      SDL_RenderDrawLine(g_current_window->renderer, x - offsety, y + offsetx,
-                         x + offsety, y + offsetx);
-      SDL_RenderDrawLine(g_current_window->renderer, x - offsety, y - offsetx,
-                         x + offsety, y - offsetx);
-      SDL_RenderDrawLine(g_current_window->renderer, x - offsetx, y + offsety,
-                         x + offsetx, y + offsety);
-      SDL_RenderDrawLine(g_current_window->renderer, x - offsetx, y - offsety,
-                         x + offsetx, y - offsety);
-    } else {
-      SDL_RenderDrawPoint(g_current_window->renderer, x + offsetx, y + offsety);
-      SDL_RenderDrawPoint(g_current_window->renderer, x + offsety, y + offsetx);
-      SDL_RenderDrawPoint(g_current_window->renderer, x - offsetx, y + offsety);
-      SDL_RenderDrawPoint(g_current_window->renderer, x - offsety, y + offsetx);
-      SDL_RenderDrawPoint(g_current_window->renderer, x + offsetx, y - offsety);
-      SDL_RenderDrawPoint(g_current_window->renderer, x + offsety, y - offsetx);
-      SDL_RenderDrawPoint(g_current_window->renderer, x - offsetx, y - offsety);
-      SDL_RenderDrawPoint(g_current_window->renderer, x - offsety, y - offsetx);
+static void draw_dotted_line(SDL_Renderer* renderer, int x1, int y1, int x2, int y2, uint32_t color, float opacity) {
+    int dx = x2 - x1;
+    int dy = y2 - y1;
+    int steps = (abs(dx) > abs(dy)) ? abs(dx) : abs(dy);
+    if (steps == 0) steps = 1;
+    
+    float x_inc = (float)dx / steps;
+    float y_inc = (float)dy / steps;
+    
+    SDL_SetRenderDrawColor(renderer,
+                          (color >> 16) & 0xFF,
+                          (color >> 8) & 0xFF,
+                          color & 0xFF,
+                          (uint8_t)(255 * opacity));
+    
+    for (int i = 0; i <= steps; i += 3) {
+        SDL_RenderDrawPoint(renderer, x1 + (int)(x_inc * i), y1 + (int)(y_inc * i));
     }
+}
 
-    if (d >= 2 * offsetx) {
-      d -= 2 * offsetx + 1;
-      offsetx++;
-    } else if (d < 2 * (radius - offsety)) {
-      d += 2 * offsety - 1;
-      offsety--;
-    } else {
-      d += 2 * (offsety - offsetx - 1);
-      offsety--;
-      offsetx++;
+IPE_EXPORT void ipe_draw_line_styled(int x1, int y1, int x2, int y2, ipe_line_style_t* style) {
+    if (!g_current_window || !g_current_window->renderer) {
+        IPE_ERR("Window not initialized. Call ipe_init() first.");
+        return;
     }
-  }
+    
+    SDL_Renderer* renderer = g_current_window->renderer;
+    
+    float fx1 = (float)x1, fy1 = (float)y1;
+    float fx2 = (float)x2, fy2 = (float)y2;
+    ipe_transform_point(&fx1, &fy1);
+    ipe_transform_point(&fx2, &fy2);
+    x1 = (int)fx1; y1 = (int)fy1;
+    x2 = (int)fx2; y2 = (int)fy2;
+
+    uint32_t color = style ? style->color : 0x000000;
+    int thickness = style && style->thickness > 0 ? style->thickness : 1;
+    float opacity = style && style->opacity > 0 ? style->opacity : 1.0f;
+    int line_style = style ? style->line_style : 0;
+    
+    // Handle different line styles
+    if (line_style == 1) {
+        // Dashed
+        draw_dashed_line(renderer, x1, y1, x2, y2, color, opacity);
+    } else if (line_style == 2) {
+        // Dotted
+        draw_dotted_line(renderer, x1, y1, x2, y2, color, opacity);
+    } else {
+        // Solid
+        SDL_SetRenderDrawColor(renderer,
+                              (color >> 16) & 0xFF,
+                              (color >> 8) & 0xFF,
+                              color & 0xFF,
+                              (uint8_t)(255 * opacity));
+        
+        if (thickness == 1) {
+            SDL_RenderDrawLine(renderer, x1, y1, x2, y2);
+        } else {
+            // Draw multiple lines for thickness
+            int dx = x2 - x1;
+            int dy = y2 - y1;
+            double len = sqrt(dx * dx + dy * dy);
+            
+            if (len > 0) {
+                double offset = thickness / 2.0;
+                double px = -dy / len * offset;
+                double py = dx / len * offset;
+                
+                for (int i = -thickness/2; i <= thickness/2; i++) {
+                    SDL_RenderDrawLine(renderer,
+                                      (int)(x1 + px * i),
+                                      (int)(y1 + py * i),
+                                      (int)(x2 + px * i),
+                                      (int)(y2 + py * i));
+                }
+            }
+        }
+    }
+}
+
+void ipe_draw_line(int x1, int y1, int x2, int y2, uint32_t color,
+                   int thickness) {
+  ipe_line_style_t style = {0};
+  style.color = color;
+  style.thickness = thickness;
+  style.opacity = 1.0f;
+  ipe_draw_line_styled(x1, y1, x2, y2, &style);
+}
+
+/* Bresenham circle algorithm for efficient circle drawing */
+static void draw_circle_pixels(SDL_Renderer* renderer, int cx, int cy, 
+                               int x, int y, uint32_t color, float opacity) {
+    SDL_SetRenderDrawColor(renderer,
+                          (color >> 16) & 0xFF,
+                          (color >> 8) & 0xFF,
+                          color & 0xFF,
+                          (uint8_t)(255 * opacity));
+    
+    SDL_RenderDrawPoint(renderer, cx + x, cy + y);
+    SDL_RenderDrawPoint(renderer, cx - x, cy + y);
+    SDL_RenderDrawPoint(renderer, cx + x, cy - y);
+    SDL_RenderDrawPoint(renderer, cx - x, cy - y);
+    SDL_RenderDrawPoint(renderer, cx + y, cy + x);
+    SDL_RenderDrawPoint(renderer, cx - y, cy + x);
+    SDL_RenderDrawPoint(renderer, cx + y, cy - x);
+    SDL_RenderDrawPoint(renderer, cx - y, cy - x);
+}
+
+static void draw_filled_circle(SDL_Renderer* renderer, int cx, int cy, 
+                               int radius, uint32_t color, float opacity) {
+    if (radius <= 0) return;
+    
+    int x = 0;
+    int y = radius;
+    int d = 3 - 2 * radius;
+    
+    SDL_SetRenderDrawColor(renderer,
+                          (color >> 16) & 0xFF,
+                          (color >> 8) & 0xFF,
+                          color & 0xFF,
+                          (uint8_t)(255 * opacity));
+
+    while (x <= y) {
+        // Draw horizontal lines to fill circle
+        SDL_RenderDrawLine(renderer, cx - x, cy + y, cx + x, cy + y);
+        SDL_RenderDrawLine(renderer, cx - x, cy - y, cx + x, cy - y);
+        SDL_RenderDrawLine(renderer, cx - y, cy + x, cx + y, cy + x);
+        SDL_RenderDrawLine(renderer, cx - y, cy - x, cx + y, cy - x);
+        
+        if (d < 0) {
+            d = d + 4 * x + 6;
+        } else {
+            d = d + 4 * (x - y) + 10;
+            y--;
+        }
+        x++;
+    }
+}
+
+I_EXPORT void ipe_draw_circle_styled(int cx, int cy, int radius, ipe_circle_style_t* style) {
+    if (!g_current_window || !g_current_window->renderer) {
+        IPE_ERR("Window not initialized. Call ipe_init() first.");
+        return;
+    }
+    
+    SDL_Renderer* renderer = g_current_window->renderer;
+    
+    float fcx = (float)cx, fcy = (float)cy;
+    ipe_transform_point(&fcx, &fcy);
+    cx = (int)fcx; cy = (int)fcy;
+
+    // Scale radius (simplified, using x scale)
+    ipe_matrix_t* m = &g_transform_stack[g_transform_depth];
+    float scale = sqrtf(m->m[0][0]*m->m[0][0] + m->m[0][1]*m->m[0][1]);
+    radius = (int)(radius * scale);
+
+    float opacity = style && style->opacity > 0 ? style->opacity : 1.0f;
+    
+    // Draw shadow first (if enabled)
+    if (style && style->shadow_enabled) {
+        uint32_t shadow_color = style->shadow_color;
+        int shadow_cx = cx + style->shadow_offset_x;
+        int shadow_cy = cy + style->shadow_offset_y;
+        int shadow_radius = radius + style->shadow_radius;
+        
+        draw_filled_circle(renderer, shadow_cx, shadow_cy, shadow_radius, shadow_color, opacity * 0.5f);
+    }
+    
+    // Draw filled circle
+    // Radial gradient or solid
+    if (style && style->color_center != style->color_edge) {
+        for (int r = radius; r > 0; r--) {
+            float t = (float)r / radius;
+            uint32_t color = interpolate_color(style->color_center, style->color_edge, t);
+            draw_filled_circle(renderer, cx, cy, r, color, opacity);
+        }
+    } else {
+        uint32_t fill_color = style ? style->fill_color : 0xFFFFFF;
+        draw_filled_circle(renderer, cx, cy, radius, fill_color, opacity);
+    }
+    
+    // Draw border if width > 0
+    if (style && style->border_width > 0) {
+        uint32_t border_color = style->border_color;
+        
+        for (int i = 0; i < style->border_width; i++) {
+            // Bresenham outline for each border pixel
+            int r = radius - i;
+            if (r < 0) break;
+            int x = 0;
+            int y = r;
+            int d = 3 - 2 * r;
+            while (x <= y) {
+                draw_circle_pixels(renderer, cx, cy, x, y, border_color, opacity);
+                if (d < 0) {
+                    d = d + 4 * x + 6;
+                } else {
+                    d = d + 4 * (x - y) + 10;
+                    y--;
+                }
+                x++;
+            }
+        }
+    }
+}
+
+IPE_EXPORT void ipe_draw_circle(int cx, int cy, int radius, uint32_t color) {
+  ipe_circle_style_t style = {0};
+  style.fill_color = color;
+  style.color_center = color;
+  style.color_edge = color;
+  style.opacity = 1.0f;
+  ipe_draw_circle_styled(cx, cy, radius, &style);
 }
 
 void ipe_draw_triangle(int x1, int y1, int x2, int y2, int x3, int y3,
                        uint32_t color) {
   if (!g_current_window || !g_current_window->renderer)
     return;
+  
+  float fx1 = (float)x1, fy1 = (float)y1;
+  float fx2 = (float)x2, fy2 = (float)y2;
+  float fx3 = (float)x3, fy3 = (float)y3;
+  ipe_transform_point(&fx1, &fy1);
+  ipe_transform_point(&fx2, &fy2);
+  ipe_transform_point(&fx3, &fy3);
+
   SDL_SetRenderDrawColor(g_current_window->renderer, (color >> 16) & 0xFF,
                          (color >> 8) & 0xFF, color & 0xFF, 255);
-  SDL_RenderDrawLine(g_current_window->renderer, x1, y1, x2, y2);
-  SDL_RenderDrawLine(g_current_window->renderer, x2, y2, x3, y3);
-  SDL_RenderDrawLine(g_current_window->renderer, x3, y3, x1, y1);
+  SDL_RenderDrawLine(g_current_window->renderer, (int)fx1, (int)fy1, (int)fx2, (int)fy2);
+  SDL_RenderDrawLine(g_current_window->renderer, (int)fx2, (int)fy2, (int)fx3, (int)fy3);
+  SDL_RenderDrawLine(g_current_window->renderer, (int)fx3, (int)fy3, (int)fx1, (int)fy1);
 }
 
 void ipe_draw_rounded_rect(int x, int y, int w, int h, int radius,
                            uint32_t color) {
   if (!g_current_window || !g_current_window->renderer)
     return;
+  // Draw main body with rounded corners
   ipe_draw_rect(x + radius, y, w - radius * 2, h, color);
   ipe_draw_rect(x, y + radius, w, h - radius * 2, color);
-  ipe_draw_circle(x + radius, y + radius, radius, color, 1);
-  ipe_draw_circle(x + w - radius, y + radius, radius, color, 1);
-  ipe_draw_circle(x + radius, y + h - radius, radius, color, 1);
-  ipe_draw_circle(x + w - radius, y + h - radius, radius, color, 1);
+  
+  // Draw corner circles (filled)
+  ipe_circle_style_t corner_style = {0};
+  corner_style.fill_color = color;
+  corner_style.color_center = color;
+  corner_style.color_edge = color;
+  corner_style.opacity = 1.0f;
+  ipe_draw_circle_styled(x + radius, y + radius, radius, &corner_style);
+  ipe_draw_circle_styled(x + w - radius, y + radius, radius, &corner_style);
+  ipe_draw_circle_styled(x + radius, y + h - radius, radius, &corner_style);
+  ipe_draw_circle_styled(x + w - radius, y + h - radius, radius, &corner_style);
 }
 
 static void ipe_draw_arc(int x, int y, int radius, int start_angle, int end_angle, uint32_t color) {
@@ -591,85 +1213,164 @@ static void ipe_draw_arc(int x, int y, int radius, int start_angle, int end_angl
     }
 }
 
-void ipe_draw_rect_ex(ipe_rect_style_t* style) {
-    if (!g_current_window || !g_current_window->renderer) return;
 
-    // 1. Shadow
-    if (style->shadow_radius > 0) {
-        uint32_t sc = style->shadow_color;
-        SDL_SetRenderDrawColor(g_current_window->renderer, (sc >> 16) & 0xFF, (sc >> 8) & 0xFF, sc & 0xFF, 128);
-        SDL_Rect shadow_rect = { style->x + style->shadow_offset_x, style->y + style->shadow_offset_y, style->w, style->h };
-        SDL_RenderFillRect(g_current_window->renderer, &shadow_rect);
-    }
 
-    // 2. Gradient / Fill
-    if (style->gradient > 0) {
-        // Simple H/V gradient implementation
-        for (int i = 0; i < (style->gradient == 1 ? style->w : style->h); i++) {
-            float t = (float)i / (style->gradient == 1 ? style->w : style->h);
-            uint8_t r = (style->gradient_color_start >> 16 & 0xFF) * (1-t) + (style->gradient_color_end >> 16 & 0xFF) * t;
-            uint8_t g = (style->gradient_color_start >> 8 & 0xFF) * (1-t) + (style->gradient_color_end >> 8 & 0xFF) * t;
-            uint8_t b = (style->gradient_color_start & 0xFF) * (1-t) + (style->gradient_color_end & 0xFF) * t;
-            SDL_SetRenderDrawColor(g_current_window->renderer, r, g, b, (uint8_t)(style->opacity * 255));
-            if (style->gradient == 1) // Horizontal
-                SDL_RenderDrawLine(g_current_window->renderer, style->x + i, style->y, style->x + i, style->y + style->h);
-            else // Vertical
-                SDL_RenderDrawLine(g_current_window->renderer, style->x, style->y + i, style->x + style->w, style->y + i);
-        }
-    } else {
-        uint32_t fc = style->fill_color;
-        SDL_SetRenderDrawColor(g_current_window->renderer, (fc >> 16) & 0xFF, (fc >> 8) & 0xFF, fc & 0xFF, (uint8_t)(style->opacity * 255));
-        
-        if (style->corner_radius_tl > 0) {
-            // Draw complex rounded rect (per corner)
-            // Simplified for now: use ipe_draw_rounded_rect if any radius is set
-             ipe_draw_rounded_rect(style->x, style->y, style->w, style->h, style->corner_radius_tl, style->fill_color);
-        } else {
-            SDL_Rect r = {style->x, style->y, style->w, style->h};
-            SDL_RenderFillRect(g_current_window->renderer, &r);
-        }
-    }
-
-    // 3. Border (Solid/Dashed placeholder)
-    if (style->border_width > 0) {
-        uint32_t bc = style->border_color;
-        SDL_SetRenderDrawColor(g_current_window->renderer, (bc >> 16) & 0xFF, (bc >> 8) & 0xFF, bc & 0xFF, (uint8_t)(style->opacity * 255));
-        for (int i=0; i<style->border_width; i++) {
-            SDL_Rect r = {style->x - i, style->y - i, style->w + i*2, style->h + i*2};
-            SDL_RenderDrawRect(g_current_window->renderer, &r);
-        }
-    }
-}
-
-void ipe_draw_circle_ex(ipe_circle_style_t* style) {
-    if (!g_current_window || !g_current_window->renderer) return;
-    // Radial gradient or solid
-    if (style->color_center != style->color_edge) {
-        for (int r = style->radius; r > 0; r--) {
-            float t = (float)r / style->radius;
-            uint8_t rr = (style->color_center >> 16 & 0xFF) * (1-t) + (style->color_edge >> 16 & 0xFF) * t;
-            uint8_t gg = (style->color_center >> 8 & 0xFF) * (1-t) + (style->color_edge >> 8 & 0xFF) * t;
-            uint8_t bb = (style->color_center & 0xFF) * (1-t) + (style->color_edge & 0xFF) * t;
-            SDL_SetRenderDrawColor(g_current_window->renderer, rr, gg, bb, 255);
-            ipe_draw_circle(style->x, style->y, r, (rr<<16|gg<<8|bb), 0);
-        }
-    } else {
-        ipe_draw_circle(style->x, style->y, style->radius, style->color_center, 1);
+/* PERF: Polygon filling is O(n) per scanline. Could be optimized with scanline algorithm. */
+static void draw_filled_polygon(SDL_Renderer* renderer, int* points, int point_count, uint32_t color, float opacity) {
+    if (!renderer || point_count < 3 || !points) return;
+    
+    SDL_SetRenderDrawColor(renderer,
+                          (color >> 16) & 0xFF,
+                          (color >> 8) & 0xFF,
+                          color & 0xFF,
+                          (uint8_t)(255 * opacity));
+    
+    // Draw outline first (filled)
+    for (int i = 0; i < point_count; i++) {
+        int next = (i + 1) % point_count;
+        SDL_RenderDrawLine(renderer,
+                          points[i * 2],
+                          points[i * 2 + 1],
+                          points[next * 2],
+                          points[next * 2 + 1]);
     }
     
-    if (style->border_width > 0) {
-        ipe_draw_circle(style->x, style->y, style->radius, style->border_color, 0);
+    // Simple fill using point-by-point (not efficient but works)
+    // Find bounding box
+    int min_x = points[0], max_x = points[0];
+    int min_y = points[0], max_y = points[0];
+    for (int i = 1; i < point_count; i++) {
+        if (points[i*2] < min_x) min_x = points[i*2];
+        if (points[i*2] > max_x) max_x = points[i*2];
+        if (points[i*2+1] < min_y) min_y = points[i*2+1];
+        if (points[i*2+1] > max_y) max_y = points[i*2+1];
+    }
+    
+    // Simple scanline fill
+    for (int y = min_y; y <= max_y; y++) {
+        int intersections[20];
+        int inter_count = 0;
+        
+        for (int i = 0; i < point_count && inter_count < 20; i++) {
+            int next = (i + 1) % point_count;
+            int y1 = points[i*2 + 1];
+            int y2 = points[next*2 + 1];
+            
+            if ((y1 <= y && y2 > y) || (y2 <= y && y1 > y)) {
+                int x1 = points[i*2];
+                int x2 = points[next*2];
+                int x = x1 + (y - y1) * (x2 - x1) / (y2 - y1);
+                intersections[inter_count++] = x;
+            }
+        }
+        
+        // Sort intersections
+        for (int i = 0; i < inter_count - 1; i++) {
+            for (int j = i + 1; j < inter_count; j++) {
+                if (intersections[i] > intersections[j]) {
+                    int temp = intersections[i];
+                    intersections[i] = intersections[j];
+                    intersections[j] = temp;
+                }
+            }
+        }
+        
+        // Fill between pairs
+        for (int i = 0; i < inter_count - 1; i += 2) {
+            SDL_RenderDrawLine(renderer, intersections[i], y, intersections[i+1], y);
+        }
     }
 }
 
-void ipe_draw_polygon_ex(ipe_polygon_style_t* style) {
-    if (!g_current_window || !g_current_window->renderer || !style->points) return;
-    SDL_SetRenderDrawColor(g_current_window->renderer, (style->fill_color >> 16) & 0xFF, (style->fill_color >> 8) & 0xFF, style->fill_color & 0xFF, 255);
-    // Very simplified polygon draw (outline only for now)
-    for (int i = 0; i < style->point_count; i++) {
-        int next = (i + 1) % style->point_count;
-        SDL_RenderDrawLine(g_current_window->renderer, style->points[i*2], style->points[i*2+1], style->points[next*2], style->points[next*2+1]);
+I_EXPORT void ipe_draw_polygon_styled(int* points, int point_count, ipe_polygon_style_t* style) {
+    if (!g_current_window || !g_current_window->renderer) {
+        IPE_ERR("Window not initialized. Call ipe_init() first.");
+        return;
     }
+    
+    if (!points || point_count < 3) {
+        IPE_ERR("Invalid polygon: need at least 3 points");
+        return;
+    }
+    
+    // Transform points to local buffer
+    int* t_points = (int*)malloc(point_count * 2 * sizeof(int));
+    for (int i = 0; i < point_count; i++) {
+        float px = (float)points[i*2];
+        float py = (float)points[i*2+1];
+        ipe_transform_point(&px, &py);
+        t_points[i*2] = (int)px;
+        t_points[i*2+1] = (int)py;
+    }
+
+    SDL_Renderer* renderer = g_current_window->renderer;
+    float opacity = style && style->opacity > 0 ? style->opacity : 1.0f;
+    
+    // Draw shadow first (if enabled)
+    if (style && style->shadow_enabled) {
+        SDL_SetRenderDrawColor(renderer,
+                              (style->shadow_color >> 16) & 0xFF,
+                              (style->shadow_color >> 8) & 0xFF,
+                              style->shadow_color & 0xFF,
+                              (uint8_t)(128 * opacity));
+        
+        // Simple shadow offset
+        int shadow_offset = style->shadow_radius > 0 ? style->shadow_radius : 3;
+        for (int i = 0; i < point_count; i++) {
+            int next = (i + 1) % point_count;
+            SDL_RenderDrawLine(renderer,
+                              t_points[i*2] + shadow_offset,
+                              t_points[i*2+1] + shadow_offset,
+                              t_points[next*2] + shadow_offset,
+                              t_points[next*2+1] + shadow_offset);
+        }
+    }
+    
+    // Draw filled polygon
+    uint32_t fill_color = style ? style->fill_color : 0xFFFFFF;
+    draw_filled_polygon(renderer, t_points, point_count, fill_color, opacity);
+    
+    // Draw border if width > 0
+    if (style && style->border_width > 0) {
+        uint32_t border_color = style->border_color;
+        
+        SDL_SetRenderDrawColor(renderer,
+                              (border_color >> 16) & 0xFF,
+                              (border_color >> 8) & 0xFF,
+                              border_color & 0xFF,
+                              (uint8_t)(255 * opacity));
+        
+        // Draw multiple borders for thickness
+        for (int w = 0; w < style->border_width; w++) {
+            for (int i = 0; i < point_count; i++) {
+                int next = (i + 1) % point_count;
+                SDL_RenderDrawLine(renderer,
+                                  t_points[i*2] + w,
+                                  t_points[i*2+1] + w,
+                                  t_points[next*2] + w,
+                                  t_points[next*2+1] + w);
+            }
+        }
+    }
+    free(t_points);
+}
+
+IPE_EXPORT void ipe_draw_polygon(int* points, int point_count, uint32_t fill_color, uint32_t border_color) {
+    ipe_polygon_style_t style = {0};
+    style.fill_color = fill_color;
+    style.border_color = border_color;
+    style.border_width = 1;
+    style.opacity = 1.0f;
+    ipe_draw_polygon_styled(points, point_count, &style);
+}
+
+
+void ipe_draw_polygon_ex(ipe_polygon_style_t* style) {
+    // Legacy function - redirect to styled version if points available
+    // This is a simplified version for backward compatibility
+    if (!g_current_window || !g_current_window->renderer) return;
+    // The old function doesn't have points, so we can't do much
+    // This is kept for API compatibility only
 }
 
 // Colors
@@ -734,7 +1435,7 @@ char *ipe_get_clipboard_text() { return SDL_GetClipboardText(); }
 void ipe_show_mouse(int show) { SDL_ShowCursor(show ? SDL_ENABLE : SDL_DISABLE); }
 
 // Fonts
-ipe_font_t *ipe_font_load(const char *path, int size) {
+IPE_EXPORT ipe_font_t *ipe_font_load(const char *path, int size) {
   TTF_Font *ttf_font = TTF_OpenFont(path, size);
   if (!ttf_font)
     return NULL;
@@ -745,26 +1446,31 @@ ipe_font_t *ipe_font_load(const char *path, int size) {
   return font;
 }
 
-void ipe_draw_text_ex(const char *text, int x, int y, ipe_font_t *font,
+IPE_EXPORT void ipe_draw_text_ex(const char *text, int x, int y, ipe_font_t *font,
                       uint32_t color) {
   if (!g_current_window || !g_current_window->renderer || !font || !text)
     return;
+
+  float fx = (float)x, fy = (float)y;
+  ipe_transform_point(&fx, &fy);
+  int tx = (int)fx, ty = (int)fy;
+
   SDL_Color sdl_color = {(color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF,
                          255};
-  SDL_Surface *surface = TTF_RenderText_Blended(font->ttf_font, text, sdl_color);
+  SDL_Surface *surface = TTF_RenderUTF8_Blended(font->ttf_font, text, sdl_color);
   if (!surface)
     return;
   SDL_Texture *texture =
       SDL_CreateTextureFromSurface(g_current_window->renderer, surface);
   if (texture) {
-    SDL_Rect dst = {x, y, surface->w, surface->h};
+    SDL_Rect dst = {tx, ty, surface->w, surface->h};
     SDL_RenderCopy(g_current_window->renderer, texture, NULL, &dst);
     SDL_DestroyTexture(texture);
   }
   SDL_FreeSurface(surface);
 }
 
-int ipe_text_width(const char *text, ipe_font_t *font) {
+IPE_EXPORT int ipe_text_width(const char *text, ipe_font_t *font) {
   if (!font || !text)
     return 0;
   int w, h;
@@ -1180,17 +1886,41 @@ char *ipe_save_file_dialog(const char *filter) {
 IPE_EXPORT int ipe_process_events() {
   SDL_Event e;
   g_last_event_type = 0;
+  g_mouse_scroll_delta = 0;
+  
+  // Track previous mouse buttons
+  g_prev_mouse_buttons = g_mouse_buttons;
+  g_mouse_buttons = 0;
 
   while (SDL_PollEvent(&e)) {
     switch (e.type) {
     case SDL_QUIT:
       g_running = 0;
       g_last_event_type = 1;
+      // Queue window close event
+      {
+        ipe_input_event_t evt = { .type = IPE_EVENT_WINDOW_CLOSE, .timestamp_ms = e.quit.timestamp };
+        ipe_queue_event(evt);
+      }
       break;
     case SDL_MOUSEBUTTONDOWN:
       g_last_event_type = 2;
       g_mouse_x = e.button.x;
       g_mouse_y = e.button.y;
+      g_mouse_buttons |= (1 << (e.button.button - 1)); // 0=left, 1=middle, 2=right
+      
+      // Queue mouse down event
+      {
+        ipe_input_event_t evt = {
+            .type = IPE_EVENT_MOUSE_DOWN,
+            .x = e.button.x,
+            .y = e.button.y,
+            .button = e.button.button - 1,
+            .timestamp_ms = e.button.timestamp
+        };
+        ipe_queue_event(evt);
+      }
+      
       if (g_mousedown_cb)
         g_mousedown_cb(g_mouse_x, g_mouse_y, e.button.button);
       break;
@@ -1198,27 +1928,112 @@ IPE_EXPORT int ipe_process_events() {
       g_last_event_type = 3;
       g_mouse_x = e.button.x;
       g_mouse_y = e.button.y;
+      g_mouse_buttons &= ~(1 << (e.button.button - 1));
+      
+      // Queue mouse up event
+      {
+        ipe_input_event_t evt = {
+            .type = IPE_EVENT_MOUSE_UP,
+            .x = e.button.x,
+            .y = e.button.y,
+            .button = e.button.button - 1,
+            .timestamp_ms = e.button.timestamp
+        };
+        ipe_queue_event(evt);
+      }
       break;
     case SDL_MOUSEMOTION:
       g_mouse_x = e.motion.x;
       g_mouse_y = e.motion.y;
+      
+      // Queue mouse move event
+      {
+        ipe_input_event_t evt = {
+            .type = IPE_EVENT_MOUSE_MOVE,
+            .x = e.motion.x,
+            .y = e.motion.y,
+            .timestamp_ms = e.motion.timestamp
+        };
+        ipe_queue_event(evt);
+      }
+      
       if (g_mousemove_cb)
         g_mousemove_cb(g_mouse_x, g_mouse_y, 0);
+      break;
+    case SDL_MOUSEWHEEL:
+      g_mouse_scroll_delta = e.wheel.y;
+      
+      // Queue scroll event
+      {
+        ipe_input_event_t evt = {
+            .type = IPE_EVENT_SCROLL,
+            .scroll_delta = e.wheel.y,
+            .timestamp_ms = e.wheel.timestamp
+        };
+        ipe_queue_event(evt);
+      }
       break;
     case SDL_KEYDOWN:
       g_last_event_type = 4;
       g_key_code = e.key.keysym.sym;
+      
+      // Track key pressed
+      if (e.key.keysym.scancode < 512) {
+        g_input_state.key_pressed[e.key.keysym.scancode] = 1;
+      }
+      
+      // Queue key down event
+      {
+        ipe_input_event_t evt = {
+            .type = IPE_EVENT_KEY_DOWN,
+            .key_code = e.key.keysym.scancode,
+            .timestamp_ms = e.key.timestamp
+        };
+        ipe_queue_event(evt);
+      }
+      
       if (g_keydown_cb)
         g_keydown_cb(g_key_code);
+      break;
+    case SDL_KEYUP:
+      // Track key released
+      if (e.key.keysym.scancode < 512) {
+        g_input_state.key_released[e.key.keysym.scancode] = 1;
+      }
+      
+      // Queue key up event
+      {
+        ipe_input_event_t evt = {
+            .type = IPE_EVENT_KEY_UP,
+            .key_code = e.key.keysym.scancode,
+            .timestamp_ms = e.key.timestamp
+        };
+        ipe_queue_event(evt);
+      }
       break;
     case SDL_WINDOWEVENT:
       if (e.window.event == SDL_WINDOWEVENT_RESIZED) {
         if (g_resize_cb)
           g_resize_cb(e.window.data1, e.window.data2);
+        
+        // Queue resize event
+        {
+          ipe_input_event_t evt = {
+              .type = IPE_EVENT_WINDOW_RESIZE,
+              .x = e.window.data1,
+              .y = e.window.data2,
+              .timestamp_ms = e.window.timestamp
+          };
+          ipe_queue_event(evt);
+        }
       }
       break;
     }
   }
+  
+  // Clear pressed/released keys that were processed
+  memset(g_input_state.key_pressed, 0, sizeof(g_input_state.key_pressed));
+  memset(g_input_state.key_released, 0, sizeof(g_input_state.key_released));
 
   // Handle control events for the current window
   if (g_current_window && g_current_window->root_control) {

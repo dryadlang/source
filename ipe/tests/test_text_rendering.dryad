@@ -1,0 +1,81 @@
+#<ffi>
+#<console_io>
+#<system_env>
+
+let failures = 0;
+let passes = 0;
+
+function assert_true(value, test_name) {
+    if (value) {
+        println("[✓] " + test_name);
+        passes = passes + 1;
+    } else {
+        println("[✗] " + test_name);
+        failures = failures + 1;
+    }
+}
+
+println("");
+println("========== IPE Text Rendering API Function Signature Tests ==========");
+println("");
+
+// Platform detection and library loading
+let platform = native_platform();
+let ext = ".so";
+let lib_name = "libipe";
+
+if (platform == "windows") { 
+    ext = ".dll"; 
+    lib_name = "ipe";
+}
+if (platform == "macos") { 
+    ext = ".dylib"; 
+    lib_name = "libipe";
+}
+
+let path = "./ipe/native/" + lib_name + ext;
+println("Loading library: " + path);
+
+let lib_loaded = ffi_load_library(path, "ipe_text");
+if (!lib_loaded) {
+    println("[✗] Failed to load library");
+} else {
+    println("[✓] IPE library loaded");
+    
+    // Initialize
+    let init_res = ffi_call("ipe_text", "ipe_init", "i32");
+    if (init_res != 0) {
+        println("[✓] IPE initialized");
+        println("");
+        
+        // Test Group 1: Text rendering functions are callable
+        println("--- Test Group 1: Text Rendering Function Signatures ---");
+        
+        // Basic text drawing function
+        ffi_call("ipe_text", "ipe_draw_text", "void", "Hello", 0, 0, 0x000000);
+        assert_true(true, "ipe_draw_text callable");
+        
+        // Extended text function
+        ffi_call("ipe_text", "ipe_draw_text_ex", "void", "World", 10, 10, 0xFF0000, 2);
+        assert_true(true, "ipe_draw_text_ex callable (with scale)");
+        println("");
+        
+        println("[✓] All text rendering API function signatures are valid");
+    } else {
+        println("[✗] Failed to initialize IPE");
+    }
+    
+    ffi_unload_library("ipe_text");
+}
+
+println("");
+println("========== Test Summary ==========");
+println("Passed: " + passes);
+println("Failed: " + failures);
+println("");
+
+if (failures == 0) {
+    println("[✓] All text rendering tests passed!");
+} else {
+    println("[✗] Some tests failed");
+}

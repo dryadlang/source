@@ -1,10 +1,15 @@
-#include <SDL2/SDL.h>
+#include "config.h"
 #include <SDL2/SDL_image.h>
 #include <SDL2/SDL_ttf.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 #include <math.h>
+
+/* Platform-specific logging */
+#define IPE_LOG(fmt, ...) fprintf(stderr, "[IPE] " fmt "\n", ##__VA_ARGS__)
+#define IPE_ERR(fmt, ...) fprintf(stderr, "[IPE ERROR] " fmt "\n", ##__VA_ARGS__)
 
 // Window structure
 typedef struct {
@@ -364,7 +369,7 @@ static int g_mouse_x = 0;
 static int g_mouse_y = 0;
 static int g_key_code = 0;
 
-__declspec(dllexport) int ipe_init() {
+IPE_EXPORT int ipe_init() {
   if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) < 0)
     return 0;
   if (TTF_Init() < 0)
@@ -375,7 +380,7 @@ __declspec(dllexport) int ipe_init() {
   return 1;
 }
 
-__declspec(dllexport) void* ipe_window_create(int width, int height, const char *title) {
+IPE_EXPORT void* ipe_window_create(int width, int height, const char *title) {
   ipe_window_t *win = (ipe_window_t *)malloc(sizeof(ipe_window_t));
   if (!win)
     return NULL;
@@ -430,7 +435,7 @@ void ipe_window_destroy(ipe_window_t *win) {
   free(win);
 }
 
-__declspec(dllexport) void ipe_clear_background(uint32_t color) {
+IPE_EXPORT void ipe_clear_background(uint32_t color) {
   if (!g_current_window || !g_current_window->renderer)
     return;
   SDL_SetRenderDrawColor(g_current_window->renderer, (color >> 16) & 0xFF,
@@ -443,7 +448,7 @@ void ipe_present() {
     SDL_RenderPresent(g_current_window->renderer);
 }
 
-__declspec(dllexport) void ipe_draw_rect(int x, int y, int w, int h, uint32_t color) {
+IPE_EXPORT void ipe_draw_rect(int x, int y, int w, int h, uint32_t color) {
   if (!g_current_window || !g_current_window->renderer)
     return;
   SDL_SetRenderDrawColor(g_current_window->renderer, (color >> 16) & 0xFF,
@@ -1169,7 +1174,7 @@ char *ipe_save_file_dialog(const char *filter) {
   return NULL;
 }
 
-__declspec(dllexport) int ipe_process_events() {
+IPE_EXPORT int ipe_process_events() {
   SDL_Event e;
   g_last_event_type = 0;
 
@@ -1238,9 +1243,9 @@ int ipe_get_mouse_x() { return g_mouse_x; }
 int ipe_get_mouse_y() { return g_mouse_y; }
 int ipe_get_key_code() { return g_key_code; }
 
-__declspec(dllexport) int ipe_is_window_open() { return g_running; }
+IPE_EXPORT int ipe_is_window_open() { return g_running; }
 
-__declspec(dllexport) void ipe_window_close() {
+IPE_EXPORT void ipe_window_close() {
   if (g_current_window) {
     ipe_window_destroy(g_current_window);
   }

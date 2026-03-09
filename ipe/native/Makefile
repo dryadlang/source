@@ -46,7 +46,7 @@ endif
 SOURCE_GDI = ipe_helper.c
 SOURCE_SDL2 = ipe_helper_sdl2.c
 
-.PHONY: all clean info help gdi sdl2
+.PHONY: all clean info help gdi sdl2 test test-windows test-linux test-macos
 
 # Default target: SDL2
 all: sdl2
@@ -98,4 +98,24 @@ else
 	rm -f *.so *.dylib *.o
 endif
 	@echo "[✓] Limpeza concluída!"
+
+test: $(OUTPUT_SDL2)
+	@echo "[→] Executando testes de integração SDL2..."
+	@cd ../.. && ./target/debug/deps/dryad.exe run ipe/tests/test_sdl2_cross_platform.dryad
+	@echo "[✓] Testes completados!"
+
+test-windows: sdl2
+	@echo "[→] Compilando versão SDL2 para Windows..."
+	@echo "[✓] ipe.dll criado"
+	@cd ../.. && ./target/debug/deps/dryad.exe run ipe/tests/test_sdl2_cross_platform.dryad
+
+test-linux: sdl2
+	@echo "[→] Compilando versão SDL2 para Linux..."
+	@echo "[✓] libipe.so criado"
+	@cd ../.. && ./target/debug/deps/dryad.exe run ipe/tests/test_sdl2_cross_platform.dryad
+
+test-macos: sdl2
+	@echo "[→] Compilando versão SDL2 para macOS..."
+	@echo "[✓] libipe.dylib criado"
+	@cd ../.. && ./target/debug/deps/dryad.exe run ipe/tests/test_sdl2_cross_platform.dryad
 

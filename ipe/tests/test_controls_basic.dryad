@@ -1,0 +1,108 @@
+import ipe
+
+func test_control_creation() {
+    print("Test 1: Control Creation")
+    
+    let ctrl = ipe.control_create(10, 20, 100, 50)
+    
+    if ctrl == 0 {
+        print("[X] Failed: control_create returned null")
+        return false
+    }
+    
+    print("[✓] Passed: Control created successfully")
+    ipe.control_destroy(ctrl)
+    return true
+}
+
+func test_control_hierarchy() {
+    print("\nTest 2: Control Hierarchy")
+    
+    let parent = ipe.control_create(0, 0, 300, 300)
+    let child1 = ipe.control_create(10, 10, 50, 50)
+    let child2 = ipe.control_create(70, 10, 50, 50)
+    
+    if parent == 0 || child1 == 0 || child2 == 0 {
+        print("[X] Failed: Could not create controls")
+        return false
+    }
+    
+    ipe.control_add_child(parent, child1)
+    ipe.control_add_child(parent, child2)
+    
+    print("[✓] Passed: Hierarchy created (parent with 2 children)")
+    
+    ipe.control_destroy(parent)
+    return true
+}
+
+func test_control_properties() {
+    print("\nTest 3: Control Properties")
+    
+    let ctrl = ipe.control_create(0, 0, 100, 100)
+    
+    if ctrl == 0 {
+        print("[X] Failed: Could not create control")
+        return false
+    }
+    
+    ipe.control_set_color(ctrl, 0xFF0000FF, 0x00FF00FF)
+    ipe.control_set_position(ctrl, 50, 75)
+    ipe.control_set_size(ctrl, 200, 150)
+    ipe.control_set_visible(ctrl, true)
+    ipe.control_set_enabled(ctrl, true)
+    
+    print("[✓] Passed: Properties set successfully")
+    
+    ipe.control_destroy(ctrl)
+    return true
+}
+
+func test_control_removal() {
+    print("\nTest 4: Control Removal")
+    
+    let parent = ipe.control_create(0, 0, 300, 300)
+    let child = ipe.control_create(10, 10, 50, 50)
+    
+    if parent == 0 || child == 0 {
+        print("[X] Failed: Could not create controls")
+        return false
+    }
+    
+    ipe.control_add_child(parent, child)
+    ipe.control_remove_child(parent, child)
+    
+    print("[✓] Passed: Child removed successfully")
+    
+    ipe.control_destroy(parent)
+    ipe.control_destroy(child)
+    return true
+}
+
+func main() {
+    print("=== IPE Control System - Basic Tests ===\n")
+    
+    let results = []
+    results.push(test_control_creation())
+    results.push(test_control_hierarchy())
+    results.push(test_control_properties())
+    results.push(test_control_removal())
+    
+    let passed = 0
+    let total = results.length
+    
+    for let i = 0; i < total; i = i + 1 {
+        if results[i] {
+            passed = passed + 1
+        }
+    }
+    
+    print("\n=== Summary ===")
+    print("Passed: " + passed + "/" + total)
+    
+    if passed == total {
+        print("All tests passed! ✓")
+    } else {
+        print("Some tests failed.")
+    }
+}

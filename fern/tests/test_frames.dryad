@@ -1,5 +1,5 @@
 
-// Test script for Greenleaf DataFrame
+// Test script for Fern DataFrame
 import { DataFrame, from_dict, merge } from "../src/data/frames.dryad";
 
 println("Running DataFrame Tests...");
@@ -18,14 +18,12 @@ if (col[0] != 10) println("FAIL: col[0] should be 10");
 
 let row = df.get_row(1);
 println("Row 1: " + row);
-// row should be [2, 20] depending on col order (id, val)
 
 df.add_row([4, 40]);
 println("DF after add_row:\n" + df.to_string());
 
-let filtered = df.filter( (r) => r[1] > 20 ); // Assuming val is index 1
+let filtered = df.filter( (r) => r[1] > 20 ); 
 println("Filtered (val > 20):\n" + filtered.to_string());
-// Should contain rows for 30 and 40
 
 let df2 = from_dict({
     "id": [1, 3],
@@ -34,6 +32,14 @@ let df2 = from_dict({
 
 let merged = merge(df, df2, "id");
 println("Merged DF:\n" + merged.to_string());
-// Should have id 1 (10, A) and 3 (30, B)
+
+// Test GroupBy
+let d3 = { "cat": ["A", "A", "B"], "val": [1, 2, 10] };
+let df3 = from_dict(d3);
+let summed = df3.groupby("cat", "val", (v_list) => {
+    let s = 0; for(let i=0; i<v_list.length; i++) s = s + v_list[i]; return s;
+});
+println("GroupBy cat (sum val): " + summed["A"]);
+if (summed["A"] != 3) println("FAIL: GroupBy sum wrong for A: " + summed["A"]);
 
 println("DataFrame Tests Completed.");

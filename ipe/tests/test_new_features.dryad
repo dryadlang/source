@@ -1,0 +1,73 @@
+#<ipe>
+#<console_io>
+
+function main() {
+    println("Starting IPE Feature Verification...");
+    
+    if (!ipe::init()) {
+        println("Failed to initialize IPE framework");
+        return;
+    }
+    
+    println("Creating window...");
+    let win = ipe::createWindow(800, 600, "IPE Feature Verification");
+    if (win == 0) {
+        println("Failed to create window");
+        return;
+    }
+
+    // Pre-load font
+    println("Loading font...");
+    let font = ipe::fontLoad("C:/Windows/Fonts/arial.ttf", 24);
+    if (font == 0) {
+        println("Warning: Could not load Arial font. TextEx might not work.");
+    }
+
+    println("Entering main loop...");
+    while (ipe::isOpen()) {
+        ipe::processEvents();
+        ipe::clear(0x222222);
+        
+        // 1. Test basic draw
+        ipe::drawRect(50, 50, 100, 50, 0xFFFFFF);
+        ipe::drawText("Standard White Rect", 50, 110, 0xFFFFFF);
+        
+        // 2. Test Transformations
+        ipe::transformPush();
+        ipe::translate(400, 100);
+        ipe::rotate(30);
+        ipe::drawRect(0, 0, 100, 50, 0xFF0000); // Should be red, translated and rotated
+        ipe::drawText("Transformed Red Rect", 0, 60, 0xFF0000);
+        ipe::transformPop();
+        
+        // 3. Test Scaling
+        ipe::transformPush();
+        ipe::translate(100, 300);
+        ipe::scale(1.5, 1.5);
+        ipe::drawRect(0, 0, 100, 50, 0x00FF00); // Should be green, larger
+        ipe::drawText("Scaled Green Rect", 0, 60, 0x00FF00);
+        ipe::transformPop();
+        
+        // 4. Test Advanced Styling (Gradients)
+        let style = ipe::createRectStyle();
+        // Set gradient: linear horizontal, red to blue
+        ffi_write_buffer(style, 40, 1, "i32"); // linear_h
+        ffi_write_buffer(style, 44, 0xFF0000, "u32"); // red
+        ffi_write_buffer(style, 48, 0x0000FF, "u32"); // blue
+        ipe::drawRectStyled(400, 300, 200, 100, style);
+        ipe::drawText("Styled Gradient Rect (Red -> Blue)", 400, 410, 0xFFFFFF);
+        
+        // 5. Test TTF Text Rendering
+        if (font != 0) {
+            ipe::drawTextEx("IPE Framework - Powered by Dryad", 100, 500, font, 0xFFFF00);
+        }
+        
+        ipe::present();
+    }
+    
+    println("Cleaning up...");
+    ipe::close();
+    println("Verification completed.");
+}
+
+main();

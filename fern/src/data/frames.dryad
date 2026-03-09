@@ -1,0 +1,112 @@
+#<console_io>
+
+class DataFrame {
+    let columns;
+    let data;
+    let length;
+
+    constructor(data_dict) {
+        this.columns = [];
+        this.data = {};
+        this.length = 0;
+    }
+
+    get_column(name) {
+        return this.data[name];
+    }
+
+    set_column(name, list) {
+        if (this.data[name] == null) {
+            this.columns = this.columns + [name];
+        }
+        this.data[name] = list;
+        if (list.length > this.length) { this.length = list.length; }
+    }
+
+    get_row(index) {
+        let row = [];
+        for (let i = 0; i < this.columns.length; i++) {
+            let col = this.columns[i];
+            row = row + [this.data[col][index]];
+        }
+        return row;
+    }
+
+    add_row(row_list) {
+        for (let i = 0; i < this.columns.length; i++) {
+            let col = this.columns[i];
+            this.data[col] = this.data[col] + [row_list[i]];
+        }
+        this.length = this.length + 1;
+    }
+
+    filter(predicate) {
+        let new_df = new DataFrame(null);
+        for (let i = 0; i < this.columns.length; i++) {
+            new_df.set_column(this.columns[i], []);
+        }
+        for (let i = 0; i < this.length; i++) {
+            let row = this.get_row(i);
+            if (predicate(row)) {
+                new_df.add_row(row);
+            }
+        }
+        return new_df;
+    }
+
+    describe() {
+        print("DataFrame Summary:");
+        for (let i = 0; i < this.columns.length; i++) {
+            let col = this.columns[i];
+            let vals = this.data[col];
+            let sum = 0;
+            for (let j = 0; j < vals.length; j++) { sum = sum + vals[j]; }
+            print(col + " -> Mean: " + (sum / vals.length));
+        }
+    }
+
+    groupby(col_name, aggregate_col, agg_func) {
+        let groups = {};
+        let keys = [];
+        for (let i = 0; i < this.length; i++) {
+            let key = this.data[col_name][i];
+            let val = this.data[aggregate_col][i];
+            if (groups[key] == null) {
+                groups[key] = [];
+                keys = keys + [key];
+            }
+            groups[key] = groups[key] + [val];
+        }
+        let res = {};
+        for (let i = 0; i < keys.length; i++) {
+            let k = keys[i];
+            res[k] = agg_func(groups[k]);
+        }
+        return res;
+    }
+
+    to_string() {
+        let res = "" + this.columns + "\n";
+        for (let i = 0; i < this.length; i++) {
+            res = res + this.get_row(i) + "\n";
+        }
+        return res;
+    }
+}
+
+function from_dict(dict) {
+    let df = new DataFrame(null);
+    return df; 
+}
+
+function merge(df1, df2, on) {
+    let res = new DataFrame(null);
+    return res;
+}
+
+function read_csv_simple(text) {
+    let lines = text.split("\n");
+    let headers = lines[0].split(",");
+    let df = new DataFrame(null);
+    return df;
+}

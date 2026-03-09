@@ -1,14 +1,42 @@
 {
   "name": "@ipe/framework",
-  "version": "0.1.0",
-  "description": "Ipe GUI Framework for Dryad",
+  "version": "0.2.0",
+  "description": "Cross-platform GUI Framework for Dryad using FFI",
   "author": "Pedro Jesus",
   "license": "MIT",
   "type": "framework",
   "repository": "https://github.com/dryadlang/source",
   "dependencies": {},
   "scripts": {
-    "build": "make -C native",
-    "clean": "make -C native clean"
+    "build": "cd native && make",
+    "build:windows": "cd native && build.cmd",
+    "build:unix": "cd native && ./build.sh",
+    "clean": "cd native && make clean",
+    "test": "cargo run --bin dryad run tests/test_integration.dryad",
+    "demo": "cargo run --bin dryad run tests/demo.dryad",
+    "test:ffi": "cargo run --bin dryad run tests/test_ffi.dryad"
+  },
+  "keywords": [
+    "gui",
+    "graphics",
+    "ffi",
+    "windows",
+    "linux",
+    "macos"
+  ],
+  "main": "lib/ipe.dryad",
+  "files": [
+    "lib/",
+    "native/",
+    "tests/",
+    "README.md"
+  ],
+  "os": [
+    "windows",
+    "linux",
+    "macos"
+  ],
+  "engines": {
+    "dryad": ">=0.1.0"
   }
 }

@@ -3,7 +3,7 @@
 **Document Version:** 1.0  
 **Generated:** 2026-03-09  
 **Purpose:** MCP (Model Context Protocol) documentation for LLM understanding of Dryad syntax, semantics, and execution model  
-**Target Audience:** AI Language Models, Code Assistants, Automated Tooling  
+**Target Audience:** AI Language Models, Code Assistants, Automated Tooling
 
 ---
 
@@ -19,6 +19,11 @@
 8. [Runtime Execution Model](#8-runtime-execution-model)
 9. [FFI and Native Functions](#9-ffi-and-native-functions)
 10. [Error Handling](#10-error-handling)
+11. [Concurrency Model](#11-concurrency-model)
+12. [Standard Patterns](#12-standard-patterns)
+13. [Quick Reference](#13-quick-reference)
+14. [Implementation Notes](#14-implementation-notes)
+15. [Example Programs](#15-example-programs)
 
 ---
 
@@ -33,7 +38,7 @@
 **Execution Model:** Tree-walking interpreter (direct AST execution)  
 **Memory Management:** Garbage collected (Rust reference counting)  
 **Concurrency:** Native threads, async/await, mutexes  
-**Target Runtime:** Cross-platform (Windows, Linux, macOS via SDL2 + system APIs)  
+**Target Runtime:** Cross-platform (Windows, Linux, macOS via SDL2 + system APIs)
 
 ### 1.2 Key Design Principles
 
@@ -47,6 +52,7 @@
 ### 1.3 Code Structure
 
 All Dryad programs consist of:
+
 - **Statements** (instructions that perform actions)
 - **Expressions** (computations that produce values)
 - **Declarations** (functions, classes, variables, constants)
@@ -60,49 +66,35 @@ All Dryad programs consist of:
 
 The lexer converts source text into tokens. Complete token taxonomy:
 
-| Category | Token Type | Pattern/Examples | Notes |
-|----------|-----------|-----------------|-------|
-| **Identifiers** | `Identifier(String)` | `[a-zA-Z_][a-zA-Z0-9_]*` | Variable, function, class names |
-| **Literals - Numeric** | `Number(f64)` | `42`, `3.14`, `0xFF`, `0b1010`, `0o755` | All numbers are f64 internally |
-| **Literals - String** | `String(String)` | `"text"`, `'text'` | Supports escape sequences: `\n\t\r\\\"\'` and unicode `\uXXXX` |
-| **Literals - Boolean** | `Boolean(bool)` | `true`, `false` | Primitive boolean values |
-| **Literals - Null** | `Literal(String)` | `null` | Null/undefined value |
-| **Template Strings** | `TemplateStart`, `TemplateContent()`, `InterpolationStart`, `InterpolationEnd` | `` `text ${expr} more` `` | String interpolation with embedded expressions |
-| **Keywords** | `Keyword(String)` | See section 2.2 | Reserved language keywords |
-| **Operators** | `Operator(String)` | See section 2.3 | All operators and compound assignments |
-| **Arrow Function** | `Arrow` | `=>` | Lambda/anonymous function marker |
-| **Symbols** | `Symbol(char)` | `.`, `{}`, `()`, `[]`, `;`, `,`, `:`, `=` | Delimiters and structure markers |
-| **Native Directive** | `NativeDirective(String)` | `#<module_name>` | Load native module (e.g., `#io`, `#crypto`) |
-| **EOF** | `Eof` | (end of input) | End of file marker |
+| Category               | Token Type                                                                     | Pattern/Examples                          | Notes                                                          |
+| ---------------------- | ------------------------------------------------------------------------------ | ----------------------------------------- | -------------------------------------------------------------- |
+| **Identifiers**        | `Identifier(String)`                                                           | `[a-zA-Z_][a-zA-Z0-9_]*`                  | Variable, function, class names                                |
+| **Literals - Numeric** | `Number(f64)`                                                                  | `42`, `3.14`, `0xFF`, `0b1010`, `0o755`   | All numbers are f64 internally                                 |
+| **Literals - String**  | `String(String)`                                                               | `"text"`, `'text'`                        | Supports escape sequences: `\n\t\r\\\"\'` and unicode `\uXXXX` |
+| **Literals - Boolean** | `Boolean(bool)`                                                                | `true`, `false`                           | Primitive boolean values                                       |
+| **Literals - Null**    | `Literal(String)`                                                              | `null`                                    | Null/undefined value                                           |
+| **Template Strings**   | `TemplateStart`, `TemplateContent()`, `InterpolationStart`, `InterpolationEnd` | `` `text ${expr} more` ``                 | String interpolation with embedded expressions                 |
+| **Keywords**           | `Keyword(String)`                                                              | See section 2.2                           | Reserved language keywords                                     |
+| **Operators**          | `Operator(String)`                                                             | See section 2.3                           | All operators and compound assignments                         |
+| **Arrow Function**     | `Arrow`                                                                        | `=>`                                      | Lambda/anonymous function marker                               |
+| **Symbols**            | `Symbol(char)`                                                                 | `.`, `{}`, `()`, `[]`, `;`, `,`, `:`, `=` | Delimiters and structure markers                               |
+| **Native Directive**   | `NativeDirective(String)`                                                      | `#<module_name>`                          | Load native module (e.g., `#io`, `#crypto`)                    |
+| **EOF**                | `Eof`                                                                          | (end of input)                            | End of file marker                                             |
 
 ### 2.2 Keywords
 
-Complete list of Dryad keywords (reserved):
-
-**Control Flow:**
-- `if`, `else`, `for`, `while`, `do`, `break`, `continue`, `switch`, `case`, `default`
-
-**Functions & Variables:**
-- `let`, `const`, `var`, `function`, `fn`, `return`, `async`, `await`
-
-**Objects & Classes:**
-- `class`, `extends`, `super`, `this`, `interface`, `implements`, `public`, `private`, `protected`, `static`, `new`
-
-**Modules:**
-- `import`, `export`, `use`, `from`, `as`
-
-**Concurrency:**
-- `thread`, `mutex`, `async`, `await`
-
-**Error Handling:**
-- `try`, `catch`, `finally`, `throw`
-
-**Advanced:**
-- `match`, `in`, `of`, `void`, `typeof`, `instanceof`, `in`, `delete`, `void`, `yield`
+- **Variables:** `let`, `const`
+- **Control Flow:** `if`, `else`, `for`, `while`, `do`, `break`, `continue`, `match`, `in`
+- **Functions:** `function`, `fn`, `async`, `await`, `return`, `thread`, `mutex`
+- **OOP:** `class`, `new`, `extends`, `this`, `super`, `static`, `public`, `private`, `protected`
+- **Modules:** `import`, `export`, `use`, `as`, `from`
+- **Error Handling:** `try`, `catch`, `finally`, `throw`
+- **Literals:** `true`, `false`, `null`
 
 ### 2.3 Operators
 
 **Arithmetic Operators:**
+
 - `+` (addition/string concatenation)
 - `-` (subtraction)
 - `*` (multiplication)
@@ -111,6 +103,7 @@ Complete list of Dryad keywords (reserved):
 - `**` (exponentiation)
 
 **Bitwise Operators:**
+
 - `&` (bitwise AND)
 - `|` (bitwise OR)
 - `^` (bitwise XOR, also `^^`)
@@ -121,6 +114,7 @@ Complete list of Dryad keywords (reserved):
 - `%%` (modulo bitwise)
 
 **Comparison Operators:**
+
 - `==` (equality)
 - `!=` (inequality)
 - `<` (less than)
@@ -129,22 +123,24 @@ Complete list of Dryad keywords (reserved):
 - `>=` (greater than or equal)
 
 **Logical Operators:**
+
 - `&&` (logical AND)
 - `||` (logical OR)
 - `!` (logical NOT)
 
 **Assignment Operators:**
+
 - `=` (assignment)
 - `+=`, `-=`, `*=`, `/=` (compound assignments)
 
 **Increment/Decrement:**
+
 - `++` (increment, prefix or postfix)
 - `--` (decrement, prefix or postfix)
 
 **Special Operators:**
+
 - `=>` (arrow function)
-- `?` (optional chaining / try operator)
-- `??` (nullish coalescing)
 - `#` (native directive prefix)
 
 ### 2.4 Comments
@@ -166,52 +162,62 @@ Complete list of Dryad keywords (reserved):
 
 ### 3.1 Primitive Types
 
-| Type | Description | Literals | Internal Representation |
-|------|-------------|----------|---------------------------|
-| `number` | Floating-point number | `42`, `3.14`, `0xFF`, `1e10` | IEEE 754 f64 |
-| `string` | Text string | `"hello"`, `'world'`, `` `template` `` | UTF-8 String |
-| `bool` | Boolean value | `true`, `false` | Rust bool |
-| `null` | Null/undefined value | `null` | Null variant |
-| `any` | Any type (dynamic) | (implied, no literal) | Value enum |
+| Type     | Description           | Literals                               | Internal Representation |
+| -------- | --------------------- | -------------------------------------- | ----------------------- |
+| `number` | Floating-point number | `42`, `3.14`, `0xFF`, `1e10`           | IEEE 754 f64            |
+| `string` | Text string           | `"hello"`, `'world'`, `` `template` `` | UTF-8 String            |
+| `bool`   | Boolean value         | `true`, `false`                        | Rust bool               |
+| `null`   | Null/undefined value  | `null`                                 | Null variant            |
+| `any`    | Any type (dynamic)    | (implied, no literal)                  | Value enum              |
 
 ### 3.2 Composite Types
 
 **Arrays:**
+
 ```dryad
 let arr: number[] = [1, 2, 3];
 let mixed: any[] = [1, "two", true];
 ```
+
 - Declared with `Type[]` syntax
 - Heterogeneous (can contain any types when typed as `any[]`)
 - Access via index: `arr[0]`, `arr[n]`
 
 **Tuples:**
+
 ```dryad
 let tuple: (number, string, bool) = (42, "text", true);
 ```
+
 - Fixed-size, heterogeneous collections
 - Type syntax: `(Type1, Type2, ...)`
 - Access by index: `tuple.0`, `tuple.1`
 
 **Functions:**
+
 ```dryad
 let fn_type: fn(number, string) -> bool;
 ```
+
 - Type syntax: `fn(ParamType1, ParamType2, ...) -> ReturnType`
 - Functions are first-class values
 
 **Classes:**
+
 ```dryad
 let obj: MyClass = new MyClass();
 ```
+
 - Custom types defined with `class` keyword
 - Instance variables and methods
 - Support inheritance with `extends`
 
 **Objects:**
+
 ```dryad
 let obj = { name: "John", age: 30 };
 ```
+
 - Literal object with properties
 - Property access: `obj.name` or `obj["name"]`
 
@@ -222,11 +228,11 @@ Type annotations are **optional** and appear after identifier with `:` syntax:
 ```dryad
 let x: number = 42;
 const y: string = "hello";
-var z: bool = true;
 function add(a: number, b: number): number { return a + b; }
 ```
 
 **Rules:**
+
 - If type annotation is omitted, type is inferred from initializer or defaults to `any`
 - Variables can change type at runtime (dynamic typing)
 - Type annotations are checked at parse time but not strictly enforced at runtime
@@ -235,16 +241,15 @@ function add(a: number, b: number): number { return a + b; }
 ### 3.4 Type Compatibility
 
 **Implicit Conversions (Coercion):**
+
 - `number` + `string` → string (concatenation)
 - `bool` in arithmetic context → `1` (true) or `0` (false)
 - `null` in comparisons → special handling
 - Arrays/objects compared by reference
 
 **Type Checking:**
-- `typeof` operator returns type name as string: `typeof 42` → `"number"`
-- `instanceof` checks class membership: `obj instanceof MyClass`
+
 - Comparison operators (`==`, `!=`) perform type coercion
-- Strict comparison (`===`, `!==`) not available; use structural comparison
 
 ---
 
@@ -254,28 +259,28 @@ function add(a: number, b: number): number { return a + b; }
 
 Expressions are ordered by precedence (high to low):
 
-| Precedence | Category | Operators | Associativity | Examples |
-|-----------|----------|-----------|---------------|----------|
-| 1 (highest) | Primary | `.`, `[]`, `()`, `new` | Left | `obj.prop`, `arr[0]`, `fn()`, `new C()` |
-| 2 | Postfix | `++`, `--` | Left | `x++`, `y--` |
-| 3 | Prefix | `++`, `--`, `!`, `-`, `+`, `~` | Right | `++x`, `!bool`, `-num` |
-| 4 | Exponentiation | `**` | Right | `2 ** 8` |
-| 5 | Multiplicative | `*`, `/`, `%` | Left | `a * b`, `a / b`, `a % b` |
-| 6 | Additive | `+`, `-` | Left | `a + b`, `a - b` |
-| 7 | Bitwise Shift | `<<`, `>>`, `>>>`, `<<<` | Left | `a << 2`, `a >> 1` |
-| 8 | Relational | `<`, `<=`, `>`, `>=`, `in` | Left | `a < b`, `x in arr` |
-| 9 | Equality | `==`, `!=` | Left | `a == b`, `a != b` |
-| 10 | Bitwise AND | `&` | Left | `a & b` |
-| 11 | Bitwise XOR | `^`, `^^` | Left | `a ^ b` |
-| 12 | Bitwise OR | `\|` | Left | `a \| b` |
-| 13 | Logical AND | `&&` | Left | `a && b` |
-| 14 | Logical OR | `\|\|` | Left | `a \|\| b` |
-| 15 | Ternary | `? :` | Right | `cond ? true_val : false_val` |
-| 16 (lowest) | Assignment | `=`, `+=`, `-=`, `*=`, `/=` | Right | `x = 5`, `x += 3` |
+| Precedence  | Category       | Operators                      | Associativity | Examples                                |
+| ----------- | -------------- | ------------------------------ | ------------- | --------------------------------------- |
+| 1 (highest) | Primary        | `.`, `[]`, `()`, `new`         | Left          | `obj.prop`, `arr[0]`, `fn()`, `new C()` |
+| 2           | Postfix        | `++`, `--`                     | Left          | `x++`, `y--`                            |
+| 3           | Prefix         | `++`, `--`, `!`, `-`, `+`, `~` | Right         | `++x`, `!bool`, `-num`                  |
+| 4           | Exponentiation | `**`                           | Right         | `2 ** 8`                                |
+| 5           | Multiplicative | `*`, `/`, `%`                  | Left          | `a * b`, `a / b`, `a % b`               |
+| 6           | Additive       | `+`, `-`                       | Left          | `a + b`, `a - b`                        |
+| 7           | Bitwise Shift  | `<<`, `>>`, `>>>`, `<<<`       | Left          | `a << 2`, `a >> 1`                      |
+| 8           | Relational     | `<`, `<=`, `>`, `>=`, `in`     | Left          | `a < b`, `x in arr`                     |
+| 9           | Equality       | `==`, `!=`                     | Left          | `a == b`, `a != b`                      |
+| 10          | Bitwise AND    | `&`                            | Left          | `a & b`                                 |
+| 11          | Bitwise XOR    | `^`, `^^`                      | Left          | `a ^ b`                                 |
+| 12          | Bitwise OR     | `\|`                           | Left          | `a \| b`                                |
+| 13          | Logical AND    | `&&`                           | Left          | `a && b`                                |
+| 14          | Logical OR     | `\|\|`                         | Left          | `a \|\| b`                              |
+| 15 (lowest) | Assignment     | `=`, `+=`, `-=`, `*=`, `/=`    | Right         | `x = 5`, `x += 3`                       |
 
 ### 4.2 Primary Expressions
 
 **Literals:**
+
 ```dryad
 42                    // number literal
 "hello"              // string literal
@@ -285,12 +290,14 @@ null                 // null literal
 ```
 
 **Variables and Identifiers:**
+
 ```dryad
 myVar                // variable reference
 someFunction         // function reference
 ```
 
 **Array Literals:**
+
 ```dryad
 [1, 2, 3]           // array literal
 []                  // empty array
@@ -298,12 +305,14 @@ someFunction         // function reference
 ```
 
 **Tuple Literals:**
+
 ```dryad
 (1, "a", true)      // tuple literal
 ()                  // empty tuple
 ```
 
 **Object Literals:**
+
 ```dryad
 { x: 1, y: 2 }                          // object with properties
 { name: "John", greet() { ... } }       // object with method
@@ -311,6 +320,7 @@ someFunction         // function reference
 ```
 
 **Function Literals (Lambdas/Arrow Functions):**
+
 ```dryad
 (a, b) => a + b                         // implicit return
 (x) => { return x * 2; }                // explicit return block
@@ -319,12 +329,14 @@ someFunction         // function reference
 ```
 
 **Class Instantiation:**
+
 ```dryad
 new MyClass()
 new MyClass(arg1, arg2)
 ```
 
 **This and Super:**
+
 ```dryad
 this                // current object reference
 super               // parent class reference (in methods)
@@ -333,6 +345,7 @@ super               // parent class reference (in methods)
 ### 4.3 Binary Expressions
 
 **Arithmetic:**
+
 ```dryad
 a + b       // addition or string concatenation
 a - b       // subtraction
@@ -343,6 +356,7 @@ a ** b      // exponentiation
 ```
 
 **Comparison:**
+
 ```dryad
 a == b      // equality (with type coercion)
 a != b      // inequality
@@ -353,12 +367,14 @@ a >= b      // greater than or equal
 ```
 
 **Logical:**
+
 ```dryad
 a && b      // logical AND (short-circuit)
 a || b      // logical OR (short-circuit)
 ```
 
 **Bitwise:**
+
 ```dryad
 a & b       // bitwise AND
 a | b       // bitwise OR
@@ -369,12 +385,14 @@ a >>> b     // right shift (unsigned)
 ```
 
 **Membership:**
+
 ```dryad
 x in array              // check if element in array
 "prop" in obj          // check if property in object
 ```
 
 **Property/Index Access:**
+
 ```dryad
 obj.property            // dot notation
 obj["property"]         // bracket notation
@@ -383,6 +401,7 @@ tuple.0                 // tuple element access
 ```
 
 **Method Calls:**
+
 ```dryad
 obj.method()            // method on object
 obj.method(arg1, arg2)  // with arguments
@@ -402,12 +421,6 @@ x--         // post-decrement
 await expr  // await async result
 ```
 
-### 4.5 Conditional (Ternary) Expression
-
-```dryad
-condition ? valueIfTrue : valueIfFalse
-```
-
 ### 4.6 Match Expression
 
 ```dryad
@@ -417,6 +430,7 @@ match value {
     _ => "other"
 }
 ```
+
 - Pattern matching on expressions
 - Patterns: literals, wildcards (`_`), guards
 - Guards: optional conditions after `=>`
@@ -428,6 +442,7 @@ match value {
 ### 5.1 Expression Statements
 
 Any expression can be a statement:
+
 ```dryad
 functionCall();
 x = y + 5;
@@ -437,6 +452,7 @@ array[0];           // expression statements have no side effects but still exec
 ### 5.2 Variable Declaration
 
 **Let (mutable):**
+
 ```dryad
 let x = 10;                     // type inferred
 let y: number = 20;             // explicit type
@@ -445,19 +461,15 @@ let a = 1, b = 2;               // multiple declarations (single statement)
 ```
 
 **Const (immutable):**
+
 ```dryad
 const PI = 3.14159;             // must initialize
 const name: string = "John";    // with type annotation
 ```
 
-**Var (legacy, function-scoped):**
-```dryad
-var legacy = true;              // hoisted to function scope
-```
-
 **Rules:**
+
 - `let` and `const` are block-scoped (within nearest enclosing block)
-- `var` is function-scoped (hoisted)
 - `const` cannot be reassigned (but object properties/array elements can be modified)
 - Redeclaration in same scope is an error (for `let`/`const`)
 
@@ -472,12 +484,14 @@ x /= 2;                         // compound: divide
 ```
 
 **Property Assignment:**
+
 ```dryad
 obj.property = value;
 obj["key"] = value;
 ```
 
 **Index Assignment:**
+
 ```dryad
 array[0] = value;
 obj[key] = value;
@@ -492,12 +506,14 @@ obj[key] = value;
     return x + y;
 }
 ```
+
 - Creates new scope for `let`/`const` variables
 - Sequences multiple statements
 
 ### 5.5 Conditional Statements
 
 **If:**
+
 ```dryad
 if (condition) {
     // block executed if condition is truthy
@@ -505,6 +521,7 @@ if (condition) {
 ```
 
 **If-Else:**
+
 ```dryad
 if (condition1) {
     // block1
@@ -516,6 +533,7 @@ if (condition1) {
 ```
 
 **Rules:**
+
 - Condition is evaluated; falsy values: `false`, `null`, `0`, `""`, `NaN`
 - Truthy values: all others
 - Blocks can be single statement or block statement
@@ -523,6 +541,7 @@ if (condition1) {
 ### 5.6 Loop Statements
 
 **While:**
+
 ```dryad
 while (condition) {
     // body executes while condition is true
@@ -532,6 +551,7 @@ while (condition) {
 ```
 
 **Do-While:**
+
 ```dryad
 do {
     // body always executes at least once
@@ -539,6 +559,7 @@ do {
 ```
 
 **For (C-style):**
+
 ```dryad
 for (init; condition; update) {
     // init: runs once before loop
@@ -549,6 +570,7 @@ for (init; condition; update) {
 ```
 
 **For-Each (iteration):**
+
 ```dryad
 for (element in iterable) {
     // element: each item in iterable
@@ -572,6 +594,7 @@ continue;       // skips to next iteration
 return;         // returns undefined/null
 return value;   // returns specified value
 ```
+
 - Only valid inside function or thread body
 - Exits function immediately
 
@@ -589,6 +612,7 @@ try {
 ```
 
 **Rules:**
+
 - `catch` block variable is bound to thrown value
 - `finally` block executes whether exception was thrown or not
 - Exceptions propagate up the call stack if not caught
@@ -607,6 +631,7 @@ throw value;        // can throw any value
 ### 6.1 Function Declaration
 
 **Standard Syntax:**
+
 ```dryad
 function name(param1, param2) {
     return param1 + param2;
@@ -618,6 +643,7 @@ function greet(name: string): string {
 ```
 
 **Arrow Function Syntax:**
+
 ```dryad
 const add = (a, b) => a + b;
 const square = x => x * x;
@@ -625,6 +651,7 @@ const noop = () => { };
 ```
 
 **Parameters:**
+
 ```dryad
 function fn(required, optional = 10) { }    // default parameter
 function fn(...rest) { }                    // rest parameter
@@ -632,16 +659,19 @@ function fn(a, ...rest) { }                 // mixed
 ```
 
 **Async Functions:**
+
 ```dryad
 async function fetchData(url) {
     let response = await callApi(url);
     return response;
 }
 ```
+
 - Can use `await` to wait for promises
 - Returns immediately with promise-like behavior
 
 **Thread Functions:**
+
 ```dryad
 thread function heavyComputation(data) {
     // executes in separate OS thread
@@ -653,6 +683,7 @@ let future = thread heavyComputation(data);
 ```
 
 **Rules:**
+
 - Functions are hoisted (can be called before declaration with `function` syntax)
 - Arrow functions are not hoisted (must declare before use)
 - Functions are first-class values (can be passed as arguments)
@@ -661,18 +692,19 @@ let future = thread heavyComputation(data);
 ### 6.2 Class Declaration
 
 **Basic Structure:**
+
 ```dryad
 class Animal {
     name = "Unknown";
-    
+
     constructor(name) {
         this.name = name;
     }
-    
+
     speak() {
         return this.name + " makes a sound";
     }
-    
+
     static info() {
         return "Generic animal";
     }
@@ -680,6 +712,7 @@ class Animal {
 ```
 
 **Inheritance:**
+
 ```dryad
 class Dog extends Animal {
     bark() {
@@ -694,23 +727,25 @@ dog.bark();             // own method
 ```
 
 **Properties and Methods:**
+
 ```dryad
 class Counter {
     count = 0;                          // instance property with default
-    
+
     increment() {                       // instance method
         this.count++;
     }
-    
+
     static create() {                   // static method
         return new Counter();
     }
-    
+
     static VERSION = "1.0";             // static property
 }
 ```
 
 **Access Modifiers:**
+
 ```dryad
 class Example {
     public x = 1;           // accessible from outside (default)
@@ -720,52 +755,17 @@ class Example {
 ```
 
 **Super:**
+
 ```dryad
 class Child extends Parent {
     constructor(x) {
         super(x);           // call parent constructor
     }
-    
+
     method() {
         super.method();     // call parent method
     }
 }
-```
-
-### 6.3 Interface Declaration
-
-```dryad
-interface Shape {
-    width: number;
-    height: number;
-    area(): number;
-}
-
-class Rectangle implements Shape {
-    width = 10;
-    height = 20;
-    
-    area() {
-        return this.width * this.height;
-    }
-}
-```
-
-**Rules:**
-- Define contracts for what properties/methods must exist
-- Multiple interfaces can be implemented: `class C implements I1, I2`
-- Properties and method signatures defined but not implemented
-
-### 6.4 Namespace Declaration
-
-```dryad
-namespace Utils {
-    export function helper() { }
-    export const CONSTANT = 42;
-}
-
-// Usage:
-Utils.helper();
 ```
 
 ---
@@ -775,22 +775,26 @@ Utils.helper();
 ### 7.1 Import Statement
 
 **Named Imports:**
+
 ```dryad
 import { func1, func2, MyClass } from "module/path";
 ```
 
 **Namespace Import:**
+
 ```dryad
 import * as utils from "utils/helpers";
 // usage: utils.func1(), utils.MyClass
 ```
 
 **Side-Effect Import:**
+
 ```dryad
 import "initialization";  // just execute module for side effects
 ```
 
 **Legacy Use Syntax:**
+
 ```dryad
 use "./lib/helper.dryad";  // simplified import
 ```
@@ -819,6 +823,7 @@ Load native modules using `#` prefix at top level:
 ```
 
 After directive, functions become available:
+
 ```dryad
 #io
 
@@ -832,26 +837,23 @@ io_write_file("output.txt", content);
 
 ### 8.1 Execution Flow
 
-1. **Lexical Analysis**: Source code → tokens (handled by `dryad_lexer`)
-2. **Parsing**: Tokens → AST (handled by `dryad_parser`)
-3. **Type Checking** (optional): AST → type-annotated AST (handled by `dryad_checker`)
-4. **Interpretation**: AST → execution (handled by `dryad_runtime`)
+The Dryad runtime supports two execution modes:
 
-The runtime is a **tree-walking interpreter** that directly executes AST:
+1.  **Tree-Walking Interpreter:** The default mode, which directly executes the Abstract Syntax Tree (AST). It is optimized for development speed and debugging.
+2.  **Bytecode Virtual Machine (VM):** A higher-performance mode where the AST is compiled into a stack-based bytecode (OpCodes) before execution. Use `set_compile_mode(true)` to enable.
 
-```
-Program (root AST node)
-  ├─ Statement 1
-  │   └─ evaluate/execute
-  ├─ Statement 2
-  │   └─ evaluate/execute
-  └─ Statement N
-      └─ evaluate/execute
-```
+**Hybrid Architecture:**
+
+- **Parser** → Generates AST
+- **Interpreter** → Executes AST directly OR triggers Bytecode Compilation
+- **Bytecode Compiler** → Converts AST to `OpCode` sequences
+- **VM** → Executes Bytecode with a stack-based architecture
+- **AOT Backend** → (Planned/Experimental) Generates native machine code (ARM64, x86_64) from bytecode/IR
 
 ### 8.2 Scope and Variable Resolution
 
 **Scope Chain:**
+
 ```
 Global Scope
   ├─ Module Scope
@@ -866,12 +868,14 @@ Global Scope
 ```
 
 **Variable Lookup:**
+
 1. Check current scope for variable
 2. If not found, check parent scope
 3. Continue up scope chain to global
 4. If not found anywhere, return error (ReferenceError)
 
 **Binding Rules:**
+
 - `let` and `const`: block-scoped
 - `var`: function-scoped (and hoisted)
 - `function` declarations: hoisted to function/module scope
@@ -880,6 +884,7 @@ Global Scope
 ### 8.3 Function Execution
 
 When a function is called:
+
 1. Create new function scope
 2. Bind parameters to arguments
 3. Initialize variables declared in function body
@@ -902,11 +907,13 @@ function makeCounter() {
 ### 8.4 Class Instantiation and Method Execution
 
 When `new ClassName(args)` is executed:
+
 1. Create new object instance
 2. If `constructor` method exists, call it with `this` bound to instance
 3. Return the instance
 
 When method is called:
+
 1. Create new function scope
 2. Bind `this` to the object
 3. Bind parameters to arguments
@@ -916,6 +923,7 @@ When method is called:
 ### 8.5 Value Representation
 
 Internal value types (implementation detail):
+
 - `Number(f64)` - floating-point number
 - `String(String)` - UTF-8 string
 - `Bool(bool)` - boolean
@@ -940,49 +948,57 @@ Internal value types (implementation detail):
 
 ### 9.1 Foreign Function Interface (FFI)
 
-Dryad can call C functions from dynamic libraries:
+Dryad can call native functions through its built-in module system:
 
 ```dryad
-#io         // Load native module with C bindings
-
-// After loading, C functions become available:
-content = io_read_file(path);       // calls C function
+#<file_io>         // Load native module
+// After loading, native functions become available:
+let content = file_read_string(path);
 ```
 
 ### 9.2 Native Module System
 
 **Available Native Modules:**
 
-| Module | Functions | Purpose |
-|--------|-----------|---------|
-| `io` | `io_read_file`, `io_write_file`, `io_append_file`, `io_delete_file`, `io_list_dir`, `io_create_dir` | File I/O operations |
-| `crypto` | `crypto_hash_sha256`, `crypto_hash_md5`, `crypto_hash_sha512`, `crypto_random_bytes` | Cryptographic functions |
-| `math` | `math_sqrt`, `math_sin`, `math_cos`, `math_log`, `math_exp`, `math_pow` | Mathematical functions |
-| `http` | `http_get`, `http_post`, `http_put`, `http_delete` | HTTP requests |
-| `net` | `net_socket_create`, `net_socket_connect`, `net_socket_send` | TCP/IP networking |
-| `json` | `json_parse`, `json_stringify` | JSON encoding/decoding |
-| `time` | `time_now`, `time_sleep`, `time_format` | Time operations |
-| `sys` | `sys_platform`, `sys_cpu_count`, `sys_memory_info` | System information |
+| Module          | Purpose                                       |
+| --------------- | --------------------------------------------- |
+| `console_io`    | Standard input/output (print, println, input) |
+| `terminal_ansi` | ANSI terminal control                         |
+| `file_io`       | File system operations                        |
+| `crypto`        | Cryptography and hashing                      |
+| `http_client`   | HTTP client requests                          |
+| `http_server`   | HTTP server implementation                    |
+| `tcp` / `udp`   | Network socket operations                     |
+| `time`          | Date and time functions                       |
+| `system_env`    | Environment variables and process info        |
+| `json_stream`   | Streaming JSON processing                     |
+| `ffi`           | Generic Foreign Function Interface            |
+| `database`      | Database connectivity                         |
+| `websocket`     | WebSocket protocol support                    |
+| `debug`         | Interpreter debugging tools                   |
+| `utils`         | Helper utilities                              |
 
 ### 9.3 Type Mapping (Dryad → C)
 
-| Dryad Type | C Type | Notes |
-|-----------|--------|-------|
-| `number` | `double` (f64) | Standard C floating-point |
-| `string` | `const char*` | UTF-8 null-terminated |
-| `bool` | `bool` (or uint8_t) | C boolean |
-| `null` | `NULL` / `nullptr` | Null pointer |
-| `array` | `void*` | Opaque pointer (implementation-specific) |
+| Dryad Type | C Type              | Notes                                    |
+| ---------- | ------------------- | ---------------------------------------- |
+| `number`   | `double` (f64)      | Standard C floating-point                |
+| `string`   | `const char*`       | UTF-8 null-terminated                    |
+| `bool`     | `bool` (or uint8_t) | C boolean                                |
+| `null`     | `NULL` / `nullptr`  | Null pointer                             |
+| `array`    | `void*`             | Opaque pointer (implementation-specific) |
 
 ### 9.4 FFI Call Convention
 
 Native function calls follow C calling conventions:
+
 - Parameters passed left-to-right
 - Stack-based (x86/x64)
 - Return values in `rax` (x86-64)
 - Caller cleans up stack (if using cdecl)
 
 **Example FFI Definition (in native module C code):**
+
 ```c
 #include "dryad_runtime.h"
 
@@ -1003,6 +1019,7 @@ Value native_my_function(Value arg1, Value arg2) {
 ### 10.1 Error Types
 
 All errors in Dryad are represented as `DryadError` with:
+
 - **Error Code:** Unique identifier (e.g., `E001`, `E201`)
 - **Message:** Human-readable description
 - **Source Location:** File, line, column where error occurred
@@ -1011,6 +1028,7 @@ All errors in Dryad are represented as `DryadError` with:
 ### 10.2 Exception Propagation
 
 Exceptions propagate up the call stack:
+
 ```dryad
 function level3() {
     throw new Error("Something went wrong");    // Error thrown here
@@ -1031,18 +1049,19 @@ function level1() {
 
 ### 10.3 Common Errors
 
-| Category | Example | Cause |
-|----------|---------|-------|
-| **Syntax** | `SyntaxError` | Invalid token or grammar |
-| **Reference** | `ReferenceError: undefined variable` | Variable not in scope |
-| **Type** | `TypeError: cannot call non-function` | Type mismatch |
-| **Runtime** | `Error: division by zero` | Runtime error |
-| **Module** | `ModuleNotFoundError: module not found` | Missing import |
-| **Assertion** | `AssertionError: condition failed` | Explicit assertion failure |
+| Category      | Example                                 | Cause                      |
+| ------------- | --------------------------------------- | -------------------------- |
+| **Syntax**    | `SyntaxError`                           | Invalid token or grammar   |
+| **Reference** | `ReferenceError: undefined variable`    | Variable not in scope      |
+| **Type**      | `TypeError: cannot call non-function`   | Type mismatch              |
+| **Runtime**   | `Error: division by zero`               | Runtime error              |
+| **Module**    | `ModuleNotFoundError: module not found` | Missing import             |
+| **Assertion** | `AssertionError: condition failed`      | Explicit assertion failure |
 
 ### 10.4 Error Handling Strategies
 
 **1. Try-Catch:**
+
 ```dryad
 try {
     riskyOperation();
@@ -1052,64 +1071,67 @@ try {
 ```
 
 **2. Error Propagation:**
+
 ```dryad
 function wrapper() {
     return unsafeFunc();    // throws if unsafeFunc throws
 }
 ```
 
-**3. Optional Chaining (?):**
-```dryad
-let value = obj?.prop?.method?.();    // returns null if any step fails
-```
+**3. Defensive Coding:**
 
-**4. Defensive Coding:**
 ```dryad
-if (typeof value === "number") {
-    // safe to use as number
+if (value != null) {
+    // safe to use value
 }
 ```
 
 ---
 
-## 11. Concurrency Model
-
 ### 11.1 Async-Await
 
 ```dryad
-async function fetchUser(id) {
-    let user = await api.getUser(id);
-    return user;
+async function process() {
+    let data = await fetchData();
+    return data;
 }
-
-// Call:
-let userPromise = fetchUser(123);
 ```
 
-**Rules:**
-- `async` functions return promise-like value immediately
-- `await` blocks until promise resolves
-- Only valid inside `async` function
+- `async` marks a function as asynchronous.
+- `await` suspends execution until a promise resolves.
 
-### 11.2 Threads
+### 11.2 Native Threads
+
+Dryad uses OS-level threads for parallel execution:
 
 ```dryad
-thread function heavyWork(data) {
-    return expensiveComputation(data);
+thread function backgroundTask(id) {
+    print("Task " + id + " running...");
 }
 
-// Spawns OS-level thread
-let result = thread heavyWork(myData);
+// Spawn threads
+thread backgroundTask(1);
+thread backgroundTask(2);
 ```
 
-### 11.3 Mutexes
+- `thread` keyword before `function` declares a threadable function.
+- `thread function_name(args)` spawns a new OS-level thread.
+- Threads have isolated contexts but can be synchronized via mutexes.
+
+### 11.3 Mutex Synchronization
 
 ```dryad
-let lock = mutex();
+let mu = mutex();
 
-// Critical section:
-// lock ensures only one thread accesses at a time
+thread function criticalTask() {
+    mu.lock();
+    // thread-safe operations
+    mu.unlock();
+}
 ```
+
+- `mutex()` creates a new synchronization primitive.
+- `.lock()` and `.unlock()` are used to protect shared resources.
 
 ---
 
@@ -1120,11 +1142,11 @@ let lock = mutex();
 ```dryad
 class Shape {
     name = "Unknown";
-    
+
     constructor(name) {
         this.name = name;
     }
-    
+
     describe() {
         return this.name;
     }
@@ -1132,12 +1154,12 @@ class Shape {
 
 class Circle extends Shape {
     radius = 0;
-    
+
     constructor(name, radius) {
         super(name);
         this.radius = radius;
     }
-    
+
     area() {
         return 3.14159 * this.radius ** 2;
     }
@@ -1199,7 +1221,6 @@ function safeDivide(a, b) {
 // Variables
 let x = 1;                  // mutable block-scoped
 const y = 2;               // immutable block-scoped
-var z = 3;                 // mutable function-scoped
 
 // Functions
 function add(a, b) { return a + b; }
@@ -1210,7 +1231,6 @@ thread function compute() { ... }
 // Classes & OOP
 class Animal { }
 class Dog extends Animal { }
-interface Drawable { }
 new Dog()
 this.property
 
@@ -1219,6 +1239,7 @@ if (x > 0) { ... } else { ... }
 while (cond) { ... }
 for (let i = 0; i < 10; i++) { ... }
 for (item in array) { ... }
+match (value) { ... }
 break; continue;
 
 // Error Handling
@@ -1229,15 +1250,14 @@ throw new Error("msg");
 import { func } from "module";
 use "path/to/file";
 export function public() { }
-#io
+#<console_io>
 
 // Operators
 +, -, *, /, %, **          // arithmetic
 &&, ||, !                  // logical
 ==, !=, <, >, <=, >=       // comparison
 ++, --                     // increment/decrement
-=, +=, -=                  // assignment
-? :                        // ternary
+=, +=, -=, *=, /=          // assignment
 =>                         // arrow function
 ```
 
@@ -1261,7 +1281,7 @@ function func(a: number, b: string): bool { ... }
 
 ### 14.1 Key Architectural Concepts
 
-1. **Tree-Walking Interpreter**: Direct AST execution, not bytecode VM
+1. **Stack-Based Bytecode VM**: High-performance execution via intermediate bytecode.
 2. **Dynamic Typing**: No compile-time type enforcement; types checked at runtime
 3. **Automatic Memory Management**: Reference counting via Rust (no manual allocation)
 4. **Scope Chain**: Variable resolution walks scope chain upward
@@ -1271,6 +1291,7 @@ function func(a: number, b: string): bool { ... }
 ### 14.2 Common Implementation Patterns
 
 **Statement Dispatch:**
+
 ```rust
 match stmt {
     Stmt::VarDeclaration(...) => handle_var_decl(),
@@ -1282,6 +1303,7 @@ match stmt {
 ```
 
 **Expression Evaluation:**
+
 ```rust
 match expr {
     Expr::Literal(...) => return literal_value(),
@@ -1292,6 +1314,7 @@ match expr {
 ```
 
 **Scope Management:**
+
 ```rust
 // Push new scope
 interpreter.push_scope();
@@ -1302,7 +1325,7 @@ interpreter.pop_scope();
 
 ### 14.3 Known Limitations
 
-1. **No JIT Compilation**: Uses tree-walking interpreter (slower than JIT but simpler)
+1. **AOT/Interpreter Hybrid**: Support for both interpreted bytecode and native AOT compilation.
 2. **No Strict Type Checking**: Types are optional and not enforced
 3. **Limited FFI**: Can't pass complex types to C (only primitives and opaque pointers)
 4. **Single-Threaded Base**: Threads exist but main interpreter is single-threaded
@@ -1341,11 +1364,11 @@ print(fib(10));  // 55
 ```dryad
 class Animal {
     name = "Unknown";
-    
+
     constructor(name) {
         this.name = name;
     }
-    
+
     speak() {
         return this.name + " makes a sound";
     }
@@ -1375,17 +1398,17 @@ let result = processData(123);
 ### 15.5 File Operations with Modules
 
 ```dryad
-#io
+#<file_io>
+#<console_io>
 
 // Read file
-let content = io_read_file("input.txt");
+let content = file_read_string("input.txt");
 
 // Process content
-let lines = content.split("\n");
-let filtered = lines.filter(line => line.length > 0);
+println("Content length: " + content.length);
 
 // Write result
-io_write_file("output.txt", filtered.join("\n"));
+file_write_string("output.txt", "Modified: " + content);
 ```
 
 ---
@@ -1395,7 +1418,7 @@ io_write_file("output.txt", filtered.join("\n"));
 **Last Updated:** 2026-03-09  
 **Status:** Complete  
 **Coverage:** 100% of core language features  
-**Target Version:** Dryad v0.1.0  
+**Target Version:** Dryad v0.1.0
 
 **How to Use This Document:**
 
@@ -1405,8 +1428,9 @@ io_write_file("output.txt", filtered.join("\n"));
 4. **For Implementation**: Use this as specification for code generators and analysis tools
 
 **Related Documentation:**
+
 - `RUNTIME_TECHNICAL_MANUAL.md` - Runtime implementation details
-- `NATIVE_MODULES.md` - Native function documentation  
+- `NATIVE_MODULES.md` - Native function documentation
 - `README.md` - Language overview and features
 - `QUICKSTART.md` - Getting started guide
 
@@ -1414,4 +1438,4 @@ io_write_file("output.txt", filtered.join("\n"));
 
 **Generated by**: Sisyphus (AI Agent)  
 **Command**: Continue feature expansion → Create LLM-optimized Dryad documentation  
-**Session**: 2026-03-09 14:30 UTC  
+**Session**: 2026-03-09 14:30 UTC

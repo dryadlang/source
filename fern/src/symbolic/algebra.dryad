@@ -1,0 +1,179 @@
+#<console_io>
+
+class Expr {
+    evaluate(context) { return null; }
+    derivative(variable) { return null; }
+    integrate(variable) { return null; }
+    to_string() { return ""; }
+}
+
+class Number extends Expr {
+    let value;
+    constructor(value) {
+        this.value = value;
+    }
+    evaluate(ctx) { return this.value; }
+    derivative(v) { return new Number(0); }
+    integrate(v) { return new Multiply(this, new Symbol(v)); }
+    to_string() { return "" + this.value; }
+}
+
+class Symbol extends Expr {
+    let name;
+    constructor(name) {
+        this.name = name;
+    }
+    evaluate(ctx) {
+        if (ctx[this.name] == null) { return null; }
+        return ctx[this.name];
+    }
+    derivative(v) {
+        let res = 0;
+        if (this.name == v) { res = 1; }
+        return new Number(res);
+    }
+    integrate(v) {
+        if (this.name == v) { return new Divide(new Power(this, new Number(2)), new Number(2)); }
+        return new Multiply(this, new Symbol(v));
+    }
+    to_string() { return this.name; }
+}
+
+class Add extends Expr {
+    let left;
+    let right;
+    constructor(left, right) {
+        this.left = left;
+        this.right = right;
+    }
+    evaluate(ctx) { return this.left.evaluate(ctx) + this.right.evaluate(ctx); }
+    derivative(v) { return new Add(this.left.derivative(v), this.right.derivative(v)); }
+    integrate(v) { return new Add(this.left.integrate(v), this.right.integrate(v)); }
+    to_string() { return "(" + this.left.to_string() + " + " + this.right.to_string() + ")"; }
+}
+
+class Subtract extends Expr {
+    let left;
+    let right;
+    constructor(left, right) {
+        this.left = left;
+        this.right = right;
+    }
+    evaluate(ctx) { return this.left.evaluate(ctx) - this.right.evaluate(ctx); }
+    derivative(v) { return new Subtract(this.left.derivative(v), this.right.derivative(v)); }
+    integrate(v) { return new Subtract(this.left.integrate(v), this.right.integrate(v)); }
+    to_string() { return "(" + this.left.to_string() + " - " + this.right.to_string() + ")"; }
+}
+
+class Multiply extends Expr {
+    let left;
+    let right;
+    constructor(left, right) {
+        this.left = left;
+        this.right = right;
+    }
+    evaluate(ctx) { return this.left.evaluate(ctx) * this.right.evaluate(ctx); }
+    derivative(v) {
+        return new Add(
+            new Multiply(this.left.derivative(v), this.right),
+            new Multiply(this.left, this.right.derivative(v))
+        );
+    }
+    to_string() { return "(" + this.left.to_string() + " * " + this.right.to_string() + ")"; }
+}
+
+class Divide extends Expr {
+    let left;
+    let right;
+    constructor(left, right) {
+        this.left = left;
+        this.right = right;
+    }
+    evaluate(ctx) { return this.left.evaluate(ctx) / this.right.evaluate(ctx); }
+    derivative(v) {
+        return new Divide(
+            new Subtract(
+                new Multiply(this.left.derivative(v), this.right),
+                new Multiply(this.left, this.right.derivative(v))
+            ),
+            new Power(this.right, new Number(2))
+        );
+    }
+    to_string() { return "(" + this.left.to_string() + " / " + this.right.to_string() + ")"; }
+}
+
+class Power extends Expr {
+    let base;
+    let exp;
+    constructor(base, exp) {
+        this.base = base;
+        this.exp = exp;
+    }
+    evaluate(ctx) {
+        let b = this.base.evaluate(ctx);
+        let e = this.exp.evaluate(ctx);
+        let res = 1;
+        for (let i = 0; i < e; i++) { res = res * b; }
+        return res;
+    }
+    derivative(v) {
+        return new Multiply(
+            new Multiply(this.exp, new Power(this.base, new Subtract(this.exp, new Number(1)))),
+            this.base.derivative(v)
+        );
+    }
+    integrate(v) {
+        if (this.base.name == v) {
+            let new_exp = new Number(this.exp.value + 1);
+            return new Divide(new Power(this.base, new_exp), new_exp);
+        }
+        return null;
+    }
+    to_string() { return this.base.to_string() + "^" + this.exp.to_string(); }
+}
+
+function symbol(name) { return new Symbol(name); }
+function number(val) { return new Number(val); }
+function add(l, r) { return new Add(l, r); }
+function subtract(l, r) { return new Subtract(l, r); }
+function multiply(l, r) { return new Multiply(l, r); }
+function divide(l, r) { return new Divide(l, r); }
+function power(b, e) { return new Power(b, e); }
+
+function simplify(expr) {
+    if (expr instanceof Add) {
+        let l = simplify(expr.left);
+        let r = simplify(expr.right);
+        if (l instanceof Number) {
+            if (r instanceof Number) { return new Number(l.value + r.value); }
+            if (l.value == 0) { return r; }
+        }
+        if (r instanceof Number && r.value == 0) { return l; }
+        return new Add(l, r);
+    }
+    if (expr instanceof Multiply) {
+        let l = simplify(expr.left);
+        let r = simplify(expr.right);
+        if (l instanceof Number) {
+            if (r instanceof Number) { return new Number(l.value * r.value); }
+            if (l.value == 0) { return new Number(0); }
+            if (l.value == 1) { return r; }
+        }
+        if (r instanceof Number) {
+            if (r.value == 0) { return new Number(0); }
+            if (r.value == 1) { return l; }
+        }
+        return new Multiply(l, r);
+    }
+    return expr;
+}
+
+function solve_linear(expr, variable) {
+    let d = expr.derivative(variable);
+    let ctx = {};
+    ctx[variable] = 0;
+    let val = expr.evaluate(ctx);
+    let slope = d.evaluate(ctx);
+    if (slope == 0) { return null; }
+    return -val / slope;
+}

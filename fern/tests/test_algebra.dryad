@@ -1,6 +1,6 @@
 
-// Test script for Greenleaf Symbolic Algebra
-import { symbol, number, add, multiply, power } from "../src/symbolic/algebra.dryad";
+// Test script for Fern Symbolic Algebra
+import { symbol, number, add, subtract, multiply, divide, power, simplify } from "../src/symbolic/algebra.dryad";
 
 println("Running Symbolic Algebra Tests...");
 
@@ -21,10 +21,18 @@ if (res != 13) println("FAIL: f(5) should be 13");
 // Derivative f'(x) = 2
 let df = f.derivative("x");
 println("f'(x): " + df.to_string());
-// Note: derivative output might be unsimplified: (0*x + 2*1) + 0
-// We verify by evaluation
 let dres = df.evaluate(ctx);
 println("f'(5): " + dres);
 if (dres != 2) println("FAIL: f'(5) should be 2");
+
+// Integration
+let int_f = f.integrate("x");
+println("Integral of 2x + 3: " + int_f.to_string());
+// Should be 0.5 * 2 * x^2 + 3x 
+
+// Simplify
+let s_expr = add(number(5), number(10));
+println("Simplify 5+10: " + simplify(s_expr).to_string());
+if (simplify(s_expr).evaluate({}) != 15) println("FAIL: simplify wrong");
 
 println("Algebra Tests Completed.");

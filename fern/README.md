@@ -1,15 +1,15 @@
-# 🌿 Greenleaf - Biblioteca Matemática para Dryad
+# 🌿 Fern - Biblioteca Matemática para Dryad
 
 **Versão:** 0.1.0  
 **Status:** ✅ Funcional e Testado  
 **Linguagem:** 100% Dryad Puro  
-**Licença:** MIT  
+**Licença:** MIT
 
 ---
 
 ## 📋 Visão Geral
 
-Greenleaf é a **primeira biblioteca matemática oficial** para a linguagem Dryad, unificando funcionalidades inspiradas nas principais bibliotecas Python para ciência de dados: NumPy, Pandas, Statsmodels, SymPy e SciPy.
+Fern é a **primeira biblioteca matemática oficial** para a linguagem Dryad, unificando funcionalidades inspiradas nas principais bibliotecas Python para ciência de dados: NumPy, Pandas, Statsmodels, SymPy e SciPy.
 
 ### ✨ Características Principais
 
@@ -36,8 +36,9 @@ Greenleaf é a **primeira biblioteca matemática oficial** para a linguagem Drya
 Manipulação de arrays multidimensionais com operações matemáticas.
 
 **Funções de Criação:**
+
 ```dryad
-import { zeros, ones, arange, eye } from "greenleaf/math/arrays";
+import { zeros, ones, arange, eye } from "Fern/math/arrays";
 
 let arr_zeros = zeros([3, 3]);        // Array 3x3 de zeros
 let arr_ones = ones([2, 4]);          // Array 2x4 de uns
@@ -46,8 +47,9 @@ let identity = eye(5);                // Matriz identidade 5x5
 ```
 
 **Classe Array:**
+
 ```dryad
-import { Array } from "greenleaf/math/arrays";
+import { Array } from "Fern/math/arrays";
 
 let arr = new Array([1, 2, 3, 4], [2, 2]);  // Array 2x2
 let sum = arr.sum();                         // Soma de todos elementos
@@ -59,8 +61,9 @@ let val = arr.get([0, 1]);                  // Obter elemento
 ```
 
 **Operações entre Arrays:**
+
 ```dryad
-import { add_arrays, multiply_arrays, dot } from "greenleaf/math/arrays";
+import { add_arrays, multiply_arrays, dot } from "Fern/math/arrays";
 
 let a = arange(1, 5, 1);
 let b = arange(5, 9, 1);
@@ -76,8 +79,9 @@ let dot_prod = dot(a, b);             // Produto escalar
 Análise estatística completa de dados.
 
 **Classe Statistics:**
+
 ```dryad
-import { Statistics } from "greenleaf/math/statistics";
+import { Statistics } from "Fern/math/statistics";
 
 let data = [12, 15, 18, 22, 25, 28, 30, 35, 40, 45];
 let stats = new Statistics(data);
@@ -101,8 +105,9 @@ let iqr = stats.iqr();             // Intervalo interquartil
 ```
 
 **Funções de Correlação:**
+
 ```dryad
-import { correlation, covariance } from "greenleaf/math/statistics";
+import { correlation, covariance } from "Fern/math/statistics";
 
 let x = [1, 2, 3, 4, 5];
 let y = [2, 4, 6, 8, 10];
@@ -112,8 +117,9 @@ let cov = covariance(x, y);        // Covariância
 ```
 
 **Distribuições Estatísticas:**
+
 ```dryad
-import { normal_pdf, normal_cdf, t_test } from "greenleaf/math/statistics";
+import { normal_pdf, normal_cdf, t_test } from "Fern/math/statistics";
 
 let prob = normal_pdf(0, 0, 1);           // PDF normal padrão em x=0
 let cdf = normal_cdf(1.96, 0, 1);         // CDF normal padrão
@@ -127,8 +133,9 @@ let result = t_test(sample1, sample2);     // Teste t de Student
 Manipulação simbólica de expressões matemáticas.
 
 **Criação de Expressões:**
+
 ```dryad
-import { symbol, number, add, multiply, power } from "greenleaf/symbolic/algebra";
+import { symbol, number, add, multiply, power } from "Fern/symbolic/algebra";
 
 // Criar variável simbólica
 let x = symbol("x");
@@ -146,6 +153,7 @@ print("f(x) = " + expr.to_string());
 ```
 
 **Avaliação de Expressões:**
+
 ```dryad
 // Avaliar em x = 3
 let vars = {"x": 3};
@@ -154,6 +162,7 @@ print("f(3) = " + resultado);  // 2(3²) + 3(3) + 1 = 28
 ```
 
 **Cálculo Diferencial:**
+
 ```dryad
 // Derivada simbólica
 let derivada = expr.derivative("x");
@@ -164,6 +173,7 @@ print("f'(3) = " + derivada.evaluate(vars));  // 15
 ```
 
 **Integração:**
+
 ```dryad
 // Integração de polinômios simples
 let integral = power(x, number(2)).integrate("x");
@@ -171,8 +181,9 @@ print("∫x² dx = " + integral.to_string());  // x³/3
 ```
 
 **Funções Auxiliares:**
+
 ```dryad
-import { solve_linear, factor_quadratic, simplify } from "greenleaf/symbolic/algebra";
+import { solve_linear, factor_quadratic, simplify } from "Fern/symbolic/algebra";
 
 // Resolver equação linear: 2x + 5 = 0
 let solucao = solve_linear(2, 5);  // x = -2.5
@@ -191,8 +202,9 @@ let simplificado = simplify(expr);
 Funções matemáticas avançadas e cálculo numérico.
 
 **Constantes Matemáticas:**
+
 ```dryad
-import { PI, E, GOLDEN_RATIO, EULER_GAMMA } from "greenleaf/scientific/functions";
+import { PI, E, GOLDEN_RATIO, EULER_GAMMA } from "Fern/scientific/functions";
 
 print("π = " + PI);                    // 3.141592653589793
 print("e = " + E);                     // 2.718281828459045
@@ -201,8 +213,9 @@ print("γ = " + EULER_GAMMA);           // 0.5772156649015329
 ```
 
 **Funções Trigonométricas:**
+
 ```dryad
-import { sin, cos, tan, asin, acos } from "greenleaf/scientific/functions";
+import { sin, cos, tan, asin, acos } from "Fern/scientific/functions";
 
 let seno = sin(PI/2);          // 1.0
 let cosseno = cos(0);          // 1.0
@@ -212,8 +225,9 @@ let arco_cos = acos(0.5);      // ~1.047 (60°)
 ```
 
 **Funções Hiperbólicas:**
+
 ```dryad
-import { sinh, cosh, tanh } from "greenleaf/scientific/functions";
+import { sinh, cosh, tanh } from "Fern/scientific/functions";
 
 let senh = sinh(1);            // Seno hiperbólico
 let cosh_val = cosh(1);        // Cosseno hiperbólico
@@ -221,8 +235,9 @@ let tanh_val = tanh(1);        // Tangente hiperbólica
 ```
 
 **Funções Exponenciais e Logarítmicas:**
+
 ```dryad
-import { exp, ln, log10, pow, sqrt } from "greenleaf/scientific/functions";
+import { exp, ln, log10, pow, sqrt } from "Fern/scientific/functions";
 
 let exponencial = exp(2);      // e²
 let logaritmo = ln(E);         // 1.0
@@ -232,8 +247,9 @@ let raiz = sqrt(16);           // 4.0
 ```
 
 **Funções Especiais:**
+
 ```dryad
-import { factorial, gamma, erf, erfc, bessel_j0, zeta } from "greenleaf/scientific/functions";
+import { factorial, gamma, erf, erfc, bessel_j0, zeta } from "Fern/scientific/functions";
 
 let fatorial = factorial(5);           // 120
 let gamma_val = gamma(5);              // 24 (para inteiros: (n-1)!)
@@ -244,8 +260,9 @@ let zeta_val = zeta(2);                // Função zeta de Riemann
 ```
 
 **Cálculo Numérico:**
+
 ```dryad
-import { integrate_numerical, derivative_numerical, find_root } from "greenleaf/scientific/functions";
+import { integrate_numerical, derivative_numerical, find_root } from "Fern/scientific/functions";
 
 // Integração numérica (método do trapézio)
 let integral = integrate_numerical(sin, 0, PI, 100);  // ∫sin(x)dx de 0 a π
@@ -264,8 +281,9 @@ let raiz = find_root(function(x) { return x*x - 2; }, 0, 2, 0.001);  // √2
 Estruturas de dados tabulares para análise de dados.
 
 **Criação de DataFrames:**
+
 ```dryad
-import { DataFrame, from_dict, read_csv_simple } from "greenleaf/data/frames";
+import { DataFrame, from_dict, read_csv_simple } from "Fern/data/frames";
 
 // A partir de dicionário
 let df = from_dict({
@@ -280,6 +298,7 @@ let df_csv = read_csv_simple(csv_text);
 ```
 
 **Operações Básicas:**
+
 ```dryad
 // Obter coluna
 let precos = df.get_column("preco");
@@ -296,6 +315,7 @@ df.set_column("preco", novos_precos);
 ```
 
 **Filtragem e Seleção:**
+
 ```dryad
 // Filtrar linhas com condição
 let produtos_caros = df.filter(function(row) {
@@ -307,6 +327,7 @@ let df_ordenado = df.sort_by("preco", true);  // ascendente
 ```
 
 **Estatísticas Descritivas:**
+
 ```dryad
 // Estatísticas de uma coluna
 let estatisticas = df.describe("preco");
@@ -317,6 +338,7 @@ print("Std: " + estatisticas["std"]);
 ```
 
 **Agrupamento:**
+
 ```dryad
 // Agrupar e agregar
 let agrupado = df.groupby("categoria", function(valores) {
@@ -329,8 +351,9 @@ let agrupado = df.groupby("categoria", function(valores) {
 ```
 
 **Merge/Join:**
+
 ```dryad
-import { merge } from "greenleaf/data/frames";
+import { merge } from "Fern/data/frames";
 
 let df1 = from_dict({
     "id": [1, 2, 3],
@@ -347,6 +370,7 @@ let df_completo = merge(df1, df2, "id");
 ```
 
 **Visualização:**
+
 ```dryad
 // Representação em string (para debug/print)
 print(df.to_string());
@@ -359,6 +383,7 @@ print(df.to_string());
 ### Método 1: Instalação via Oak Package Manager (Recomendado)
 
 **Pré-requisitos:**
+
 - Dryad instalado e funcionando
 - Oak Package Manager compilado
 
@@ -369,8 +394,8 @@ print(df.to_string());
 oak init meu-projeto
 cd meu-projeto
 
-# 2. Instalar o Greenleaf
-oak install greenleaf
+# 2. Instalar o Fern
+oak install Fern
 
 # 3. Gerar o arquivo de lock com mapeamento dos módulos
 oak lock
@@ -380,13 +405,14 @@ oak list
 ```
 
 **Estrutura gerada:**
+
 ```
 meu-projeto/
 ├── oaklibs.json          # Configuração do projeto
 ├── oaklock.json          # Mapeamento de módulos
 ├── main.dryad            # Seu código
 └── oak_modules/
-    └── greenleaf/        # Biblioteca instalada
+    └── Fern/        # Biblioteca instalada
         └── src/
             ├── lib.dryad
             ├── math/
@@ -400,19 +426,19 @@ meu-projeto/
 Para desenvolvimento ou testes locais:
 
 ```bash
-# 1. Clone o repositório Greenleaf
-git clone https://github.com/Dryad-lang/greenleaf.git
-cd greenleaf
+# 1. Clone o repositório Fern
+git clone https://github.com/Dryad-lang/Fern.git
+cd Fern
 
 # 2. Em seu projeto, crie um link simbólico ou copie os arquivos
 # Windows (PowerShell como admin):
-New-Item -ItemType SymbolicLink -Path "oak_modules\greenleaf" -Target "C:\caminho\para\greenleaf"
+New-Item -ItemType SymbolicLink -Path "oak_modules\Fern" -Target "C:\caminho\para\Fern"
 
 # Linux/Mac:
-ln -s /caminho/para/greenleaf oak_modules/greenleaf
+ln -s /caminho/para/Fern oak_modules/Fern
 
 # Ou simplesmente copie:
-cp -r /caminho/para/greenleaf oak_modules/greenleaf
+cp -r /caminho/para/Fern oak_modules/Fern
 
 # 3. Gere o oaklock.json
 oak lock
@@ -429,11 +455,12 @@ Se você não está usando o Oak Package Manager:
 ```
 
 **Estrutura manual:**
+
 ```
 meu-projeto/
 ├── main.dryad
 └── libs/
-    └── greenleaf/
+    └── Fern/
         └── src/
             ├── math/
             ├── data/
@@ -442,36 +469,38 @@ meu-projeto/
 
 ### Verificando a Instalação
 
-Crie um arquivo de teste `test_greenleaf.dryad`:
+Crie um arquivo de teste `test_Fern.dryad`:
 
 ```dryad
-// Teste de instalação do Greenleaf
-import { zeros, ones } from "greenleaf/math/arrays";
-import { PI, E } from "greenleaf/scientific/functions";
+// Teste de instalação do Fern
+import { zeros, ones } from "Fern/math/arrays";
+import { PI, E } from "Fern/scientific/functions";
 
-print("✅ Greenleaf instalado com sucesso!");
+print("✅ Fern instalado com sucesso!");
 print("Teste: zeros(3) = " + zeros(3));
 print("PI = " + PI);
 ```
 
 Execute:
+
 ```bash
-oak exec test_greenleaf.dryad
+oak exec test_Fern.dryad
 ```
 
-Se você ver a saída sem erros, o Greenleaf está instalado corretamente! ✅
+Se você ver a saída sem erros, o Fern está instalado corretamente! ✅
 
 ---
 
 ## 📚 Exemplos de Uso
 
 ### Exemplo Completo: Análise Estatística
+
 ```dryad
 // Carregar módulos
-// #include "greenleaf/src/math/statistics.dryad"
-// #include "greenleaf/src/data/frames.dryad"
+// #include "Fern/src/math/statistics.dryad"
+// #include "Fern/src/data/frames.dryad"
 
-print("=== Análise Estatística com Greenleaf ===");
+print("=== Análise Estatística com Fern ===");
 
 // Dados de exemplo
 let vendas = [120, 150, 130, 180, 160, 140, 170, 190, 165, 175];
@@ -504,8 +533,9 @@ print(df.describe("lucro"));
 ```
 
 ### Exemplo: Álgebra Simbólica
+
 ```dryad
-// #include "greenleaf/src/symbolic/algebra.dryad"
+// #include "Fern/src/symbolic/algebra.dryad"
 
 print("=== Álgebra Simbólica ===");
 
@@ -539,8 +569,8 @@ print("f'(2) = " + deriv.evaluate(vars));
 ### Exemplo 1: Análise Estatística de Vendas
 
 ```dryad
-import { Statistics, correlation } from "greenleaf/math/statistics";
-import { from_dict } from "greenleaf/data/frames";
+import { Statistics, correlation } from "Fern/math/statistics";
+import { from_dict } from "Fern/data/frames";
 
 print("=== Análise de Vendas Mensal ===\n");
 
@@ -593,8 +623,8 @@ print(meses_bons.to_string());
 ### Exemplo 2: Cálculo Numérico e Simulação
 
 ```dryad
-import { sin, cos, PI, integrate_numerical, find_root } from "greenleaf/scientific/functions";
-import { arange, Array } from "greenleaf/math/arrays";
+import { sin, cos, PI, integrate_numerical, find_root } from "Fern/scientific/functions";
+import { arange, Array } from "Fern/math/arrays";
 
 print("=== Simulação Física: Movimento Harmônico ===\n");
 
@@ -628,7 +658,7 @@ for (let i = 0; i < n_pontos; i++) {
 
 // Calcular deslocamento total (integral da velocidade absoluta)
 let deslocamento = integrate_numerical(
-    function(t) { 
+    function(t) {
         let v = velocidade(t);
         if (v < 0) {
             return -v;
@@ -650,7 +680,7 @@ print("⏱️  Primeira passagem por x=0: t = " + tempo_zero + " s");
 ### Exemplo 3: Álgebra Simbólica - Análise de Função
 
 ```dryad
-import { symbol, number, add, multiply, power, divide } from "greenleaf/symbolic/algebra";
+import { symbol, number, add, multiply, power, divide } from "Fern/symbolic/algebra";
 
 print("=== Análise Simbólica de Função ===\n");
 
@@ -687,11 +717,11 @@ let pontos = [0, 1, 2, 3, 4];
 for (let i = 0; i < pontos.length; i++) {
     let x_val = pontos[i];
     let vars = {"x": x_val};
-    
+
     let y = f.evaluate(vars);
     let dy = f_linha.evaluate(vars);
     let ddy = f_duas_linhas.evaluate(vars);
-    
+
     print(x_val + "\t" + y + "\t" + dy + "\t" + ddy);
 }
 
@@ -719,8 +749,8 @@ if (f2_2 > 0) {
 ### Exemplo 4: Análise de Dados com DataFrame
 
 ```dryad
-import { from_dict, merge } from "greenleaf/data/frames";
-import { Statistics, correlation } from "greenleaf/math/statistics";
+import { from_dict, merge } from "Fern/data/frames";
+import { Statistics, correlation } from "Fern/math/statistics";
 
 print("=== Sistema de Análise de Produtos ===\n");
 
@@ -795,14 +825,15 @@ for (let i = 0; i < 3; i++) {
 
 ### Importando Módulos
 
-Após instalar o Greenleaf, você pode importar módulos de três formas:
+Após instalar o Fern, você pode importar módulos de três formas:
 
 **1. Named Imports (Recomendado):**
+
 ```dryad
 // Importar funções específicas
-import { zeros, ones, arange } from "greenleaf/math/arrays";
-import { sin, cos, PI } from "greenleaf/scientific/functions";
-import { Statistics } from "greenleaf/math/statistics";
+import { zeros, ones, arange } from "Fern/math/arrays";
+import { sin, cos, PI } from "Fern/scientific/functions";
+import { Statistics } from "Fern/math/statistics";
 
 let arr = zeros(5);
 let seno = sin(PI/2);
@@ -810,19 +841,21 @@ let stats = new Statistics([1, 2, 3, 4, 5]);
 ```
 
 **2. Namespace Imports:**
+
 ```dryad
 // Importar módulo completo com alias
-import * as arrays from "greenleaf/math/arrays";
-import * as sci from "greenleaf/scientific/functions";
+import * as arrays from "Fern/math/arrays";
+import * as sci from "Fern/scientific/functions";
 
 let arr = arrays.zeros(5);
 let seno = sci.sin(sci.PI/2);
 ```
 
 **3. Side-effect Imports:**
+
 ```dryad
 // Apenas executar o módulo (útil para inicialização)
-import "greenleaf/lib";
+import "Fern/lib";
 ```
 
 ### Estrutura do oaklock.json
@@ -832,14 +865,14 @@ Após executar `oak lock`, o arquivo `oaklock.json` mapeia todos os módulos:
 ```json
 {
   "modules": {
-    "greenleaf": {
+    "Fern": {
       "paths": {
-        "lib": "./oak_modules/greenleaf/src/lib.dryad",
-        "math/arrays": "./oak_modules/greenleaf/src/math/arrays.dryad",
-        "math/statistics": "./oak_modules/greenleaf/src/math/statistics.dryad",
-        "data/frames": "./oak_modules/greenleaf/src/data/frames.dryad",
-        "scientific/functions": "./oak_modules/greenleaf/src/scientific/functions.dryad",
-        "symbolic/algebra": "./oak_modules/greenleaf/src/symbolic/algebra.dryad"
+        "lib": "./oak_modules/Fern/src/lib.dryad",
+        "math/arrays": "./oak_modules/Fern/src/math/arrays.dryad",
+        "math/statistics": "./oak_modules/Fern/src/math/statistics.dryad",
+        "data/frames": "./oak_modules/Fern/src/data/frames.dryad",
+        "scientific/functions": "./oak_modules/Fern/src/scientific/functions.dryad",
+        "symbolic/algebra": "./oak_modules/Fern/src/symbolic/algebra.dryad"
       }
     }
   }
@@ -855,6 +888,7 @@ Após executar `oak lock`, o arquivo `oaklock.json` mapeia todos os módulos:
 **Problema:** O Oak não consegue resolver os módulos.
 
 **Solução:**
+
 ```bash
 # Execute oak lock para gerar o arquivo de mapeamento
 oak lock
@@ -865,8 +899,9 @@ oak lock
 **Problema:** O caminho do import está incorreto.
 
 **Soluções:**
+
 1. Verifique o `oaklock.json` para ver os caminhos disponíveis
-2. Use o formato correto: `"greenleaf/modulo/submodulo"`
+2. Use o formato correto: `"Fern/modulo/submodulo"`
 3. Execute `oak list` para ver os módulos instalados
 
 ### Erro: "Função não definida"
@@ -874,30 +909,33 @@ oak lock
 **Problema:** Tentando usar uma função que não foi importada.
 
 **Solução:**
+
 ```dryad
 // ❌ Errado - função não importada
-import { zeros } from "greenleaf/math/arrays";
+import { zeros } from "Fern/math/arrays";
 let arr = ones(5);  // Erro: ones não definida
 
 // ✅ Correto - importar todas as funções necessárias
-import { zeros, ones } from "greenleaf/math/arrays";
+import { zeros, ones } from "Fern/math/arrays";
 let arr1 = zeros(5);
 let arr2 = ones(5);
 ```
 
 ### Erro de Sintaxe: "Esperado '(' após 'while'"
 
-**Problema:** Código Greenleaf usando sintaxe antiga.
+**Problema:** Código Fern usando sintaxe antiga.
 
 **Nota:** A versão instalada via Oak já vem com sintaxe correta. Se encontrar este erro:
-1. Reinstale: `oak install greenleaf --force`
+
+1. Reinstale: `oak install Fern --force`
 2. Execute: `oak lock`
 
 ### Performance Lenta em Arrays Grandes
 
-**Limitação:** Greenleaf v0.1.0 é otimizado para arrays pequenos a médios (até ~100 elementos).
+**Limitação:** Fern v0.1.0 é otimizado para arrays pequenos a médios (até ~100 elementos).
 
 **Recomendações:**
+
 - Para arrays grandes, considere usar funções nativas quando disponíveis
 - Versões futuras terão otimizações de performance
 
@@ -906,6 +944,7 @@ let arr2 = ones(5);
 ## 🗺️ Roadmap
 
 ### Versão 0.1.0 (Atual) ✅
+
 - [x] Arrays multidimensionais básicos
 - [x] Estatísticas descritivas
 - [x] DataFrames simples
@@ -914,6 +953,7 @@ let arr2 = ones(5);
 - [x] Integração com Oak Package Manager
 
 ### Versão 0.2.0 (Planejado)
+
 - [ ] Operações vetorizadas otimizadas
 - [ ] Suporte a arrays maiores (1000+ elementos)
 - [ ] Funções de agregação em DataFrames
@@ -922,6 +962,7 @@ let arr2 = ones(5);
 - [ ] Operações de matriz (determinante, inversa)
 
 ### Versão 0.3.0 (Futuro)
+
 - [ ] Machine Learning básico (regressão linear, k-means)
 - [ ] Séries temporais
 - [ ] Análise de Fourier
@@ -929,6 +970,7 @@ let arr2 = ones(5);
 - [ ] Integração com módulos nativos para performance
 
 ### Versão 1.0.0 (Visão)
+
 - [ ] Biblioteca completa e estável
 - [ ] Performance otimizada
 - [ ] Documentação completa
@@ -939,7 +981,7 @@ let arr2 = ones(5);
 
 ## 🤝 Contribuindo
 
-Greenleaf é open-source e aceita contribuições! Áreas onde você pode ajudar:
+Fern é open-source e aceita contribuições! Áreas onde você pode ajudar:
 
 1. **Implementação de Funcionalidades:**
    - Adicionar novas funções matemáticas
@@ -967,8 +1009,8 @@ Greenleaf é open-source e aceita contribuições! Áreas onde você pode ajudar
 # 1. Fork o repositório no GitHub
 
 # 2. Clone seu fork
-git clone https://github.com/seu-usuario/greenleaf.git
-cd greenleaf
+git clone https://github.com/seu-usuario/Fern.git
+cd Fern
 
 # 3. Crie uma branch para sua feature
 git checkout -b feature/minha-funcionalidade
@@ -994,7 +1036,7 @@ git push origin feature/minha-funcionalidade
 
 ## 📄 Licença
 
-Greenleaf é licenciado sob a **MIT License**.
+Fern é licenciado sob a **MIT License**.
 
 ```
 MIT License
@@ -1024,16 +1066,16 @@ SOFTWARE.
 
 ## 📞 Suporte e Comunidade
 
-- **GitHub Issues:** [Reportar bugs e sugerir features](https://github.com/Dryad-lang/greenleaf/issues)
-- **Discussões:** [Fórum de discussão](https://github.com/Dryad-lang/greenleaf/discussions)
-- **Documentação:** [Wiki do projeto](https://github.com/Dryad-lang/greenleaf/wiki)
+- **GitHub Issues:** [Reportar bugs e sugerir features](https://github.com/Dryad-lang/Fern/issues)
+- **Discussões:** [Fórum de discussão](https://github.com/Dryad-lang/Fern/discussions)
+- **Documentação:** [Wiki do projeto](https://github.com/Dryad-lang/Fern/wiki)
 - **Email:** suporte@dryadlang.org
 
 ---
 
 ## 🎯 Casos de Uso
 
-Greenleaf é ideal para:
+Fern é ideal para:
 
 - 📊 **Análise de Dados:** Processar e analisar datasets
 - 🔬 **Computação Científica:** Cálculos matemáticos complexos
@@ -1046,7 +1088,7 @@ Greenleaf é ideal para:
 
 ## 🏆 Agradecimentos
 
-Greenleaf foi inspirado por excelentes bibliotecas Python:
+Fern foi inspirado por excelentes bibliotecas Python:
 
 - **NumPy:** Arrays multidimensionais e álgebra linear
 - **Pandas:** Análise e manipulação de dados
@@ -1060,11 +1102,11 @@ Agradecimentos especiais à comunidade Dryad e aos contribuidores!
 
 <div align="center">
 
-**🌿 Greenleaf v0.1.0** - Primeira biblioteca matemática da linguagem Dryad 🎉
+**🌿 Fern v0.1.0** - Primeira biblioteca matemática da linguagem Dryad 🎉
 
 Feito com ❤️ pela comunidade Dryad
 
-[Homepage](https://github.com/Dryad-lang/greenleaf) • [Documentação](https://github.com/Dryad-lang/greenleaf/wiki) • [Exemplos](./examples) • [Issues](https://github.com/Dryad-lang/greenleaf/issues)
+[Homepage](https://github.com/Dryad-lang/Fern) • [Documentação](https://github.com/Dryad-lang/Fern/wiki) • [Exemplos](./examples) • [Issues](https://github.com/Dryad-lang/Fern/issues)
 
 </div>
 
@@ -1073,13 +1115,15 @@ Feito com ❤️ pela comunidade Dryad
 ## 🔧 Funcionalidades Implementadas
 
 ### Arrays Multidimensionais
+
 - ✅ Criação de arrays (zeros, ones, arange, eye)
-- ✅ Operações básicas (+, -, *, /) elemento a elemento
+- ✅ Operações básicas (+, -, \*, /) elemento a elemento
 - ✅ Funções de agregação (sum, mean, min, max)
 - ✅ Indexação básica
 - ✅ Produto escalar (dot product)
 
 ### Estatísticas
+
 - ✅ Média, mediana, moda
 - ✅ Desvio padrão, variância
 - ✅ Quartis, IQR
@@ -1089,6 +1133,7 @@ Feito com ❤️ pela comunidade Dryad
 - ✅ Teste t simples
 
 ### Álgebra Simbólica
+
 - ✅ Expressões simbólicas básicas
 - ✅ Avaliação de expressões
 - ✅ Derivação simbólica (regras básicas)
@@ -1097,6 +1142,7 @@ Feito com ❤️ pela comunidade Dryad
 - ✅ Fatoração quadrática simples
 
 ### Funções Científicas
+
 - ✅ Funções trigonométricas (sin, cos, tan, asin, acos)
 - ✅ Funções exponenciais e logarítmicas
 - ✅ Potência e raízes
@@ -1109,6 +1155,7 @@ Feito com ❤️ pela comunidade Dryad
 - ✅ Método da bisseção para raízes
 
 ### DataFrames
+
 - ✅ Criação de DataFrames
 - ✅ Seleção de colunas e linhas
 - ✅ Filtragem de dados
@@ -1122,24 +1169,28 @@ Feito com ❤️ pela comunidade Dryad
 ## 🔮 Funcionalidades Planejadas
 
 ### Arrays
+
 - Indexação avançada
 - Broadcasting
 - Operações de matriz (multiplicação, inversa, etc.)
 - FFT básica
 
 ### Estatísticas
+
 - Regressão linear
 - Testes de hipóteses avançados
 - Análise de variância (ANOVA)
 - Distribuições adicionais
 
 ### Simbólico
+
 - Simplificação algébrica avançada
 - Equações diferenciais
 - Séries de Taylor
 - Sistemas de equações
 
 ### Científico
+
 - Otimização (gradiente descendente, etc.)
 - Interpolação
 - Integração avançada
@@ -1174,4 +1225,4 @@ MIT License - veja LICENSE para detalhes.
 
 ---
 
-**Greenleaf v0.1.0** - Primeira biblioteca matemática da linguagem Dryad 🎉
+**Fern v0.1.0** - Primeira biblioteca matemática da linguagem Dryad 🎉

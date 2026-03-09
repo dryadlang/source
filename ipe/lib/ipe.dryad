@@ -266,6 +266,91 @@ module ipe {
         return ffi_call(lib_alias, "ipe_input_modifier_active", "i32", modifier);
     }
     
+    // ========== Task 9: Transformations API ==========
+    
+    function transformPush() {
+        if (!lib_loaded) return;
+        ffi_call(lib_alias, "ipe_transform_push", "void");
+    }
+    
+    function transformPop() {
+        if (!lib_loaded) return;
+        ffi_call(lib_alias, "ipe_transform_pop", "void");
+    }
+    
+    function translate(dx, dy) {
+        if (!lib_loaded) return;
+        ffi_call(lib_alias, "ipe_transform_translate", "void", dx, dy);
+    }
+    
+    function scale(sx, sy) {
+        if (!lib_loaded) return;
+        ffi_call(lib_alias, "ipe_transform_scale", "void", sx, sy);
+    }
+    
+    function rotate(angle) {
+        if (!lib_loaded) return;
+        ffi_call(lib_alias, "ipe_transform_rotate", "void", angle);
+    }
+    
+    function transformReset() {
+        if (!lib_loaded) return;
+        ffi_call(lib_alias, "ipe_transform_reset", "void");
+    }
+
+    // ========== Task 8: Advanced Styling API ==========
+    
+    // Blend modes
+    let IPE_BLEND_NORMAL = 0;
+    let IPE_BLEND_ALPHA = 1;
+    let IPE_BLEND_ADD = 2;
+    let IPE_BLEND_MULTIPLY = 3;
+    let IPE_BLEND_SCREEN = 4;
+    
+    // Gradient types
+    let IPE_GRADIENT_NONE = 0;
+    let IPE_GRADIENT_LINEAR_H = 1;
+    let IPE_GRADIENT_LINEAR_V = 2;
+    let IPE_GRADIENT_RADIAL = 3;
+
+    function drawRectStyled(x, y, w, h, style_buffer) {
+        if (!lib_loaded) return;
+        ffi_call(lib_alias, "ipe_draw_rect_styled", "void", x, y, w, h, style_buffer);
+    }
+    
+    function drawCircleStyled(cx, cy, radius, style_buffer) {
+        if (!lib_loaded) return;
+        ffi_call(lib_alias, "ipe_draw_circle_styled", "void", cx, cy, radius, style_buffer);
+    }
+    
+    function drawPolygonStyled(points_buffer, count, style_buffer) {
+        if (!lib_loaded) return;
+        ffi_call(lib_alias, "ipe_draw_polygon_styled", "void", points_buffer, count, style_buffer);
+    }
+
+    // Helpers to create style buffers
+    function createRectStyle() {
+        let buf = ffi_create_buffer(76); // 19 fields * 4 bytes
+        // Default values
+        ffi_write_buffer(buf, 0, 0xFFFFFF, "u32"); // fill_color
+        ffi_write_buffer(buf, 36, 1.0, "f32");    // opacity
+        return buf;
+    }
+    
+    function createCircleStyle() {
+        let buf = ffi_create_buffer(48); // 12 fields * 4 bytes
+        ffi_write_buffer(buf, 0, 0xFFFFFF, "u32"); // fill_color
+        ffi_write_buffer(buf, 12, 1.0, "f32");    // opacity
+        return buf;
+    }
+    
+    function createPolygonStyle() {
+        let buf = ffi_create_buffer(48); // 12 fields * 4 bytes
+        ffi_write_buffer(buf, 0, 0xFFFFFF, "u32"); // fill_color
+        ffi_write_buffer(buf, 16, 1.0, "f32");    // opacity
+        return buf;
+    }
+    
     // ========== Task 6: Input Event Queue Wrappers ==========
     
     // Event type constants
@@ -293,19 +378,20 @@ module ipe {
     // This is a simplified interface that gets event count and clears queue
     // For full event data, use ipe_input_get_events() with FFI buffer support (advanced)
     
-    // ========== Task 7: Text Rendering API Wrappers ==========
+    // ========== Task 7.5: Text Rendering Enhancements ==========
     
-    // Basic text rendering (uses built-in 8x8 bitmap font)
-    function drawText(text, x, y, color) {
-        if (!lib_loaded) return;
-        ffi_call(lib_alias, "ipe_draw_text", "void", text, x, y, color);
+    function fontLoad(path, size) {
+        if (!lib_loaded) return null;
+        return ffi_call(lib_alias, "ipe_font_load", "pointer", path, size);
     }
     
-    // Note: Advanced text rendering features (TTF fonts, styled text, etc.)
-    // would require SDL_ttf integration with font loading functions
-    // These can be added in future versions with:
-    // - ipe_font_load(path, size) - Load TrueType font
-    // - ipe_draw_text_styled(text, x, y, font, style) - Render with style
-    // - ipe_text_width(text, font) - Measure text width
-    // - ipe_text_height(text, font) - Measure text height
+    function drawTextEx(text, x, y, font, color) {
+        if (!lib_loaded) return;
+        ffi_call(lib_alias, "ipe_draw_text_ex", "void", text, x, y, font, color);
+    }
+    
+    function textWidth(text, font) {
+        if (!lib_loaded) return 0;
+        return ffi_call(lib_alias, "ipe_text_width", "i32", text, font);
+    }
 }

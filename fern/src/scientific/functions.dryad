@@ -1,0 +1,187 @@
+#<console_io>
+
+let PI = 3.141592653589793;
+let E = 2.718281828459045;
+
+function abs(x) {
+    if (x < 0) { return -x; }
+    return x;
+}
+
+function pow(x, y) {
+    if (y == 0) { return 1; }
+    if (y == 1) { return x; }
+    if (y < 0) { return 1 / pow(x, -y); }
+    
+    let rem = y % 1;
+    if (rem != 0) {
+        return exp(y * ln(x));
+    }
+    
+    let res = 1;
+    for (let i = 0; i < y; i++) {
+        res = res * x;
+    }
+    return res;
+}
+
+function sqrt(x) {
+    if (x < 0) { return null; }
+    if (x == 0) { return 0; }
+    let res = x / 2.0;
+    for (let i = 0; i < 10; i++) {
+        res = (res + x / res) / 2.0;
+    }
+    return res;
+}
+
+function exp(x) {
+    let res = 1.0;
+    let term = 1.0;
+    for (let i = 1; i < 20; i++) {
+        term = term * x / i;
+        res = res + term;
+    }
+    return res;
+}
+
+function ln(x) {
+    if (x <= 0) { return null; }
+    let res = 0.0;
+    let y = (x - 1) / (x + 1);
+    let y2 = y * y;
+    let p = y;
+    for (let i = 0; i < 20; i++) {
+        res = res + p / (2 * i + 1);
+        p = p * y2;
+    }
+    return 2 * res;
+}
+
+function sin(x) {
+    let res = 0.0;
+    let term = x;
+    let x2 = x * x;
+    for (let i = 1; i < 20; i = i + 2) {
+        res = res + term;
+        term = -term * x2 / ((i + 1) * (i + 2));
+    }
+    return res;
+}
+
+function cos(x) {
+    let res = 0.0;
+    let term = 1.0;
+    let x2 = x * x;
+    for (let i = 0; i < 20; i = i + 2) {
+        res = res + term;
+        term = -term * x2 / ((i + 1) * (i + 2));
+    }
+    return res;
+}
+
+function tan(x) {
+    return sin(x) / cos(x);
+}
+
+function asin(x) {
+    if (x < -1 || x > 1) { return null; }
+    let res = x;
+    let term = x;
+    let x2 = x * x;
+    for (let i = 1; i < 20; i++) {
+        term = term * x2 * (2 * i - 1) * (2 * i - 1) / ((2 * i) * (2 * i + 1));
+        res = res + term;
+    }
+    return res;
+}
+
+function acos(x) {
+    return PI / 2 - asin(x);
+}
+
+function atan(x) {
+    if (x > -1 && x < 1) {
+        let res = x;
+        let term = x;
+        let x2 = x * x;
+        for (let i = 1; i < 20; i++) {
+            term = -term * x2;
+            res = res + term / (2 * i + 1);
+        }
+        return res;
+    }
+    if (x >= 1) { return PI / 2 - atan(1 / x); }
+    return -PI / 2 - atan(1 / x);
+}
+
+function gamma(x) {
+    if (x <= 0) { return null; }
+    let res = sqrt(2 * PI / x) * pow(x / E * sqrt(x * sinh(1 / x) + 1 / (810 * pow(x, 6))), x);
+    return res;
+}
+
+function erf(x) {
+    let a1 = 0.254829592;
+    let a2 = -0.284496736;
+    let a3 = 1.421413741;
+    let a4 = -1.453152027;
+    let a5 = 1.061405429;
+    let p = 0.3275911;
+    let sign = 1;
+    if (x < 0) { sign = -1; }
+    x = abs(x);
+    let t = 1.0 / (1.0 + p * x);
+    let y = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * exp(-x * x);
+    return sign * y;
+}
+
+function bessel_j0(x) {
+    let res = 1.0;
+    let term = 1.0;
+    let x2 = x * x / 4.0;
+    for (let i = 1; i < 20; i++) {
+        term = -term * x2 / (i * i);
+        res = res + term;
+    }
+    return res;
+}
+
+function zeta(s) {
+    if (s <= 1) { return null; }
+    let res = 0;
+    for (let i = 1; i < 100; i++) {
+        res = res + 1.0 / pow(i, s);
+    }
+    return res;
+}
+
+function sinh(x) { return (exp(x) - exp(-x)) / 2; }
+function cosh(x) { return (exp(x) + exp(-x)) / 2; }
+function tanh(x) { return sinh(x) / cosh(x); }
+
+function integrate_numerical(f, a, b, n) {
+    let h = (b - a) / n;
+    let s = f(a) + f(b);
+    for (let i = 1; i < n; i++) {
+        let x = a + i * h;
+        if (i % 2 == 0) { s = s + 2 * f(x); }
+        else { s = s + 4 * f(x); }
+    }
+    return s * h / 3;
+}
+
+function derivative_numerical(f, x) {
+    let h = 0.000001;
+    return (f(x + h) - f(x - h)) / (2 * h);
+}
+
+function find_root(f, a, b) {
+    for (let i = 0; i < 20; i++) {
+        let mid = (a + b) / 2;
+        if (f(mid) == 0) { return mid; }
+        if (f(a) * f(mid) < 0) { b = mid; }
+        else { a = mid; }
+    }
+    return (a + b) / 2;
+}

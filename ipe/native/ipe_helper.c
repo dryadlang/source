@@ -336,8 +336,11 @@ typedef struct {
   void (*on_click)(void *);
 } ipe_button_t;
 
+// Global state
 static ipe_window_t *g_current_window = NULL;
 static int g_running = 1;
+static HWND g_hwnd = NULL;
+static HDC g_hdc = NULL;
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
     switch (uMsg) {

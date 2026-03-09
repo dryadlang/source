@@ -1,29 +1,65 @@
-use "./ipe/lib/ipe";
+#<console_io>
+#<ffi>
+#<system_env>
 
 function main() {
-    println("Iniciando Ipe Framework (Oak)...");
+    println("Starting Ipe Framework demo...");
     
-    if (!ipe::init()) {
-        println("Falha ao inicializar Ipe");
+    // Load the library based on platform
+    let platform = native_platform();
+    let ext = ".so";
+    if (platform == "windows") { ext = ".dll"; }
+    
+    let path = "./ipe/native/ipe" + ext;
+    println("Loading library: " + path);
+    
+    if (!ffi_load_library(path, "ipe")) {
+        println("Failed to load library");
         return;
     }
-
-    println("Criando janela...");
-    ipe::createWindow(800, 600, "Ipe Framework - Oak Refactor");
-
+    
+    println("Initializing Ipe...");
+    let init_result = ffi_call("ipe", "ipe_init", "i32");
+    if (init_result == 0) {
+        println("Failed to initialize Ipe");
+        return;
+    }
+    println("Ipe initialized successfully!");
+    
+    println("Creating window...");
+    let window = ffi_call("ipe", "ipe_window_create", "pointer", 800, 600, "Ipe Framework Demo");
+    if (window == 0) {
+        println("Failed to create window");
+        return;
+    }
+    println("Window created successfully!");
+    
+    println("Drawing rectangles...");
     let count = 0;
-    while (ipe::isOpen() && count < 100) {
-        ipe::clear(0x333333); // Cinza escuro
+    while (count < 50) {
+        // Clear background
+        ffi_call("ipe", "ipe_clear_background", "void", 0x333333);
         
-        // Desenha um retângulo vermelho que se move
-        ipe::drawRect(100 + count, 100, 200, 150, 0xFF0000);
+        // Draw a red rectangle
+        ffi_call("ipe", "ipe_draw_rect", "void", 100 + count, 100, 200, 150, 0xFF0000);
         
-        ipe::processEvents();
+        // Draw a blue rectangle
+        ffi_call("ipe", "ipe_draw_rect", "void", 400, 300, 100, 100, 0x0000FF);
+        
+        // Process events
+        let running = ffi_call("ipe", "ipe_process_events", "i32");
+        if (running == 0) {
+            println("Window closed by user");
+            break;
+        }
+        
         count++;
     }
-
-    ipe::close();
-    println("Demo finalizado com sucesso!");
+    
+    println("Closing window...");
+    ffi_call("ipe", "ipe_window_close", "void");
+    
+    println("Demo completed successfully!");
 }
 
 main();

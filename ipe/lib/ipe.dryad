@@ -292,4 +292,20 @@ module ipe {
     // Note: Event structure retrieval requires pointer handling
     // This is a simplified interface that gets event count and clears queue
     // For full event data, use ipe_input_get_events() with FFI buffer support (advanced)
+    
+    // ========== Task 7: Text Rendering API Wrappers ==========
+    
+    // Basic text rendering (uses built-in 8x8 bitmap font)
+    function drawText(text, x, y, color) {
+        if (!lib_loaded) return;
+        ffi_call(lib_alias, "ipe_draw_text", "void", text, x, y, color);
+    }
+    
+    // Note: Advanced text rendering features (TTF fonts, styled text, etc.)
+    // would require SDL_ttf integration with font loading functions
+    // These can be added in future versions with:
+    // - ipe_font_load(path, size) - Load TrueType font
+    // - ipe_draw_text_styled(text, x, y, font, style) - Render with style
+    // - ipe_text_width(text, font) - Measure text width
+    // - ipe_text_height(text, font) - Measure text height
 }

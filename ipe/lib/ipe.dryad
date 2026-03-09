@@ -1,60 +1,295 @@
 #<ffi>
+#<system_env>
 
 module ipe {
     let lib_loaded = false;
-    let lib_path = "./ipe/native/ipe.dll";
+    let lib_path = "";
+    let lib_alias = "ipe";
+
+    // Detecta o SO e retorna a extensão e caminho apropriados
+    function detect_platform() {
+        let platform = native_platform();
+        let ext = ".so";
+        let lib_name = "libipe";
+        
+        if (platform == "windows") { 
+            ext = ".dll"; 
+            lib_name = "ipe";
+        }
+        if (platform == "macos") { 
+            ext = ".dylib"; 
+            lib_name = "libipe";
+        }
+        
+        return {
+            "platform": platform,
+            "ext": ext,
+            "name": lib_name
+        };
+    }
 
     // Tenta carregar a biblioteca usando uma lista de caminhos comuns
-    fn load() {
+    function load() {
         if (lib_loaded) return true;
 
+        let info = detect_platform();
+        let platform = info["platform"];
+        let ext = info["ext"];
+        let lib_name = info["name"];
+
+        // Lista de caminhos candidatos
         let candidates = [
-            lib_path,
-            "./ipe/native/ipe.dll",
-            "./ipe/native/libipe.dll",
-            "./ipe/native/ipe.so",
-            "./ipe/native/libipe.so",
-            "./ipe/native/ipe.dylib",
+            "./ipe/native/" + lib_name + ext,
+            "./ipe/native/ipe" + ext,
+            "./native/" + lib_name + ext,
+            "./native/ipe" + ext,
+            "../native/" + lib_name + ext,
+            "../native/ipe" + ext,
+            lib_name + ext,
+            "ipe" + ext
         ];
 
+        println("Detectado SO: " + platform);
+        
         for (p in candidates) {
+            println("  Tentando carregar: " + p);
+            
             // tenta carregar cada candidato com o alias fixo "ipe"
-            if (ffi_load_library(p, "ipe")) {
+            if (ffi_load_library(p, lib_alias)) {
                 lib_loaded = true;
                 lib_path = p;
+                println("  [✓] Biblioteca carregada de: " + p);
                 return true;
             }
         }
 
+        println("[X] Falha ao carregar biblioteca de nenhum caminho candidato");
         return false;
     }
 
-    fn init() {
+    function init() {
         if (!load()) return false;
-        return ffi_call("ipe", "ipe_init", "i32");
+        println("Inicializando Ipe Framework...");
+        let res = ffi_call(lib_alias, "ipe_init", "i32");
+        if (res != 0) {
+            println("[✓] Ipe inicializado com sucesso");
+            return true;
+        }
+        println("[X] Falha ao inicializar Ipe");
+        return false;
     }
 
-    fn createWindow(width, height, title) {
-        return ffi_call("ipe", "ipe_window_create", "pointer", width, height, title);
+    function createWindow(width, height, title) {
+        if (!lib_loaded) {
+            println("[X] Biblioteca nao carregada. Chame init() primeiro");
+            return null;
+        }
+        println("Criando janela: " + width + "x" + height + " - " + title);
+        return ffi_call(lib_alias, "ipe_window_create", "pointer", width, height, title);
     }
 
-    fn clear(color) {
-        ffi_call("ipe", "ipe_clear_background", "void", color);
+    function clear(color) {
+        if (!lib_loaded) return;
+        ffi_call(lib_alias, "ipe_clear_background", "void", color);
     }
 
-    fn drawRect(x, y, w, h, color) {
-        ffi_call("ipe", "ipe_draw_rect", "void", x, y, w, h, color);
+    function drawRect(x, y, w, h, color) {
+        if (!lib_loaded) return;
+        ffi_call(lib_alias, "ipe_draw_rect", "void", x, y, w, h, color);
     }
 
-    fn processEvents() {
-        return ffi_call("ipe", "ipe_process_events", "i32");
+    function drawCircle(x, y, radius, color) {
+        if (!lib_loaded) return;
+        ffi_call(lib_alias, "ipe_draw_circle", "void", x, y, radius, color);
     }
 
-    fn isOpen() {
-        return ffi_call("ipe", "ipe_is_window_open", "i32") != 0;
+    function drawLine(x1, y1, x2, y2, color, thickness) {
+        if (!lib_loaded) return;
+        ffi_call(lib_alias, "ipe_draw_line", "void", x1, y1, x2, y2, color, thickness);
     }
 
-    fn close() {
-        ffi_call("ipe", "ipe_window_close", "void");
+    function getMouseX() {
+        if (!lib_loaded) return 0;
+        return ffi_call(lib_alias, "ipe_get_mouse_x", "i32");
     }
+
+    function getMouseY() {
+        if (!lib_loaded) return 0;
+        return ffi_call(lib_alias, "ipe_get_mouse_y", "i32");
+    }
+
+    function getKeyCode() {
+        if (!lib_loaded) return 0;
+        return ffi_call(lib_alias, "ipe_get_key_code", "i32");
+    }
+
+    function drawRoundedRect(x, y, w, h, radius, color) {
+        if (!lib_loaded) return;
+        ffi_call(lib_alias, "ipe_draw_rounded_rect", "void", x, y, w, h, radius, color);
+    }
+
+    function drawTriangle(x1, y1, x2, y2, x3, y3, color) {
+        if (!lib_loaded) return;
+        ffi_call(lib_alias, "ipe_draw_triangle", "void", x1, y1, x2, y2, x3, y3, color);
+    }
+
+    // Note: Polygon requires passing arrays, which needs FFI buffer support
+    // For now, use drawTriangle multiple times to form polygons
+    
+    function drawText(text, x, y, color) {
+        if (!lib_loaded) return;
+        ffi_call(lib_alias, "ipe_draw_text", "void", text, x, y, color);
+    }
+
+    function processEvents() {
+        if (!lib_loaded) return 0;
+        return ffi_call(lib_alias, "ipe_process_events", "i32");
+    }
+
+    function isOpen() {
+        if (!lib_loaded) return false;
+        let res = ffi_call(lib_alias, "ipe_is_window_open", "i32");
+        return res != 0;
+    }
+
+    function close() {
+        if (!lib_loaded) return;
+        println("Fechando janela...");
+        ffi_call(lib_alias, "ipe_window_close", "void");
+        lib_loaded = false;
+    }
+
+    function unload() {
+        if (!lib_loaded) return false;
+        println("Descarregando biblioteca...");
+        let res = ffi_unload_library(lib_alias);
+        if (res) {
+            lib_loaded = false;
+            lib_path = "";
+        }
+        return res;
+    }
+
+    function get_status() {
+        return {
+            "loaded": lib_loaded,
+            "path": lib_path,
+            "alias": lib_alias
+        };
+    }
+
+    // ========== Task 5: Input Polling API Wrappers ==========
+    
+    // Key constants
+    let IPE_KEY_ESCAPE = 27;
+    let IPE_KEY_RETURN = 13;
+    let IPE_KEY_SPACE = 32;
+    let IPE_KEY_TAB = 9;
+    let IPE_KEY_UP = 1073741906;
+    let IPE_KEY_DOWN = 1073741905;
+    let IPE_KEY_LEFT = 1073741904;
+    let IPE_KEY_RIGHT = 1073741903;
+    
+    // A-Z: 65-90
+    let IPE_KEY_A = 65;
+    let IPE_KEY_Z = 90;
+    
+    // 0-9: 48-57
+    let IPE_KEY_0 = 48;
+    let IPE_KEY_9 = 57;
+    
+    // Modifier constants
+    let IPE_MOD_SHIFT = 0x01;
+    let IPE_MOD_CTRL = 0x02;
+    let IPE_MOD_ALT = 0x04;
+    let IPE_MOD_GUI = 0x08;
+    
+    // Polling API: Keyboard state
+    function input_key_down(key_code) {
+        if (!lib_loaded) return false;
+        let res = ffi_call(lib_alias, "ipe_input_key_down", "i32", key_code);
+        return res != 0;
+    }
+    
+    function input_key_pressed(key_code) {
+        if (!lib_loaded) return false;
+        let res = ffi_call(lib_alias, "ipe_input_key_pressed", "i32", key_code);
+        return res != 0;
+    }
+    
+    function input_key_released(key_code) {
+        if (!lib_loaded) return false;
+        let res = ffi_call(lib_alias, "ipe_input_key_released", "i32", key_code);
+        return res != 0;
+    }
+    
+    // Polling API: Mouse position
+    function input_mouse_x() {
+        if (!lib_loaded) return 0;
+        return ffi_call(lib_alias, "ipe_input_mouse_x", "i32");
+    }
+    
+    function input_mouse_y() {
+        if (!lib_loaded) return 0;
+        return ffi_call(lib_alias, "ipe_input_mouse_y", "i32");
+    }
+    
+    function input_mouse_pos() {
+        if (!lib_loaded) return {"x": 0, "y": 0};
+        let x = ffi_call(lib_alias, "ipe_input_mouse_x", "i32");
+        let y = ffi_call(lib_alias, "ipe_input_mouse_y", "i32");
+        return {"x": x, "y": y};
+    }
+    
+    // Polling API: Mouse buttons
+    function input_mouse_button_down(button) {
+        if (!lib_loaded) return false;
+        let res = ffi_call(lib_alias, "ipe_input_mouse_button_down", "i32", button);
+        return res != 0;
+    }
+    
+    function input_mouse_button_clicked(button) {
+        if (!lib_loaded) return false;
+        let res = ffi_call(lib_alias, "ipe_input_mouse_button_clicked", "i32", button);
+        return res != 0;
+    }
+    
+    // Polling API: Mouse scroll
+    function input_mouse_scroll_delta() {
+        if (!lib_loaded) return 0;
+        return ffi_call(lib_alias, "ipe_input_mouse_scroll_delta", "i32");
+    }
+    
+    // Polling API: Modifiers
+    function input_modifier_active(modifier) {
+        if (!lib_loaded) return 0;
+        return ffi_call(lib_alias, "ipe_input_modifier_active", "i32", modifier);
+    }
+    
+    // ========== Task 6: Input Event Queue Wrappers ==========
+    
+    // Event type constants
+    let IPE_EVENT_KEY_DOWN = 1;
+    let IPE_EVENT_KEY_UP = 2;
+    let IPE_EVENT_MOUSE_MOVE = 3;
+    let IPE_EVENT_MOUSE_DOWN = 4;
+    let IPE_EVENT_MOUSE_UP = 5;
+    let IPE_EVENT_SCROLL = 6;
+    let IPE_EVENT_WINDOW_CLOSE = 7;
+    let IPE_EVENT_WINDOW_RESIZE = 8;
+    
+    // Event queue API
+    function input_event_count() {
+        if (!lib_loaded) return 0;
+        return ffi_call(lib_alias, "ipe_input_event_count", "i32");
+    }
+    
+    function input_clear_events() {
+        if (!lib_loaded) return;
+        ffi_call(lib_alias, "ipe_input_clear_events", "void");
+    }
+    
+    // Note: Event structure retrieval requires pointer handling
+    // This is a simplified interface that gets event count and clears queue
+    // For full event data, use ipe_input_get_events() with FFI buffer support (advanced)
 }

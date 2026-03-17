@@ -1,0 +1,23 @@
+#<console_io>
+
+// Test array index assignment
+let arr = [];
+arr.push(1);
+arr.push(2);
+arr.push(3);
+
+print("Before: ");
+println(arr[0]);
+
+arr[0] = 10;
+
+print("After: ");
+println(arr[0]);
+
+// Test without push
+let arr2 = [];
+arr2.push("a");
+arr2.push("b");
+arr2[1] = "modified";
+print("arr2[1] = ");
+println(arr2[1]);

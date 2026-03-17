@@ -1,0 +1,104 @@
+#<console_io>
+#<ffi>
+#<system_env>
+
+// Simple Responsive Layout Test
+// Uses: integer division, while without parens
+
+let lib = "ipe";
+
+let Colors = {
+    "bg_primary": 0xFF1A1A2E,
+    "text_primary": 0xFFFFFFFF
+};
+
+function main() {
+    println("=== Responsive Layout Demo ===");
+    
+    let p = native_platform();
+    let ext = ".so";
+    if p == "windows" { ext = ".dll"; }
+    
+    if !ffi_load_library("./ipe/native/ipe" + ext, lib) {
+        println("Load failed");
+        return;
+    }
+    
+    if ffi_call(lib, "ipe_init", "i32") == 0 {
+        println("Init failed");
+        return;
+    }
+    
+    if ffi_call(lib, "ipe_window_create", "pointer", 800, 600, "Grid") == 0 {
+        println("Window failed");
+        return;
+    }
+    
+    println("Running... Press ESC.");
+    
+    while ffi_call(lib, "ipe_is_window_open", "i32") != 0 {
+        ffi_call(lib, "ipe_process_events", "void");
+        
+        if ffi_call(lib, "ipe_event_has_key_down", "i32") != 0 {
+            if ffi_call(lib, "ipe_input_get_key_code", "i32") == 27 { break; }
+        }
+        
+        let win_w = ffi_call(lib, "ipe_window_get_width", "i32");
+        
+        let padding = 40;
+        let min_col = 120;
+        let gap = 20;
+        let avail = win_w - padding * 2;
+        
+        // Integer division works!
+        let cols = avail / min_col;
+        if cols < 1 { cols = 1; }
+        if cols > 4 { cols = 4; }
+        
+        let cell_w = (avail - (cols - 1) * gap) / cols;
+        let cell_h = 80;
+        
+        ffi_call(lib, "ipe_clear_background", "void", Colors.bg_primary);
+        ffi_call(lib, "ipe_draw_text", "void", "Responsive Grid - resize window", 40, 30, Colors.text_primary);
+        
+        // Draw 6 cards using while loop without parentheses
+        let i = 0;
+        while i < 6 {
+            let col = i % cols;
+            let row = i / cols;
+            
+            let x = padding + col * (cell_w + gap);
+            let y = padding + 80 + row * (cell_h + gap);
+            
+            // Hardcoded colors based on index
+            if i == 0 {
+                ffi_call(lib, "ipe_draw_rect", "void", x, y, cell_w, cell_h, 0xFF4DA8DA);
+            }
+            if i == 1 {
+                ffi_call(lib, "ipe_draw_rect", "void", x, y, cell_w, cell_h, 0xFF4CAF50);
+            }
+            if i == 2 {
+                ffi_call(lib, "ipe_draw_rect", "void", x, y, cell_w, cell_h, 0xFFFFC107);
+            }
+            if i == 3 {
+                ffi_call(lib, "ipe_draw_rect", "void", x, y, cell_w, cell_h, 0xFFF44336);
+            }
+            if i == 4 {
+                ffi_call(lib, "ipe_draw_rect", "void", x, y, cell_w, cell_h, 0xFF9900FF);
+            }
+            if i == 5 {
+                ffi_call(lib, "ipe_draw_rect", "void", x, y, cell_w, cell_h, 0xFFFF66B5);
+            }
+            
+            i = i + 1;
+        }
+        
+        ffi_call(lib, "ipe_present", "void");
+        ffi_call(lib, "ipe_input_clear_events", "void");
+    }
+    
+    ffi_call(lib, "ipe_window_close", "void");
+    println("Done!");
+}
+
+main();

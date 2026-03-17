@@ -662,6 +662,28 @@ impl Parser {
 
                     expr = Expr::Call(Box::new(expr), args, location);
                 }
+                // Namespace access: expr::member (like C++/Rust ::)
+                Token::Symbol(':') => {
+                    if matches!(self.peek_next(), Token::Symbol(':')) {
+                        self.advance(); // consome primeiro ':'
+                        self.advance(); // consome segundo ':'
+                        match self.peek() {
+                            Token::Identifier(member_name) => {
+                                let name = member_name.clone();
+                                self.advance();
+                                expr = Expr::PropertyAccess(Box::new(expr), name, location);
+                            }
+                            _ => {
+                                return Err(DryadError::new(
+                                    2083,
+                                    "Esperado identificador após '::' para acesso a namespace",
+                                ));
+                            }
+                        }
+                    } else {
+                        break;
+                    }
+                }
                 _ => break,
             }
         }
@@ -1012,7 +1034,7 @@ impl Parser {
                                     } else {
                                         None
                                     };
-                                    
+
                                     let p_default = if matches!(self.peek(), Token::Symbol('=')) {
                                         self.advance(); // consume '='
                                         Some(self.expression()?)
@@ -1239,7 +1261,14 @@ impl Parser {
         }
 
         if !matches!(self.peek(), Token::Symbol('}')) {
-            return Err(DryadError::new(2012, "Esperado '}' para fechar bloco"));
+            let found = format!("{:?}", self.peek());
+            return Err(DryadError::parser(
+                2012,
+                "Esperado '}' para fechar bloco",
+                location,
+                vec!["}".to_string()],
+                found,
+            ));
         }
 
         self.advance(); // consume '}'
@@ -1251,23 +1280,19 @@ impl Parser {
         let location = self.current_location();
         self.advance(); // consume 'while'
 
-        // Expect opening parenthesis: while (
-        if !matches!(self.peek(), Token::Symbol('(')) {
-            return Err(DryadError::new(
-                2050,
-                "Esperado '(' após 'while' - sintaxe: while (condição)",
-            ));
-        }
-        self.advance(); // consume '('
-
-        // Parse condition expression
-        let condition = self.expression()?;
-
-        // Expect closing parenthesis: )
-        if !matches!(self.peek(), Token::Symbol(')')) {
-            return Err(DryadError::new(2051, "Esperado ')' após condição do while"));
-        }
-        self.advance(); // consume ')'
+        // Optional parentheses: while (condition) or while condition
+        let condition = if matches!(self.peek(), Token::Symbol('(')) {
+            self.advance(); // consume '('
+            let cond = self.expression()?;
+            if !matches!(self.peek(), Token::Symbol(')')) {
+                return Err(DryadError::new(2051, "Esperado ')' após condição do while"));
+            }
+            self.advance(); // consume ')'
+            cond
+        } else {
+            // Parse condition until we hit '{' or newline
+            self.expression()?
+        };
 
         // Expect opening brace for loop body
         if !matches!(self.peek(), Token::Symbol('{')) {
@@ -2113,13 +2138,13 @@ impl Parser {
                         loop {
                             if let Token::Identifier(param_name) = self.advance() {
                                 let name = param_name.clone();
-                    let param_type = if matches!(self.peek(), Token::Symbol(':')) {
-                        self.advance(); // consume ':'
-                        Some(self.parse_type()?)
-                    } else {
-                        None
-                    };
-                                
+                                let param_type = if matches!(self.peek(), Token::Symbol(':')) {
+                                    self.advance(); // consume ':'
+                                    Some(self.parse_type()?)
+                                } else {
+                                    None
+                                };
+
                                 let default_value = if matches!(self.peek(), Token::Symbol('=')) {
                                     self.advance(); // consume '='
                                     Some(self.expression()?)
@@ -2556,7 +2581,14 @@ impl Parser {
 
         // Expect opening brace for then block
         if !matches!(self.peek(), Token::Symbol('{')) {
-            return Err(DryadError::new(2050, "Esperado '{' após condição do if"));
+            let found = format!("{:?}", self.peek());
+            return Err(DryadError::parser(
+                2050,
+                "Esperado '{' após condição do if",
+                location,
+                vec!["{".to_string()],
+                found,
+            ));
         }
 
         // Parse then block
@@ -3007,6 +3039,13 @@ impl Parser {
             Token::String(path) => {
                 // Caso 1: import "module";
                 let module_path = path.clone();
+                self.advance();
+                self.consume_semicolon()?;
+                Ok(Stmt::Import(ImportKind::SideEffect, module_path, location))
+            }
+            Token::Identifier(module_name) => {
+                // Caso 1.5: import module_name; (sem aspas - tratado como identifier)
+                let module_path = module_name.clone();
                 self.advance();
                 self.consume_semicolon()?;
                 Ok(Stmt::Import(ImportKind::SideEffect, module_path, location))

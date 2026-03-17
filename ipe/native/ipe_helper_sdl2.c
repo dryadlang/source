@@ -389,6 +389,11 @@ typedef struct ipe_control {
   // Type-specific data
   char *control_type;
   void *type_data;
+  
+  // Additional members for linked list and event handling
+  struct ipe_control *next;
+  char *name;
+  int (*handle_event)(struct ipe_control *, int event, int x, int y);
 } ipe_control_t;
 
 // Global control state
@@ -477,6 +482,9 @@ IPE_EXPORT void ipe_transform_rotate(float angle_degrees) {
 IPE_EXPORT void ipe_transform_reset() {
     ipe_matrix_identity(&g_transform_stack[g_transform_depth]);
 }
+
+// Forward declarations
+static void ipe_draw_polygon_styled(int* points, int point_count, ipe_polygon_style_t* style);
 
 // Button structure
 typedef struct {
@@ -642,6 +650,84 @@ IPE_EXPORT int ipe_input_event_count() {
 IPE_EXPORT void ipe_input_clear_events() {
     g_event_queue.count = 0;
     g_event_queue.read_index = 0;
+}
+
+// ========== Event Polling API ==========
+// Simple polling functions for event detection
+
+IPE_EXPORT int ipe_event_has_key_down() {
+    for (int i = 0; i < g_event_queue.count; i++) {
+        if (g_event_queue.events[i].type == IPE_EVENT_KEY_DOWN) return 1;
+    }
+    return 0;
+}
+
+IPE_EXPORT int ipe_event_has_key_up() {
+    for (int i = 0; i < g_event_queue.count; i++) {
+        if (g_event_queue.events[i].type == IPE_EVENT_KEY_UP) return 1;
+    }
+    return 0;
+}
+
+IPE_EXPORT int ipe_event_has_mouse_down() {
+    for (int i = 0; i < g_event_queue.count; i++) {
+        if (g_event_queue.events[i].type == IPE_EVENT_MOUSE_DOWN) return 1;
+    }
+    return 0;
+}
+
+IPE_EXPORT int ipe_event_has_mouse_up() {
+    for (int i = 0; i < g_event_queue.count; i++) {
+        if (g_event_queue.events[i].type == IPE_EVENT_MOUSE_UP) return 1;
+    }
+    return 0;
+}
+
+IPE_EXPORT int ipe_event_has_mouse_move() {
+    for (int i = 0; i < g_event_queue.count; i++) {
+        if (g_event_queue.events[i].type == IPE_EVENT_MOUSE_MOVE) return 1;
+    }
+    return 0;
+}
+
+IPE_EXPORT int ipe_event_has_scroll() {
+    for (int i = 0; i < g_event_queue.count; i++) {
+        if (g_event_queue.events[i].type == IPE_EVENT_SCROLL) return 1;
+    }
+    return 0;
+}
+
+// Get last event of specific type
+IPE_EXPORT ipe_input_event_t* ipe_event_get_last_key_down() {
+    for (int i = g_event_queue.count - 1; i >= 0; i--) {
+        if (g_event_queue.events[i].type == IPE_EVENT_KEY_DOWN) 
+            return &g_event_queue.events[i];
+    }
+    return NULL;
+}
+
+IPE_EXPORT ipe_input_event_t* ipe_event_get_last_mouse_down() {
+    for (int i = g_event_queue.count - 1; i >= 0; i--) {
+        if (g_event_queue.events[i].type == IPE_EVENT_MOUSE_DOWN) 
+            return &g_event_queue.events[i];
+    }
+    return NULL;
+}
+
+IPE_EXPORT ipe_input_event_t* ipe_event_get_last_mouse_up() {
+    for (int i = g_event_queue.count - 1; i >= 0; i--) {
+        if (g_event_queue.events[i].type == IPE_EVENT_MOUSE_UP) 
+            return &g_event_queue.events[i];
+    }
+    return NULL;
+}
+
+IPE_EXPORT ipe_input_event_t* ipe_event_get_last_mouse_move() {
+    for (int i = g_event_queue.count - 1; i >= 0; i--) {
+        if (g_event_queue.events[i].type == IPE_EVENT_MOUSE_MOVE) 
+            return &g_event_queue.events[i];
+    }
+    return NULL;
 }
 
 // Helper to add event to queue
@@ -879,6 +965,81 @@ IPE_EXPORT void ipe_control_draw_recursive(ipe_control_t* ctrl, void* window) {
     }
 }
 
+// ========== Task 2: Event Handling for Controls ==========
+
+// Hit testing helper - finds control at point (x, y)
+static ipe_control_t* ipe_control_at_point(ipe_control_t* ctrl, int x, int y) {
+    if (!ctrl || !ctrl->visible || !ctrl->enabled) {
+        return NULL;
+    }
+    
+    // Check if point is outside control bounds
+    if (x < ctrl->x || x > ctrl->x + ctrl->w || 
+        y < ctrl->y || y > ctrl->y + ctrl->h) {
+        return NULL;
+    }
+    
+    // Check children in reverse order (last child = top z-order)
+    for (int i = ctrl->children_count - 1; i >= 0; i--) {
+        ipe_control_t* hit = ipe_control_at_point(ctrl->children[i], x, y);
+        if (hit) {
+            return hit;
+        }
+    }
+    
+    // No child contains the point, return this control
+    return ctrl;
+}
+
+// Mouse event handlers
+IPE_EXPORT void ipe_control_handle_mouse_click(int x, int y) {
+    if (!g_control_root) return;
+    
+    ipe_control_t* ctrl = ipe_control_at_point(g_control_root, x, y);
+    if (ctrl && ctrl->on_click) {
+        ctrl->on_click(ctrl);
+    }
+}
+
+IPE_EXPORT void ipe_control_handle_mouse_move(int x, int y) {
+    if (!g_control_root) return;
+    
+    ipe_control_t* ctrl = ipe_control_at_point(g_control_root, x, y);
+    if (ctrl && ctrl->on_mouse_move) {
+        ctrl->on_mouse_move(ctrl, x, y);
+    }
+}
+
+// Keyboard event handler
+IPE_EXPORT void ipe_control_handle_key_press(int key_code) {
+    if (g_focused_control && g_focused_control->on_key) {
+        g_focused_control->on_key(g_focused_control, key_code);
+    }
+}
+
+// Focus management
+IPE_EXPORT void ipe_control_set_focus(ipe_control_t* ctrl) {
+    // Call on_blur on previously focused control
+    if (g_focused_control && g_focused_control->on_blur) {
+        g_focused_control->on_blur(g_focused_control);
+        g_focused_control->focused = 0;
+    }
+    
+    // Set new focused control
+    g_focused_control = ctrl;
+    
+    if (ctrl) {
+        ctrl->focused = 1;
+        if (ctrl->on_focus) {
+            ctrl->on_focus(ctrl);
+        }
+    }
+}
+
+IPE_EXPORT ipe_control_t* ipe_control_get_focus() {
+    return g_focused_control;
+}
+
 IPE_EXPORT int ipe_init() {
   if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) < 0)
     return 0;
@@ -961,12 +1122,12 @@ IPE_EXPORT void ipe_clear_background(uint32_t color) {
   SDL_RenderClear(g_current_window->renderer);
 }
 
-void ipe_present() {
+IPE_EXPORT void ipe_present() {
   if (g_current_window && g_current_window->renderer)
     SDL_RenderPresent(g_current_window->renderer);
 }
 
-I_EXPORT void ipe_draw_rect_styled(int x, int y, int w, int h, ipe_rect_style_t* style) {
+IPE_EXPORT void ipe_draw_rect_styled(int x, int y, int w, int h, ipe_rect_style_t* style) {
     if (!g_current_window || !g_current_window->renderer) {
         IPE_ERR("Window not initialized. Call ipe_init() first.");
         return;
@@ -1321,7 +1482,7 @@ static void draw_filled_circle(SDL_Renderer* renderer, int cx, int cy,
     }
 }
 
-I_EXPORT void ipe_draw_circle_styled(int cx, int cy, int radius, ipe_circle_style_t* style) {
+IPE_EXPORT void ipe_draw_circle_styled(int cx, int cy, int radius, ipe_circle_style_t* style) {
     if (!g_current_window || !g_current_window->renderer) {
         IPE_ERR("Window not initialized. Call ipe_init() first.");
         return;
@@ -1514,7 +1675,7 @@ static void draw_filled_polygon(SDL_Renderer* renderer, int* points, int point_c
     }
 }
 
-I_EXPORT void ipe_draw_polygon_styled(int* points, int point_count, ipe_polygon_style_t* style) {
+IPE_EXPORT void ipe_draw_polygon_styled(int* points, int point_count, ipe_polygon_style_t* style) {
     if (!g_current_window || !g_current_window->renderer) {
         IPE_ERR("Window not initialized. Call ipe_init() first.");
         return;
@@ -1998,28 +2159,29 @@ void ipe_control_add(ipe_control_t *parent, ipe_control_t *child) {
     return;
   }
 
-  if (!parent->children) {
-    parent->children = child;
+  if (parent->children_count == 0) {
+    parent->children = (ipe_control_t**)malloc(sizeof(ipe_control_t*));
+    parent->children[0] = child;
+    parent->children_count = 1;
+    parent->children_capacity = 1;
   } else {
-    ipe_control_t *curr = parent->children;
-    while (curr->next) curr = curr->next;
-    curr->next = child;
+    ipe_control_add_child(parent, child);
   }
 }
 
 void ipe_control_remove(ipe_control_t *ctrl) {
-  if (!g_root_control || !ctrl) return;
-  if (g_root_control == ctrl) {
-    g_root_control = ctrl->next;
+  if (!g_control_root || !ctrl) return;
+  if (g_control_root == ctrl) {
+    g_control_root = ctrl->next;
     return;
   }
-  ipe_control_t *curr = g_root_control;
+  ipe_control_t *curr = g_control_root;
   while (curr->next && curr->next != ctrl) curr = curr->next;
   if (curr->next) curr->next = ctrl->next;
 }
 
 ipe_control_t *ipe_control_find(const char *name) {
-  ipe_control_t *curr = g_root_control;
+  ipe_control_t *curr = g_control_root;
   while (curr) {
     if (curr->name && strcmp(curr->name, name) == 0) return curr;
     curr = curr->next;
@@ -2134,6 +2296,11 @@ IPE_EXPORT int ipe_process_events() {
       g_mouse_y = e.button.y;
       g_mouse_buttons |= (1 << (e.button.button - 1)); // 0=left, 1=middle, 2=right
       
+      // Handle control events
+      if (g_control_root != NULL) {
+        ipe_control_handle_mouse_click(e.button.x, e.button.y);
+      }
+      
       // Queue mouse down event
       {
         ipe_input_event_t evt = {
@@ -2168,6 +2335,11 @@ IPE_EXPORT int ipe_process_events() {
       }
       break;
     case SDL_MOUSEMOTION:
+      // Handle control events BEFORE updating globals
+      if (g_control_root != NULL) {
+        ipe_control_handle_mouse_move(e.motion.x, e.motion.y);
+      }
+      
       g_mouse_x = e.motion.x;
       g_mouse_y = e.motion.y;
       
@@ -2201,6 +2373,11 @@ IPE_EXPORT int ipe_process_events() {
     case SDL_KEYDOWN:
       g_last_event_type = 4;
       g_key_code = e.key.keysym.sym;
+      
+      // Handle control events
+      if (g_control_root != NULL) {
+        ipe_control_handle_key_press(e.key.keysym.sym);
+      }
       
       // Track key pressed
       if (e.key.keysym.scancode < 512) {
@@ -2287,6 +2464,16 @@ int ipe_get_mouse_y() { return g_mouse_y; }
 int ipe_get_key_code() { return g_key_code; }
 
 IPE_EXPORT int ipe_is_window_open() { return g_running; }
+
+IPE_EXPORT int ipe_window_get_width() { 
+    if (g_current_window) return g_current_window->width;
+    return 0; 
+}
+
+IPE_EXPORT int ipe_window_get_height() { 
+    if (g_current_window) return g_current_window->height;
+    return 0; 
+}
 
 IPE_EXPORT void ipe_window_close() {
   if (g_current_window) {

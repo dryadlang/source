@@ -106,7 +106,7 @@ pub struct VM {
 impl VM {
     /// Cria uma nova VM
     pub fn new() -> Self {
-        Self {
+        let mut vm = Self {
             stack: Vec::with_capacity(256),
             frames: Vec::new(),
             globals: HashMap::new(),
@@ -114,7 +114,15 @@ impl VM {
             debug_mode: false,
             max_frames: 1000,
             try_frames: Vec::new(),
-        }
+        };
+
+        // Adiciona funções nativas
+        vm.globals.insert(
+            "print".to_string(),
+            Value::NativeFunction(Self::builtin_print),
+        );
+
+        vm
     }
 
     /// Define o modo de debug
@@ -1369,6 +1377,35 @@ impl VM {
     /// Obtém uma variável global
     pub fn get_global(&self, name: &str) -> Option<&Value> {
         self.globals.get(name)
+    }
+
+    /// Função nativa: print(value) - imprime um valor no stdout
+    fn builtin_print(args: &[Value]) -> Result<Value, String> {
+        if args.is_empty() {
+            println!();
+        } else {
+            let output = args
+                .iter()
+                .map(|v| match v {
+                    Value::Nil => "nil".to_string(),
+                    Value::Number(n) => {
+                        if n.fract() == 0.0 {
+                            format!("{:.0}", n)
+                        } else {
+                            n.to_string()
+                        }
+                    }
+                    Value::Boolean(b) => b.to_string(),
+                    Value::String(s) => s.clone(),
+                    Value::Object(_) => "[Object]".to_string(),
+                    Value::NativeFunction(_) => "[Native Function]".to_string(),
+                    Value::Function(_) => "[Function]".to_string(),
+                })
+                .collect::<Vec<_>>()
+                .join(" ");
+            println!("{}", output);
+        }
+        Ok(Value::Nil)
     }
 }
 

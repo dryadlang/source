@@ -848,12 +848,11 @@ impl Compiler {
                     self.emit_op(OpCode::Method(method_name_idx), line);
                 }
                 ClassMember::Property(_, _, prop_name, _, default) => {
-                    // Propriedade - se tiver valor default, compila
-                    if let Some(default_expr) = default {
-                        self.compile_expression(default_expr)?;
-                        let prop_name_idx =
-                            self.make_constant(crate::value::Value::String(prop_name), line)?;
-                        self.emit_op(OpCode::SetProperty(prop_name_idx), line);
+                    // Propriedade - deixa para ser inicializada em instâncias
+                    // TODO: Armazenar defaults para usar na inicialização de instâncias
+                    if let Some(_default_expr) = default {
+                        // Por enquanto, ignora defaults em classes
+                        // Eles seriam inicializados quando uma instância é criada
                     }
                 }
                 _ => {

@@ -8,7 +8,7 @@ pub use crate::value::{
     ClassGetter, ClassMethod, ClassProperty, ClassSetter, FlowControl, ObjectMethod, Value,
 };
 use dryad_bytecode::{Chunk, Compiler, InterpretResult as BytecodeInterpretResult, VM};
-use dryad_errors::{DryadError, SourceLocation, StackFrame, StackTrace};
+use dryad_errors::{error_catalog, DryadError, SourceLocation, StackFrame, StackTrace};
 use dryad_parser::ast::{
     ClassMember, Expr, ImportKind, InterfaceMember, Literal, MatchArm, ObjectProperty, Pattern,
     Program, Stmt, Visibility,
@@ -658,12 +658,12 @@ impl Interpreter {
                         // Get class info to check for setter
                         let class_name = {
                             let heap_obj = self.heap.get(instance_id).ok_or_else(|| {
-                                DryadError::new(3100, "Heap error: Instance reference not found")
+                                DryadError::from_catalog_fmt(error_catalog::e3100(), "Heap error: Instance reference not found", SourceLocation::unknown())
                             })?;
                             if let ManagedObject::Instance { class_name, .. } = heap_obj {
                                 class_name.clone()
                             } else {
-                                return Err(DryadError::new(3101, "Heap error: Expected Instance"));
+                                return Err(DryadError::from_catalog_fmt(error_catalog::e3101(), "Heap error: Expected Instance", SourceLocation::unknown()));
                             }
                         };
 
@@ -677,10 +677,11 @@ impl Interpreter {
                         if let Some(setter) = setter_clone_opt {
                             // Visibility check
                             if !self.check_visibility(&setter.visibility, &class_name) {
-                                return Err(DryadError::new(
-                                    3029,
+                                return Err(DryadError::from_catalog_fmt(
+                                    error_catalog::e3029(),
                                     &format!("Setter '{}' não é acessível (visibilidade: {:?})", property_name, setter.visibility),
-                                ));
+                                    SourceLocation::unknown(),
+                                    ));
                             }
 
                             // Execute setter with 'this' and parameter (no heap borrow held)
@@ -701,10 +702,11 @@ impl Interpreter {
                             if let Some(ManagedObject::Class { properties: class_props, .. }) = self.heap.get(*cid) {
                                 if let Some(prop_def) = class_props.get(property_name) {
                                     if !self.check_visibility(&prop_def.visibility, &class_name) {
-                                        return Err(DryadError::new(
-                                            3029,
+                                        return Err(DryadError::from_catalog_fmt(
+                                            error_catalog::e3029(),
                                             &format!("Propriedade '{}' não é acessível para escrita (visibilidade: {:?})", property_name, prop_def.visibility),
-                                        ));
+                                            SourceLocation::unknown(),
+                                            ));
                                     }
                                 }
                             }
@@ -712,26 +714,26 @@ impl Interpreter {
 
                         // Now acquire mutable access to the instance and set property
                         let heap_obj = self.heap.get_mut(instance_id).ok_or_else(|| {
-                            DryadError::new(3100, "Heap error: Instance reference not found")
+                            DryadError::from_catalog_fmt(error_catalog::e3100(), "Heap error: Instance reference not found", SourceLocation::unknown())
                         })?;
                         
                         if let ManagedObject::Instance { properties, .. } = heap_obj {
                             properties.insert(property_name.clone(), value.clone());
                             Ok(value)
                         } else {
-                            Err(DryadError::new(3101, "Heap error: Expected Instance"))
+                            Err(DryadError::from_catalog_fmt(error_catalog::e3101(), "Heap error: Expected Instance", SourceLocation::unknown()))
                         }
                     }
                     Value::Object(id) => {
                         let heap_obj = self.heap.get_mut(id).ok_or_else(|| {
-                            DryadError::new(3100, "Heap error: Object reference not found")
+                            DryadError::from_catalog_fmt(error_catalog::e3100(), "Heap error: Object reference not found", SourceLocation::unknown())
                         })?;
                         
                         if let ManagedObject::Object { properties, .. } = heap_obj {
                             properties.insert(property_name.clone(), value.clone());
                             Ok(value)
                         } else {
-                            Err(DryadError::new(3101, "Heap error: Expected Object"))
+                            Err(DryadError::from_catalog_fmt(error_catalog::e3101(), "Heap error: Expected Object", SourceLocation::unknown()))
                         }
                     }
                     Value::Class(id) => {
@@ -743,23 +745,25 @@ impl Interpreter {
                                 properties.get(property_name).cloned(),
                             )
                         } else {
-                            return Err(DryadError::new(3101, "Heap error: Expected Class"));
+                            return Err(DryadError::from_catalog_fmt(error_catalog::e3101(), "Heap error: Expected Class", SourceLocation::unknown()));
                         };
 
                         // If there's a static setter, execute it (we have a cloned copy)
                         if let Some(setter) = setter_clone_opt {
                             if !setter.is_static {
-                                return Err(DryadError::new(
-                                    3029,
+                                return Err(DryadError::from_catalog_fmt(
+                                    error_catalog::e3029(),
                                     &format!("Setter '{}' não é estático", property_name),
-                                ));
+                                    SourceLocation::unknown(),
+                                    ));
                             }
 
                             if !self.check_visibility(&setter.visibility, &class_name_clone) {
-                                return Err(DryadError::new(
-                                    3029,
+                                return Err(DryadError::from_catalog_fmt(
+                                    error_catalog::e3029(),
                                     &format!("Setter '{}' não é acessível (visibilidade: {:?})", property_name, setter.visibility),
-                                ));
+                                    SourceLocation::unknown(),
+                                    ));
                             }
 
                             // Execute setter with 'current_class' set
@@ -777,22 +781,24 @@ impl Interpreter {
                         // If static property exists, validate visibility and update it with a fresh mutable borrow
                         if let Some(prop_def) = prop_def_opt {
                             if !prop_def.is_static {
-                                return Err(DryadError::new(
-                                    3029,
+                                return Err(DryadError::from_catalog_fmt(
+                                    error_catalog::e3029(),
                                     &format!("Propriedade '{}' não é estática na classe '{}'", property_name, class_name_clone),
-                                ));
+                                    SourceLocation::unknown(),
+                                    ));
                             }
 
                             if !self.check_visibility(&prop_def.visibility, &class_name_clone) {
-                                return Err(DryadError::new(
-                                    3029,
+                                return Err(DryadError::from_catalog_fmt(
+                                    error_catalog::e3029(),
                                     &format!("Propriedade estática '{}' não é acessível para escrita (visibilidade: {:?})", property_name, prop_def.visibility),
-                                ));
+                                    SourceLocation::unknown(),
+                                    ));
                             }
 
                             // Mutate the class property with a mutable borrow
                             let heap_obj_mut = self.heap.get_mut(id).ok_or_else(|| {
-                                DryadError::new(3100, "Heap error: Class reference not found")
+                                DryadError::from_catalog_fmt(error_catalog::e3100(), "Heap error: Class reference not found", SourceLocation::unknown())
                             })?;
 
                             if let ManagedObject::Class { properties, .. } = heap_obj_mut {
@@ -802,13 +808,14 @@ impl Interpreter {
                                 }
                             }
 
-                            return Err(DryadError::new(
-                                3030,
+                            return Err(DryadError::from_catalog_fmt(
+                                error_catalog::e3030(),
                                 &format!("Propriedade estática '{}' não encontrada na classe '{}'", property_name, class_name_clone),
-                            ));
+                                SourceLocation::unknown(),
+                                ));
                         }
 
-                        Err(DryadError::new(3030, &format!("Propriedade estática '{}' não encontrada na classe '{}'", property_name, class_name_clone)))
+                        Err(DryadError::from_catalog_fmt(error_catalog::e3030(), &format!("Propriedade estática '{}' não encontrada na classe '{}'", property_name, class_name_clone), SourceLocation::unknown()))
                     }
                     _ => Err(self.runtime_error(3034, "Tentativa de atribuir propriedade a valor que não é uma instância, classe ou objeto"))
                 }
@@ -897,8 +904,16 @@ impl Interpreter {
 
                 Ok(last_value)
             }
-            Stmt::Break(_) => Err(DryadError::new(3010, "break")),
-            Stmt::Continue(_) => Err(DryadError::new(3011, "continue")),
+            Stmt::Break(_) => Err(DryadError::from_catalog_fmt(
+                error_catalog::e3010(),
+                "break",
+                SourceLocation::unknown(),
+            )),
+            Stmt::Continue(_) => Err(DryadError::from_catalog_fmt(
+                error_catalog::e3011(),
+                "continue",
+                SourceLocation::unknown(),
+            )),
             Stmt::For(init, condition, update, body, _) => {
                 self.execute_for_loop(init, condition, update, body)
             }
@@ -1052,10 +1067,11 @@ impl Interpreter {
                 // Verify interfaces are implemented
                 for interface_name in interfaces {
                     if !self.env.interfaces.contains_key(interface_name) {
-                        return Err(DryadError::new(
-                            3102,
+                        return Err(DryadError::from_catalog_fmt(
+                            error_catalog::e3102(),
                             &format!("Interface '{}' não encontrada", interface_name),
-                        ));
+                            SourceLocation::unknown(),
+                            ));
                     }
 
                     // Verify class implements all interface methods
@@ -1066,13 +1082,14 @@ impl Interpreter {
                         };
 
                         if !methods.contains_key(method_name) {
-                            return Err(DryadError::new(
-                                3103,
+                            return Err(DryadError::from_catalog_fmt(
+                                error_catalog::e3103(),
                                 &format!(
                                     "Classe '{}' deve implementar o método '{}' da interface '{}'",
                                     name, method_name, interface_name
                                 ),
-                            ));
+                                SourceLocation::unknown(),
+                                ));
                         }
                     }
                 }
@@ -1105,7 +1122,11 @@ impl Interpreter {
                     None => Value::Null,
                 };
                 self.pending_return_value = Some(value);
-                return Err(DryadError::new(3021, "RETURN_PENDING"));
+                return Err(DryadError::from_catalog_fmt(
+                    error_catalog::e3021(),
+                    "RETURN_PENDING",
+                    SourceLocation::unknown(),
+                ));
             }
             Stmt::Export(stmt, _) => {
                 // Por enquanto, simplesmente executa o statement interno
@@ -1193,16 +1214,21 @@ impl Interpreter {
                 if let Some(instance) = &self.env.current_instance {
                     Ok(instance.clone())
                 } else {
-                    Err(DryadError::new(
-                        3022,
+                    Err(DryadError::from_catalog_fmt(
+                        error_catalog::e3022(),
                         "'this' usado fora do contexto de uma instância",
-                    ))
+                        SourceLocation::unknown(),
+                        ))
                 }
             }
             Expr::Super(_) => {
                 // Para implementar super, precisaríamos do contexto da classe pai
                 // Por agora, retorna erro
-                Err(DryadError::new(3023, "'super' ainda não implementado"))
+                Err(DryadError::from_catalog_fmt(
+                    error_catalog::e3023(),
+                    "'super' ainda não implementado",
+                    SourceLocation::unknown(),
+                ))
             }
             Expr::MethodCall(object_expr, method_name, args, _) => {
                 self.eval_method_call(object_expr, method_name, args)
@@ -1224,7 +1250,11 @@ impl Interpreter {
                     Value::Result(true, val) => Ok(*val),
                     Value::Result(false, err) => {
                         self.pending_return_value = Some(Value::Result(false, err));
-                        Err(DryadError::new(3021, "RETURN_PENDING"))
+                        Err(DryadError::from_catalog_fmt(
+                            error_catalog::e3021(),
+                            "RETURN_PENDING",
+                            SourceLocation::unknown(),
+                        ))
                     }
                     _ => Err(self.runtime_error(
                         3050,
@@ -1296,10 +1326,11 @@ impl Interpreter {
             "&&" => Ok(Value::Bool(left_val.is_truthy() && right_val.is_truthy())),
             "||" => Ok(Value::Bool(left_val.is_truthy() || right_val.is_truthy())),
             "!" => Ok(Value::Bool(!right_val.is_truthy())), // Unário
-            _ => Err(DryadError::new(
-                3002,
+            _ => Err(DryadError::from_catalog_fmt(
+                error_catalog::e3002(),
                 &format!("Operador desconhecido: {}", operator),
-            )),
+                SourceLocation::unknown(),
+                )),
         }
     }
 
@@ -1326,7 +1357,11 @@ impl Interpreter {
             } => self.call_user_function(name, params, rest_param, body, args, location),
             Value::Lambda(id) => {
                 let heap_obj = self.heap.get(id).cloned().ok_or_else(|| {
-                    DryadError::new(3100, "Heap error: Lambda reference not found")
+                    DryadError::from_catalog_fmt(
+                        error_catalog::e3100(),
+                        "Heap error: Lambda reference not found",
+                        SourceLocation::unknown(),
+                    )
                 })?;
 
                 if let ManagedObject::Lambda {
@@ -1337,10 +1372,18 @@ impl Interpreter {
                 {
                     self.call_lambda(params, body, closure, args, location)
                 } else {
-                    Err(DryadError::new(3101, "Heap error: Expected Lambda"))
+                    Err(DryadError::from_catalog_fmt(
+                        error_catalog::e3101(),
+                        "Heap error: Expected Lambda",
+                        SourceLocation::unknown(),
+                    ))
                 }
             }
-            _ => Err(DryadError::new(3003, "Expressão não é uma função")),
+            _ => Err(DryadError::from_catalog_fmt(
+                error_catalog::e3003(),
+                "Expressão não é uma função",
+                SourceLocation::unknown(),
+            )),
         }
     }
 
@@ -1365,7 +1408,11 @@ impl Interpreter {
             // Chama a função nativa
             return native_func(&arg_values, &self.native_registry.manager, &mut self.heap)
                 .map_err(|e| {
-                    DryadError::new(3005, &format!("Erro na função nativa '{}': {}", name, e))
+                    DryadError::from_catalog_fmt(
+                        error_catalog::e3005(),
+                        &format!("Erro na função nativa '{}': {}", name, e),
+                        SourceLocation::unknown(),
+                    )
                 });
         }
 
@@ -1411,7 +1458,11 @@ impl Interpreter {
                 ),
                 Value::Lambda(id) => {
                     let heap_obj = self.heap.get(id).ok_or_else(|| {
-                        DryadError::new(3100, "Heap error: Lambda reference not found")
+                        DryadError::from_catalog_fmt(
+                            error_catalog::e3100(),
+                            "Heap error: Lambda reference not found",
+                            SourceLocation::unknown(),
+                        )
                     })?;
                     if let ManagedObject::Lambda {
                         params,
@@ -1427,13 +1478,18 @@ impl Interpreter {
                             location,
                         )
                     } else {
-                        Err(DryadError::new(3101, "Heap error: Expected Lambda"))
+                        Err(DryadError::from_catalog_fmt(
+                            error_catalog::e3101(),
+                            "Heap error: Expected Lambda",
+                            SourceLocation::unknown(),
+                        ))
                     }
                 }
-                _ => Err(DryadError::new(
-                    3003,
+                _ => Err(DryadError::from_catalog_fmt(
+                    error_catalog::e3003(),
                     &format!("'{}' não é uma função", name),
-                )),
+                    SourceLocation::unknown(),
+                    )),
             }
         } else {
             // Verificar se a função existe em uma categoria nativa inativa
@@ -1456,10 +1512,11 @@ impl Interpreter {
                 }
             }
 
-            Err(DryadError::new(
-                3003,
+            Err(DryadError::from_catalog_fmt(
+                error_catalog::e3003(),
                 &format!("Função '{}' não definida", name),
-            ))
+                SourceLocation::unknown(),
+                ))
         }
     }
 
@@ -1633,13 +1690,14 @@ impl Interpreter {
             } else if let Some(expr) = default_expr {
                 self.evaluate(expr)
             } else {
-                Err(DryadError::new(
-                    3004,
+                Err(DryadError::from_catalog_fmt(
+                    error_catalog::e3004(),
                     &format!(
                         "Argumento obrigatório '{}' não fornecido na lambda",
                         param_name
                     ),
-                ))
+                    SourceLocation::unknown(),
+                    ))
             };
 
             match value_result {
@@ -1674,30 +1732,33 @@ impl Interpreter {
             (Value::String(a), Value::String(b)) => Ok(Value::String(format!("{}{}", a, b))),
             (Value::String(a), b) => Ok(Value::String(format!("{}{}", a, b.to_string()))),
             (a, Value::String(b)) => Ok(Value::String(format!("{}{}", a.to_string(), b))),
-            _ => Err(DryadError::new(
-                3004,
+            _ => Err(DryadError::from_catalog_fmt(
+                error_catalog::e3004(),
                 "Operação '+' inválida para estes tipos",
-            )),
+                SourceLocation::unknown(),
+                )),
         }
     }
 
     fn subtract_values(&self, left: Value, right: Value) -> Result<Value, DryadError> {
         match (left, right) {
             (Value::Number(a), Value::Number(b)) => Ok(Value::Number(a - b)),
-            _ => Err(DryadError::new(
-                3005,
+            _ => Err(DryadError::from_catalog_fmt(
+                error_catalog::e3005(),
                 "Operação '-' só é válida para números",
-            )),
+                SourceLocation::unknown(),
+                )),
         }
     }
 
     fn multiply_values(&self, left: Value, right: Value) -> Result<Value, DryadError> {
         match (left, right) {
             (Value::Number(a), Value::Number(b)) => Ok(Value::Number(a * b)),
-            _ => Err(DryadError::new(
-                3006,
+            _ => Err(DryadError::from_catalog_fmt(
+                error_catalog::e3006(),
                 "Operação '*' só é válida para números",
-            )),
+                SourceLocation::unknown(),
+                )),
         }
     }
 
@@ -1705,16 +1766,21 @@ impl Interpreter {
         match (left, right) {
             (Value::Number(a), Value::Number(b)) => {
                 if b == 0.0 {
-                    Err(DryadError::new(3007, "Divisão por zero"))
+                    Err(DryadError::from_catalog_fmt(
+                        error_catalog::e3007(),
+                        "Divisão por zero",
+                        SourceLocation::unknown(),
+                    ))
                 } else {
                     let result = (a / b).trunc();
                     Ok(Value::Number(result))
                 }
             }
-            _ => Err(DryadError::new(
-                3008,
+            _ => Err(DryadError::from_catalog_fmt(
+                error_catalog::e3008(),
                 "Operação '/' só é válida para números",
-            )),
+                SourceLocation::unknown(),
+                )),
         }
     }
 
@@ -1740,7 +1806,11 @@ impl Interpreter {
     {
         match (left, right) {
             (Value::Number(a), Value::Number(b)) => Ok(Value::Bool(op(a, b))),
-            _ => Err(DryadError::new(3009, "Comparação só é válida para números")),
+            _ => Err(DryadError::from_catalog_fmt(
+                error_catalog::e3009(),
+                "Comparação só é válida para números",
+                SourceLocation::unknown(),
+            )),
         }
     }
 
@@ -1750,16 +1820,18 @@ impl Interpreter {
         match operator {
             "-" => match value {
                 Value::Number(n) => Ok(Value::Number(-n)),
-                _ => Err(DryadError::new(
-                    3005,
+                _ => Err(DryadError::from_catalog_fmt(
+                    error_catalog::e3005(),
                     "Operação '-' só é válida para números",
-                )),
+                    SourceLocation::unknown(),
+                    )),
             },
             "!" => Ok(Value::Bool(!self.is_truthy(&value))),
-            _ => Err(DryadError::new(
-                3006,
+            _ => Err(DryadError::from_catalog_fmt(
+                error_catalog::e3006(),
                 &format!("Operador unário '{}' desconhecido", operator),
-            )),
+                SourceLocation::unknown(),
+                )),
         }
     }
 
@@ -1799,16 +1871,18 @@ impl Interpreter {
                     // Retorna o valor original
                     Ok(Value::Number(n))
                 }
-                _ => Err(DryadError::new(
-                    3007,
+                _ => Err(DryadError::from_catalog_fmt(
+                    error_catalog::e3007(),
                     "Operador ++ só é válido para números",
-                )),
+                    SourceLocation::unknown(),
+                    )),
             }
         } else {
-            Err(DryadError::new(
-                3008,
+            Err(DryadError::from_catalog_fmt(
+                error_catalog::e3008(),
                 "Operador ++ só pode ser aplicado a variáveis",
-            ))
+                SourceLocation::unknown(),
+                ))
         }
     }
 
@@ -1825,16 +1899,18 @@ impl Interpreter {
                     // Retorna o valor original
                     Ok(Value::Number(n))
                 }
-                _ => Err(DryadError::new(
-                    3009,
+                _ => Err(DryadError::from_catalog_fmt(
+                    error_catalog::e3009(),
                     "Operador -- só é válido para números",
-                )),
+                    SourceLocation::unknown(),
+                    )),
             }
         } else {
-            Err(DryadError::new(
-                3010,
+            Err(DryadError::from_catalog_fmt(
+                error_catalog::e3010(),
                 "Operador -- só pode ser aplicado a variáveis",
-            ))
+                SourceLocation::unknown(),
+                ))
         }
     }
 
@@ -1852,16 +1928,18 @@ impl Interpreter {
                     // Retorna o novo valor
                     Ok(Value::Number(new_value))
                 }
-                _ => Err(DryadError::new(
-                    3011,
+                _ => Err(DryadError::from_catalog_fmt(
+                    error_catalog::e3011(),
                     "Operador ++ só é válido para números",
-                )),
+                    SourceLocation::unknown(),
+                    )),
             }
         } else {
-            Err(DryadError::new(
-                3012,
+            Err(DryadError::from_catalog_fmt(
+                error_catalog::e3012(),
                 "Operador ++ só pode ser aplicado a variáveis",
-            ))
+                SourceLocation::unknown(),
+                ))
         }
     }
 
@@ -1879,16 +1957,18 @@ impl Interpreter {
                     // Retorna o novo valor
                     Ok(Value::Number(new_value))
                 }
-                _ => Err(DryadError::new(
-                    3013,
+                _ => Err(DryadError::from_catalog_fmt(
+                    error_catalog::e3013(),
                     "Operador -- só é válido para números",
-                )),
+                    SourceLocation::unknown(),
+                    )),
             }
         } else {
-            Err(DryadError::new(
-                3014,
+            Err(DryadError::from_catalog_fmt(
+                error_catalog::e3014(),
                 "Operador -- só pode ser aplicado a variáveis",
-            ))
+                SourceLocation::unknown(),
+                ))
         }
     }
 
@@ -1896,25 +1976,31 @@ impl Interpreter {
         match (left, right) {
             (Value::Number(a), Value::Number(b)) => {
                 if b == 0.0 {
-                    Err(DryadError::new(3015, "Divisão por zero no operador %"))
+                    Err(DryadError::from_catalog_fmt(
+                        error_catalog::e3015(),
+                        "Divisão por zero no operador %",
+                        SourceLocation::unknown(),
+                    ))
                 } else {
                     Ok(Value::Number(a % b))
                 }
             }
-            _ => Err(DryadError::new(
-                3016,
+            _ => Err(DryadError::from_catalog_fmt(
+                error_catalog::e3016(),
                 "Operação '%' só é válida para números",
-            )),
+                SourceLocation::unknown(),
+                )),
         }
     }
 
     fn power_values(&self, left: Value, right: Value) -> Result<Value, DryadError> {
         match (left, right) {
             (Value::Number(a), Value::Number(b)) => Ok(Value::Number(a.powf(b))),
-            _ => Err(DryadError::new(
-                3017,
+            _ => Err(DryadError::from_catalog_fmt(
+                error_catalog::e3017(),
                 "Operação '**' só é válida para números",
-            )),
+                SourceLocation::unknown(),
+                )),
         }
     }
 
@@ -1922,16 +2008,21 @@ impl Interpreter {
         match (left, right) {
             (Value::Number(a), Value::Number(b)) => {
                 if b == 0.0 {
-                    Err(DryadError::new(3020, "Raiz de índice zero não é válida"))
+                    Err(DryadError::from_catalog_fmt(
+                        error_catalog::e3020(),
+                        "Raiz de índice zero não é válida",
+                        SourceLocation::unknown(),
+                    ))
                 } else {
                     // n-ésima raiz: a ^^ b = a^(1/b)
                     Ok(Value::Number(a.powf(1.0 / b)))
                 }
             }
-            _ => Err(DryadError::new(
-                3021,
+            _ => Err(DryadError::from_catalog_fmt(
+                error_catalog::e3021(),
                 "Operação '^^' só é válida para números",
-            )),
+                SourceLocation::unknown(),
+                )),
         }
     }
 
@@ -1939,7 +2030,11 @@ impl Interpreter {
         match (left, right) {
             (Value::Number(a), Value::Number(b)) => {
                 if b == 0.0 {
-                    Err(DryadError::new(3022, "Divisão por zero no operador %%"))
+                    Err(DryadError::from_catalog_fmt(
+                        error_catalog::e3022(),
+                        "Divisão por zero no operador %%",
+                        SourceLocation::unknown(),
+                    ))
                 } else {
                     // Módulo seguro: sempre retorna valor positivo
                     let result = a % b.abs();
@@ -1950,10 +2045,11 @@ impl Interpreter {
                     }
                 }
             }
-            _ => Err(DryadError::new(
-                3023,
+            _ => Err(DryadError::from_catalog_fmt(
+                error_catalog::e3023(),
                 "Operação '%%' só é válida para números",
-            )),
+                SourceLocation::unknown(),
+                )),
         }
     }
 
@@ -1963,10 +2059,11 @@ impl Interpreter {
                 // a ## b = a * 10^b
                 Ok(Value::Number(a * 10.0_f64.powf(b)))
             }
-            _ => Err(DryadError::new(
-                3024,
+            _ => Err(DryadError::from_catalog_fmt(
+                error_catalog::e3024(),
                 "Operação '##' só é válida para números",
-            )),
+                SourceLocation::unknown(),
+                )),
         }
     }
 
@@ -1977,10 +2074,11 @@ impl Interpreter {
                 let b_int = b as i64;
                 Ok(Value::Number((a_int & b_int) as f64))
             }
-            _ => Err(DryadError::new(
-                3026,
+            _ => Err(DryadError::from_catalog_fmt(
+                error_catalog::e3026(),
                 "Operação '&' só é válida para números",
-            )),
+                SourceLocation::unknown(),
+                )),
         }
     }
 
@@ -1991,10 +2089,11 @@ impl Interpreter {
                 let b_int = b as i64;
                 Ok(Value::Number((a_int | b_int) as f64))
             }
-            _ => Err(DryadError::new(
-                3027,
+            _ => Err(DryadError::from_catalog_fmt(
+                error_catalog::e3027(),
                 "Operação '|' só é válida para números",
-            )),
+                SourceLocation::unknown(),
+                )),
         }
     }
 
@@ -2005,10 +2104,11 @@ impl Interpreter {
                 let b_int = b as i64;
                 Ok(Value::Number((a_int ^ b_int) as f64))
             }
-            _ => Err(DryadError::new(
-                3028,
+            _ => Err(DryadError::from_catalog_fmt(
+                error_catalog::e3028(),
                 "Operação '^' só é válida para números",
-            )),
+                SourceLocation::unknown(),
+                )),
         }
     }
 
@@ -2016,20 +2116,22 @@ impl Interpreter {
         match (left, right) {
             (Value::Number(a), Value::Number(b)) => {
                 if b < 0.0 {
-                    Err(DryadError::new(
-                        3029,
+                    Err(DryadError::from_catalog_fmt(
+                        error_catalog::e3029(),
                         "Não é possível fazer shift com número negativo",
-                    ))
+                        SourceLocation::unknown(),
+                        ))
                 } else {
                     // Left shift: a << b = a * 2^b
                     let result = a * 2.0_f64.powf(b);
                     Ok(Value::Number(result))
                 }
             }
-            _ => Err(DryadError::new(
-                3030,
+            _ => Err(DryadError::from_catalog_fmt(
+                error_catalog::e3030(),
                 "Operação '<<' só é válida para números",
-            )),
+                SourceLocation::unknown(),
+                )),
         }
     }
 
@@ -2037,20 +2139,22 @@ impl Interpreter {
         match (left, right) {
             (Value::Number(a), Value::Number(b)) => {
                 if b < 0.0 {
-                    Err(DryadError::new(
-                        3031,
+                    Err(DryadError::from_catalog_fmt(
+                        error_catalog::e3031(),
                         "Não é possível fazer shift com número negativo",
-                    ))
+                        SourceLocation::unknown(),
+                        ))
                 } else {
                     // Right shift: a >> b = a / 2^b
                     let result = a / 2.0_f64.powf(b);
                     Ok(Value::Number(result))
                 }
             }
-            _ => Err(DryadError::new(
-                3032,
+            _ => Err(DryadError::from_catalog_fmt(
+                error_catalog::e3032(),
                 "Operação '>>' só é válida para números",
-            )),
+                SourceLocation::unknown(),
+                )),
         }
     }
 
@@ -2058,20 +2162,22 @@ impl Interpreter {
         match (left, right) {
             (Value::Number(a), Value::Number(b)) => {
                 if b < 0.0 {
-                    Err(DryadError::new(
-                        3033,
+                    Err(DryadError::from_catalog_fmt(
+                        error_catalog::e3033(),
                         "Não é possível fazer shift com número negativo",
-                    ))
+                        SourceLocation::unknown(),
+                        ))
                 } else {
                     // Symmetric left shift: a <<< b = a * 2^b (igual ao left shift padrão)
                     let result = a * 2.0_f64.powf(b);
                     Ok(Value::Number(result))
                 }
             }
-            _ => Err(DryadError::new(
-                3034,
+            _ => Err(DryadError::from_catalog_fmt(
+                error_catalog::e3034(),
                 "Operação '<<<' só é válida para números",
-            )),
+                SourceLocation::unknown(),
+                )),
         }
     }
 
@@ -2079,20 +2185,22 @@ impl Interpreter {
         match (left, right) {
             (Value::Number(a), Value::Number(b)) => {
                 if b < 0.0 {
-                    Err(DryadError::new(
-                        3035,
+                    Err(DryadError::from_catalog_fmt(
+                        error_catalog::e3035(),
                         "Não é possível fazer shift com número negativo",
-                    ))
+                        SourceLocation::unknown(),
+                        ))
                 } else {
                     // Symmetric right shift: a >>> b = a / 2^b (igual ao right shift padrão)
                     let result = a / 2.0_f64.powf(b);
                     Ok(Value::Number(result))
                 }
             }
-            _ => Err(DryadError::new(
-                3036,
+            _ => Err(DryadError::from_catalog_fmt(
+                error_catalog::e3036(),
                 "Operação '>>>' só é válida para números",
-            )),
+                SourceLocation::unknown(),
+                )),
         }
     }
 
@@ -2188,10 +2296,11 @@ impl Interpreter {
         let var_name = match pattern {
             Pattern::Identifier(name) => name.as_str(),
             _ => {
-                return Err(DryadError::new(
-                    3101,
+                return Err(DryadError::from_catalog_fmt(
+                    error_catalog::e3101(),
                     "ForEach loop only supports identifier patterns",
-                ))
+                    SourceLocation::unknown(),
+                    ))
             }
         };
 
@@ -2209,7 +2318,11 @@ impl Interpreter {
                 let elements = if let Some(ManagedObject::Array(e)) = self.heap.get(id) {
                     e.clone()
                 } else {
-                    return Err(DryadError::new(3101, "Heap error: Expected Array"));
+                    return Err(DryadError::from_catalog_fmt(
+                        error_catalog::e3101(),
+                        "Heap error: Expected Array",
+                        SourceLocation::unknown(),
+                    ));
                 };
 
                 for element in elements {
@@ -2243,7 +2356,11 @@ impl Interpreter {
                 let elements = if let Some(ManagedObject::Tuple(e)) = self.heap.get(id) {
                     e.clone()
                 } else {
-                    return Err(DryadError::new(3101, "Heap error: Expected Tuple"));
+                    return Err(DryadError::from_catalog_fmt(
+                        error_catalog::e3101(),
+                        "Heap error: Expected Tuple",
+                        SourceLocation::unknown(),
+                    ));
                 };
 
                 for element in elements {
@@ -2317,10 +2434,11 @@ impl Interpreter {
             | Value::Instance(_)
             | Value::Object(_)
             | Value::Result(_, _) => {
-                return Err(DryadError::new(
-                    3030,
+                return Err(DryadError::from_catalog_fmt(
+                    error_catalog::e3030(),
                     &format!("Valor não é iterável: {}", iterable_value.to_string()),
-                ));
+                    SourceLocation::unknown(),
+                    ));
             }
         }
 
@@ -2391,7 +2509,11 @@ impl Interpreter {
         match array_value {
             Value::Array(id) => {
                 let heap_obj = self.heap.get(id).ok_or_else(|| {
-                    DryadError::new(3100, "Heap error: Array reference not found")
+                    DryadError::from_catalog_fmt(
+                        error_catalog::e3100(),
+                        "Heap error: Array reference not found",
+                        SourceLocation::unknown(),
+                    )
                 })?;
 
                 if let ManagedObject::Array(elements) = heap_obj {
@@ -2399,36 +2521,50 @@ impl Interpreter {
                     let index = match index_value {
                         Value::Number(n) => {
                             if n < 0.0 || n.fract() != 0.0 {
-                                return Err(DryadError::new(
-                                    3080,
+                                return Err(DryadError::from_catalog_fmt(
+                                    error_catalog::e3080(),
                                     "Índice deve ser um número inteiro não negativo",
-                                ));
+                                    SourceLocation::unknown(),
+                                    ));
                             }
                             n as usize
                         }
                         _ => {
-                            return Err(DryadError::new(3081, "Índice de array deve ser um número"))
+                            return Err(DryadError::from_catalog_fmt(
+                                error_catalog::e3081(),
+                                "Índice de array deve ser um número",
+                                SourceLocation::unknown(),
+                            ))
                         }
                     };
 
                     if index >= elements.len() {
-                        return Err(DryadError::new(
-                            3082,
+                        return Err(DryadError::from_catalog_fmt(
+                            error_catalog::e3082(),
                             &format!(
                                 "Índice {} fora dos limites do array (tamanho: {})",
                                 index,
                                 elements.len()
                             ),
-                        ));
+                            SourceLocation::unknown(),
+                            ));
                     }
                     Ok(elements[index].clone())
                 } else {
-                    Err(DryadError::new(3101, "Heap error: Expected Array"))
+                    Err(DryadError::from_catalog_fmt(
+                        error_catalog::e3101(),
+                        "Heap error: Expected Array",
+                        SourceLocation::unknown(),
+                    ))
                 }
             }
             Value::Object(id) => {
                 let heap_obj = self.heap.get(id).ok_or_else(|| {
-                    DryadError::new(3100, "Heap error: Object reference not found")
+                    DryadError::from_catalog_fmt(
+                        error_catalog::e3100(),
+                        "Heap error: Object reference not found",
+                        SourceLocation::unknown(),
+                    )
                 })?;
 
                 if let ManagedObject::Object { properties, .. } = heap_obj {
@@ -2437,10 +2573,11 @@ impl Interpreter {
                         Value::String(s) => s,
                         Value::Number(n) => n.to_string(),
                         _ => {
-                            return Err(DryadError::new(
-                                3084,
+                            return Err(DryadError::from_catalog_fmt(
+                                error_catalog::e3084(),
                                 "Chave do objeto deve ser string ou número",
-                            ))
+                                SourceLocation::unknown(),
+                                ))
                         }
                     };
 
@@ -2449,7 +2586,11 @@ impl Interpreter {
                         None => Ok(Value::Null), // Return null for non-existent keys (like JavaScript)
                     }
                 } else {
-                    Err(DryadError::new(3101, "Heap error: Expected Object"))
+                    Err(DryadError::from_catalog_fmt(
+                        error_catalog::e3101(),
+                        "Heap error: Expected Object",
+                        SourceLocation::unknown(),
+                    ))
                 }
             }
             Value::Number(_)
@@ -2467,10 +2608,11 @@ impl Interpreter {
             | Value::Promise { .. }
             | Value::Class { .. }
             | Value::Instance { .. }
-            | Value::Result(_, _) => Err(DryadError::new(
-                3083,
+            | Value::Result(_, _) => Err(DryadError::from_catalog_fmt(
+                error_catalog::e3083(),
                 "Operador [] só pode ser usado em arrays e objetos",
-            )),
+                SourceLocation::unknown(),
+                )),
         }
     }
 
@@ -2480,23 +2622,32 @@ impl Interpreter {
         match tuple_value {
             Value::Tuple(id) => {
                 let heap_obj = self.heap.get(id).ok_or_else(|| {
-                    DryadError::new(3100, "Heap error: Tuple reference not found")
+                    DryadError::from_catalog_fmt(
+                        error_catalog::e3100(),
+                        "Heap error: Tuple reference not found",
+                        SourceLocation::unknown(),
+                    )
                 })?;
 
                 if let ManagedObject::Tuple(elements) = heap_obj {
                     if index >= elements.len() {
-                        return Err(DryadError::new(
-                            3084,
+                        return Err(DryadError::from_catalog_fmt(
+                            error_catalog::e3084(),
                             &format!(
                                 "Índice {} fora dos limites da tupla (tamanho: {})",
                                 index,
                                 elements.len()
                             ),
-                        ));
+                            SourceLocation::unknown(),
+                            ));
                     }
                     Ok(elements[index].clone())
                 } else {
-                    Err(DryadError::new(3101, "Heap error: Expected Tuple"))
+                    Err(DryadError::from_catalog_fmt(
+                        error_catalog::e3101(),
+                        "Heap error: Expected Tuple",
+                        SourceLocation::unknown(),
+                    ))
                 }
             }
             Value::Number(_)
@@ -2515,10 +2666,11 @@ impl Interpreter {
             | Value::Class { .. }
             | Value::Instance { .. }
             | Value::Object { .. }
-            | Value::Result(_, _) => Err(DryadError::new(
-                3085,
+            | Value::Result(_, _) => Err(DryadError::from_catalog_fmt(
+                error_catalog::e3085(),
                 "Operador . só pode ser usado em tuplas",
-            )),
+                SourceLocation::unknown(),
+                )),
         }
     }
 
@@ -2667,7 +2819,11 @@ impl Interpreter {
             Value::Array(_) => self.eval_array_method(object_expr, method_name, args, location),
             Value::Class(id) => {
                 let heap_obj = self.heap.get(id).cloned().ok_or_else(|| {
-                    DryadError::new(3100, "Heap error: Class reference not found")
+                    DryadError::from_catalog_fmt(
+                        error_catalog::e3100(),
+                        "Heap error: Class reference not found",
+                        SourceLocation::unknown(),
+                    )
                 })?;
 
                 if let ManagedObject::Class {
@@ -2680,21 +2836,23 @@ impl Interpreter {
                     if let Some(method) = methods.get(method_name) {
                         // Check if method is static
                         if !method.is_static {
-                            return Err(DryadError::new(
-                                3024,
+                            return Err(DryadError::from_catalog_fmt(
+                                error_catalog::e3024(),
                                 &format!("Método '{}' não é estático", method_name),
-                            ));
+                                SourceLocation::unknown(),
+                                ));
                         }
 
                         // Check visibility
                         if !self.check_visibility(&method.visibility, &class_name) {
-                            return Err(DryadError::new(
-                                3024,
+                            return Err(DryadError::from_catalog_fmt(
+                                error_catalog::e3024(),
                                 &format!(
                                     "Método '{}' não é acessível (visibilidade: {:?})",
                                     method_name, method.visibility
                                 ),
-                            ));
+                                SourceLocation::unknown(),
+                                ));
                         }
 
                         // Evaluate arguments
@@ -2720,13 +2878,14 @@ impl Interpreter {
                                 self.env.variables = saved_vars;
                                 self.env.current_instance = saved_instance;
                                 self.env.current_class = saved_class;
-                                return Err(DryadError::new(
-                                    3025,
+                                return Err(DryadError::from_catalog_fmt(
+                                    error_catalog::e3025(),
                                     &format!(
                                         "Argumento obrigatório '{}' não fornecido no método estático '{}'",
                                         param_name, method_name
                                     ),
-                                ));
+                                    SourceLocation::unknown(),
+                                    ));
                             };
                             self.env.variables.insert(param_name.clone(), value);
                         }
@@ -2747,21 +2906,30 @@ impl Interpreter {
                         self.env.current_class = saved_class;
                         result
                     } else {
-                        Err(DryadError::new(
-                            3026,
+                        Err(DryadError::from_catalog_fmt(
+                            error_catalog::e3026(),
                             &format!(
                                 "Método estático '{}' não encontrado na classe '{}'",
                                 method_name, class_name
                             ),
-                        ))
+                            SourceLocation::unknown(),
+                            ))
                     }
                 } else {
-                    Err(DryadError::new(3101, "Heap error: Expected Class"))
+                    Err(DryadError::from_catalog_fmt(
+                        error_catalog::e3101(),
+                        "Heap error: Expected Class",
+                        SourceLocation::unknown(),
+                    ))
                 }
             }
             Value::Instance(id) => {
                 let heap_obj = self.heap.get(id).cloned().ok_or_else(|| {
-                    DryadError::new(3100, "Heap error: Instance reference not found")
+                    DryadError::from_catalog_fmt(
+                        error_catalog::e3100(),
+                        "Heap error: Instance reference not found",
+                        SourceLocation::unknown(),
+                    )
                 })?;
 
                 if let ManagedObject::Instance {
@@ -2773,19 +2941,24 @@ impl Interpreter {
 
                     if let Some(Value::Class(cid)) = self.env.classes.get(&class_name).cloned() {
                         let class_obj = self.heap.get(cid).cloned().ok_or_else(|| {
-                            DryadError::new(3100, "Heap error: Inconsistent class reference")
+                            DryadError::from_catalog_fmt(
+                                error_catalog::e3100(),
+                                "Heap error: Inconsistent class reference",
+                                SourceLocation::unknown(),
+                            )
                         })?;
 
                         if let ManagedObject::Class { methods, .. } = class_obj {
                             if let Some(method) = methods.get(method_name) {
                                 if !self.check_visibility(&method.visibility, &class_name) {
-                                    return Err(DryadError::new(
-                                        3024,
+                                    return Err(DryadError::from_catalog_fmt(
+                                        error_catalog::e3024(),
                                         &format!(
                                             "Método '{}' não é acessível (visibilidade: {:?})",
                                             method_name, method.visibility
                                         ),
-                                    ));
+                                        SourceLocation::unknown(),
+                                        ));
                                 }
 
                                 let mut arg_values = Vec::new();
@@ -2812,13 +2985,14 @@ impl Interpreter {
                                         self.env.variables = saved_vars;
                                         self.env.current_instance = saved_instance;
                                         self.env.current_class = saved_class;
-                                        return Err(DryadError::new(
-                                            3025,
+                                        return Err(DryadError::from_catalog_fmt(
+                                            error_catalog::e3025(),
                                             &format!(
                                                 "Argumento obrigatório '{}' não fornecido no método '{}'",
                                                 param_name, method_name
                                             ),
-                                        ));
+                                            SourceLocation::unknown(),
+                                            ));
                                     };
                                     self.env.variables.insert(param_name.clone(), value);
                                 }
@@ -2839,33 +3013,44 @@ impl Interpreter {
                                 self.env.current_class = saved_class;
                                 result
                             } else {
-                                Err(DryadError::new(
-                                    3026,
+                                Err(DryadError::from_catalog_fmt(
+                                    error_catalog::e3026(),
                                     &format!(
                                         "Método '{}' não encontrado na classe '{}'",
                                         method_name, class_name
                                     ),
-                                ))
+                                    SourceLocation::unknown(),
+                                    ))
                             }
                         } else {
-                            Err(DryadError::new(
-                                3101,
+                            Err(DryadError::from_catalog_fmt(
+                                error_catalog::e3101(),
                                 "Heap error: Expected Class definition",
-                            ))
+                                SourceLocation::unknown(),
+                                ))
                         }
                     } else {
-                        Err(DryadError::new(
-                            3027,
+                        Err(DryadError::from_catalog_fmt(
+                            error_catalog::e3027(),
                             &format!("Definição da classe '{}' não encontrada", class_name),
-                        ))
+                            SourceLocation::unknown(),
+                            ))
                     }
                 } else {
-                    Err(DryadError::new(3101, "Heap error: Expected Instance"))
+                    Err(DryadError::from_catalog_fmt(
+                        error_catalog::e3101(),
+                        "Heap error: Expected Instance",
+                        SourceLocation::unknown(),
+                    ))
                 }
             }
             Value::Object(id) => {
                 let heap_obj = self.heap.get(id).cloned().ok_or_else(|| {
-                    DryadError::new(3100, "Heap error: Object reference not found")
+                    DryadError::from_catalog_fmt(
+                        error_catalog::e3100(),
+                        "Heap error: Object reference not found",
+                        SourceLocation::unknown(),
+                    )
                 })?;
 
                 if let ManagedObject::Object {
@@ -2897,13 +3082,14 @@ impl Interpreter {
                             } else {
                                 self.env.variables = saved_vars;
                                 self.env.current_instance = saved_instance;
-                                return Err(DryadError::new(
-                                    3025,
+                                return Err(DryadError::from_catalog_fmt(
+                                    error_catalog::e3025(),
                                     &format!(
                                         "Argumento obrigatório '{}' não fornecido no método '{}'",
                                         param_name, method_name
                                     ),
-                                ));
+                                    SourceLocation::unknown(),
+                                    ));
                             };
                             self.env.variables.insert(param_name.clone(), value);
                         }
@@ -2940,13 +3126,14 @@ impl Interpreter {
                                         self.evaluate(expr)?
                                     } else {
                                         self.env.variables = saved_vars;
-                                        return Err(DryadError::new(
-                                            3025,
+                                        return Err(DryadError::from_catalog_fmt(
+                                            error_catalog::e3025(),
                                             &format!(
                                                 "Argumento obrigatório '{}' não fornecido na função '{}'",
                                                 param_name, method_name
                                             ),
-                                        ));
+                                            SourceLocation::unknown(),
+                                            ));
                                     };
                                     self.env.variables.insert(param_name.clone(), value);
                                 }
@@ -2965,25 +3152,32 @@ impl Interpreter {
                                 self.env.variables = saved_vars;
                                 result
                             }
-                            _ => Err(DryadError::new(
-                                3026,
+                            _ => Err(DryadError::from_catalog_fmt(
+                                error_catalog::e3026(),
                                 &format!("Propriedade '{}' não é uma função", method_name),
-                            )),
+                                SourceLocation::unknown(),
+                                )),
                         }
                     } else {
-                        Err(DryadError::new(
-                            3026,
+                        Err(DryadError::from_catalog_fmt(
+                            error_catalog::e3026(),
                             &format!("Método '{}' não encontrado no objeto", method_name),
-                        ))
+                            SourceLocation::unknown(),
+                            ))
                     }
                 } else {
-                    Err(DryadError::new(3101, "Heap error: Expected Object"))
+                    Err(DryadError::from_catalog_fmt(
+                        error_catalog::e3101(),
+                        "Heap error: Expected Object",
+                        SourceLocation::unknown(),
+                    ))
                 }
             }
-            _ => Err(DryadError::new(
-                3028,
+            _ => Err(DryadError::from_catalog_fmt(
+                error_catalog::e3028(),
                 "Tentativa de chamar método em valor que não é uma instância ou objeto",
-            )),
+                SourceLocation::unknown(),
+                )),
         }
     }
 
@@ -2997,7 +3191,11 @@ impl Interpreter {
         match object {
             Value::Class(id) => {
                 let heap_obj = self.heap.get(id).ok_or_else(|| {
-                    DryadError::new(3100, "Heap error: Class reference not found")
+                    DryadError::from_catalog_fmt(
+                        error_catalog::e3100(),
+                        "Heap error: Class reference not found",
+                        SourceLocation::unknown(),
+                    )
                 })?;
 
                 if let ManagedObject::Class {
@@ -3012,20 +3210,22 @@ impl Interpreter {
                     // Check for getter first
                     if let Some(getter) = getters.get(property_name) {
                         if !getter.is_static {
-                            return Err(DryadError::new(
-                                3029,
+                            return Err(DryadError::from_catalog_fmt(
+                                error_catalog::e3029(),
                                 &format!("Getter '{}' não é estático", property_name),
-                            ));
+                                SourceLocation::unknown(),
+                                ));
                         }
 
                         if !self.check_visibility(&getter.visibility, &class_name) {
-                            return Err(DryadError::new(
-                                3029,
+                            return Err(DryadError::from_catalog_fmt(
+                                error_catalog::e3029(),
                                 &format!(
                                     "Getter '{}' não é acessível (visibilidade: {:?})",
                                     property_name, getter.visibility
                                 ),
-                            ));
+                                SourceLocation::unknown(),
+                                ));
                         }
 
                         // Execute getter with 'current_class' set
@@ -3043,21 +3243,23 @@ impl Interpreter {
                     if let Some(class_prop) = class_props.get(property_name) {
                         // Check if property is static
                         if !class_prop.is_static {
-                            return Err(DryadError::new(
-                                3029,
+                            return Err(DryadError::from_catalog_fmt(
+                                error_catalog::e3029(),
                                 &format!("Propriedade '{}' não é estática", property_name),
-                            ));
+                                SourceLocation::unknown(),
+                                ));
                         }
 
                         // Check visibility
                         if !self.check_visibility(&class_prop.visibility, &class_name) {
-                            return Err(DryadError::new(
-                                3029,
+                            return Err(DryadError::from_catalog_fmt(
+                                error_catalog::e3029(),
                                 &format!(
                                     "Propriedade '{}' não é acessível (visibilidade: {:?})",
                                     property_name, class_prop.visibility
                                 ),
-                            ));
+                                SourceLocation::unknown(),
+                                ));
                         }
 
                         if let Some(default_value) = &class_prop.default_value {
@@ -3066,21 +3268,30 @@ impl Interpreter {
                             return Ok(Value::Null);
                         }
                     } else {
-                        Err(DryadError::new(
-                            3030,
+                        Err(DryadError::from_catalog_fmt(
+                            error_catalog::e3030(),
                             &format!(
                                 "Propriedade estática '{}' não encontrada na classe '{}'",
                                 property_name, class_name
                             ),
-                        ))
+                            SourceLocation::unknown(),
+                            ))
                     }
                 } else {
-                    Err(DryadError::new(3101, "Heap error: Expected Class"))
+                    Err(DryadError::from_catalog_fmt(
+                        error_catalog::e3101(),
+                        "Heap error: Expected Class",
+                        SourceLocation::unknown(),
+                    ))
                 }
             }
             Value::Instance(id) => {
                 let heap_obj = self.heap.get(id).ok_or_else(|| {
-                    DryadError::new(3100, "Heap error: Instance reference not found")
+                    DryadError::from_catalog_fmt(
+                        error_catalog::e3100(),
+                        "Heap error: Instance reference not found",
+                        SourceLocation::unknown(),
+                    )
                 })?;
 
                 if let ManagedObject::Instance {
@@ -3111,13 +3322,14 @@ impl Interpreter {
                         // Check for getter first
                         if let Some(getter) = getters.get(property_name) {
                             if !self.check_visibility(&getter.visibility, &class_name) {
-                                return Err(DryadError::new(
-                                    3029,
+                                return Err(DryadError::from_catalog_fmt(
+                                    error_catalog::e3029(),
                                     &format!(
                                         "Getter '{}' não é acessível (visibilidade: {:?})",
                                         property_name, getter.visibility
                                     ),
-                                ));
+                                    SourceLocation::unknown(),
+                                    ));
                             }
 
                             // Execute getter with 'this' bound to instance
@@ -3137,13 +3349,14 @@ impl Interpreter {
                         // Check for property definition
                         if let Some(prop_def) = class_props.get(property_name) {
                             if !self.check_visibility(&prop_def.visibility, &class_name) {
-                                return Err(DryadError::new(
-                                    3029,
+                                return Err(DryadError::from_catalog_fmt(
+                                    error_catalog::e3029(),
                                     &format!(
                                         "Propriedade '{}' não é acessível (visibilidade: {:?})",
                                         property_name, prop_def.visibility
                                     ),
-                                ));
+                                    SourceLocation::unknown(),
+                                    ));
                             }
 
                             if let Some(value) = properties.get(property_name) {
@@ -3161,58 +3374,80 @@ impl Interpreter {
                         return Ok(value.clone());
                     }
 
-                    Err(DryadError::new(
-                        3030,
+                    Err(DryadError::from_catalog_fmt(
+                        error_catalog::e3030(),
                         &format!(
                             "Propriedade '{}' não encontrada na instância de '{}'",
                             property_name, class_name
                         ),
-                    ))
+                        SourceLocation::unknown(),
+                        ))
                 } else {
-                    Err(DryadError::new(3101, "Heap error: Expected Instance"))
+                    Err(DryadError::from_catalog_fmt(
+                        error_catalog::e3101(),
+                        "Heap error: Expected Instance",
+                        SourceLocation::unknown(),
+                    ))
                 }
             }
             Value::Object(id) => {
-                let heap_obj = self
-                    .heap
-                    .get(id)
-                    .ok_or_else(|| DryadError::new(3100, "Object reference not found"))?;
+                let heap_obj = self.heap.get(id).ok_or_else(|| {
+                    DryadError::from_catalog_fmt(
+                        error_catalog::e3100(),
+                        "Object reference not found",
+                        SourceLocation::unknown(),
+                    )
+                })?;
 
                 if let ManagedObject::Object { properties, .. } = heap_obj {
                     if let Some(value) = properties.get(property_name) {
                         Ok(value.clone())
                     } else {
-                        Err(DryadError::new(
-                            3030,
+                        Err(DryadError::from_catalog_fmt(
+                            error_catalog::e3030(),
                             &format!("Propriedade '{}' não encontrada", property_name),
-                        ))
+                            SourceLocation::unknown(),
+                            ))
                     }
                 } else {
-                    Err(DryadError::new(3101, "Heap error: Expected Object"))
+                    Err(DryadError::from_catalog_fmt(
+                        error_catalog::e3101(),
+                        "Heap error: Expected Object",
+                        SourceLocation::unknown(),
+                    ))
                 }
             }
             Value::Array(id) => {
                 if property_name == "length" {
-                    let heap_obj = self
-                        .heap
-                        .get(id)
-                        .ok_or_else(|| DryadError::new(3100, "Array reference not found"))?;
+                    let heap_obj = self.heap.get(id).ok_or_else(|| {
+                        DryadError::from_catalog_fmt(
+                            error_catalog::e3100(),
+                            "Array reference not found",
+                            SourceLocation::unknown(),
+                        )
+                    })?;
                     if let ManagedObject::Array(elements) = heap_obj {
                         Ok(Value::Number(elements.len() as f64))
                     } else {
-                        Err(DryadError::new(3101, "Heap error: Expected Array"))
+                        Err(DryadError::from_catalog_fmt(
+                            error_catalog::e3101(),
+                            "Heap error: Expected Array",
+                            SourceLocation::unknown(),
+                        ))
                     }
                 } else {
-                    Err(DryadError::new(
-                        3030,
+                    Err(DryadError::from_catalog_fmt(
+                        error_catalog::e3030(),
                         &format!("Propriedade '{}' não encontrada em Array", property_name),
-                    ))
+                        SourceLocation::unknown(),
+                        ))
                 }
             }
-            _ => Err(DryadError::new(
-                3031,
+            _ => Err(DryadError::from_catalog_fmt(
+                error_catalog::e3031(),
                 "Tentativa de acessar propriedade em valor que não é uma instância ou objeto",
-            )),
+                SourceLocation::unknown(),
+                )),
         }
     }
 
@@ -3244,10 +3479,13 @@ impl Interpreter {
     ) -> Result<Value, DryadError> {
         // Check if it's a class call or regular function call
         if let Some(Value::Class(id)) = self.env.classes.get(class_name).cloned() {
-            let class_obj = self
-                .heap
-                .get(id)
-                .ok_or_else(|| DryadError::new(3100, "Heap error: Class reference not found"))?;
+            let class_obj = self.heap.get(id).ok_or_else(|| {
+                DryadError::from_catalog_fmt(
+                    error_catalog::e3100(),
+                    "Heap error: Class reference not found",
+                    SourceLocation::unknown(),
+                )
+            })?;
 
             if let ManagedObject::Class {
                 methods,
@@ -3306,13 +3544,14 @@ impl Interpreter {
                         } else if let Some(expr) = default_expr {
                             self.evaluate(expr)?
                         } else {
-                            return Err(DryadError::new(
-                                3033,
+                            return Err(DryadError::from_catalog_fmt(
+                                error_catalog::e3033(),
                                 &format!(
                                     "Argumento obrigatório '{}' não fornecido no construtor da classe '{}'",
                                     param_name, class_name
                                 ),
-                            ));
+                                SourceLocation::unknown(),
+                                ));
                         };
                         self.env.variables.insert(param_name.clone(), value);
                     }
@@ -3341,21 +3580,23 @@ impl Interpreter {
                     self.env.current_instance = saved_instance;
                     self.env.current_class = saved_class;
                 } else if !args.is_empty() {
-                    return Err(DryadError::new(
-                        3033,
+                    return Err(DryadError::from_catalog_fmt(
+                        error_catalog::e3033(),
                         &format!(
                         "Classe '{}' não tem construtor 'init', mas argumentos foram fornecidos",
                         class_name
                     ),
-                    ));
+                        SourceLocation::unknown(),
+                        ));
                 }
 
                 Ok(instance)
             } else {
-                Err(DryadError::new(
-                    3101,
+                Err(DryadError::from_catalog_fmt(
+                    error_catalog::e3101(),
                     "Heap error: Expected Class definition",
-                ))
+                    SourceLocation::unknown(),
+                    ))
             }
         } else {
             // Not a class, treat as regular function call
@@ -3392,10 +3633,11 @@ impl Interpreter {
         }
 
         // Se não conseguiu fazer parse do return, retorna o erro original
-        Err(DryadError::new(
-            3035,
+        Err(DryadError::from_catalog_fmt(
+            error_catalog::e3035(),
             &format!("Erro ao processar return: {}", error_message),
-        ))
+            SourceLocation::unknown(),
+            ))
     }
 
     fn eval_match(
@@ -3442,10 +3684,11 @@ impl Interpreter {
             }
         }
 
-        Err(DryadError::new(
-            3100,
+        Err(DryadError::from_catalog_fmt(
+            error_catalog::e3100(),
             &format!("Nenhum padrão corresponde ao valor: {}", value.to_string()),
-        ))
+            SourceLocation::unknown(),
+            ))
     }
 
     fn match_pattern(
@@ -3617,13 +3860,14 @@ impl Interpreter {
 
                     match result {
                         Ok(val) => Ok(val),
-                        Err(e) => Err(DryadError::new(
-                            3005,
+                        Err(e) => Err(DryadError::from_catalog_fmt(
+                            error_catalog::e3005(),
                             &format!("Erro em operação assíncrona (Promise ID {}): {}", id, e),
-                        )),
+                            SourceLocation::unknown(),
+                            )),
                     }
                 } else {
-                    Err(DryadError::new(4001, &format!("Promise (ID {}) ainda não foi resolvida e não é uma operação nativa pendente", id)))
+                    Err(DryadError::from_catalog_fmt(error_catalog::e4001(), &format!("Promise (ID {}) ainda não foi resolvida e não é uma operação nativa pendente", id), SourceLocation::unknown()))
                 }
             }
             other_value => Ok(other_value), // Se não é uma promise, retorna o valor diretamente
@@ -3646,15 +3890,16 @@ impl Interpreter {
             }
             | Value::ThreadFunction { name, params, body } => {
                 if params.len() != evaluated_args.len() {
-                    return Err(DryadError::new(
-                        4002,
+                    return Err(DryadError::from_catalog_fmt(
+                        error_catalog::e4002(),
                         &format!(
                             "Função '{}' espera {} argumentos, mas {} foram fornecidos",
                             name,
                             params.len(),
                             evaluated_args.len()
                         ),
-                    ));
+                        SourceLocation::unknown(),
+                        ));
                 }
 
                 let thread_id = self.next_thread_id;
@@ -3686,10 +3931,11 @@ impl Interpreter {
                     is_running: true,
                 })
             }
-            _ => Err(DryadError::new(
-                4003,
+            _ => Err(DryadError::from_catalog_fmt(
+                error_catalog::e4003(),
                 "Expressão não é uma função válida para thread()",
-            )),
+                SourceLocation::unknown(),
+                )),
         }
     }
 
@@ -3723,10 +3969,11 @@ impl Interpreter {
 
         // 3. Ler o arquivo do módulo
         let source_code = fs::read_to_string(&resolved_path).map_err(|e| {
-            DryadError::new(
-                3001,
+            DryadError::from_catalog_fmt(
+                error_catalog::e3001(),
                 &format!("Erro ao ler módulo '{}': {}", resolved_path.display(), e),
-            )
+                SourceLocation::unknown(),
+                )
         })?;
 
         // 4. Fazer lexing e parsing do módulo
@@ -3744,28 +3991,30 @@ impl Interpreter {
                     }
                 }
                 Err(e) => {
-                    return Err(DryadError::new(
-                        3002,
+                    return Err(DryadError::from_catalog_fmt(
+                        error_catalog::e3002(),
                         &format!(
                             "Erro de lexing no módulo '{}': {:?}",
                             resolved_path.display(),
                             e
                         ),
-                    ))
+                        SourceLocation::unknown(),
+                        ))
                 }
             }
         }
 
         let mut parser = dryad_parser::parser::Parser::new(tokens);
         let program = parser.parse().map_err(|e| {
-            DryadError::new(
-                3003,
+            DryadError::from_catalog_fmt(
+                error_catalog::e3003(),
                 &format!(
                     "Erro de parsing no módulo '{}': {:?}",
                     resolved_path.display(),
                     e
                 ),
-            )
+                SourceLocation::unknown(),
+                )
         })?;
 
         // 5. Executar o módulo em um contexto separado e capturar exports
@@ -3866,13 +4115,14 @@ impl Interpreter {
 
             Ok(Value::Null)
         } else {
-            Err(DryadError::new(
-                3014,
+            Err(DryadError::from_catalog_fmt(
+                error_catalog::e3014(),
                 &format!(
                     "Módulo '{}' não encontrado nos módulos importados",
                     module_key
                 ),
-            ))
+                SourceLocation::unknown(),
+                ))
         }
     }
 
@@ -3889,10 +4139,11 @@ impl Interpreter {
         if !self.env.imported_modules.contains_key(&module_key) {
             // Carregar e executar o módulo pela primeira vez
             let source_code = fs::read_to_string(&resolved_path).map_err(|e| {
-                DryadError::new(
-                    3001,
+                DryadError::from_catalog_fmt(
+                    error_catalog::e3001(),
                     &format!("Erro ao ler módulo '{}': {}", resolved_path.display(), e),
-                )
+                    SourceLocation::unknown(),
+                    )
             })?;
 
             let mut lexer = dryad_lexer::lexer::Lexer::new(&source_code);
@@ -3908,28 +4159,30 @@ impl Interpreter {
                         }
                     }
                     Err(e) => {
-                        return Err(DryadError::new(
-                            3002,
+                        return Err(DryadError::from_catalog_fmt(
+                            error_catalog::e3002(),
                             &format!(
                                 "Erro de lexing no módulo '{}': {:?}",
                                 resolved_path.display(),
                                 e
                             ),
-                        ))
+                            SourceLocation::unknown(),
+                            ))
                     }
                 }
             }
 
             let mut parser = dryad_parser::parser::Parser::new(tokens);
             let program = parser.parse().map_err(|e| {
-                DryadError::new(
-                    3003,
+                DryadError::from_catalog_fmt(
+                    error_catalog::e3003(),
                     &format!(
                         "Erro de parsing no módulo '{}': {:?}",
                         resolved_path.display(),
                         e
                     ),
-                )
+                    SourceLocation::unknown(),
+                    )
             })?;
 
             let exported_symbols =
@@ -3960,21 +4213,23 @@ impl Interpreter {
                                 }
                             }
                         } else {
-                            return Err(DryadError::new(
-                                3015,
+                            return Err(DryadError::from_catalog_fmt(
+                                error_catalog::e3015(),
                                 &format!(
                                     "Símbolo '{}' não encontrado nas exportações do módulo '{}'",
                                     name, module_key
                                 ),
-                            ));
+                                SourceLocation::unknown(),
+                                ));
                         }
                     }
                     Ok(Value::Null)
                 } else {
-                    Err(DryadError::new(
-                        3014,
+                    Err(DryadError::from_catalog_fmt(
+                        error_catalog::e3014(),
                         &format!("Módulo '{}' não encontrado", module_key),
-                    ))
+                        SourceLocation::unknown(),
+                        ))
                 }
             }
             ImportKind::Namespace(namespace) => {
@@ -3990,10 +4245,11 @@ impl Interpreter {
                     self.env.variables.insert(namespace.clone(), namespace_obj);
                     Ok(Value::Null)
                 } else {
-                    Err(DryadError::new(
-                        3014,
+                    Err(DryadError::from_catalog_fmt(
+                        error_catalog::e3014(),
                         &format!("Módulo '{}' não encontrado", module_key),
-                    ))
+                        SourceLocation::unknown(),
+                        ))
                 }
             }
         }
@@ -4039,35 +4295,51 @@ impl Interpreter {
                 let index = match index_value {
                     Value::Number(n) => {
                         if n < 0.0 || n.fract() != 0.0 {
-                            return Err(DryadError::new(
-                                3080,
+                            return Err(DryadError::from_catalog_fmt(
+                                error_catalog::e3080(),
                                 "Índice deve ser um número inteiro não negativo",
-                            ));
+                                SourceLocation::unknown(),
+                                ));
                         }
                         n as usize
                     }
-                    _ => return Err(DryadError::new(3081, "Índice deve ser um número")),
+                    _ => {
+                        return Err(DryadError::from_catalog_fmt(
+                            error_catalog::e3081(),
+                            "Índice deve ser um número",
+                            SourceLocation::unknown(),
+                        ))
+                    }
                 };
 
                 let heap_obj = self.heap.get_mut(id).ok_or_else(|| {
-                    DryadError::new(3100, "Heap error: Array reference not found")
+                    DryadError::from_catalog_fmt(
+                        error_catalog::e3100(),
+                        "Heap error: Array reference not found",
+                        SourceLocation::unknown(),
+                    )
                 })?;
 
                 if let ManagedObject::Array(elements) = heap_obj {
                     if index >= elements.len() {
-                        return Err(DryadError::new(
-                            3082,
+                        return Err(DryadError::from_catalog_fmt(
+                            error_catalog::e3082(),
                             &format!(
                                 "Índice {} fora dos limites do array (tamanho: {})",
                                 index,
                                 elements.len()
                             ),
-                        ));
+                            SourceLocation::unknown(),
+                            ));
                     }
                     elements[index] = value.clone();
                     Ok(value)
                 } else {
-                    Err(DryadError::new(3101, "Heap error: Expected Array"))
+                    Err(DryadError::from_catalog_fmt(
+                        error_catalog::e3101(),
+                        "Heap error: Expected Array",
+                        SourceLocation::unknown(),
+                    ))
                 }
             }
             Value::Object(id) => {
@@ -4075,28 +4347,38 @@ impl Interpreter {
                     Value::String(s) => s,
                     Value::Number(n) => n.to_string(),
                     _ => {
-                        return Err(DryadError::new(
-                            3084,
+                        return Err(DryadError::from_catalog_fmt(
+                            error_catalog::e3084(),
                             "Chave do objeto deve ser string ou número",
-                        ))
+                            SourceLocation::unknown(),
+                            ))
                     }
                 };
 
                 let heap_obj = self.heap.get_mut(id).ok_or_else(|| {
-                    DryadError::new(3100, "Heap error: Object reference not found")
+                    DryadError::from_catalog_fmt(
+                        error_catalog::e3100(),
+                        "Heap error: Object reference not found",
+                        SourceLocation::unknown(),
+                    )
                 })?;
 
                 if let ManagedObject::Object { properties, .. } = heap_obj {
                     properties.insert(key, value.clone());
                     Ok(value)
                 } else {
-                    Err(DryadError::new(3101, "Heap error: Expected Object"))
+                    Err(DryadError::from_catalog_fmt(
+                        error_catalog::e3101(),
+                        "Heap error: Expected Object",
+                        SourceLocation::unknown(),
+                    ))
                 }
             }
-            _ => Err(DryadError::new(
-                3085,
+            _ => Err(DryadError::from_catalog_fmt(
+                error_catalog::e3085(),
                 "Tentativa de atribuir índice a valor que não é array nem objeto",
-            )),
+                SourceLocation::unknown(),
+                )),
         }
     }
 
@@ -4122,7 +4404,11 @@ impl Interpreter {
             ),
             Value::Lambda(id) => {
                 let heap_obj = self.heap.get(*id).ok_or_else(|| {
-                    DryadError::new(3100, "Heap error: Lambda reference not found")
+                    DryadError::from_catalog_fmt(
+                        error_catalog::e3100(),
+                        "Heap error: Lambda reference not found",
+                        SourceLocation::unknown(),
+                    )
                 })?;
 
                 if let ManagedObject::Lambda {
@@ -4139,13 +4425,18 @@ impl Interpreter {
                         location,
                     )
                 } else {
-                    Err(DryadError::new(3101, "Heap error: Expected Lambda"))
+                    Err(DryadError::from_catalog_fmt(
+                        error_catalog::e3101(),
+                        "Heap error: Expected Lambda",
+                        SourceLocation::unknown(),
+                    ))
                 }
             }
-            _ => Err(DryadError::new(
-                3033,
+            _ => Err(DryadError::from_catalog_fmt(
+                error_catalog::e3033(),
                 "Tentativa de chamar um valor que não é uma função",
-            )),
+                SourceLocation::unknown(),
+                )),
         }
     }
 
@@ -4169,10 +4460,11 @@ impl Interpreter {
             let mut elements = match self.heap.get_mut(id) {
                 Some(ManagedObject::Array(e)) => std::mem::take(e),
                 _ => {
-                    return Err(DryadError::new(
-                        3100,
+                    return Err(DryadError::from_catalog_fmt(
+                        error_catalog::e3100(),
                         "Heap error: Array not found or not an array",
-                    ))
+                        SourceLocation::unknown(),
+                        ))
                 }
             };
 
@@ -4186,10 +4478,11 @@ impl Interpreter {
 
             result
         } else {
-            Err(DryadError::new(
-                3102,
+            Err(DryadError::from_catalog_fmt(
+                error_catalog::e3102(),
                 "Tentativa de chamar método de array em valor que não é array",
-            ))
+                SourceLocation::unknown(),
+                ))
         }
     }
 
@@ -4287,7 +4580,11 @@ impl Interpreter {
             }
             "reduce" => {
                 if arg_values.is_empty() {
-                    return Err(DryadError::new(3025, "reduce requer callback"));
+                    return Err(DryadError::from_catalog_fmt(
+                        error_catalog::e3025(),
+                        "reduce requer callback",
+                        SourceLocation::unknown(),
+                    ));
                 }
                 let callback = &arg_values[0];
                 let mut iter = elements.iter().enumerate();
@@ -4299,10 +4596,11 @@ impl Interpreter {
                     if let Some((_, head)) = iter.next() {
                         accumulator = head.clone();
                     } else {
-                        return Err(DryadError::new(
-                            3028,
+                        return Err(DryadError::from_catalog_fmt(
+                            error_catalog::e3028(),
                             "reduce em array vazio sem valor inicial",
-                        ));
+                            SourceLocation::unknown(),
+                            ));
                     }
                 }
 
@@ -4319,7 +4617,11 @@ impl Interpreter {
             }
             "reduceRight" => {
                 if arg_values.is_empty() {
-                    return Err(DryadError::new(3025, "reduceRight requer callback"));
+                    return Err(DryadError::from_catalog_fmt(
+                        error_catalog::e3025(),
+                        "reduceRight requer callback",
+                        SourceLocation::unknown(),
+                    ));
                 }
                 let callback = &arg_values[0];
                 let mut iter = elements.iter().enumerate().rev();
@@ -4331,10 +4633,11 @@ impl Interpreter {
                     if let Some((_, tail)) = iter.next() {
                         accumulator = tail.clone();
                     } else {
-                        return Err(DryadError::new(
-                            3028,
+                        return Err(DryadError::from_catalog_fmt(
+                            error_catalog::e3028(),
                             "reduceRight em array vazio sem valor inicial",
-                        ));
+                            SourceLocation::unknown(),
+                            ));
                     }
                 }
 
@@ -5010,13 +5313,14 @@ impl Interpreter {
                 Ok(Value::Array(new_id))
             }
 
-            _ => Err(DryadError::new(
-                3100,
+            _ => Err(DryadError::from_catalog_fmt(
+                error_catalog::e3100(),
                 &format!(
                     "Método '{}' não encontrado ou não implementado em Array",
                     method_name
                 ),
-            )),
+                SourceLocation::unknown(),
+                )),
         }
     }
 

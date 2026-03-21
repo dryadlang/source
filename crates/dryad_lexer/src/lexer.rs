@@ -1,5 +1,5 @@
 use crate::token::{Token, TokenWithLocation};
-use dryad_errors::{DryadError, SourceLocation};
+use dryad_errors::{error_catalog, DryadError, SourceLocation};
 use std::path::PathBuf;
 use std::str::Chars;
 
@@ -319,13 +319,14 @@ impl<'a> Lexer<'a> {
                 } else if self.peek() == '<' {
                     self.native_directive()
                 } else {
-                    Err(DryadError::new(
-                        1001,
+                    Err(DryadError::from_catalog_fmt(
+                        error_catalog::e1001(),
                         &format!(
-                            "Caracter inesperado '#' na linha {}, coluna {}",
+                            "Unexpected character '#' at line {}, column {}",
                             self.line,
                             self.column - 1
                         ),
+                        self.current_location(),
                     ))
                 }
             }
@@ -355,10 +356,12 @@ impl<'a> Lexer<'a> {
             }),
             _ => {
                 let location = self.current_location();
-                Err(
-                    DryadError::lexer(1001, &format!("Caracter inesperado '{}'", ch), location)
-                        .with_auto_context(),
+                Err(DryadError::from_catalog_fmt(
+                    error_catalog::e1001(),
+                    &format!("Unexpected character '{}'", ch),
+                    location,
                 )
+                .with_auto_context())
             }
         }
     }
@@ -448,18 +451,23 @@ impl<'a> Lexer<'a> {
             }
         }
 
-        let text = self
-            .safe_slice(start_pos, self.position)
-            .ok_or_else(|| DryadError::new(1004, "Erro de índice ao processar número"))?;
+        let text = self.safe_slice(start_pos, self.position).ok_or_else(|| {
+            DryadError::from_catalog_fmt(
+                error_catalog::e1004(),
+                "Index error while processing number",
+                SourceLocation::unknown(),
+            )
+        })?;
         let location = self.current_location();
         match text.parse::<f64>() {
             Ok(value) => Ok(TokenWithLocation {
                 token: Token::Number(value),
                 location,
             }),
-            Err(_) => Err(DryadError::new(
-                1004,
-                &format!("Formato de número inválido: '{}'", text),
+            Err(_) => Err(DryadError::from_catalog_fmt(
+                error_catalog::e1004(),
+                &format!("Invalid number format: '{}'", text),
+                SourceLocation::unknown(),
             )),
         }
     }
@@ -490,9 +498,10 @@ impl<'a> Lexer<'a> {
                             if next.is_ascii_hexdigit() {
                                 unicode_digits.push(next);
                             } else {
-                                return Err(DryadError::new(
-                                    1005,
-                                    "Sequência de escape Unicode inválida",
+                                return Err(DryadError::from_catalog_fmt(
+                                    error_catalog::e1005(),
+                                    "Invalid Unicode escape sequence",
+                                    SourceLocation::unknown(),
                                 ));
                             }
                         }
@@ -500,16 +509,25 @@ impl<'a> Lexer<'a> {
                             if let Some(unicode_char) = char::from_u32(code_point) {
                                 value.push(unicode_char);
                             } else {
-                                return Err(DryadError::new(1005, "Código Unicode inválido"));
+                                return Err(DryadError::from_catalog_fmt(
+                                    error_catalog::e1005(),
+                                    "Invalid Unicode code",
+                                    SourceLocation::unknown(),
+                                ));
                             }
                         } else {
-                            return Err(DryadError::new(1005, "Sequência Unicode inválida"));
+                            return Err(DryadError::from_catalog_fmt(
+                                error_catalog::e1005(),
+                                "Invalid Unicode sequence",
+                                SourceLocation::unknown(),
+                            ));
                         }
                     }
                     c => {
-                        return Err(DryadError::new(
-                            1005,
-                            &format!("Sequência de escape inválida: '\\{}'", c),
+                        return Err(DryadError::from_catalog_fmt(
+                            error_catalog::e1005(),
+                            &format!("Invalid escape sequence: '\\{}'", c),
+                            SourceLocation::unknown(),
                         ))
                     }
                 }
@@ -519,9 +537,9 @@ impl<'a> Lexer<'a> {
         }
 
         if self.is_at_end() {
-            return Err(DryadError::lexer(
-                1002,
-                &format!("String não fechada ({})", delimiter),
+            return Err(DryadError::from_catalog_fmt(
+                error_catalog::e1002(),
+                &format!("Unclosed string ({})", delimiter),
                 self.current_location(),
             )
             .with_auto_context());
@@ -541,9 +559,13 @@ impl<'a> Lexer<'a> {
             self.advance();
         }
 
-        let text = self
-            .safe_slice(start_pos, self.position)
-            .ok_or_else(|| DryadError::new(1001, "Erro de índice ao processar identificador"))?;
+        let text = self.safe_slice(start_pos, self.position).ok_or_else(|| {
+            DryadError::from_catalog_fmt(
+                error_catalog::e1001(),
+                "Index error while processing identifier",
+                SourceLocation::unknown(),
+            )
+        })?;
         let location = self.current_location();
 
         let token = match text {
@@ -551,7 +573,8 @@ impl<'a> Lexer<'a> {
             | "while" | "do" | "break" | "continue" | "import" | "export" | "use" | "try"
             | "catch" | "finally" | "throw" | "in" | "this" | "super" | "static" | "public"
             | "private" | "protected" | "extends" | "async" | "await" | "thread" | "mutex"
-            | "as" | "from" | "match" | "new" => Token::Keyword(text.to_string()),
+            | "as" | "from" | "match" | "new" | "interface" | "implements" | "get" | "set"
+            | "namespace" => Token::Keyword(text.to_string()),
             "true" => Token::Boolean(true),
             "false" => Token::Boolean(false),
             "null" => Token::Literal("null".to_string()),
@@ -579,7 +602,10 @@ impl<'a> Lexer<'a> {
             }
             self.advance();
         }
-        Err(DryadError::new(1003, "Comentário de bloco não fechado"))
+        Err(DryadError::from_catalog(
+            error_catalog::e1003(),
+            SourceLocation::unknown(),
+        ))
     }
 
     fn binary_number(&mut self) -> Result<TokenWithLocation, DryadError> {
@@ -593,24 +619,40 @@ impl<'a> Lexer<'a> {
         }
 
         if !has_digits {
-            return Err(DryadError::new(1004, "Número binário vazio"));
+            return Err(DryadError::from_catalog_fmt(
+                error_catalog::e1004(),
+                "Empty binary number",
+                SourceLocation::unknown(),
+            ));
         }
 
         if !self.is_at_end() && (self.peek().is_ascii_digit() || self.peek().is_ascii_alphabetic())
         {
-            return Err(DryadError::new(1004, "Dígito inválido em número binário"));
+            return Err(DryadError::from_catalog_fmt(
+                error_catalog::e1004(),
+                "Invalid digit in binary number",
+                SourceLocation::unknown(),
+            ));
         }
 
-        let text = self
-            .safe_slice(start_pos, self.position)
-            .ok_or_else(|| DryadError::new(1004, "Erro de índice em número binário"))?;
+        let text = self.safe_slice(start_pos, self.position).ok_or_else(|| {
+            DryadError::from_catalog_fmt(
+                error_catalog::e1004(),
+                "Index error in binary number",
+                SourceLocation::unknown(),
+            )
+        })?;
         let location = self.current_location();
         match u64::from_str_radix(text, 2) {
             Ok(value) => Ok(TokenWithLocation {
                 token: Token::Number(value as f64),
                 location,
             }),
-            Err(_) => Err(DryadError::new(1004, "Número binário inválido")),
+            Err(_) => Err(DryadError::from_catalog_fmt(
+                error_catalog::e1004(),
+                "Invalid binary number",
+                SourceLocation::unknown(),
+            )),
         }
     }
 
@@ -625,24 +667,40 @@ impl<'a> Lexer<'a> {
         }
 
         if !has_digits {
-            return Err(DryadError::new(1004, "Número octal vazio"));
+            return Err(DryadError::from_catalog_fmt(
+                error_catalog::e1004(),
+                "Empty octal number",
+                SourceLocation::unknown(),
+            ));
         }
 
         if !self.is_at_end() && (self.peek().is_ascii_digit() || self.peek().is_ascii_alphabetic())
         {
-            return Err(DryadError::new(1004, "Dígito inválido em número octal"));
+            return Err(DryadError::from_catalog_fmt(
+                error_catalog::e1004(),
+                "Invalid digit in octal number",
+                SourceLocation::unknown(),
+            ));
         }
 
-        let text = self
-            .safe_slice(start_pos, self.position)
-            .ok_or_else(|| DryadError::new(1004, "Erro de índice em número octal"))?;
+        let text = self.safe_slice(start_pos, self.position).ok_or_else(|| {
+            DryadError::from_catalog_fmt(
+                error_catalog::e1004(),
+                "Index error in octal number",
+                SourceLocation::unknown(),
+            )
+        })?;
         let location = self.current_location();
         match u64::from_str_radix(text, 8) {
             Ok(value) => Ok(TokenWithLocation {
                 token: Token::Number(value as f64),
                 location,
             }),
-            Err(_) => Err(DryadError::new(1004, "Número octal inválido")),
+            Err(_) => Err(DryadError::from_catalog_fmt(
+                error_catalog::e1004(),
+                "Invalid octal number",
+                SourceLocation::unknown(),
+            )),
         }
     }
 
@@ -657,26 +715,39 @@ impl<'a> Lexer<'a> {
         }
 
         if !has_digits {
-            return Err(DryadError::new(1004, "Número hexadecimal vazio"));
-        }
-
-        if !self.is_at_end() && self.peek().is_ascii_alphabetic() {
-            return Err(DryadError::new(
-                1004,
-                "Dígito inválido em número hexadecimal",
+            return Err(DryadError::from_catalog_fmt(
+                error_catalog::e1004(),
+                "Empty hexadecimal number",
+                SourceLocation::unknown(),
             ));
         }
 
-        let text = self
-            .safe_slice(start_pos, self.position)
-            .ok_or_else(|| DryadError::new(1004, "Erro de índice em número hexadecimal"))?;
+        if !self.is_at_end() && self.peek().is_ascii_alphabetic() {
+            return Err(DryadError::from_catalog_fmt(
+                error_catalog::e1004(),
+                "Invalid digit in hexadecimal number",
+                SourceLocation::unknown(),
+            ));
+        }
+
+        let text = self.safe_slice(start_pos, self.position).ok_or_else(|| {
+            DryadError::from_catalog_fmt(
+                error_catalog::e1004(),
+                "Index error in hexadecimal number",
+                SourceLocation::unknown(),
+            )
+        })?;
         let location = self.current_location();
         match u64::from_str_radix(text, 16) {
             Ok(value) => Ok(TokenWithLocation {
                 token: Token::Number(value as f64),
                 location,
             }),
-            Err(_) => Err(DryadError::new(1004, "Número hexadecimal inválido")),
+            Err(_) => Err(DryadError::from_catalog_fmt(
+                error_catalog::e1004(),
+                "Invalid hexadecimal number",
+                SourceLocation::unknown(),
+            )),
         }
     }
 
@@ -690,20 +761,29 @@ impl<'a> Lexer<'a> {
             if ch.is_ascii_alphanumeric() || ch == '_' {
                 module_name.push(ch);
             } else {
-                return Err(DryadError::new(
-                    1006,
-                    "Caracter inválido em diretiva nativa",
+                return Err(DryadError::from_catalog_fmt(
+                    error_catalog::e1006(),
+                    "Invalid character in native directive",
+                    SourceLocation::unknown(),
                 ));
             }
         }
 
         if self.is_at_end() {
-            return Err(DryadError::new(1006, "Diretiva nativa não fechada"));
+            return Err(DryadError::from_catalog_fmt(
+                error_catalog::e1006(),
+                "Unclosed native directive",
+                SourceLocation::unknown(),
+            ));
         }
 
         self.advance(); // >
         if module_name.is_empty() {
-            return Err(DryadError::new(1006, "não pode estar vazio"));
+            return Err(DryadError::from_catalog_fmt(
+                error_catalog::e1006(),
+                "Native directive name cannot be empty",
+                SourceLocation::unknown(),
+            ));
         }
 
         Ok(TokenWithLocation {
@@ -716,9 +796,9 @@ impl<'a> Lexer<'a> {
         let start_location = self.current_location();
 
         if self.is_at_end() {
-            return Err(DryadError::lexer(
-                1002,
-                "Template string não fechada",
+            return Err(DryadError::from_catalog_fmt(
+                error_catalog::e1002(),
+                "Unclosed template string",
                 start_location,
             ));
         }

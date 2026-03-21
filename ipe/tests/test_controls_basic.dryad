@@ -1,108 +1,190 @@
-import ipe
+#<console_io>
+#<ffi>
+#<system_env>
 
-func test_control_creation() {
-    print("Test 1: Control Creation")
-    
-    let ctrl = ipe.control_create(10, 20, 100, 50)
-    
-    if ctrl == 0 {
-        print("[X] Failed: control_create returned null")
-        return false
+// Wrapper functions para a API do IPE (como a lib faz internamente)
+let ipe_lib_loaded = false;
+let ipe_lib_alias = "ipe";
+
+function ipe_load_library() {
+    if (ipe_lib_loaded) {
+        return true;
     }
     
-    print("[✓] Passed: Control created successfully")
-    ipe.control_destroy(ctrl)
-    return true
+    let platform = native_platform();
+    let ext = ".so";
+    if (platform == "windows") {
+        ext = ".dll";
+    }
+    
+    let path = "./ipe/native/ipe" + ext;
+    if (ffi_load_library(path, ipe_lib_alias)) {
+        ipe_lib_loaded = true;
+        return true;
+    }
+    return false;
 }
 
-func test_control_hierarchy() {
-    print("\nTest 2: Control Hierarchy")
-    
-    let parent = ipe.control_create(0, 0, 300, 300)
-    let child1 = ipe.control_create(10, 10, 50, 50)
-    let child2 = ipe.control_create(70, 10, 50, 50)
-    
-    if parent == 0 || child1 == 0 || child2 == 0 {
-        print("[X] Failed: Could not create controls")
-        return false
+function ipe_init() {
+    if (!ipe_load_library()) {
+        return false;
     }
-    
-    ipe.control_add_child(parent, child1)
-    ipe.control_add_child(parent, child2)
-    
-    print("[✓] Passed: Hierarchy created (parent with 2 children)")
-    
-    ipe.control_destroy(parent)
-    return true
+    return ffi_call(ipe_lib_alias, "ipe_init", "i32") != 0;
 }
 
-func test_control_properties() {
-    print("\nTest 3: Control Properties")
-    
-    let ctrl = ipe.control_create(0, 0, 100, 100)
-    
-    if ctrl == 0 {
-        print("[X] Failed: Could not create control")
-        return false
+function ipe_create_window(w, h, title) {
+    if (!ipe_lib_loaded) {
+        return 0;
     }
-    
-    ipe.control_set_color(ctrl, 0xFF0000FF, 0x00FF00FF)
-    ipe.control_set_position(ctrl, 50, 75)
-    ipe.control_set_size(ctrl, 200, 150)
-    ipe.control_set_visible(ctrl, true)
-    ipe.control_set_enabled(ctrl, true)
-    
-    print("[✓] Passed: Properties set successfully")
-    
-    ipe.control_destroy(ctrl)
-    return true
+    return ffi_call(ipe_lib_alias, "ipe_window_create", "pointer", w, h, title);
 }
 
-func test_control_removal() {
-    print("\nTest 4: Control Removal")
-    
-    let parent = ipe.control_create(0, 0, 300, 300)
-    let child = ipe.control_create(10, 10, 50, 50)
-    
-    if parent == 0 || child == 0 {
-        print("[X] Failed: Could not create controls")
-        return false
+function ipe_clear(color) {
+    if (!ipe_lib_loaded) {
+        return;
     }
-    
-    ipe.control_add_child(parent, child)
-    ipe.control_remove_child(parent, child)
-    
-    print("[✓] Passed: Child removed successfully")
-    
-    ipe.control_destroy(parent)
-    ipe.control_destroy(child)
-    return true
+    ffi_call(ipe_lib_alias, "ipe_clear_background", "void", color);
 }
 
-func main() {
-    print("=== IPE Control System - Basic Tests ===\n")
-    
-    let results = []
-    results.push(test_control_creation())
-    results.push(test_control_hierarchy())
-    results.push(test_control_properties())
-    results.push(test_control_removal())
-    
-    let passed = 0
-    let total = results.length
-    
-    for let i = 0; i < total; i = i + 1 {
-        if results[i] {
-            passed = passed + 1
-        }
+function ipe_draw_rect(x, y, w, h, color) {
+    if (!ipe_lib_loaded) {
+        return;
     }
-    
-    print("\n=== Summary ===")
-    print("Passed: " + passed + "/" + total)
-    
-    if passed == total {
-        print("All tests passed! ✓")
-    } else {
-        print("Some tests failed.")
-    }
+    ffi_call(ipe_lib_alias, "ipe_draw_rect", "void", x, y, w, h, color);
 }
+
+function ipe_draw_text(text, x, y, color) {
+    if (!ipe_lib_loaded) {
+        return;
+    }
+    ffi_call(ipe_lib_alias, "ipe_draw_text", "void", text, x, y, color);
+}
+
+function ipe_present() {
+    if (!ipe_lib_loaded) {
+        return;
+    }
+    ffi_call(ipe_lib_alias, "ipe_present", "void");
+}
+
+function ipe_transform_push() {
+    if (!ipe_lib_loaded) {
+        return;
+    }
+    ffi_call(ipe_lib_alias, "ipe_transform_push", "void");
+}
+
+function ipe_transform_pop() {
+    if (!ipe_lib_loaded) {
+        return;
+    }
+    ffi_call(ipe_lib_alias, "ipe_transform_pop", "void");
+}
+
+function ipe_translate(dx, dy) {
+    if (!ipe_lib_loaded) {
+        return;
+    }
+    ffi_call(ipe_lib_alias, "ipe_transform_translate", "void", dx, dy);
+}
+
+function ipe_scale(sx, sy) {
+    if (!ipe_lib_loaded) {
+        return;
+    }
+    ffi_call(ipe_lib_alias, "ipe_transform_scale", "void", sx, sy);
+}
+
+function ipe_rotate(angle) {
+    if (!ipe_lib_loaded) {
+        return;
+    }
+    ffi_call(ipe_lib_alias, "ipe_transform_rotate", "void", angle);
+}
+
+function ipe_is_open() {
+    if (!ipe_lib_loaded) {
+        return false;
+    }
+    return ffi_call(ipe_lib_alias, "ipe_is_window_open", "i32") != 0;
+}
+
+function ipe_process_events() {
+    if (!ipe_lib_loaded) {
+        return;
+    }
+    ffi_call(ipe_lib_alias, "ipe_process_events", "void");
+}
+
+function ipe_close() {
+    if (!ipe_lib_loaded) {
+        return;
+    }
+    ffi_call(ipe_lib_alias, "ipe_window_close", "void");
+    ipe_lib_loaded = false;
+}
+
+function ipe_font_load(path, size) {
+    if (!ipe_lib_loaded) {
+        return 0;
+    }
+    return ffi_call(ipe_lib_alias, "ipe_font_load", "pointer", path, size);
+}
+
+// Testes
+function test_init() {
+    println("Test 1: ipe_init()");
+    return ipe_init();
+}
+
+function test_create_window() {
+    println("Test 2: ipe_create_window()");
+    let win = ipe_create_window(800, 600, "Test Window");
+    if (win == 0) {
+        return false;
+    }
+    ipe_close();
+    return true;
+}
+
+function test_draw_operations() {
+    println("Test 3: Draw operations");
+    let win = ipe_create_window(800, 600, "Draw Test");
+    if (win == 0) {
+        return false;
+    }
+    
+    ipe_clear(0xFF333333);
+    ipe_draw_rect(100, 100, 200, 150, 0xFF0000FF);
+    ipe_draw_text("Hello IPE!", 100, 270, 0xFFFFFFFF);
+    ipe_present();
+    
+    ipe_close();
+    return true;
+}
+
+function main() {
+    println("=== IPE Framework - Basic Tests ===");
+    
+    if (!test_init()) {
+        println("[X] Failed: ipe_init()");
+        return;
+    }
+    println("[✓] Passed");
+    
+    if (!test_create_window()) {
+        println("[X] Failed: ipe_create_window()");
+        return;
+    }
+    println("[✓] Passed");
+    
+    if (!test_draw_operations()) {
+        println("[X] Failed: draw operations");
+        return;
+    }
+    println("[✓] Passed");
+    
+    println("\n=== All tests completed ===");
+}
+
+main();

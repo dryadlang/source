@@ -33,32 +33,39 @@ function main() {
         return;
     }
     println("Window created successfully!");
+    println("Press ESC or close the window to exit...");
     
-    println("Drawing rectangles...");
-    let count = 0;
-    while (count < 50) {
-        // Clear background
-        ffi_call("ipe", "ipe_clear_background", "void", 0x333333);
+    // Main loop - run until user closes window
+    let running = 1;
+    let frame = 0;
+    while (running != 0) {
+        // Process events (returns 0 if window closed)
+        running = ffi_call("ipe", "ipe_process_events", "i32");
         
-        // Draw a red rectangle
-        ffi_call("ipe", "ipe_draw_rect", "void", 100 + count, 100, 200, 150, 0xFF0000);
+        // Clear with dark gray
+        ffi_call("ipe", "ipe_clear_background", "void", 0xFF333333);
         
-        // Draw a blue rectangle
-        ffi_call("ipe", "ipe_draw_rect", "void", 400, 300, 100, 100, 0x0000FF);
+        // Draw animated red rectangle (moving horizontally)
+        let x_pos = 100 + (frame % 400);
+        ffi_call("ipe", "ipe_draw_rect", "void", x_pos, 100, 200, 150, 0xFFFF0000);
         
-        // Process events
-        let running = ffi_call("ipe", "ipe_process_events", "i32");
-        if (running == 0) {
-            println("Window closed by user");
-            break;
-        }
+        // Draw blue rectangle (static)
+        ffi_call("ipe", "ipe_draw_rect", "void", 400, 300, 100, 100, 0xFF0000FF);
         
-        count++;
+        // Draw some text
+        ffi_call("ipe", "ipe_draw_text", "void", "IPE Framework - Dryad Graphics", 250, 500, 0xFFFFFFFF);
+        
+        // PRESENT the frame to show it on screen!
+        ffi_call("ipe", "ipe_present", "void");
+        
+        frame = frame + 1;
+        
+        // Small delay to not spin the CPU (approximately 60 FPS)
+        // Note: In a real app you'd use proper timing
     }
     
-    println("Closing window...");
+    println("Window closed. Cleaning up...");
     ffi_call("ipe", "ipe_window_close", "void");
-    
     println("Demo completed successfully!");
 }
 

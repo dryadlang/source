@@ -62,8 +62,12 @@ libc = "0.2"
 winapi = { version = "0.3", features = ["wincon", "processenv", "winbase"] }
 
 # Database dependencies
-rusqlite = { version = "0.31", features = ["bundled"] }
-tokio-postgres = "0.7"
+[dependencies.rusqlite]
+version = "0.31"
+features = ["bundled"]
+
+[dependencies.tokio-postgres]
+version = "0.7"
 
 [dev-dependencies]
 dryad_lexer = { workspace = true }

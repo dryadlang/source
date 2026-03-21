@@ -1,0 +1,163 @@
+// 16-concurrency.dryad — Async/await, threads, and mutexes
+// Covers: async function, await, thread function, thread() call, mutex()
+
+#<console_io>
+#<time>
+
+// ============================================================
+// 1. Async function declaration
+// ============================================================
+println("=== 1. Async functions ===");
+
+async function fetchData(id) {
+    println("Fetching data for ID: " + id);
+    // Simulate async work
+    let result = "data_" + id;
+    return result;
+}
+
+async function processItem(item) {
+    println("Processing: " + item);
+    return item + "_processed";
+}
+
+// Call async functions
+let promise1 = fetchData(42);
+let promise2 = fetchData(99);
+println("Async calls initiated");
+
+// ============================================================
+// 2. Await usage
+// ============================================================
+println("\n=== 2. Await ===");
+
+async function loadAndProcess(id) {
+    println("Starting load for " + id);
+    let data = await fetchData(id);
+    println("Got data: " + data);
+    let result = await processItem(data);
+    println("Processed: " + result);
+    return result;
+}
+
+// Demonstrate await chain
+let result = loadAndProcess(1);
+println("Load initiated");
+
+// ============================================================
+// 3. Thread function declaration
+// ============================================================
+println("\n=== 3. Thread functions ===");
+
+thread function heavyComputation(n) {
+    println("Thread computing factorial of " + n);
+    let result = 1;
+    for (let i = 1; i <= n; i++) {
+        result *= i;
+    }
+    println("Thread result: factorial(" + n + ") = " + result);
+    return result;
+}
+
+thread function backgroundTask(name, iterations) {
+    println("Background task '" + name + "' starting");
+    let sum = 0;
+    for (let i = 0; i < iterations; i++) {
+        sum += i;
+    }
+    println("Background task '" + name + "' done: sum=" + sum);
+    return sum;
+}
+
+// Spawn thread functions
+let t1 = heavyComputation(10);
+let t2 = backgroundTask("counter", 100);
+println("Threads spawned");
+
+// ============================================================
+// 4. thread() inline call
+// ============================================================
+println("\n=== 4. thread() inline call ===");
+
+// thread() can run any existing function in a new OS thread
+function compute(x) {
+    return x * x + 1;
+}
+
+let handle = thread(compute, 7);
+println("Inline thread spawned for compute(7)");
+
+// ============================================================
+// 5. Mutex creation and synchronization
+// ============================================================
+println("\n=== 5. Mutex ===");
+
+let mu = mutex();
+println("Mutex created: " + mu);
+
+// Mutex is used for thread synchronization
+// Typical pattern:
+//   mu.lock();
+//   // critical section — only one thread at a time
+//   mu.unlock();
+
+// ============================================================
+// 6. Thread coordination example
+// ============================================================
+println("\n=== 6. Thread coordination example ===");
+
+let sharedLock = mutex();
+
+thread function worker(id, lock) {
+    println("Worker " + id + " starting");
+
+    // Protect shared resource with mutex
+    lock.lock();
+    println("Worker " + id + " entered critical section");
+    // Simulate work
+    let val = id * 100;
+    println("Worker " + id + " computed: " + val);
+    lock.unlock();
+    println("Worker " + id + " released lock");
+
+    return val;
+}
+
+// Spawn coordinated workers
+let w1 = worker(1, sharedLock);
+let w2 = worker(2, sharedLock);
+let w3 = worker(3, sharedLock);
+
+println("All workers spawned with shared mutex");
+
+// ============================================================
+// 7. Async with classes
+// ============================================================
+println("\n=== 7. Async methods in classes ===");
+
+class APIClient {
+    baseUrl = "";
+
+    constructor(baseUrl) {
+        this.baseUrl = baseUrl;
+    }
+
+    async function get(endpoint) {
+        let url = this.baseUrl + endpoint;
+        println("GET " + url);
+        return "response from " + url;
+    }
+
+    async function post(endpoint, data) {
+        let url = this.baseUrl + endpoint;
+        println("POST " + url + " with data: " + data);
+        return "created at " + url;
+    }
+}
+
+let client = new APIClient("https://api.example.com");
+let getResult = client.get("/users");
+let postResult = client.post("/users", "name=Alice");
+println("API calls made");
+
+println("\nConcurrency demo complete!");

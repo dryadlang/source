@@ -142,6 +142,7 @@ The lexer converts source text into tokens. Complete token taxonomy:
 
 - `=>` (arrow function)
 - `#` (native directive prefix)
+- `::` (namespace access - like C++/Rust)
 
 ### 2.4 Comments
 
@@ -793,6 +794,21 @@ import * as utils from "utils/helpers";
 import "initialization";  // just execute module for side effects
 ```
 
+**Identifier Import (since v0.1.1):**
+
+```dryad
+import ipe;  // import module by identifier (without quotes)
+```
+
+**Namespace Access Operator (since v0.1.1):**
+
+```dryad
+ipe::init();         // call function in namespace
+ipe::config::value;  // access nested namespace member
+```
+
+> **Note:** The `::` operator is parsed as PropertyAccess internally, providing similar semantics to C++/Rust namespace access.
+
 **Legacy Use Syntax:**
 
 ```dryad
@@ -877,7 +893,6 @@ Global Scope
 **Binding Rules:**
 
 - `let` and `const`: block-scoped
-- `var`: function-scoped (and hoisted)
 - `function` declarations: hoisted to function/module scope
 - Global variables accessible from anywhere
 

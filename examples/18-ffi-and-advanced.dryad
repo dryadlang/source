@@ -1,0 +1,208 @@
+// 18-ffi-and-advanced.dryad — FFI, HTTP, TCP, WebSocket, JSON streaming
+// Covers: #<ffi>, #<http_client>, #<http_server>, #<tcp>, #<json_stream>, #<websocket>
+// NOTE: These examples show API usage. Some require network access or native libs.
+
+#<console_io>
+#<ffi>
+#<http_client>
+#<http_server>
+#<tcp>
+#<json_stream>
+#<websocket>
+#<encode_decode>
+#<time>
+
+// ============================================================
+// 1. FFI — Foreign Function Interface
+// ============================================================
+println("=== 1. #<ffi> — Foreign Function Interface ===");
+
+// Load a native shared library (.so / .dll / .dylib)
+// let loaded = ffi_load_library("/usr/lib/libm.so", "math");
+// if (loaded) {
+//     let result = ffi_call("math", "sqrt", "double", 16.0);
+//     println("sqrt(16) = " + result);
+//     ffi_unload_library("math");
+// }
+
+// List loaded libraries
+let libs = ffi_list_libraries();
+println("Loaded libraries: " + libs);
+
+println("FFI functions: ffi_load_library, ffi_call, ffi_unload_library");
+println("                ffi_get_symbol, ffi_list_libraries");
+
+// ============================================================
+// 2. HTTP Client
+// ============================================================
+println("\n=== 2. #<http_client> — HTTP Client ===");
+
+// Basic GET request (requires network)
+// let response = native_http_get("https://httpbin.org/get");
+// println("GET response: " + response);
+
+// POST request
+// let postResp = native_http_post("https://httpbin.org/post", "key=value");
+// println("POST response: " + postResp);
+
+// JSON endpoint
+// let jsonResp = native_http_json("https://httpbin.org/json");
+// println("JSON response: " + jsonResp);
+
+// Status check
+// let status = native_http_status("https://httpbin.org/status/200");
+// println("Status: " + status);
+
+// Download file
+// native_http_download("https://example.com/file.txt", "/tmp/file.txt");
+
+println("HTTP client functions: native_http_get, native_http_post");
+println("  native_http_json, native_http_status, native_http_download");
+println("  native_http_headers, native_http_set_timeout, etc.");
+
+// ============================================================
+// 3. HTTP Server
+// ============================================================
+println("\n=== 3. #<http_server> — HTTP Server ===");
+
+// Create and configure a server
+// native_http_server_create("myapp", "127.0.0.1", 8080);
+//
+// // Define routes
+// native_http_server_get("myapp", "/", "Welcome to Dryad Server!");
+// native_http_server_get("myapp", "/health", "OK");
+// native_http_server_post("myapp", "/data", "Received");
+//
+// // Serve static files and JSON
+// native_http_server_html("myapp", "/page", "<h1>Hello</h1>");
+// native_http_server_json("myapp", "/api/info", "{\"status\":\"ok\"}");
+//
+// // CORS and middleware
+// native_http_server_cors("myapp", "*");
+//
+// // Start server
+// native_http_server_start("myapp");
+// println("Server running on http://127.0.0.1:8080");
+//
+// // Later: stop server
+// native_http_server_stop("myapp");
+
+println("HTTP server functions: native_http_server_create, start, stop");
+println("  route, get, post, put, delete, static, file, html, json");
+println("  cors, middleware, status, handle");
+
+// ============================================================
+// 4. TCP Networking
+// ============================================================
+println("\n=== 4. #<tcp> — TCP Client/Server ===");
+
+// TCP Server
+// tcp_server_create("echo", "127.0.0.1", 9000, 10);
+// tcp_server_start("echo");
+// let status = tcp_server_status("echo");
+// println("Server status: " + status);
+
+// TCP Client
+// tcp_client_create("client1", "127.0.0.1", 9000);
+// let connected = tcp_client_connect("client1");
+// if (connected) {
+//     tcp_client_send("client1", "Hello, server!");
+//     let response = tcp_client_receive("client1");
+//     println("Received: " + response);
+//     tcp_client_disconnect("client1");
+// }
+
+// Utility functions
+// let ip = tcp_get_local_ip();
+// println("Local IP: " + ip);
+// let resolved = tcp_resolve_hostname("example.com");
+// println("Resolved: " + resolved);
+
+println("TCP functions: tcp_server_create, start, stop, status");
+println("  tcp_client_create, connect, disconnect, send, receive");
+println("  tcp_resolve_hostname, tcp_get_local_ip");
+
+// ============================================================
+// 5. JSON Streaming
+// ============================================================
+println("\n=== 5. #<json_stream> — Incremental JSON Processing ===");
+
+// Parse a JSON string incrementally
+let jsonStr = "{\"name\":\"Dryad\",\"version\":1}";
+let parsed = json_parse_incremental(jsonStr);
+println("Incremental parse: " + parsed);
+
+// Streaming parser for large documents
+// let parser = json_create_parser();
+// json_parser_feed(parser, "{\"items\":[");
+// json_parser_feed(parser, "1,2,3");
+// json_parser_feed(parser, "]}");
+// let done = json_parser_done(parser);
+
+// Encoder
+// let encoder = json_encoder_create();
+// let encoded = json_encoder_encode(encoder, { key: "value" });
+
+println("JSON stream functions: json_parse_incremental, json_parse_stream");
+println("  json_create_parser, json_parser_feed, json_parser_done");
+println("  json_encoder_create, json_encoder_encode");
+
+// ============================================================
+// 6. WebSocket
+// ============================================================
+println("\n=== 6. #<websocket> — WebSocket Client/Server ===");
+
+// WebSocket Client
+// let conn = ws_connect("wss://echo.websocket.org");
+// ws_send(conn, "Hello WebSocket!");
+// let msg = ws_receive(conn);
+// println("WS received: " + msg);
+// ws_close(conn);
+
+// WebSocket Server
+// ws_server_create("wsapp", "127.0.0.1", 9001);
+// ws_server_start("wsapp");
+// let wsStatus = ws_server_status("wsapp");
+// ws_server_stop("wsapp");
+
+println("WebSocket functions: ws_connect, ws_send, ws_receive, ws_close");
+println("  ws_server_create, ws_server_start, ws_server_stop, ws_server_status");
+
+// ============================================================
+// 7. Combined example: Mini API service
+// ============================================================
+println("\n=== 7. Combined example: API service sketch ===");
+
+// This sketch shows how multiple modules work together.
+// Actual execution requires network access.
+
+println("Architecture:");
+println("  1. #<http_server> creates REST endpoints");
+println("  2. #<encode_decode> encodes/decodes JSON payloads");
+println("  3. #<tcp> handles low-level connections if needed");
+println("  4. #<json_stream> parses large streaming responses");
+println("  5. #<websocket> enables real-time communication");
+println("  6. #<ffi> calls native C libraries for performance");
+
+// Demonstrating encode/decode which works without network:
+let apiResponse = {
+    status: "success",
+    data: {
+        users: [
+            { id: 1, name: "Alice" },
+            { id: 2, name: "Bob" }
+        ],
+        total: 2
+    },
+    timestamp: native_now()
+};
+
+let jsonPayload = native_json_encode(apiResponse);
+println("\nSerialized API response:");
+println(jsonPayload);
+
+let deserialized = native_json_decode(jsonPayload);
+println("\nDeserialized status: " + deserialized.status);
+println("User count: " + deserialized.data.total);
+
+println("\nAdvanced features demo complete!");

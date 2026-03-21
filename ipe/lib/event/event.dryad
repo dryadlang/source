@@ -1,0 +1,198 @@
+#<ffi>
+#<console_io>
+
+// Event System for IPE
+// Provides event polling and handlers
+
+let event_lib = "ipe";
+
+// Event types (must match C constants)
+let EVENT_KEY_DOWN = 1;
+let EVENT_KEY_UP = 2;
+let EVENT_MOUSE_MOVE = 3;
+let EVENT_MOUSE_DOWN = 4;
+let EVENT_MOUSE_UP = 5;
+let EVENT_SCROLL = 6;
+let EVENT_WINDOW_CLOSE = 7;
+let EVENT_WINDOW_RESIZE = 8;
+
+// Event handlers storage
+let handlers = {};
+let handlers_enabled = true;
+
+// Initialize event system
+function init() {
+    if !load_library() {
+        return false;
+    }
+    return true;
+}
+
+function load_library() {
+    let platform = native_platform();
+    let ext = ".so";
+    if platform == "windows" {
+        ext = ".dll";
+    }
+    
+    let path = "./ipe/native/ipe" + ext;
+    return ffi_load_library(path, event_lib);
+}
+
+// Check if any key was pressed
+function is_key_down() {
+    return ffi_call(event_lib, "ipe_event_has_key_down", "i32") != 0;
+}
+
+function is_key_up() {
+    return ffi_call(event_lib, "ipe_event_has_key_up", "i32") != 0;
+}
+
+function is_mouse_down() {
+    return ffi_call(event_lib, "ipe_event_has_mouse_down", "i32") != 0;
+}
+
+function is_mouse_up() {
+    return ffi_call(event_lib, "ipe_event_has_mouse_up", "i32") != 0;
+}
+
+function is_mouse_moved() {
+    return ffi_call(event_lib, "ipe_event_has_mouse_move", "i32") != 0;
+}
+
+function is_scrolled() {
+    return ffi_call(event_lib, "ipe_event_has_scroll", "i32") != 0;
+}
+
+// Get last key down event data
+function get_last_key_down() {
+    // Note: This returns a pointer, in real usage would need to read the struct
+    // For now, just return boolean
+    return is_key_down();
+}
+
+// Get mouse position
+function get_mouse_x() {
+    return ffi_call(event_lib, "ipe_input_mouse_x", "i32");
+}
+
+function get_mouse_y() {
+    return ffi_call(event_lib, "ipe_input_mouse_y", "i32");
+}
+
+function get_mouse_pos() {
+    return {
+        "x": get_mouse_x(),
+        "y": get_mouse_y()
+    };
+}
+
+// Clear event queue
+function clear_events() {
+    ffi_call(event_lib, "ipe_input_clear_events", "void");
+}
+
+// Process events (must be called each frame)
+function process() {
+    ffi_call(event_lib, "ipe_process_events", "void");
+}
+
+// Check if window is still open
+function is_open() {
+    return ffi_call(event_lib, "ipe_is_window_open", "i32") != 0;
+}
+
+// Register event handler
+function on(event_type, handler_fn) {
+    if !handlers_enabled {
+        return;
+    }
+    handlers[event_type] = handler_fn;
+}
+
+// Unregister event handler
+function off(event_type) {
+    handlers[event_type] = null;
+}
+
+// Dispatch events to handlers (call this in main loop)
+function dispatch() {
+    if !handlers_enabled {
+        return;
+    }
+    
+    // Process pending SDL events
+    process();
+    
+    // Check and dispatch key down
+    if is_key_down() {
+        let handler = handlers["keydown"];
+        if handler != null {
+            // Get key code from input state
+            let key = ffi_call(event_lib, "ipe_input_get_key_code", "i32");
+            handler(key);
+        }
+    }
+    
+    // Check and dispatch mouse down
+    if is_mouse_down() {
+        let handler = handlers["mousedown"];
+        if handler != null {
+            handler(get_mouse_x(), get_mouse_y());
+        }
+    }
+    
+    // Check and dispatch mouse up
+    if is_mouse_up() {
+        let handler = handlers["mouseup"];
+        if handler != null {
+            handler(get_mouse_x(), get_mouse_y());
+        }
+    }
+    
+    // Check and dispatch mouse move
+    if is_mouse_moved() {
+        let handler = handlers["mousemove"];
+        if handler != null {
+            handler(get_mouse_x(), get_mouse_y());
+        }
+    }
+    
+    // Check and dispatch scroll
+    if is_scrolled() {
+        let handler = handlers["scroll"];
+        if handler != null {
+            let delta = ffi_call(event_lib, "ipe_input_mouse_scroll_delta", "i32");
+            handler(delta);
+        }
+    }
+    
+    // Clear events after processing
+    clear_events();
+}
+
+// Convenience: wait for event (blocks until event occurs)
+function wait_for(event_type) {
+    while is_open() {
+        dispatch();
+        
+        if event_type == "keydown" && is_key_down() {
+            return get_last_key_down();
+        }
+        if event_type == "mousedown" && is_mouse_down() {
+            return get_mouse_pos();
+        }
+    }
+    return null;
+}
+
+// Run main loop with event dispatch
+function run_loop(update_fn) {
+    while is_open() {
+        dispatch();
+        
+        if update_fn != null {
+            update_fn();
+        }
+    }
+}

@@ -44,9 +44,9 @@
 
 ## 2. Palavras-chave (Keywords)
 
-### 2.1. Lista Completa — 37 keywords
+### 2.1. Lista Completa — 42 keywords
 
-Fonte: `crates/dryad_lexer/src/lexer.rs` linhas 550-554.
+Fonte: `crates/dryad_lexer/src/lexer.rs` linhas 550-555.
 
 Estas são as **únicas** palavras que o lexer reconhece como `Token::Keyword`. Qualquer outra palavra é tokenizada como `Token::Identifier`.
 
@@ -55,8 +55,8 @@ Estas são as **únicas** palavras que o lexer reconhece como `Token::Keyword`. 
 | **Declaração** | `let`, `const` |
 | **Controle de fluxo** | `if`, `else`, `for`, `while`, `do`, `break`, `continue`, `match`, `return` |
 | **Funções** | `function`, `fn`, `async`, `await` |
-| **Classes/OOP** | `class`, `extends`, `new`, `this`, `super`, `static`, `public`, `private`, `protected` |
-| **Módulos** | `import`, `export`, `use`, `from`, `as` |
+| **Classes/OOP** | `class`, `extends`, `new`, `this`, `super`, `static`, `public`, `private`, `protected`, `interface`, `implements`, `get`, `set` |
+| **Módulos** | `import`, `export`, `use`, `from`, `as`, `namespace` |
 | **Erros** | `try`, `catch`, `finally`, `throw` |
 | **Concorrência** | `thread`, `mutex` |
 | **Iteração** | `in` |
@@ -71,15 +71,12 @@ Estas são as **únicas** palavras que o lexer reconhece como `Token::Keyword`. 
 
 ### 2.3. Keywords NÃO implementadas
 
-> ⚠️ As seguintes palavras **NÃO** estão na lista de keywords do lexer e serão tokenizadas como `Token::Identifier`:
+> ⚠️ As seguintes palavras **NÃO** são keywords reconhecidas pelo lexer:
 
 | Palavra | Status |
 |---------|--------|
-| `var` | **NÃO EXISTE** — Docs mencionam mas o lexer não reconhece. Usar `let`. |
-| `interface` | **QUEBRADO** — Parser espera `Token::Keyword("interface")` mas lexer gera `Token::Identifier("interface")`. Nunca será alcançado. |
-| `implements` | **QUEBRADO** — Mesmo problema que `interface`. |
-| `namespace` | **QUEBRADO** — Não está no lexer E não tem suporte no parser (AST existe: `Stmt::Namespace`). |
-| `switch` | **NÃO EXISTE** — Mencionado em docs como "em desenvolvimento". Zero código. |
+| `var` | **NÃO EXISTE** — Usar `let` ou `const`. |
+| `switch` | **NÃO EXISTE** — Usar `match` como alternativa. |
 
 ---
 
@@ -230,9 +227,9 @@ const NOME: string = "App";  // Com anotação de tipo
 - Não pode ser reatribuída.
 - Anotação de tipo é opcional.
 
-### 5.3. `var` — NÃO EXISTE
+### 5.3. `var` — NÃO SUPORTADO
 
-> ⛔ `var` NÃO é uma keyword reconhecida pelo lexer. O README menciona `var` mas é **incorreto**. Use `let` ou `const`.
+> ⛔ `var` NÃO é uma keyword reconhecida. Dryad usa `let` (mutável) e `const` (imutável).
 
 ### 5.4. Atribuição
 
@@ -1270,42 +1267,29 @@ let msg = `Olá, ${nome}! Hoje é ${native_date()}.`;
 
 ## 17. Features Quebradas / Não Implementadas
 
-### 17.1. ⛔ QUEBRADO — `interface` / `implements`
+### 17.1. ✅ CORRIGIDO — `interface` / `implements`
 
-**Problema**: O parser (linha 123-124) verifica `Token::Keyword("interface")`, mas o lexer (linhas 550-554) **não inclui** `interface` na lista de keywords. O lexer gera `Token::Identifier("interface")`, que nunca match no parser.
+**Resolvido**: `"interface"` e `"implements"` adicionados à lista de keywords do lexer. O parser reconhece `Token::Keyword("interface")` e `Token::Keyword("implements")` corretamente.
 
-**AST existe**: `Stmt::InterfaceDeclaration`, `InterfaceMember`, `InterfaceMethod` — todos definidos em ast.rs.
+### 17.2. ✅ CORRIGIDO — `get` / `set` (Getters/Setters)
 
-**Solução necessária**: Adicionar `"interface"` e `"implements"` à lista de keywords no lexer.
+**Resolvido**: `"get"` e `"set"` adicionados à lista de keywords do lexer. O parser reconhece `Token::Keyword("get")` e `Token::Keyword("set")` em contexto de classe.
 
-### 17.2. ⛔ QUEBRADO — `get` / `set` (Getters/Setters)
+### 17.3. ✅ CORRIGIDO — `namespace`
 
-**Problema**: O parser (linhas 2271, 2309) verifica `Token::Keyword("get")` e `Token::Keyword("set")`, mas o lexer **não inclui** `get`/`set` na lista de keywords. O lexer gera `Token::Identifier`, que nunca match.
-
-**AST existe**: `ClassMember::Getter`, `ClassMember::Setter` — definidos em ast.rs.
-
-**Solução necessária**: Adicionar `"get"` e `"set"` à lista de keywords no lexer.
-
-### 17.3. ⛔ QUEBRADO — `namespace`
-
-**Problema**:
-1. `namespace` não está na lista de keywords do lexer.
-2. O parser **não tem** handler para `namespace` (grep retorna zero resultados).
-3. AST existe: `Stmt::Namespace(String, Vec<Stmt>, SourceLocation)`.
-
-**Solução necessária**: Adicionar `"namespace"` ao lexer + implementar parsing.
+**Resolvido**: `"namespace"` adicionado à lista de keywords do lexer. Parser handler implementado (`namespace_declaration()`). Produz `Stmt::Namespace(String, Vec<Stmt>, SourceLocation)`. Runtime já suportava a execução.
 
 ### 17.4. ⛔ NÃO EXISTE — `var`
 
-**Problema**: Documentação e README mencionam `var` como declaração de variável, mas `var` **nunca existiu** como keyword. O lexer só reconhece `let` e `const`.
+**Problema**: `var` **não é** uma keyword reconhecida. Dryad usa `let` (mutável) e `const` (imutável).
 
-**Solução**: Remover todas as referências a `var` da documentação. Usar `let`.
+**Solução**: Usar `let` ou `const`.
 
-### 17.4. ⛔ NÃO EXISTE — `switch`
+### 17.5. ⛔ NÃO EXISTE — `switch`
 
-**Problema**: Documentação menciona `switch` como "em desenvolvimento". Zero evidência no código. Use `match` como alternativa.
+**Problema**: Não existe implementação de `switch`. Usar `match` como alternativa.
 
-### 17.5. ⚠️ Limitações Conhecidas
+### 17.6. ⚠️ Limitações Conhecidas
 
 - **`fn` vs `function`**: Ambos funcionam identicamente. Considerar padronizar para um.
 - **Operadores duplicados**: `**`, `^^`, `##` fazem a mesma coisa (potência). `%%` e `%` fazem a mesma coisa (módulo). Considerar remover redundâncias.

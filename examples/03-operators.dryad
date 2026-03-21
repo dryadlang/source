@@ -1,0 +1,126 @@
+// 03-operators.dryad — All operator categories
+// Covers: arithmetic, comparison, logical, bitwise, increment/decrement, spread
+
+#<console_io>
+
+println("=== 1. Arithmetic operators ===");
+
+let a = 15;
+let b = 4;
+
+println("a = " + a + ", b = " + b);
+println("a + b  = " + (a + b));
+println("a - b  = " + (a - b));
+println("a * b  = " + (a * b));
+println("a / b  = " + (a / b));
+println("a % b  = " + (a % b));
+
+// Special arithmetic operators
+println("\n--- Exponentiation ---");
+println("2 ** 10 = " + (2 ** 10));
+println("3 ** 3  = " + (3 ** 3));
+
+// Alternative exponentiation (^^)
+println("2 ^^ 8  = " + (2 ^^ 8));
+
+// Alternative exponentiation (##)
+println("10 ## 3 = " + (10 ## 3));
+
+// Alternative modulo (%%)
+println("17 %% 5 = " + (17 %% 5));
+
+// String concatenation with +
+println("\n--- String concatenation ---");
+let greeting = "Hello" + " " + "World";
+println(greeting);
+
+println("\n=== 2. Comparison operators ===");
+
+println("10 == 10: " + (10 == 10));
+println("10 != 5:  " + (10 != 5));
+println("10 < 20:  " + (10 < 20));
+println("10 <= 10: " + (10 <= 10));
+println("20 > 10:  " + (20 > 10));
+println("10 >= 15: " + (10 >= 15));
+
+// String comparison
+println("\"abc\" == \"abc\": " + ("abc" == "abc"));
+println("\"abc\" != \"xyz\": " + ("abc" != "xyz"));
+
+println("\n=== 3. Logical operators ===");
+
+println("true && true:   " + (true && true));
+println("true && false:  " + (true && false));
+println("false || true:  " + (false || true));
+println("false || false: " + (false || false));
+println("!true:          " + (!true));
+println("!false:         " + (!false));
+
+// Short-circuit evaluation
+let x = 0;
+let shortCircuit = false && (x = 1);
+println("Short-circuit AND (x unchanged): x = " + x);
+
+let y = 0;
+let orCircuit = true || (y = 1);
+println("Short-circuit OR (y unchanged): y = " + y);
+
+println("\n=== 4. Bitwise operators ===");
+
+let m = 0b1100;
+let n = 0b1010;
+
+println("m = " + m + " (0b1100)");
+println("n = " + n + " (0b1010)");
+println("m & n  = " + (m & n));
+println("m | n  = " + (m | n));
+println("m ^ n  = " + (m ^ n));
+
+// Shift operators
+println("\n--- Bit shifts ---");
+println("1 << 4   = " + (1 << 4));
+println("16 >> 2  = " + (16 >> 2));
+println("8 >>> 1  = " + (8 >>> 1));
+println("1 <<< 3  = " + (1 <<< 3));
+
+println("\n=== 5. Increment/Decrement ===");
+
+let counter = 10;
+println("Initial: " + counter);
+
+counter++;
+println("After counter++: " + counter);
+
+counter--;
+println("After counter--: " + counter);
+
+++counter;
+println("After ++counter: " + counter);
+
+--counter;
+println("After --counter: " + counter);
+
+// Pre vs Post in expressions
+let val = 5;
+let preInc = ++val;
+println("Pre-increment: val=" + val + ", result=" + preInc);
+
+let val2 = 5;
+let postInc = val2++;
+println("Post-increment: val2=" + val2 + ", result=" + postInc);
+
+println("\n=== 6. Spread operator ===");
+
+let arr1 = [1, 2, 3];
+let arr2 = [...arr1, 4, 5, 6];
+println("Spread: " + arr2);
+
+let front = [0];
+let combined = [...front, ...arr1];
+println("Combined: " + combined);
+
+println("\n=== 7. Membership (in) operator ===");
+
+let fruits = ["apple", "banana", "cherry"];
+println("\"banana\" in fruits: " + ("banana" in fruits));
+println("\"grape\" in fruits: " + ("grape" in fruits));

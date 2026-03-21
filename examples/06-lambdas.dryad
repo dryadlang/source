@@ -1,0 +1,138 @@
+// 06-lambdas.dryad — Arrow functions (lambdas) and closures
+// Covers: arrow syntax, multi-param, higher-order, closures
+
+#<console_io>
+
+println("=== 1. Basic arrow functions ===");
+
+// Single parameter, expression body
+const double = (x) => x * 2;
+println("double(5) = " + double(5));
+
+// Multiple parameters
+const add = (a, b) => a + b;
+println("add(3, 7) = " + add(3, 7));
+
+// No parameters
+const sayHello = () => "Hello, Dryad!";
+println(sayHello());
+
+// With type annotations
+const typedAdd = (a: number, b: number): number => a + b;
+println("typedAdd(10, 20) = " + typedAdd(10, 20));
+
+println("\n=== 2. Lambdas with rest parameters ===");
+
+const collectAll = (...args) => args;
+println("collectAll(1,2,3): " + collectAll(1, 2, 3));
+
+println("\n=== 3. Lambdas as arguments (higher-order functions) ===");
+
+// Apply a function to each element manually
+function map(arr, func) {
+    let result = [];
+    for (item in arr) {
+        result = [...result, func(item)];
+    }
+    return result;
+}
+
+let numbers = [1, 2, 3, 4, 5];
+let doubled = map(numbers, (x) => x * 2);
+println("Doubled: " + doubled);
+
+let squared = map(numbers, (x) => x * x);
+println("Squared: " + squared);
+
+// Filter implementation
+function filter(arr, predicate) {
+    let result = [];
+    for (item in arr) {
+        if (predicate(item)) {
+            result = [...result, item];
+        }
+    }
+    return result;
+}
+
+let evens = filter(numbers, (x) => x % 2 == 0);
+println("Evens: " + evens);
+
+let bigNumbers = filter([10, 3, 25, 7, 50], (x) => x > 9);
+println("Big numbers: " + bigNumbers);
+
+// Reduce implementation
+function reduce(arr, func, initial) {
+    let acc = initial;
+    for (item in arr) {
+        acc = func(acc, item);
+    }
+    return acc;
+}
+
+let sum = reduce(numbers, (acc, x) => acc + x, 0);
+println("Sum: " + sum);
+
+let product = reduce(numbers, (acc, x) => acc * x, 1);
+println("Product: " + product);
+
+println("\n=== 4. Closures ===");
+
+// Lambda captures surrounding scope
+function makeCounter() {
+    let count = 0;
+    const increment = () => {
+        count++;
+        return count;
+    };
+    return increment;
+}
+
+let counter = makeCounter();
+println("Counter: " + counter());
+println("Counter: " + counter());
+println("Counter: " + counter());
+
+// Closure with parameter
+function makeMultiplier(factor) {
+    return (x) => x * factor;
+}
+
+let triple = makeMultiplier(3);
+let quadruple = makeMultiplier(4);
+println("triple(5) = " + triple(5));
+println("quadruple(5) = " + quadruple(5));
+
+// Closure captures mutable state
+function makeAccumulator() {
+    let total = 0;
+    return (amount) => {
+        total += amount;
+        return total;
+    };
+}
+
+let acc = makeAccumulator();
+println("Accumulator: " + acc(10));
+println("Accumulator: " + acc(20));
+println("Accumulator: " + acc(5));
+
+println("\n=== 5. Composing lambdas ===");
+
+function compose(f, g) {
+    return (x) => f(g(x));
+}
+
+const addOne = (x) => x + 1;
+const doubleIt = (x) => x * 2;
+
+let addThenDouble = compose(doubleIt, addOne);
+println("addThenDouble(4) = " + addThenDouble(4));
+
+let doubleThenAdd = compose(addOne, doubleIt);
+println("doubleThenAdd(4) = " + doubleThenAdd(4));
+
+println("\n=== 6. Immediately-used lambdas ===");
+
+let result = ((x, y) => x * y + 1)(3, 4);
+println("Immediate lambda result: " + result);

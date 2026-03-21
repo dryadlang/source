@@ -1,0 +1,194 @@
+// 13-error-handling.dryad — Error handling mechanisms
+// Covers: try/catch/finally, throw, nested try, ? operator
+
+#<console_io>
+
+println("=== 1. Basic try/catch ===");
+
+try {
+    println("Inside try block");
+    throw "Something went wrong!";
+    println("This line is never reached");
+} catch (error) {
+    println("Caught error: " + error);
+}
+
+println("Execution continues after try/catch");
+
+println("\n=== 2. try/catch/finally ===");
+
+function riskyOperation(value) {
+    try {
+        println("Attempting operation with " + value);
+        if (value < 0) {
+            throw "Negative value not allowed: " + value;
+        }
+        if (value == 0) {
+            throw "Division by zero!";
+        }
+        let result = 100 / value;
+        println("Result: " + result);
+        return result;
+    } catch (e) {
+        println("Error caught: " + e);
+        return null;
+    } finally {
+        println("Cleanup: operation completed (value=" + value + ")");
+    }
+}
+
+riskyOperation(5);
+println("");
+riskyOperation(0);
+println("");
+riskyOperation(-3);
+
+println("\n=== 3. Throwing different values ===");
+
+// Throw a string
+try {
+    throw "string error";
+} catch (e) {
+    println("String throw: " + e);
+}
+
+// Throw a number
+try {
+    throw 404;
+} catch (e) {
+    println("Number throw: " + e);
+}
+
+// Throw a boolean
+try {
+    throw false;
+} catch (e) {
+    println("Boolean throw: " + e);
+}
+
+// Throw an object-like value
+try {
+    throw "Error: File not found at /tmp/data.txt";
+} catch (e) {
+    println("Complex throw: " + e);
+}
+
+println("\n=== 4. try/catch without finally ===");
+
+function safeDivide(a, b) {
+    try {
+        if (b == 0) {
+            throw "Cannot divide by zero";
+        }
+        return a / b;
+    } catch (e) {
+        println("Division error: " + e);
+        return null;
+    }
+}
+
+println("10 / 3 = " + safeDivide(10, 3));
+println("10 / 0 = " + safeDivide(10, 0));
+
+println("\n=== 5. Nested try/catch ===");
+
+function outerOperation() {
+    try {
+        println("Outer try");
+
+        try {
+            println("Inner try");
+            throw "inner error";
+        } catch (innerErr) {
+            println("Inner catch: " + innerErr);
+            // Re-throw a different error
+            throw "outer error from inner";
+        }
+
+    } catch (outerErr) {
+        println("Outer catch: " + outerErr);
+    } finally {
+        println("Outer finally: cleanup done");
+    }
+}
+
+outerOperation();
+
+println("\n=== 6. Error propagation ===");
+
+function level3() {
+    throw "Error at level 3";
+}
+
+function level2() {
+    level3();
+}
+
+function level1() {
+    try {
+        level2();
+    } catch (e) {
+        println("Caught at level 1: " + e);
+    }
+}
+
+level1();
+
+println("\n=== 7. Try in loops ===");
+
+let items = [10, 0, 5, 0, 20];
+let results = [];
+
+for (item in items) {
+    try {
+        if (item == 0) {
+            throw "zero encountered";
+        }
+        results = [...results, 100 / item];
+    } catch (e) {
+        results = [...results, null];
+        println("Skipping item: " + e);
+    }
+}
+println("Results: " + results);
+
+println("\n=== 8. ? operator (try expression) ===");
+
+// The ? operator propagates errors from Result values.
+// When a function returns a Result(ok, value) or Result(err, value),
+// ? unwraps the ok case or propagates the error.
+
+function parsePositive(n) {
+    if (n < 0) {
+        // Return an error result
+        throw "negative number: " + n;
+    }
+    return n;
+}
+
+function processValue(n) {
+    try {
+        // If parsePositive throws, the catch handles it
+        let result = parsePositive(n);
+        println("Processed: " + result);
+    } catch (e) {
+        println("Failed to process: " + e);
+    }
+}
+
+processValue(42);
+processValue(-5);
+
+println("\n=== 9. Defensive error handling ===");
+
+function safeAccess(obj, key) {
+    if (obj == null) {
+        return null;
+    }
+    return obj[key];
+}
+
+let data = { name: "test", value: 42 };
+println("Safe access name: " + safeAccess(data, "name"));
+println("Safe access missing: " + safeAccess(data, "missing"));
+println("Safe access null: " + safeAccess(null, "anything"));

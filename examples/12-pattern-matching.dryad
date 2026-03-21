@@ -1,0 +1,170 @@
+// 12-pattern-matching.dryad — Pattern matching with match expression
+// Covers: literals, wildcard, identifier binding, array/tuple/object destructuring,
+//         rest patterns, guards, match as expression, for-in destructuring
+
+#<console_io>
+
+println("=== 1. Match as expression (returns a value) ===");
+
+let status = 200;
+let message = match (status) {
+    200 => "OK",
+    201 => "Created",
+    204 => "No Content",
+    400 => "Bad Request",
+    404 => "Not Found",
+    500 => "Internal Server Error",
+    _ => "Unknown Status",
+};
+println("HTTP " + status + ": " + message);
+
+println("\n=== 2. Literal patterns ===");
+
+// Number literals
+let code = 42;
+match (code) {
+    0 => println("Zero"),
+    1 => println("One"),
+    42 => println("The answer!"),
+    _ => println("Some other number"),
+}
+
+// String literals
+let lang = "Dryad";
+match (lang) {
+    "JavaScript" => println("Web language"),
+    "Python" => println("Scripting language"),
+    "Dryad" => println("Tree-walking language!"),
+    _ => println("Unknown language"),
+}
+
+// Boolean literals
+let flag = true;
+match (flag) {
+    true => println("Flag is on"),
+    false => println("Flag is off"),
+}
+
+println("\n=== 3. Wildcard pattern _ ===");
+
+// _ matches anything and discards the value
+let value = 999;
+match (value) {
+    1 => println("One"),
+    2 => println("Two"),
+    _ => println("Something else: wildcard matched!"),
+}
+
+println("\n=== 4. Identifier binding ===");
+
+// Bind the matched value to a variable
+let input = 7;
+match (input) {
+    0 => println("Zero"),
+    n => println("Bound to n: " + n),
+}
+
+println("\n=== 5. Array destructuring patterns ===");
+
+let pair = [10, 20];
+match (pair) {
+    [0, 0] => println("Origin"),
+    [x, 0] => println("On X axis at " + x),
+    [0, y] => println("On Y axis at " + y),
+    [x, y] => println("Point at [" + x + ", " + y + "]"),
+    _ => println("Unknown"),
+}
+
+// Match array structure
+let triple = [1, 2, 3];
+match (triple) {
+    [a, b, c] => println("Three elements: " + a + ", " + b + ", " + c),
+    [a, b] => println("Two elements"),
+    _ => println("Other"),
+}
+
+println("\n=== 6. Tuple destructuring patterns ===");
+
+let record = (42, "hello");
+match (record) {
+    (0, msg) => println("Zero with: " + msg),
+    (n, "hello") => println("Greeting with number " + n),
+    (n, s) => println("Tuple: " + n + " and " + s),
+}
+
+println("\n=== 7. Object destructuring patterns ===");
+
+let response = { status: 200, body: "OK" };
+match (response) {
+    { status: 200 } => println("Success response!"),
+    { status: 404 } => println("Not found"),
+    { status: s } => println("Other status: " + s),
+    _ => println("Unknown response"),
+}
+
+println("\n=== 8. Rest patterns ===");
+
+let list = [1, 2, 3, 4, 5];
+match (list) {
+    [first, ...rest] => println("First: " + first + ", Rest: " + rest),
+    _ => println("Empty or unexpected"),
+}
+
+println("\n=== 9. Guards (pattern if condition) ===");
+
+let age = 25;
+match (age) {
+    a if a < 0 => println("Invalid age"),
+    a if a < 13 => println("Child"),
+    a if a < 18 => println("Teenager"),
+    a if a < 65 => println("Adult"),
+    a => println("Senior (age " + a + ")"),
+}
+
+// Guards with destructured values
+let point = [3, -2];
+match (point) {
+    [x, y] if x > 0 && y > 0 => println("Quadrant I"),
+    [x, y] if x < 0 && y > 0 => println("Quadrant II"),
+    [x, y] if x < 0 && y < 0 => println("Quadrant III"),
+    [x, y] if x > 0 && y < 0 => println("Quadrant IV"),
+    [x, y] => println("On an axis: [" + x + ", " + y + "]"),
+    _ => println("Unknown"),
+}
+
+// Multiple match examples
+let score = 85;
+let grade = match (score) {
+    s if s >= 90 => "A",
+    s if s >= 80 => "B",
+    s if s >= 70 => "C",
+    s if s >= 60 => "D",
+    _ => "F",
+};
+println("Score " + score + " = Grade " + grade);
+
+println("\n=== 10. Destructuring in for-in ===");
+
+// Tuple destructuring in for-in
+let students = [
+    ("Alice", 95),
+    ("Bob", 87),
+    ("Charlie", 92)
+];
+
+println("Student grades:");
+for ((name, score) in students) {
+    let grade = match (score) {
+        s if s >= 90 => "A",
+        s if s >= 80 => "B",
+        _ => "C",
+    };
+    println("  " + name + ": " + score + " (" + grade + ")");
+}
+
+// Array destructuring in for-in
+let vectors = [[1, 0], [0, 1], [1, 1]];
+for ([x, y] in vectors) {
+    let magnitude = (x ** 2 + y ** 2) ** 0.5;
+    println("  Vector [" + x + ", " + y + "] magnitude: " + magnitude);
+}

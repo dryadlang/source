@@ -1278,16 +1278,24 @@ let msg = `Olá, ${nome}! Hoje é ${native_date()}.`;
 
 **Solução necessária**: Adicionar `"interface"` e `"implements"` à lista de keywords no lexer.
 
-### 17.2. ⛔ QUEBRADO — `namespace`
+### 17.2. ⛔ QUEBRADO — `get` / `set` (Getters/Setters)
 
-**Problema**: 
+**Problema**: O parser (linhas 2271, 2309) verifica `Token::Keyword("get")` e `Token::Keyword("set")`, mas o lexer **não inclui** `get`/`set` na lista de keywords. O lexer gera `Token::Identifier`, que nunca match.
+
+**AST existe**: `ClassMember::Getter`, `ClassMember::Setter` — definidos em ast.rs.
+
+**Solução necessária**: Adicionar `"get"` e `"set"` à lista de keywords no lexer.
+
+### 17.3. ⛔ QUEBRADO — `namespace`
+
+**Problema**:
 1. `namespace` não está na lista de keywords do lexer.
 2. O parser **não tem** handler para `namespace` (grep retorna zero resultados).
 3. AST existe: `Stmt::Namespace(String, Vec<Stmt>, SourceLocation)`.
 
 **Solução necessária**: Adicionar `"namespace"` ao lexer + implementar parsing.
 
-### 17.3. ⛔ NÃO EXISTE — `var`
+### 17.4. ⛔ NÃO EXISTE — `var`
 
 **Problema**: Documentação e README mencionam `var` como declaração de variável, mas `var` **nunca existiu** como keyword. O lexer só reconhece `let` e `const`.
 

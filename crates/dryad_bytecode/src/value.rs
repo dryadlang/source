@@ -202,6 +202,8 @@ impl Value {
         match (self, other) {
             (Value::Number(a), Value::Number(b)) => Ok(Value::Number(a + b)),
             (Value::String(a), Value::String(b)) => Ok(Value::String(format!("{}{}", a, b))),
+            (Value::String(a), b) => Ok(Value::String(format!("{}{}", a, b.to_string()))),
+            (a, Value::String(b)) => Ok(Value::String(format!("{}{}", a.to_string(), b))),
             _ => Err(format!(
                 "Não é possível adicionar {} com {}",
                 self.type_name(),

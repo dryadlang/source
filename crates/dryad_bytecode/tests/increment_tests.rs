@@ -10,6 +10,8 @@ fn dummy_loc() -> SourceLocation {
         line: 1,
         column: 1,
         file: None,
+        position: 0,
+        source_line: None,
     }
 }
 
@@ -19,7 +21,7 @@ fn test_post_increment() {
     // var x = 5;
     // print x++;  # Deve imprimir 5
     // print x;     # Deve imprimir 6
-    
+
     let program = Program {
         statements: vec![
             Stmt::VarDeclaration(
@@ -28,15 +30,23 @@ fn test_post_increment() {
                 Some(Expr::Literal(Literal::Number(5.0), dummy_loc())),
                 dummy_loc(),
             ),
-            Stmt::Print(
-                Expr::PostIncrement(
-                    Box::new(Expr::Variable("x".to_string(), dummy_loc())),
+            Stmt::Expression(
+                Expr::Call(
+                    Box::new(Expr::Variable("print".to_string(), dummy_loc())),
+                    vec![Expr::PostIncrement(
+                        Box::new(Expr::Variable("x".to_string(), dummy_loc())),
+                        dummy_loc(),
+                    )],
                     dummy_loc(),
                 ),
                 dummy_loc(),
             ),
-            Stmt::Print(
-                Expr::Variable("x".to_string(), dummy_loc()),
+            Stmt::Expression(
+                Expr::Call(
+                    Box::new(Expr::Variable("print".to_string(), dummy_loc())),
+                    vec![Expr::Variable("x".to_string(), dummy_loc())],
+                    dummy_loc(),
+                ),
                 dummy_loc(),
             ),
         ],
@@ -57,7 +67,7 @@ fn test_pre_increment() {
     // var x = 5;
     // print ++x;  # Deve imprimir 6
     // print x;     # Deve imprimir 6
-    
+
     let program = Program {
         statements: vec![
             Stmt::VarDeclaration(
@@ -66,15 +76,23 @@ fn test_pre_increment() {
                 Some(Expr::Literal(Literal::Number(5.0), dummy_loc())),
                 dummy_loc(),
             ),
-            Stmt::Print(
-                Expr::PreIncrement(
-                    Box::new(Expr::Variable("x".to_string(), dummy_loc())),
+            Stmt::Expression(
+                Expr::Call(
+                    Box::new(Expr::Variable("print".to_string(), dummy_loc())),
+                    vec![Expr::PreIncrement(
+                        Box::new(Expr::Variable("x".to_string(), dummy_loc())),
+                        dummy_loc(),
+                    )],
                     dummy_loc(),
                 ),
                 dummy_loc(),
             ),
-            Stmt::Print(
-                Expr::Variable("x".to_string(), dummy_loc()),
+            Stmt::Expression(
+                Expr::Call(
+                    Box::new(Expr::Variable("print".to_string(), dummy_loc())),
+                    vec![Expr::Variable("x".to_string(), dummy_loc())],
+                    dummy_loc(),
+                ),
                 dummy_loc(),
             ),
         ],
@@ -95,7 +113,7 @@ fn test_post_decrement() {
     // var x = 5;
     // print x--;  # Deve imprimir 5
     // print x;     # Deve imprimir 4
-    
+
     let program = Program {
         statements: vec![
             Stmt::VarDeclaration(
@@ -104,15 +122,23 @@ fn test_post_decrement() {
                 Some(Expr::Literal(Literal::Number(5.0), dummy_loc())),
                 dummy_loc(),
             ),
-            Stmt::Print(
-                Expr::PostDecrement(
-                    Box::new(Expr::Variable("x".to_string(), dummy_loc())),
+            Stmt::Expression(
+                Expr::Call(
+                    Box::new(Expr::Variable("print".to_string(), dummy_loc())),
+                    vec![Expr::PostDecrement(
+                        Box::new(Expr::Variable("x".to_string(), dummy_loc())),
+                        dummy_loc(),
+                    )],
                     dummy_loc(),
                 ),
                 dummy_loc(),
             ),
-            Stmt::Print(
-                Expr::Variable("x".to_string(), dummy_loc()),
+            Stmt::Expression(
+                Expr::Call(
+                    Box::new(Expr::Variable("print".to_string(), dummy_loc())),
+                    vec![Expr::Variable("x".to_string(), dummy_loc())],
+                    dummy_loc(),
+                ),
                 dummy_loc(),
             ),
         ],
@@ -134,7 +160,7 @@ fn test_increment_in_loop() {
     // while (i < 3) {
     //     print i++;
     // }
-    
+
     let program = Program {
         statements: vec![
             Stmt::VarDeclaration(
@@ -151,15 +177,17 @@ fn test_increment_in_loop() {
                     dummy_loc(),
                 ),
                 Box::new(Stmt::Block(
-                    vec![
-                        Stmt::Print(
-                            Expr::PostIncrement(
+                    vec![Stmt::Expression(
+                        Expr::Call(
+                            Box::new(Expr::Variable("print".to_string(), dummy_loc())),
+                            vec![Expr::PostIncrement(
                                 Box::new(Expr::Variable("i".to_string(), dummy_loc())),
                                 dummy_loc(),
-                            ),
+                            )],
                             dummy_loc(),
                         ),
-                    ],
+                        dummy_loc(),
+                    )],
                     dummy_loc(),
                 )),
                 dummy_loc(),

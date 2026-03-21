@@ -1262,7 +1262,10 @@ impl VM {
         }
 
         // Calcula onde os argumentos começam na pilha
-        let stack_start = self.stack.len() - arg_count as usize - 1; // -1 para a função
+        // Stack layout: [... function, arg1, arg2, ...]
+        // After CallFrame, locals are: [arg1, arg2, ...]
+        // So stack_start should point to arg1, NOT the function
+        let stack_start = self.stack.len() - arg_count as usize;
 
         // Cria novo frame
         self.frames

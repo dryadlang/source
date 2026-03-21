@@ -10,6 +10,8 @@ fn dummy_loc() -> SourceLocation {
         line: 1,
         column: 1,
         file: None,
+        position: 0,
+        source_line: None,
     }
 }
 
@@ -22,36 +24,46 @@ fn test_try_catch() {
     //     print "Capturado:";
     //     print e;
     // }
-    
+
     let program = Program {
-        statements: vec![
-            Stmt::Try(
+        statements: vec![Stmt::Try(
+            Box::new(Stmt::Block(
+                vec![Stmt::Throw(
+                    Expr::Literal(Literal::String("Erro!".to_string()), dummy_loc()),
+                    dummy_loc(),
+                )],
+                dummy_loc(),
+            )),
+            Some((
+                "e".to_string(),
                 Box::new(Stmt::Block(
                     vec![
-                        Stmt::Throw(
-                            Expr::Literal(Literal::String("Erro!".to_string()), dummy_loc()),
+                        Stmt::Expression(
+                            Expr::Call(
+                                Box::new(Expr::Variable("print".to_string(), dummy_loc())),
+                                vec![Expr::Literal(
+                                    Literal::String("Capturado:".to_string()),
+                                    dummy_loc(),
+                                )],
+                                dummy_loc(),
+                            ),
+                            dummy_loc(),
+                        ),
+                        Stmt::Expression(
+                            Expr::Call(
+                                Box::new(Expr::Variable("print".to_string(), dummy_loc())),
+                                vec![Expr::Variable("e".to_string(), dummy_loc())],
+                                dummy_loc(),
+                            ),
                             dummy_loc(),
                         ),
                     ],
                     dummy_loc(),
                 )),
-                Some(("e".to_string(), Box::new(Stmt::Block(
-                    vec![
-                        Stmt::Print(
-                            Expr::Literal(Literal::String("Capturado:".to_string()), dummy_loc()),
-                            dummy_loc(),
-                        ),
-                        Stmt::Print(
-                            Expr::Variable("e".to_string(), dummy_loc()),
-                            dummy_loc(),
-                        ),
-                    ],
-                    dummy_loc(),
-                )))),
-                None,
-                dummy_loc(),
-            ),
-        ],
+            )),
+            None,
+            dummy_loc(),
+        )],
     };
 
     let mut compiler = Compiler::new();
@@ -73,40 +85,49 @@ fn test_try_catch_finally() {
     // } finally {
     //     print "Sempre executa";
     // }
-    
+
     let program = Program {
-        statements: vec![
-            Stmt::Try(
+        statements: vec![Stmt::Try(
+            Box::new(Stmt::Block(
+                vec![Stmt::Throw(
+                    Expr::Literal(Literal::String("Erro!".to_string()), dummy_loc()),
+                    dummy_loc(),
+                )],
+                dummy_loc(),
+            )),
+            Some((
+                "e".to_string(),
                 Box::new(Stmt::Block(
-                    vec![
-                        Stmt::Throw(
-                            Expr::Literal(Literal::String("Erro!".to_string()), dummy_loc()),
+                    vec![Stmt::Expression(
+                        Expr::Call(
+                            Box::new(Expr::Variable("print".to_string(), dummy_loc())),
+                            vec![Expr::Literal(
+                                Literal::String("Capturado".to_string()),
+                                dummy_loc(),
+                            )],
                             dummy_loc(),
                         ),
-                    ],
+                        dummy_loc(),
+                    )],
                     dummy_loc(),
                 )),
-                Some(("e".to_string(), Box::new(Stmt::Block(
-                    vec![
-                        Stmt::Print(
-                            Expr::Literal(Literal::String("Capturado".to_string()), dummy_loc()),
+            )),
+            Some(Box::new(Stmt::Block(
+                vec![Stmt::Expression(
+                    Expr::Call(
+                        Box::new(Expr::Variable("print".to_string(), dummy_loc())),
+                        vec![Expr::Literal(
+                            Literal::String("Sempre executa".to_string()),
                             dummy_loc(),
-                        ),
-                    ],
+                        )],
+                        dummy_loc(),
+                    ),
                     dummy_loc(),
-                )))),
-                Some(Box::new(Stmt::Block(
-                    vec![
-                        Stmt::Print(
-                            Expr::Literal(Literal::String("Sempre executa".to_string()), dummy_loc()),
-                            dummy_loc(),
-                        ),
-                    ],
-                    dummy_loc(),
-                ))),
+                )],
                 dummy_loc(),
-            ),
-        ],
+            ))),
+            dummy_loc(),
+        )],
     };
 
     let mut compiler = Compiler::new();

@@ -14,7 +14,7 @@ O Dryad utiliza um modelo de Orientação a Objetos baseado em classes, foca em 
 - **Classes**: Plantas para criação de objetos via `class`.
 - **Visibilidade**: Suporte a `public` e `private` (validado em runtime).
 - **Herança**: Suporte a extensão de classe via `extends`.
-- **Interfaces**: Contratos múltiplos definidos via `interface` e `implements`.
+- **Interfaces**: ⛔ **QUEBRADO** — Contratos via `interface` e `implements` existem no AST mas NÃO funcionam. O lexer não reconhece `interface`/`implements` como keywords.
 - **Contexto**: `this` refere-se à instância; `super` refere-se ao pai.
 
 ---
@@ -39,7 +39,10 @@ Diferente de JS onde `#` é usado para privado, o Dryad usa keywords clássicas:
 
 ### 3. Exemplo de Implementação
 
+> ⚠️ **ATENÇÃO**: O exemplo abaixo com `interface`/`implements` **NÃO funciona** atualmente. O lexer não reconhece estas palavras como keywords. A correção requer adicionar `"interface"` e `"implements"` à lista de keywords no lexer.
+
 ```dryad
+// BROKEN — interface/implements não funcional
 interface Printable {
     function print();
 }

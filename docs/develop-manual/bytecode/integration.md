@@ -50,7 +50,7 @@ let result = interpreter.execute(&program);
 
 ### Statements
 - [x] Expressões
-- [x] Declaração de variáveis (var, const)
+- [x] Declaração de variáveis (let, const)
 - [x] Atribuições
 - [x] Blocos (escopos)
 - [x] If/else
@@ -202,8 +202,8 @@ Arquivo: `test_bytecode.dryad`
 print "Iniciando teste...";
 
 # Aritmética
-var a = 10;
-var b = 20;
+let a = 10;
+let b = 20;
 print a + b;
 
 # Condicional
@@ -212,7 +212,7 @@ if (a < b) {
 }
 
 # Loop
-var i = 0;
+let i = 0;
 while (i < 3) {
     print i;
     i = i + 1;

@@ -37,9 +37,9 @@ O Dryad permite que uma variável em um escopo interno "esconda" uma variável c
 let x = 10;
 {
     let x = 20; // Shadowing de x externo
-    console.log(x); // 20
+    println(x); // 20
 }
-console.log(x); // 10
+println(x); // 10
 ```
 
 > [!TIP]

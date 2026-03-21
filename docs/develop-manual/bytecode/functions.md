@@ -293,8 +293,8 @@ print fatorial(5);  # 120
 
 ```dryad
 fn calcula(x, y) {
-    var soma = x + y;
-    var produto = x * y;
+    let soma = x + y;
+    let produto = x * y;
     return soma + produto;
 }
 

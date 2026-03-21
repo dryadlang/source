@@ -49,7 +49,7 @@ pub enum Expr {
 
 ### 3. Recuperação de Erros (Panic Mode)
 
-Ao encontrar um erro, o Parser entra em `synchronize()`. Ele descarta tokens até encontrar um delimitador de fim de sentença (como `;`) ou o início de uma nova declaração (`function`, `var`, `if`).
+Ao encontrar um erro, o Parser entra em `synchronize()`. Ele descarta tokens até encontrar um delimitador de fim de sentença (como `;`) ou o início de uma nova declaração (`function`, `let`, `if`).
 
 ---
 

@@ -47,7 +47,7 @@ cargo build --release
 
 ```dryad
 // hello.dryad
-var nome = "Mundo";
+let nome = "Mundo";
 print("Olá, " + nome + "!");
 
 // Funções
@@ -147,7 +147,7 @@ Runtime (dryad_runtime) → Resultado
 ## ✅ Funcionalidades Implementadas
 
 ### Core Language
-- ✅ Variáveis (`var`) e Constantes (`const`)
+- ✅ Variáveis (`let`) e Constantes (`const`)
 - ✅ Tipos: Number, String, Bool, Null, Array, Tuple, Object
 - ✅ Operadores: Aritméticos, Lógicos, Comparação, Bitwise, Atribuição
 - ✅ Controle de Fluxo: if/else, while, do-while, for, for-in, break, continue

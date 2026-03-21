@@ -189,18 +189,16 @@ fn test_recursive_function_sum_to() {
     //     }
     //     return n + sum_to(n - 1);
     // }
-    // var x = sum_to(3);  // Expected: 1 + 2 + 3 = 6
+    // var x = sum_to(3);
 
     let program = Program {
         statements: vec![
-            // Declaração da função recursiva
             Stmt::FunctionDeclaration {
                 name: "sum_to".to_string(),
                 params: vec![("n".to_string(), Some(Type::Number), None)],
                 return_type: Some(Type::Number),
                 body: Box::new(Stmt::Block(
                     vec![
-                        // if (n <= 1) { return n; }
                         Stmt::If(
                             Expr::Binary(
                                 Box::new(Expr::Variable("n".to_string(), dummy_loc())),
@@ -217,7 +215,6 @@ fn test_recursive_function_sum_to() {
                             )),
                             dummy_loc(),
                         ),
-                        // return n + sum_to(n - 1);
                         Stmt::Return(
                             Some(Expr::Binary(
                                 Box::new(Expr::Variable("n".to_string(), dummy_loc())),
@@ -243,7 +240,6 @@ fn test_recursive_function_sum_to() {
                 is_async: false,
                 rest_param: None,
             },
-            // var x = sum_to(3);
             Stmt::VarDeclaration(
                 dryad_parser::ast::Pattern::Identifier("x".to_string()),
                 None,
@@ -263,6 +259,100 @@ fn test_recursive_function_sum_to() {
 
     let mut vm = VM::new();
     let result = vm.interpret(chunk.unwrap());
-    // This should succeed without "Não é possível adicionar function com number" error
+    assert_eq!(result, InterpretResult::Ok);
+}
+
+#[test]
+fn test_nested_function_calls() {
+    // Programa:
+    // fn multiply(x, y) { return x * y; }
+    // fn add(a, b) { return a + b; }
+    // var result = add(multiply(2, 3), multiply(4, 5));
+    // Expected: add(6, 20) = 26
+
+    let program = Program {
+        statements: vec![
+            Stmt::FunctionDeclaration {
+                name: "multiply".to_string(),
+                params: vec![
+                    ("x".to_string(), Some(Type::Number), None),
+                    ("y".to_string(), Some(Type::Number), None),
+                ],
+                return_type: Some(Type::Number),
+                body: Box::new(Stmt::Block(
+                    vec![Stmt::Return(
+                        Some(Expr::Binary(
+                            Box::new(Expr::Variable("x".to_string(), dummy_loc())),
+                            "*".to_string(),
+                            Box::new(Expr::Variable("y".to_string(), dummy_loc())),
+                            dummy_loc(),
+                        )),
+                        dummy_loc(),
+                    )],
+                    dummy_loc(),
+                )),
+                location: dummy_loc(),
+                is_async: false,
+                rest_param: None,
+            },
+            Stmt::FunctionDeclaration {
+                name: "add".to_string(),
+                params: vec![
+                    ("a".to_string(), Some(Type::Number), None),
+                    ("b".to_string(), Some(Type::Number), None),
+                ],
+                return_type: Some(Type::Number),
+                body: Box::new(Stmt::Block(
+                    vec![Stmt::Return(
+                        Some(Expr::Binary(
+                            Box::new(Expr::Variable("a".to_string(), dummy_loc())),
+                            "+".to_string(),
+                            Box::new(Expr::Variable("b".to_string(), dummy_loc())),
+                            dummy_loc(),
+                        )),
+                        dummy_loc(),
+                    )],
+                    dummy_loc(),
+                )),
+                location: dummy_loc(),
+                is_async: false,
+                rest_param: None,
+            },
+            Stmt::VarDeclaration(
+                dryad_parser::ast::Pattern::Identifier("result".to_string()),
+                None,
+                Some(Expr::Call(
+                    Box::new(Expr::Variable("add".to_string(), dummy_loc())),
+                    vec![
+                        Expr::Call(
+                            Box::new(Expr::Variable("multiply".to_string(), dummy_loc())),
+                            vec![
+                                Expr::Literal(Literal::Number(2.0), dummy_loc()),
+                                Expr::Literal(Literal::Number(3.0), dummy_loc()),
+                            ],
+                            dummy_loc(),
+                        ),
+                        Expr::Call(
+                            Box::new(Expr::Variable("multiply".to_string(), dummy_loc())),
+                            vec![
+                                Expr::Literal(Literal::Number(4.0), dummy_loc()),
+                                Expr::Literal(Literal::Number(5.0), dummy_loc()),
+                            ],
+                            dummy_loc(),
+                        ),
+                    ],
+                    dummy_loc(),
+                )),
+                dummy_loc(),
+            ),
+        ],
+    };
+
+    let mut compiler = Compiler::new();
+    let chunk = compiler.compile(program);
+    assert!(chunk.is_ok(), "Erro na compilação: {:?}", chunk.err());
+
+    let mut vm = VM::new();
+    let result = vm.interpret(chunk.unwrap());
     assert_eq!(result, InterpretResult::Ok);
 }

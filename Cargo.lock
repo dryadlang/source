@@ -701,6 +701,7 @@ dependencies = [
 name = "dryad_bytecode"
 version = "0.1.0"
 dependencies = [
+ "criterion",
  "dryad_errors",
  "dryad_parser",
 ]

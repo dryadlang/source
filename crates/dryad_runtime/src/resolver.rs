@@ -1,30 +1,39 @@
-use std::path::{Path, PathBuf};
-use dryad_errors::DryadError;
+use dryad_errors::{error_catalog, DryadError, SourceLocation};
 use std::fs;
+use std::path::{Path, PathBuf};
 
 /// Trait para resolver caminhos de módulos
-/// 
+///
 /// Permite desacoplar a lógica de resolução de módulos do interpretador,
 /// facilitando a integração com diferentes gerenciadores de pacotes (Oak, NPM, etc).
 pub trait ModuleResolver: Send + Sync {
     /// Resolve o caminho de importação para um caminho físico
-    /// 
+    ///
     /// # Argumentos
     /// * `module_path` - O caminho ou alias do módulo a ser importado (ex: "./foo", "pkg/mod")
     /// * `current_path` - O caminho do arquivo atual que está fazendo a importação (se houver)
-    fn resolve(&self, module_path: &str, current_path: Option<&Path>) -> Result<PathBuf, DryadError>;
+    fn resolve(
+        &self,
+        module_path: &str,
+        current_path: Option<&Path>,
+    ) -> Result<PathBuf, DryadError>;
 }
 
 /// Implementação padrão que resolve apenas caminhos relativos e absolutos locais
 pub struct FileSystemResolver;
 
 impl ModuleResolver for FileSystemResolver {
-    fn resolve(&self, module_path: &str, current_path: Option<&Path>) -> Result<PathBuf, DryadError> {
+    fn resolve(
+        &self,
+        module_path: &str,
+        current_path: Option<&Path>,
+    ) -> Result<PathBuf, DryadError> {
         if module_path.starts_with("./") || module_path.starts_with("../") {
             // Caminho relativo
             if let Some(current_file) = current_path {
-                let base_dir = current_file.parent()
-                    .ok_or_else(|| DryadError::new(3004, "Não é possível determinar diretório base"))?;
+                let base_dir = current_file.parent().ok_or_else(|| {
+                    DryadError::from_catalog(error_catalog::e3004(), SourceLocation::unknown())
+                })?;
                 Ok(base_dir.join(module_path))
             } else {
                 // Se não há arquivo atual, usar diretório de trabalho
@@ -37,10 +46,14 @@ impl ModuleResolver for FileSystemResolver {
         } else {
             // Para FileSystemResolver, qualquer outra coisa é um erro
             // pois ele não sabe lidar com aliases de pacotes
-            Err(DryadError::new(3008, &format!(
-                "FileSystemResolver não suporta o alias '{}'. Configure um resolver de pacotes (ex: Oak).", 
-                module_path
-            )))
+            Err(DryadError::from_catalog_fmt(
+                error_catalog::e3008(),
+                &format!(
+                    "FileSystemResolver não suporta o alias '{}'. Configure um resolver de pacotes (ex: Oak).",
+                    module_path
+                ),
+                SourceLocation::unknown()
+            ))
         }
     }
 }

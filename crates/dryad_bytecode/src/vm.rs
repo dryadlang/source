@@ -927,23 +927,17 @@ impl VM {
                             match &*obj_ref {
                                 Object::Array(arr) => {
                                     if index >= arr.len() {
-                                        return Err(format!(
-                                            "Índice {} fora dos limites do array (tamanho: {})",
-                                            index,
-                                            arr.len()
-                                        ));
+                                        self.push(Value::Nil);
+                                    } else {
+                                        self.push(arr[index].clone());
                                     }
-                                    self.push(arr[index].clone());
                                 }
                                 Object::Tuple(tup) => {
                                     if index >= tup.len() {
-                                        return Err(format!(
-                                            "Índice {} fora dos limites do tuple (tamanho: {})",
-                                            index,
-                                            tup.len()
-                                        ));
+                                        self.push(Value::Nil);
+                                    } else {
+                                        self.push(tup[index].clone());
                                     }
-                                    self.push(tup[index].clone());
                                 }
                                 Object::Map(map) => {
                                     // Para mapas, o índice é uma string

@@ -743,12 +743,71 @@ impl VM {
                     if let Some(obj) = self.heap.get(object_id) {
                         let obj_ref = obj.borrow();
                         match &*obj_ref {
-                            Object::Instance { fields, .. } => {
-                                // Procura no objeto
+                            Object::Instance { class_name, fields } => {
+                                // Procura primeiro nos campos da instância
                                 if let Some(value) = fields.get(&prop_name) {
                                     self.push(value.clone());
                                 } else {
-                                    self.push(Value::Nil);
+                                    // Se não encontrou, procura na classe e suas superclasses
+                                    let mut method_found: Option<Rc<Function>> = None;
+                                    let mut current_class_name = Some(class_name.clone());
+
+                                    while let Some(class_name_str) = current_class_name {
+                                        // Procura a classe nos globals
+                                        if let Some(Value::Object(class_id)) =
+                                            self.globals.get(&class_name_str)
+                                        {
+                                            if let Some(class_obj) = self.heap.get(*class_id) {
+                                                let class_ref = class_obj.borrow();
+                                                if let Object::Class {
+                                                    methods,
+                                                    superclass,
+                                                    ..
+                                                } = &*class_ref
+                                                {
+                                                    // Procura o método nesta classe
+                                                    if let Some(method) = methods.get(&prop_name) {
+                                                        method_found = Some(Rc::clone(method));
+                                                        break;
+                                                    }
+                                                    // Move para a superclasse
+                                                    current_class_name =
+                                                        superclass.as_ref().and_then(|super_id| {
+                                                            self.heap.get(*super_id).and_then(
+                                                                |super_obj| {
+                                                                    let super_ref =
+                                                                        super_obj.borrow();
+                                                                    if let Object::Class {
+                                                                        name,
+                                                                        ..
+                                                                    } = &*super_ref
+                                                                    {
+                                                                        Some(name.clone())
+                                                                    } else {
+                                                                        None
+                                                                    }
+                                                                },
+                                                            )
+                                                        });
+                                                } else {
+                                                    break;
+                                                }
+                                            } else {
+                                                break;
+                                            }
+                                        } else {
+                                            break;
+                                        }
+                                    }
+
+                                    if let Some(method) = method_found {
+                                        // Retorna o método como uma closure
+                                        let closure_id =
+                                            self.heap.allocate(Object::Closure(method, vec![]));
+                                        self.push(Value::Object(closure_id));
+                                    } else {
+                                        self.push(Value::Nil);
+                                    }
                                 }
                             }
                             Object::Map(map) => {

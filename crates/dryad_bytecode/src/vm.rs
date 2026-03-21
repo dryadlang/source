@@ -475,18 +475,15 @@ impl VM {
             }
 
             OpCode::Return => {
-                // Pega o valor de retorno
                 let result = self.pop()?;
-
-                // Remove argumentos e função da pilha
                 let frame = self.frames.pop().ok_or("Não há frame para retornar")?;
                 while self.stack.len() > frame.stack_start {
                     self.stack.pop();
                 }
-
-                // Empilha o resultado
+                if !self.frames.is_empty() {
+                    self.pop()?;
+                }
                 self.push(result);
-
                 return Ok(ExecutionControl::Return);
             }
 

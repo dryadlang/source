@@ -36,6 +36,7 @@ Documentação detalhada da implementação do interpretador:
 | [Funções](manuals/bytecode/functions.md) | Sistema de funções no bytecode |
 | [Portabilidade](manuals/bytecode/portability.md) | Garantias de portabilidade |
 | [JIT](manuals/bytecode/jit.md) | Plano de JIT compilation |
+| [Session 5-6 Completion](manuals/bytecode/SESSION_COMPLETION_NOTES.md) | Notas da sessão (Phase 5-6) |
 
 ### [manuals/aot/](manuals/aot/) — Compilação AOT
 | Documento | Descrição |
@@ -54,3 +55,5 @@ Documentação detalhada da implementação do interpretador:
 ### [plans/](plans/) — Planos Futuros
 - [Controles UI Ipê](plans/2026-03-09-ipe-ui-controls-system.md)
 - [Melhorias de Linguagem](plans/2026-03-16-dryad-language-improvements.md)
+- [Bytecode: Fix Parameter Scope Bug](plans/2026-03-21-parameter-scope-fix.md)
+- [Bytecode: Integration Tests Completion](plans/2026-03-21-integration-test-completion.md)

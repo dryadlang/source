@@ -3,7 +3,7 @@ use crate::ast::{
     ClassMember, Expr, ImportKind, InterfaceMember, InterfaceMethod, Literal, MatchArm, Pattern,
     Program, Stmt, Visibility,
 };
-use dryad_errors::{DryadError, SourceLocation};
+use dryad_errors::{error_catalog, DryadError, SourceLocation};
 use dryad_lexer::{
     token::{Token, TokenWithLocation},
     Lexer,
@@ -55,7 +55,7 @@ impl Parser {
     pub fn parse_statement(&mut self) -> Result<Stmt, DryadError> {
         match self.statement()? {
             Some(stmt) => Ok(stmt),
-            None => Err(DryadError::new(2033, "Esperado statement")),
+            None => Err(DryadError::from_catalog(error_catalog::e2033(), self.current_location())),
         }
     }
 
@@ -247,10 +247,7 @@ impl Parser {
         let name = match self.advance() {
             Token::Identifier(name) => name.clone(),
             _ => {
-                return Err(DryadError::new(
-                    2011,
-                    "Esperado nome da variável após 'let'",
-                ))
+                return Err(DryadError::from_catalog(error_catalog::e2011(), self.current_location()))
             }
         };
 
@@ -285,10 +282,7 @@ impl Parser {
         let name = match self.advance() {
             Token::Identifier(name) => name.clone(),
             _ => {
-                return Err(DryadError::new(
-                    2012,
-                    "Esperado nome da constante após 'const'",
-                ))
+                return Err(DryadError::from_catalog(error_catalog::e2012(), self.current_location()))
             }
         };
 
@@ -302,7 +296,7 @@ impl Parser {
 
         // const deve ter um valor obrigatório
         if !matches!(self.peek(), Token::Symbol('=')) {
-            return Err(DryadError::new(2013, "Constante deve ter um valor inicial"));
+            return Err(DryadError::from_catalog(error_catalog::e2013(), self.current_location()));
         }
 
         self.advance(); // consume '='
@@ -351,20 +345,14 @@ impl Parser {
             match expr {
                 Expr::Variable(_name, _) => {
                     // Assignments de variáveis simples ainda não suportados como expressão
-                    return Err(DryadError::new(
-                        2008,
-                        "Atribuição de variável ainda não suportada em expressões",
-                    ));
+                    return Err(DryadError::from_catalog(error_catalog::e2008(), self.current_location()));
                 }
                 Expr::PropertyAccess(_, _, _) => {
                     // Property assignments também não suportados como expressão
-                    return Err(DryadError::new(
-                        2008,
-                        "Atribuição de propriedade ainda não suportada em expressões",
-                    ));
+                    return Err(DryadError::from_catalog(error_catalog::e2008(), self.current_location()));
                 }
                 _ => {
-                    return Err(DryadError::new(2008, "Target de atribuição inválido"));
+                    return Err(DryadError::from_catalog(error_catalog::e2008(), self.current_location()));
                 }
             }
         }
@@ -559,7 +547,7 @@ impl Parser {
                     self.advance(); // consome '['
                     let index = self.expression()?;
                     if !matches!(self.peek(), Token::Symbol(']')) {
-                        return Err(DryadError::new(2071, "Esperado ']' após índice do array"));
+                        return Err(DryadError::from_catalog(error_catalog::e2071(), self.current_location()));
                     }
                     self.advance(); // consome ']'
                     expr = Expr::Index(Box::new(expr), Box::new(index), location);
@@ -597,17 +585,14 @@ impl Parser {
                                                 continue;
                                             }
                                             Token::Symbol(')') => break,
-                                            _ => return Err(DryadError::new(2073, "Esperado ',' ou ')' na lista de argumentos do método"))
+                                            _ => return Err(DryadError::from_catalog(error_catalog::e2073(), self.current_location()))
                                         }
                                     }
                                 }
 
                                 // Expect closing parenthesis
                                 if !matches!(self.advance(), Token::Symbol(')')) {
-                                    return Err(DryadError::new(
-                                        2074,
-                                        "Esperado ')' após argumentos do método",
-                                    ));
+                                    return Err(DryadError::from_catalog(error_catalog::e2074(), self.current_location()));
                                 }
 
                                 expr = Expr::MethodCall(Box::new(expr), name, args, location);
@@ -617,10 +602,7 @@ impl Parser {
                             }
                         }
                         _ => {
-                            return Err(DryadError::new(
-                                2072,
-                                "Esperado número ou identificador após '.' para acesso",
-                            ));
+                            return Err(DryadError::from_catalog(error_catalog::e2072(), self.current_location()));
                         }
                     }
                 }
@@ -643,10 +625,7 @@ impl Parser {
                                 }
                                 Token::Symbol(')') => break,
                                 _ => {
-                                    return Err(DryadError::new(
-                                        2075,
-                                        "Esperado ',' ou ')' na lista de argumentos da chamada",
-                                    ))
+                                    return Err(DryadError::from_catalog(error_catalog::e2075(), self.current_location()))
                                 }
                             }
                         }
@@ -654,10 +633,7 @@ impl Parser {
 
                     // Expect closing parenthesis
                     if !matches!(self.advance(), Token::Symbol(')')) {
-                        return Err(DryadError::new(
-                            2076,
-                            "Esperado ')' após argumentos da chamada",
-                        ));
+                        return Err(DryadError::from_catalog(error_catalog::e2076(), self.current_location()));
                     }
 
                     expr = Expr::Call(Box::new(expr), args, location);
@@ -674,10 +650,7 @@ impl Parser {
                                 expr = Expr::PropertyAccess(Box::new(expr), name, location);
                             }
                             _ => {
-                                return Err(DryadError::new(
-                                    2083,
-                                    "Esperado identificador após '::' para acesso a namespace",
-                                ));
+                                return Err(DryadError::from_catalog(error_catalog::e2083(), self.current_location()));
                             }
                         }
                     } else {
@@ -734,10 +707,7 @@ impl Parser {
                             name
                         }
                         _ => {
-                            return Err(DryadError::new(
-                                2080,
-                                "Esperado identificador após '.' em 'super'",
-                            ));
+                            return Err(DryadError::from_catalog(error_catalog::e2080(), self.current_location()));
                         }
                     };
 
@@ -759,17 +729,14 @@ impl Parser {
                                     }
                                     Token::Symbol(')') => break,
                                     _ => {
-                                        return Err(DryadError::new(
-                                            2081,
-                                            "Esperado ',' ou ')' após argumentos",
-                                        ));
+                                        return Err(DryadError::from_catalog(error_catalog::e2081(), self.current_location()));
                                     }
                                 }
                             }
                         }
 
                         if !matches!(self.advance(), Token::Symbol(')')) {
-                            return Err(DryadError::new(2082, "Esperado ')' após argumentos"));
+                            return Err(DryadError::from_catalog(error_catalog::e2082(), self.current_location()));
                         }
 
                         expr = Expr::MethodCall(Box::new(expr), name, args, current_location);
@@ -795,10 +762,10 @@ impl Parser {
                         self.advance(); // consume ')'
                         Ok(Expr::MutexCreation(location))
                     } else {
-                        Err(DryadError::new(2029, "Esperado ')' após 'mutex('"))
+                        Err(DryadError::from_catalog(error_catalog::e2029(), self.current_location()))
                     }
                 } else {
-                    Err(DryadError::new(2030, "Esperado '(' após 'mutex'"))
+                    Err(DryadError::from_catalog(error_catalog::e2030(), self.current_location()))
                 }
             }
             Token::Keyword(k) if k == "match" => self.parse_match_expression(),
@@ -813,7 +780,7 @@ impl Parser {
                         name
                     }
                     _ => {
-                        return Err(DryadError::new(2090, "Esperado nome da classe após 'new'"));
+                        return Err(DryadError::from_catalog(error_catalog::e2090(), self.current_location()));
                     }
                 };
 
@@ -835,20 +802,14 @@ impl Parser {
                                 }
                                 Token::Symbol(')') => break,
                                 _ => {
-                                    return Err(DryadError::new(
-                                        2091,
-                                        "Esperado ',' ou ')' na lista de argumentos do construtor",
-                                    ));
+                                    return Err(DryadError::from_catalog(error_catalog::e2091(), self.current_location()));
                                 }
                             }
                         }
                     }
 
                     if !matches!(self.advance(), Token::Symbol(')')) {
-                        return Err(DryadError::new(
-                            2092,
-                            "Esperado ')' após argumentos do construtor",
-                        ));
+                        return Err(DryadError::from_catalog(error_catalog::e2092(), self.current_location()));
                     }
 
                     args
@@ -880,13 +841,10 @@ impl Parser {
                         self.advance(); // consume ')'
                         Ok(Expr::ThreadCall(func, args, location))
                     } else {
-                        Err(DryadError::new(
-                            2031,
-                            "Esperado ')' após argumentos do thread",
-                        ))
+                        Err(DryadError::from_catalog(error_catalog::e2031(), self.current_location()))
                     }
                 } else {
-                    Err(DryadError::new(2032, "Esperado '(' após 'thread'"))
+                    Err(DryadError::from_catalog(error_catalog::e2032(), self.current_location()))
                 }
             }
             Token::Identifier(name) => {
@@ -925,10 +883,7 @@ impl Parser {
                                 }
                                 Token::Symbol(')') => break,
                                 _ => {
-                                    return Err(DryadError::new(
-                                        2017,
-                                        "Esperado ',' ou ')' na lista de argumentos",
-                                    ))
+                                    return Err(DryadError::from_catalog(error_catalog::e2017(), self.current_location()))
                                 }
                             }
                         }
@@ -936,7 +891,7 @@ impl Parser {
 
                     // Expect closing parenthesis
                     if !matches!(self.advance(), Token::Symbol(')')) {
-                        return Err(DryadError::new(2018, "Esperado ')' após argumentos"));
+                        return Err(DryadError::from_catalog(error_catalog::e2018(), self.current_location()));
                     }
 
                     Ok(Expr::Call(
@@ -1044,10 +999,7 @@ impl Parser {
 
                                     params.push((p_name, p_type, p_default));
                                 } else {
-                                    return Err(DryadError::new(
-                                        2019,
-                                        "Esperado identificador de parâmetro",
-                                    ));
+                                    return Err(DryadError::from_catalog(error_catalog::e2019(), self.current_location()));
                                 }
 
                                 if matches!(self.peek(), Token::Symbol(',')) {
@@ -1058,10 +1010,7 @@ impl Parser {
                             }
 
                             if !matches!(self.advance(), Token::Symbol(')')) {
-                                return Err(DryadError::new(
-                                    2020,
-                                    "Esperado ')' após parâmetros da lambda",
-                                ));
+                                return Err(DryadError::from_catalog(error_catalog::e2020(), self.current_location()));
                             }
                         }
                         _ => {
@@ -1082,10 +1031,7 @@ impl Parser {
                     };
 
                     if !matches!(self.advance(), Token::Arrow) {
-                        return Err(DryadError::new(
-                            2021,
-                            "Esperado '=>' após parâmetros da lambda",
-                        ));
+                        return Err(DryadError::from_catalog(error_catalog::e2021(), self.current_location()));
                     }
                     let body = self.expression()?;
                     return Ok(Expr::Lambda {
@@ -1119,24 +1065,21 @@ impl Parser {
                     }
 
                     if !matches!(self.peek(), Token::Symbol(')')) {
-                        return Err(DryadError::new(2005, "Esperado ')' após tupla"));
+                        return Err(DryadError::from_catalog(error_catalog::e2005(), self.current_location()));
                     }
                     self.advance(); // consome ')'
                     Ok(Expr::Tuple(elements, location))
                 } else {
                     // Expressão agrupada simples
                     if !matches!(self.peek(), Token::Symbol(')')) {
-                        return Err(DryadError::new(2005, "Esperado ')' após expressão"));
+                        return Err(DryadError::from_catalog(error_catalog::e2005(), self.current_location()));
                     }
                     self.advance(); // consome ')'
                     Ok(first_expr)
                 }
             }
             Token::TemplateStart => self.parse_template_string(),
-            _ => Err(DryadError::new(
-                2001,
-                &format!("Token inesperado: {:?}", self.peek()),
-            )),
+            _ => Err(DryadError::from_catalog_fmt(error_catalog::e2001(), &format!("Token inesperado: {:?}", self.peek()), self.current_location())),
         }
     }
 
@@ -1145,10 +1088,7 @@ impl Parser {
         let name = match self.advance() {
             Token::Identifier(name) => name.clone(),
             _ => {
-                return Err(DryadError::new(
-                    2012,
-                    "Esperado identificador para assignment",
-                ))
+                return Err(DryadError::from_catalog(error_catalog::e2012(), self.current_location()))
             }
         };
 
@@ -1218,7 +1158,7 @@ impl Parser {
                     location,
                 ))
             }
-            _ => Err(DryadError::new(2013, "Operador de assignment inválido")),
+            _ => Err(DryadError::from_catalog(error_catalog::e2013(), self.current_location())),
         }
     }
 
@@ -1241,10 +1181,7 @@ impl Parser {
                 let var_stmt = self.var_declaration()?;
                 Ok(Stmt::Export(Box::new(var_stmt), location))
             }
-            _ => Err(DryadError::new(
-                4001,
-                "Export deve ser seguido por 'function', 'class' ou 'let'",
-            )),
+            _ => Err(DryadError::from_catalog(error_catalog::e4001(), self.current_location())),
         }
     }
 
@@ -1285,7 +1222,7 @@ impl Parser {
             self.advance(); // consume '('
             let cond = self.expression()?;
             if !matches!(self.peek(), Token::Symbol(')')) {
-                return Err(DryadError::new(2051, "Esperado ')' após condição do while"));
+                return Err(DryadError::from_catalog(error_catalog::e2051(), self.current_location()));
             }
             self.advance(); // consume ')'
             cond
@@ -1296,10 +1233,7 @@ impl Parser {
 
         // Expect opening brace for loop body
         if !matches!(self.peek(), Token::Symbol('{')) {
-            return Err(DryadError::new(
-                2052,
-                "Esperado '{' após parênteses do while",
-            ));
+            return Err(DryadError::from_catalog(error_catalog::e2052(), self.current_location()));
         }
 
         // Parse loop body block
@@ -1314,7 +1248,7 @@ impl Parser {
 
         // Expect opening brace for loop body
         if !matches!(self.peek(), Token::Symbol('{')) {
-            return Err(DryadError::new(2053, "Esperado '{' após 'do'"));
+            return Err(DryadError::from_catalog(error_catalog::e2053(), self.current_location()));
         }
 
         // Parse loop body block first
@@ -1322,19 +1256,13 @@ impl Parser {
 
         // Expect 'while' keyword
         if !matches!(self.peek(), Token::Keyword(ref k) if k == "while") {
-            return Err(DryadError::new(
-                2054,
-                "Esperado 'while' após corpo do do-while",
-            ));
+            return Err(DryadError::from_catalog(error_catalog::e2054(), self.current_location()));
         }
         self.advance(); // consume 'while'
 
         // Expect opening parenthesis: while (
         if !matches!(self.peek(), Token::Symbol('(')) {
-            return Err(DryadError::new(
-                2065,
-                "Esperado '(' após 'while' no do-while - sintaxe: do { ... } while (condição);",
-            ));
+            return Err(DryadError::from_catalog(error_catalog::e2065(), self.current_location()));
         }
         self.advance(); // consume '('
 
@@ -1343,19 +1271,13 @@ impl Parser {
 
         // Expect closing parenthesis: )
         if !matches!(self.peek(), Token::Symbol(')')) {
-            return Err(DryadError::new(
-                2066,
-                "Esperado ')' após condição do do-while",
-            ));
+            return Err(DryadError::from_catalog(error_catalog::e2066(), self.current_location()));
         }
         self.advance(); // consume ')'
 
         // Expect semicolon
         if !matches!(self.peek(), Token::Symbol(';')) {
-            return Err(DryadError::new(
-                2067,
-                "Esperado ';' após parênteses do do-while",
-            ));
+            return Err(DryadError::from_catalog(error_catalog::e2067(), self.current_location()));
         }
         self.advance(); // consume ';'
 
@@ -1392,10 +1314,7 @@ impl Parser {
 
         // Expect opening parenthesis: for (
         if !matches!(self.peek(), Token::Symbol('(')) {
-            return Err(DryadError::new(
-                2055,
-                "Esperado '(' após 'for' - sintaxe: for (init; condition; update)",
-            ));
+            return Err(DryadError::from_catalog(error_catalog::e2055(), self.current_location()));
         }
         self.advance(); // consume '('
 
@@ -1426,10 +1345,7 @@ impl Parser {
                 self.advance(); // consume identifier
 
                 if !matches!(self.peek(), Token::Symbol('=')) {
-                    return Err(DryadError::new(
-                        2056,
-                        "Esperado '=' na inicialização do for - sintaxe: for (i = 0; ...)",
-                    ));
+                    return Err(DryadError::from_catalog(error_catalog::e2056(), self.current_location()));
                 }
                 self.advance(); // consume '='
 
@@ -1440,19 +1356,13 @@ impl Parser {
                     location.clone(),
                 )))
             } else {
-                return Err(DryadError::new(
-                    2057,
-                    "Esperado identificador na inicialização do for - sintaxe: for (i = 0; ...)",
-                ));
+                return Err(DryadError::from_catalog(error_catalog::e2057(), self.current_location()));
             }
         };
 
         // Consume primeiro ';'
         if !matches!(self.peek(), Token::Symbol(';')) {
-            return Err(DryadError::new(
-                2058,
-                "Esperado ';' após inicialização do for - sintaxe: for (i = 0; condition; ...)",
-            ));
+            return Err(DryadError::from_catalog(error_catalog::e2058(), self.current_location()));
         }
         self.advance(); // consume ';'
 
@@ -1465,10 +1375,7 @@ impl Parser {
 
         // Consume segundo ';'
         if !matches!(self.peek(), Token::Symbol(';')) {
-            return Err(DryadError::new(
-                2059,
-                "Esperado ';' após condição do for - sintaxe: for (...; i < 10; update)",
-            ));
+            return Err(DryadError::from_catalog(error_catalog::e2059(), self.current_location()));
         }
         self.advance(); // consume ';'
 
@@ -1519,30 +1426,22 @@ impl Parser {
                         location.clone(),
                     )))
                 } else {
-                    return Err(DryadError::new(
-                        2060, "Esperado '=', '++' ou '--' no update do for - sintaxe: for (...; ...; i++)"
-                    ));
+                    return Err(DryadError::from_catalog(error_catalog::e2060(), self.current_location()));
                 }
             } else {
-                return Err(DryadError::new(
-                    2061,
-                    "Esperado identificador no update do for - sintaxe: for (...; ...; i++)",
-                ));
+                return Err(DryadError::from_catalog(error_catalog::e2061(), self.current_location()));
             }
         };
 
         // Expect closing parenthesis: )
         if !matches!(self.peek(), Token::Symbol(')')) {
-            return Err(DryadError::new(
-                2062,
-                "Esperado ')' após declaração do for - sintaxe: for (init; condition; update)",
-            ));
+            return Err(DryadError::from_catalog(error_catalog::e2062(), self.current_location()));
         }
         self.advance(); // consume ')'
 
         // Expect opening brace for loop body
         if !matches!(self.peek(), Token::Symbol('{')) {
-            return Err(DryadError::new(2063, "Esperado '{' após parênteses do for"));
+            return Err(DryadError::from_catalog(error_catalog::e2063(), self.current_location()));
         }
 
         // Parse loop body block
@@ -1555,10 +1454,7 @@ impl Parser {
         let location = self.current_location();
         // Já temos o var_name, agora consume 'in'
         if !matches!(self.peek(), Token::Keyword(ref k) if k == "in") {
-            return Err(DryadError::new(
-                2068,
-                "Esperado 'in' em foreach loop - sintaxe: for (item in array)",
-            ));
+            return Err(DryadError::from_catalog(error_catalog::e2068(), self.current_location()));
         }
         self.advance(); // consume 'in'
 
@@ -1567,19 +1463,13 @@ impl Parser {
 
         // Expect closing parenthesis: )
         if !matches!(self.peek(), Token::Symbol(')')) {
-            return Err(DryadError::new(
-                2069,
-                "Esperado ')' após expressão do foreach - sintaxe: for (item in array)",
-            ));
+            return Err(DryadError::from_catalog(error_catalog::e2069(), self.current_location()));
         }
         self.advance(); // consume ')'
 
         // Expect opening brace for loop body
         if !matches!(self.peek(), Token::Symbol('{')) {
-            return Err(DryadError::new(
-                2070,
-                "Esperado '{' após parênteses do foreach",
-            ));
+            return Err(DryadError::from_catalog(error_catalog::e2070(), self.current_location()));
         }
 
         // Parse loop body block
@@ -1600,12 +1490,12 @@ impl Parser {
         // Parse function name
         let name = match self.advance() {
             Token::Identifier(n) => n.clone(),
-            _ => return Err(DryadError::new(2012, "Esperado nome da função")),
+            _ => return Err(DryadError::from_catalog(error_catalog::e2012(), self.current_location())),
         };
 
         // Expect opening parenthesis
         if !matches!(self.advance(), Token::Symbol('(')) {
-            return Err(DryadError::new(2013, "Esperado '(' após nome da função"));
+            return Err(DryadError::from_catalog(error_catalog::e2013(), self.current_location()));
         }
 
         // Parse parameters
@@ -1631,7 +1521,7 @@ impl Parser {
 
                         params.push((name, param_type, default_value));
                     }
-                    _ => return Err(DryadError::new(2014, "Esperado nome do parâmetro")),
+                    _ => return Err(DryadError::from_catalog(error_catalog::e2014(), self.current_location())),
                 }
 
                 match self.peek() {
@@ -1641,10 +1531,7 @@ impl Parser {
                     }
                     Token::Symbol(')') => break,
                     _ => {
-                        return Err(DryadError::new(
-                            2015,
-                            "Esperado ',' ou ')' na lista de parâmetros",
-                        ))
+                        return Err(DryadError::from_catalog(error_catalog::e2015(), self.current_location()))
                     }
                 }
             }
@@ -1652,7 +1539,7 @@ impl Parser {
 
         // Expect closing parenthesis
         if !matches!(self.advance(), Token::Symbol(')')) {
-            return Err(DryadError::new(2016, "Esperado ')' após parâmetros"));
+            return Err(DryadError::from_catalog(error_catalog::e2016(), self.current_location()));
         }
 
         // Parse return type
@@ -1684,21 +1571,18 @@ impl Parser {
         // Expect 'function'
         match self.advance() {
             Token::Keyword(k) if k == "function" => {}
-            _ => return Err(DryadError::new(2017, "Esperado 'function' após 'async'")),
+            _ => return Err(DryadError::from_catalog(error_catalog::e2017(), self.current_location())),
         }
 
         // Parse function name
         let name = match self.advance() {
             Token::Identifier(n) => n.clone(),
-            _ => return Err(DryadError::new(2018, "Esperado nome da função async")),
+            _ => return Err(DryadError::from_catalog(error_catalog::e2018(), self.current_location())),
         };
 
         // Expect opening parenthesis
         if !matches!(self.advance(), Token::Symbol('(')) {
-            return Err(DryadError::new(
-                2019,
-                "Esperado '(' após nome da função async",
-            ));
+            return Err(DryadError::from_catalog(error_catalog::e2019(), self.current_location()));
         }
 
         // Parse parameters
@@ -1725,10 +1609,7 @@ impl Parser {
                         params.push((name, param_type, default_value));
                     }
                     _ => {
-                        return Err(DryadError::new(
-                            2020,
-                            "Esperado nome do parâmetro na função async",
-                        ))
+                        return Err(DryadError::from_catalog(error_catalog::e2020(), self.current_location()))
                     }
                 }
 
@@ -1739,10 +1620,7 @@ impl Parser {
                     }
                     Token::Symbol(')') => break,
                     _ => {
-                        return Err(DryadError::new(
-                            2021,
-                            "Esperado ',' ou ')' na lista de parâmetros da função async",
-                        ))
+                        return Err(DryadError::from_catalog(error_catalog::e2021(), self.current_location()))
                     }
                 }
             }
@@ -1750,10 +1628,7 @@ impl Parser {
 
         // Expect closing parenthesis
         if !matches!(self.advance(), Token::Symbol(')')) {
-            return Err(DryadError::new(
-                2022,
-                "Esperado ')' após parâmetros da função async",
-            ));
+            return Err(DryadError::from_catalog(error_catalog::e2022(), self.current_location()));
         }
 
         // Parse return type
@@ -1785,21 +1660,18 @@ impl Parser {
         // Expect 'function'
         match self.advance() {
             Token::Keyword(k) if k == "function" => {}
-            _ => return Err(DryadError::new(2023, "Esperado 'function' após 'thread'")),
+            _ => return Err(DryadError::from_catalog(error_catalog::e2023(), self.current_location())),
         }
 
         // Parse function name
         let name = match self.advance() {
             Token::Identifier(n) => n.clone(),
-            _ => return Err(DryadError::new(2024, "Esperado nome da função thread")),
+            _ => return Err(DryadError::from_catalog(error_catalog::e2024(), self.current_location())),
         };
 
         // Expect opening parenthesis
         if !matches!(self.advance(), Token::Symbol('(')) {
-            return Err(DryadError::new(
-                2025,
-                "Esperado '(' após nome da função thread",
-            ));
+            return Err(DryadError::from_catalog(error_catalog::e2025(), self.current_location()));
         }
 
         // Parse parameters
@@ -1818,10 +1690,7 @@ impl Parser {
                         params.push((name, param_type, None));
                     }
                     _ => {
-                        return Err(DryadError::new(
-                            2026,
-                            "Esperado nome do parâmetro na função thread",
-                        ))
+                        return Err(DryadError::from_catalog(error_catalog::e2026(), self.current_location()))
                     }
                 }
 
@@ -1832,10 +1701,7 @@ impl Parser {
                     }
                     Token::Symbol(')') => break,
                     _ => {
-                        return Err(DryadError::new(
-                            2027,
-                            "Esperado ',' ou ')' na lista de parâmetros da função thread",
-                        ))
+                        return Err(DryadError::from_catalog(error_catalog::e2027(), self.current_location()))
                     }
                 }
             }
@@ -1843,10 +1709,7 @@ impl Parser {
 
         // Expect closing parenthesis
         if !matches!(self.advance(), Token::Symbol(')')) {
-            return Err(DryadError::new(
-                2028,
-                "Esperado ')' após parâmetros da função thread",
-            ));
+            return Err(DryadError::from_catalog(error_catalog::e2028(), self.current_location()));
         }
 
         // Parse function body (block)
@@ -1887,10 +1750,7 @@ impl Parser {
                 name
             }
             _ => {
-                return Err(DryadError::new(
-                    2087,
-                    "Esperado nome da classe após 'class'",
-                ))
+                return Err(DryadError::from_catalog(error_catalog::e2087(), self.current_location()))
             }
         };
 
@@ -1907,10 +1767,7 @@ impl Parser {
                     (Some(parent), interfaces)
                 }
                 _ => {
-                    return Err(DryadError::new(
-                        2088,
-                        "Esperado nome da classe pai após 'extends'",
-                    ))
+                    return Err(DryadError::from_catalog(error_catalog::e2088(), self.current_location()))
                 }
             }
         } else if matches!(self.peek(), Token::Keyword(k) if k == "implements") {
@@ -1923,10 +1780,7 @@ impl Parser {
 
         // Expect opening brace
         if !matches!(self.peek(), Token::Symbol('{')) {
-            return Err(DryadError::new(
-                2089,
-                "Esperado '{' após declaração da classe",
-            ));
+            return Err(DryadError::from_catalog(error_catalog::e2089(), self.current_location()));
         }
         self.advance(); // consume '{'
 
@@ -1938,7 +1792,7 @@ impl Parser {
 
         // Expect closing brace
         if !matches!(self.peek(), Token::Symbol('}')) {
-            return Err(DryadError::new(2090, "Esperado '}' para fechar classe"));
+            return Err(DryadError::from_catalog(error_catalog::e2090(), self.current_location()));
         }
         self.advance(); // consume '}'
 
@@ -1986,19 +1840,13 @@ impl Parser {
                 name
             }
             _ => {
-                return Err(DryadError::new(
-                    2105,
-                    "Esperado nome da interface após 'interface'",
-                ))
+                return Err(DryadError::from_catalog(error_catalog::e2105(), self.current_location()))
             }
         };
 
         // Expect opening brace
         if !matches!(self.peek(), Token::Symbol('{')) {
-            return Err(DryadError::new(
-                2106,
-                "Esperado '{' após declaração da interface",
-            ));
+            return Err(DryadError::from_catalog(error_catalog::e2106(), self.current_location()));
         }
         self.advance(); // consume '{'
 
@@ -2010,7 +1858,7 @@ impl Parser {
 
         // Expect closing brace
         if !matches!(self.peek(), Token::Symbol('}')) {
-            return Err(DryadError::new(2107, "Esperado '}' para fechar interface"));
+            return Err(DryadError::from_catalog(error_catalog::e2107(), self.current_location()));
         }
         self.advance(); // consume '}'
 
@@ -2023,7 +1871,7 @@ impl Parser {
 
         // Expect 'function' keyword
         if !matches!(self.peek(), Token::Keyword(k) if k == "function") {
-            return Err(DryadError::new(2108, "Esperado 'function' em interface"));
+            return Err(DryadError::from_catalog(error_catalog::e2108(), self.current_location()));
         }
         self.advance(); // consume 'function'
 
@@ -2034,12 +1882,12 @@ impl Parser {
                 self.advance();
                 name
             }
-            _ => return Err(DryadError::new(2109, "Esperado nome do método")),
+            _ => return Err(DryadError::from_catalog(error_catalog::e2109(), self.current_location())),
         };
 
         // Parse parameters
         if !matches!(self.peek(), Token::Symbol('(')) {
-            return Err(DryadError::new(2110, "Esperado '(' após nome do método"));
+            return Err(DryadError::from_catalog(error_catalog::e2110(), self.current_location()));
         }
         self.advance(); // consume '('
 
@@ -2063,13 +1911,13 @@ impl Parser {
                         break;
                     }
                 } else {
-                    return Err(DryadError::new(2111, "Esperado nome do parâmetro"));
+                    return Err(DryadError::from_catalog(error_catalog::e2111(), self.current_location()));
                 }
             }
         }
 
         if !matches!(self.peek(), Token::Symbol(')')) {
-            return Err(DryadError::new(2112, "Esperado ')' após parâmetros"));
+            return Err(DryadError::from_catalog(error_catalog::e2112(), self.current_location()));
         }
         self.advance(); // consume ')'
 
@@ -2121,15 +1969,12 @@ impl Parser {
                             self.advance();
                             name
                         }
-                        _ => return Err(DryadError::new(2091, "Esperado nome do método async")),
+                        _ => return Err(DryadError::from_catalog(error_catalog::e2091(), self.current_location())),
                     };
 
                     // Parse parameters
                     if !matches!(self.peek(), Token::Symbol('(')) {
-                        return Err(DryadError::new(
-                            2092,
-                            "Esperado '(' após nome do método async",
-                        ));
+                        return Err(DryadError::from_catalog(error_catalog::e2092(), self.current_location()));
                     }
                     self.advance(); // consume '('
 
@@ -2154,7 +1999,7 @@ impl Parser {
 
                                 params.push((name, param_type, default_value));
                             } else {
-                                return Err(DryadError::new(2094, "Esperado nome do parâmetro"));
+                                return Err(DryadError::from_catalog(error_catalog::e2094(), self.current_location()));
                             }
 
                             if matches!(self.peek(), Token::Symbol(',')) {
@@ -2187,10 +2032,7 @@ impl Parser {
                         body,
                     })
                 } else {
-                    return Err(DryadError::new(
-                        2096,
-                        "Esperado 'function' após 'async' em classe",
-                    ));
+                    return Err(DryadError::from_catalog(error_catalog::e2096(), self.current_location()));
                 }
             }
             Token::Keyword(k) if k == "function" => {
@@ -2203,12 +2045,12 @@ impl Parser {
                         self.advance();
                         name
                     }
-                    _ => return Err(DryadError::new(2091, "Esperado nome do método")),
+                    _ => return Err(DryadError::from_catalog(error_catalog::e2091(), self.current_location())),
                 };
 
                 // Parse parameters
                 if !matches!(self.peek(), Token::Symbol('(')) {
-                    return Err(DryadError::new(2092, "Esperado '(' após nome do método"));
+                    return Err(DryadError::from_catalog(error_catalog::e2092(), self.current_location()));
                 }
                 self.advance(); // consume '('
 
@@ -2236,13 +2078,10 @@ impl Parser {
                             if matches!(self.peek(), Token::Symbol(',')) {
                                 self.advance(); // consome ','
                             } else if !matches!(self.peek(), Token::Symbol(')')) {
-                                return Err(DryadError::new(
-                                    2093,
-                                    "Esperado ',' ou ')' na lista de parâmetros",
-                                ));
+                                return Err(DryadError::from_catalog(error_catalog::e2093(), self.current_location()));
                             }
                         }
-                        _ => return Err(DryadError::new(2094, "Esperado nome do parâmetro")),
+                        _ => return Err(DryadError::from_catalog(error_catalog::e2094(), self.current_location())),
                     }
                 }
                 self.advance(); // consume ')'
@@ -2279,20 +2118,17 @@ impl Parser {
                         name
                     }
                     _ => {
-                        return Err(DryadError::new(
-                            2097,
-                            "Esperado nome da propriedade após 'get'",
-                        ))
+                        return Err(DryadError::from_catalog(error_catalog::e2097(), self.current_location()))
                     }
                 };
 
                 // Expect '(' and ')'
                 if !matches!(self.peek(), Token::Symbol('(')) {
-                    return Err(DryadError::new(2098, "Esperado '(' após nome do getter"));
+                    return Err(DryadError::from_catalog(error_catalog::e2098(), self.current_location()));
                 }
                 self.advance(); // consume '('
                 if !matches!(self.peek(), Token::Symbol(')')) {
-                    return Err(DryadError::new(2099, "Esperado ')' no getter"));
+                    return Err(DryadError::from_catalog(error_catalog::e2099(), self.current_location()));
                 }
                 self.advance(); // consume ')'
 
@@ -2317,16 +2153,13 @@ impl Parser {
                         name
                     }
                     _ => {
-                        return Err(DryadError::new(
-                            2100,
-                            "Esperado nome da propriedade após 'set'",
-                        ))
+                        return Err(DryadError::from_catalog(error_catalog::e2100(), self.current_location()))
                     }
                 };
 
                 // Expect '(' and parameter
                 if !matches!(self.peek(), Token::Symbol('(')) {
-                    return Err(DryadError::new(2101, "Esperado '(' após nome do setter"));
+                    return Err(DryadError::from_catalog(error_catalog::e2101(), self.current_location()));
                 }
                 self.advance(); // consume '('
 
@@ -2337,11 +2170,11 @@ impl Parser {
                         self.advance();
                         param
                     }
-                    _ => return Err(DryadError::new(2102, "Esperado parâmetro no setter")),
+                    _ => return Err(DryadError::from_catalog(error_catalog::e2102(), self.current_location())),
                 };
 
                 if !matches!(self.peek(), Token::Symbol(')')) {
-                    return Err(DryadError::new(2103, "Esperado ')' no setter"));
+                    return Err(DryadError::from_catalog(error_catalog::e2103(), self.current_location()));
                 }
                 self.advance(); // consume ')'
 
@@ -2366,7 +2199,7 @@ impl Parser {
                         self.advance();
                         name
                     }
-                    _ => return Err(DryadError::new(2095, "Esperado nome da propriedade")),
+                    _ => return Err(DryadError::from_catalog(error_catalog::e2095(), self.current_location())),
                 };
 
                 // Parse optional type
@@ -2406,7 +2239,7 @@ impl Parser {
                         self.advance();
                         name
                     }
-                    _ => return Err(DryadError::new(2095, "Esperado nome da propriedade")),
+                    _ => return Err(DryadError::from_catalog(error_catalog::e2095(), self.current_location())),
                 };
 
                 // Parse optional type
@@ -2438,10 +2271,7 @@ impl Parser {
                     default_value,
                 ))
             }
-            _ => Err(DryadError::new(
-                2096,
-                "Esperado declaração de método ou propriedade",
-            )),
+            _ => Err(DryadError::from_catalog(error_catalog::e2096(), self.current_location())),
         }
     }
 
@@ -2504,17 +2334,11 @@ impl Parser {
                     }
                 }
                 if !matches!(self.advance(), Token::Symbol(')')) {
-                    return Err(DryadError::new(
-                        2100,
-                        "Esperado ')' após lista de tipos de tupla",
-                    ));
+                    return Err(DryadError::from_catalog(error_catalog::e2100(), self.current_location()));
                 }
                 Ok(crate::ast::Type::Tuple(types))
             }
-            _ => Err(DryadError::new(
-                2101,
-                &format!("Tipo inválido: {:?}", token),
-            )),
+            _ => Err(DryadError::from_catalog_fmt(error_catalog::e2101(), &format!("Tipo inválido: {:?}", token), self.current_location())),
         }
     }
 
@@ -2606,7 +2430,7 @@ impl Parser {
             } else {
                 // It's just "else" - expect a block
                 if !matches!(self.peek(), Token::Symbol('{')) {
-                    return Err(DryadError::new(2051, "Esperado '{' após 'else'"));
+                    return Err(DryadError::from_catalog(error_catalog::e2051(), self.current_location()));
                 }
                 let else_block = Box::new(self.block_statement()?);
                 Ok(Stmt::IfElse(condition, then_block, else_block, location))
@@ -2657,10 +2481,7 @@ impl Parser {
         }
 
         if !matches!(self.peek(), Token::Symbol(']')) {
-            return Err(DryadError::new(
-                2070,
-                "Esperado ']' após elementos do array",
-            ));
+            return Err(DryadError::from_catalog(error_catalog::e2070(), self.current_location()));
         }
         self.advance(); // consome ']'
 
@@ -2695,10 +2516,7 @@ impl Parser {
         }
 
         if !matches!(self.peek(), Token::Symbol('}')) {
-            return Err(DryadError::new(
-                2071,
-                "Esperado '}' após propriedades do objeto",
-            ));
+            return Err(DryadError::from_catalog(error_catalog::e2071(), self.current_location()));
         }
         self.advance(); // consome '}'
 
@@ -2711,10 +2529,7 @@ impl Parser {
             Token::Identifier(name) => name.clone(),
             Token::String(name) => name.clone(),
             _ => {
-                return Err(DryadError::new(
-                    2072,
-                    "Esperado identificador ou string como chave da propriedade",
-                ))
+                return Err(DryadError::from_catalog(error_catalog::e2072(), self.current_location()))
             }
         };
 
@@ -2752,10 +2567,7 @@ impl Parser {
 
                             params.push((name, param_type, default_value));
                         } else {
-                            return Err(DryadError::new(
-                                2073,
-                                "Esperado identificador de parâmetro",
-                            ));
+                            return Err(DryadError::from_catalog(error_catalog::e2073(), self.current_location()));
                         }
 
                         match self.peek() {
@@ -2765,17 +2577,14 @@ impl Parser {
                             }
                             Token::Symbol(')') => break,
                             _ => {
-                                return Err(DryadError::new(
-                                    2074,
-                                    "Esperado ',' ou ')' na lista de parâmetros",
-                                ))
+                                return Err(DryadError::from_catalog(error_catalog::e2074(), self.current_location()))
                             }
                         }
                     }
                 }
 
                 if !matches!(self.advance(), Token::Symbol(')')) {
-                    return Err(DryadError::new(2075, "Esperado ')' após parâmetros"));
+                    return Err(DryadError::from_catalog(error_catalog::e2075(), self.current_location()));
                 }
 
                 let return_type = if matches!(self.peek(), Token::Symbol(':')) {
@@ -2787,10 +2596,7 @@ impl Parser {
 
                 // Parse body
                 if !matches!(self.peek(), Token::Symbol('{')) {
-                    return Err(DryadError::new(
-                        2076,
-                        "Esperado '{' após parâmetros do método",
-                    ));
+                    return Err(DryadError::from_catalog(error_catalog::e2076(), self.current_location()));
                 }
                 let body = Box::new(self.block_statement()?);
 
@@ -2801,10 +2607,7 @@ impl Parser {
                     body,
                 })
             }
-            _ => Err(DryadError::new(
-                2077,
-                "Esperado ':' ou '(' após chave da propriedade",
-            )),
+            _ => Err(DryadError::from_catalog(error_catalog::e2077(), self.current_location())),
         }
     }
 
@@ -2814,7 +2617,7 @@ impl Parser {
 
         // Parse try block
         if !matches!(self.peek(), Token::Symbol('{')) {
-            return Err(DryadError::new(2080, "Esperado '{' após 'try'"));
+            return Err(DryadError::from_catalog(error_catalog::e2080(), self.current_location()));
         }
         let try_block = Box::new(self.block_statement()?);
 
@@ -2825,31 +2628,25 @@ impl Parser {
 
             // Expect (variable)
             if !matches!(self.peek(), Token::Symbol('(')) {
-                return Err(DryadError::new(2081, "Esperado '(' após 'catch'"));
+                return Err(DryadError::from_catalog(error_catalog::e2081(), self.current_location()));
             }
             self.advance(); // consume '('
 
             let catch_var = match self.advance() {
                 Token::Identifier(name) => name.clone(),
                 _ => {
-                    return Err(DryadError::new(
-                        2082,
-                        "Esperado nome da variável de exceção",
-                    ))
+                    return Err(DryadError::from_catalog(error_catalog::e2082(), self.current_location()))
                 }
             };
 
             if !matches!(self.peek(), Token::Symbol(')')) {
-                return Err(DryadError::new(2083, "Esperado ')' após variável de catch"));
+                return Err(DryadError::from_catalog(error_catalog::e2083(), self.current_location()));
             }
             self.advance(); // consume ')'
 
             // Parse catch block
             if !matches!(self.peek(), Token::Symbol('{')) {
-                return Err(DryadError::new(
-                    2084,
-                    "Esperado '{' após parâmetro de catch",
-                ));
+                return Err(DryadError::from_catalog(error_catalog::e2084(), self.current_location()));
             }
             let catch_block = Box::new(self.block_statement()?);
 
@@ -2863,17 +2660,14 @@ impl Parser {
 
             // Parse finally block
             if !matches!(self.peek(), Token::Symbol('{')) {
-                return Err(DryadError::new(2085, "Esperado '{' após 'finally'"));
+                return Err(DryadError::from_catalog(error_catalog::e2085(), self.current_location()));
             }
             finally_clause = Some(Box::new(self.block_statement()?));
         }
 
         // Validate that we have at least catch or finally
         if catch_clause.is_none() && finally_clause.is_none() {
-            return Err(DryadError::new(
-                2086,
-                "Bloco try deve ter pelo menos um catch ou finally",
-            ));
+            return Err(DryadError::from_catalog(error_catalog::e2086(), self.current_location()));
         }
 
         Ok(Stmt::Try(try_block, catch_clause, finally_clause, location))
@@ -2908,19 +2702,13 @@ impl Parser {
                 Expr::Variable(var_name, self.current_location())
             }
             _ => {
-                return Err(DryadError::new(
-                    2097,
-                    "Esperado 'this' ou identificador para property assignment",
-                ))
+                return Err(DryadError::from_catalog(error_catalog::e2097(), self.current_location()))
             }
         };
 
         // Expect '.'
         if !matches!(self.peek(), Token::Symbol('.')) {
-            return Err(DryadError::new(
-                2098,
-                "Esperado '.' após objeto para property assignment",
-            ));
+            return Err(DryadError::from_catalog(error_catalog::e2098(), self.current_location()));
         }
         self.advance(); // consume '.'
 
@@ -2932,19 +2720,13 @@ impl Parser {
                 prop_name
             }
             _ => {
-                return Err(DryadError::new(
-                    2099,
-                    "Esperado nome da propriedade após '.'",
-                ))
+                return Err(DryadError::from_catalog(error_catalog::e2099(), self.current_location()))
             }
         };
 
         // Expect '='
         if !matches!(self.peek(), Token::Symbol('=')) {
-            return Err(DryadError::new(
-                2100,
-                "Esperado '=' para property assignment",
-            ));
+            return Err(DryadError::from_catalog(error_catalog::e2100(), self.current_location()));
         }
         self.advance(); // consume '='
 
@@ -2969,16 +2751,13 @@ impl Parser {
                 Expr::Variable(var_name, self.current_location())
             }
             _ => {
-                return Err(DryadError::new(
-                    2101,
-                    "Esperado identificador para index assignment",
-                ))
+                return Err(DryadError::from_catalog(error_catalog::e2101(), self.current_location()))
             }
         };
 
         // Expect '['
         if !matches!(self.peek(), Token::Symbol('[')) {
-            return Err(DryadError::new(2102, "Esperado '[' após identificador"));
+            return Err(DryadError::from_catalog(error_catalog::e2102(), self.current_location()));
         }
         self.advance(); // consume '['
 
@@ -2987,13 +2766,13 @@ impl Parser {
 
         // Expect ']'
         if !matches!(self.peek(), Token::Symbol(']')) {
-            return Err(DryadError::new(2103, "Esperado ']' após índice"));
+            return Err(DryadError::from_catalog(error_catalog::e2103(), self.current_location()));
         }
         self.advance(); // consume ']'
 
         // Expect '='
         if !matches!(self.peek(), Token::Symbol('=')) {
-            return Err(DryadError::new(2104, "Esperado '=' para index assignment"));
+            return Err(DryadError::from_catalog(error_catalog::e2104(), self.current_location()));
         }
         self.advance(); // consume '='
 
@@ -3018,10 +2797,7 @@ impl Parser {
                 self.consume_semicolon()?; // consome o ponto e vírgula opcional
                 Ok(Stmt::Use(module_path, location))
             }
-            _ => Err(DryadError::new(
-                4002,
-                "Use deve ser seguido por uma string com o caminho do módulo",
-            )),
+            _ => Err(DryadError::from_catalog(error_catalog::e2116(), self.current_location())),
         }
     }
 
@@ -3057,11 +2833,11 @@ impl Parser {
                 // Espera 'as'
                 if let Token::Keyword(kw) = self.peek() {
                     if kw != "as" {
-                        return Err(DryadError::new(4002, "Esperado 'as' após '*' no import"));
+                        return Err(DryadError::from_catalog(error_catalog::e2116(), self.current_location()));
                     }
                     self.advance(); // consome 'as'
                 } else {
-                    return Err(DryadError::new(4002, "Esperado 'as' após '*' no import"));
+                    return Err(DryadError::from_catalog(error_catalog::e2116(), self.current_location()));
                 }
 
                 // Espera identificador do namespace
@@ -3070,20 +2846,17 @@ impl Parser {
                     self.advance();
                     ns
                 } else {
-                    return Err(DryadError::new(
-                        4002,
-                        "Esperado identificador após 'as' no import",
-                    ));
+                    return Err(DryadError::from_catalog(error_catalog::e2116(), self.current_location()));
                 };
 
                 // Espera 'from'
                 if let Token::Keyword(kw) = self.peek() {
                     if kw != "from" {
-                        return Err(DryadError::new(4002, "Esperado 'from' no import"));
+                        return Err(DryadError::from_catalog(error_catalog::e2116(), self.current_location()));
                     }
                     self.advance(); // consome 'from'
                 } else {
-                    return Err(DryadError::new(4002, "Esperado 'from' no import"));
+                    return Err(DryadError::from_catalog(error_catalog::e2116(), self.current_location()));
                 }
 
                 // Espera string do módulo
@@ -3092,10 +2865,7 @@ impl Parser {
                     self.advance();
                     p
                 } else {
-                    return Err(DryadError::new(
-                        4002,
-                        "Esperado string com caminho do módulo após 'from'",
-                    ));
+                    return Err(DryadError::from_catalog(error_catalog::e2116(), self.current_location()));
                 };
 
                 self.consume_semicolon()?;
@@ -3117,10 +2887,7 @@ impl Parser {
                         imports.push(name.clone());
                         self.advance();
                     } else {
-                        return Err(DryadError::new(
-                            4002,
-                            "Esperado identificador na lista de imports",
-                        ));
+                        return Err(DryadError::from_catalog(error_catalog::e2116(), self.current_location()));
                     }
 
                     // Verifica vírgula ou fecha chaves
@@ -3134,10 +2901,7 @@ impl Parser {
                         }
                         Token::Symbol('}') => break,
                         _ => {
-                            return Err(DryadError::new(
-                                4002,
-                                "Esperado ',' ou '}' na lista de imports",
-                            ));
+                            return Err(DryadError::from_catalog(error_catalog::e2116(), self.current_location()));
                         }
                     }
                 }
@@ -3147,11 +2911,11 @@ impl Parser {
                 // Espera 'from'
                 if let Token::Keyword(kw) = self.peek() {
                     if kw != "from" {
-                        return Err(DryadError::new(4002, "Esperado 'from' no import"));
+                        return Err(DryadError::from_catalog(error_catalog::e2116(), self.current_location()));
                     }
                     self.advance(); // consome 'from'
                 } else {
-                    return Err(DryadError::new(4002, "Esperado 'from' no import"));
+                    return Err(DryadError::from_catalog(error_catalog::e2116(), self.current_location()));
                 }
 
                 // Espera string do módulo
@@ -3160,10 +2924,7 @@ impl Parser {
                     self.advance();
                     p
                 } else {
-                    return Err(DryadError::new(
-                        4002,
-                        "Esperado string com caminho do módulo após 'from'",
-                    ));
+                    return Err(DryadError::from_catalog(error_catalog::e2116(), self.current_location()));
                 };
 
                 self.consume_semicolon()?;
@@ -3173,10 +2934,7 @@ impl Parser {
                     location,
                 ))
             }
-            _ => Err(DryadError::new(
-                4002,
-                "Import deve ser seguido por '{', '*' ou string",
-            )),
+            _ => Err(DryadError::from_catalog(error_catalog::e2116(), self.current_location())),
         }
     }
 
@@ -3198,15 +2956,12 @@ impl Parser {
                     self.advance();
                     let inner_expr = self.expression()?;
                     if !matches!(self.peek(), Token::InterpolationEnd) {
-                        return Err(DryadError::new(
-                            2027,
-                            "Esperado '}' após interpolação em template string",
-                        ));
+                        return Err(DryadError::from_catalog(error_catalog::e2027(), self.current_location()));
                     }
                     self.advance(); // consume InterpolationEnd
                     inner_expr
                 }
-                _ => return Err(DryadError::new(2028, "Token inesperado em template string")),
+                _ => return Err(DryadError::from_catalog(error_catalog::e2028(), self.current_location())),
             };
 
             expr = match expr {
@@ -3221,7 +2976,7 @@ impl Parser {
         }
 
         if !matches!(self.peek(), Token::TemplateEnd) {
-            return Err(DryadError::new(1002, "Template string não fechada"));
+            return Err(DryadError::from_catalog(error_catalog::e2117(), self.current_location()));
         }
         self.advance(); // consume TemplateEnd
 
@@ -3235,10 +2990,7 @@ impl Parser {
         let target = Box::new(self.expression()?);
 
         if !matches!(self.peek(), Token::Symbol('{')) {
-            return Err(DryadError::new(
-                2034,
-                "Esperado '{' após expressão do match",
-            ));
+            return Err(DryadError::from_catalog(error_catalog::e2034(), self.current_location()));
         }
         self.advance(); // consume '{'
 
@@ -3257,7 +3009,7 @@ impl Parser {
             }
 
             if !matches!(self.peek(), Token::Arrow) {
-                return Err(DryadError::new(2035, "Esperado '=>' após padrão do match"));
+                return Err(DryadError::from_catalog(error_catalog::e2035(), self.current_location()));
             }
             self.advance(); // consume '=>'
 
@@ -3287,7 +3039,7 @@ impl Parser {
         }
 
         if !matches!(self.peek(), Token::Symbol('}')) {
-            return Err(DryadError::new(2036, "Esperado '}' para fechar o match"));
+            return Err(DryadError::from_catalog(error_catalog::e2036(), self.current_location()));
         }
         self.advance(); // consume '}'
 
@@ -3338,7 +3090,7 @@ impl Parser {
                     }
                 }
                 if !matches!(self.peek(), Token::Symbol(']')) {
-                    return Err(DryadError::new(2037, "Esperado ']' após padrões do array"));
+                    return Err(DryadError::from_catalog(error_catalog::e2037(), self.current_location()));
                 }
                 self.advance();
                 Ok(Pattern::Array(patterns))
@@ -3357,7 +3109,7 @@ impl Parser {
                     }
                 }
                 if !matches!(self.peek(), Token::Symbol(')')) {
-                    return Err(DryadError::new(2038, "Esperado ')' após padrões da tupla"));
+                    return Err(DryadError::from_catalog(error_catalog::e2038(), self.current_location()));
                 }
                 self.advance();
                 Ok(Pattern::Tuple(patterns))
@@ -3376,17 +3128,11 @@ impl Parser {
                             self.advance();
                             key_text
                         } else {
-                            return Err(DryadError::new(
-                                2039,
-                                "Esperado chave do objeto no padrão",
-                            ));
+                            return Err(DryadError::from_catalog(error_catalog::e2039(), self.current_location()));
                         };
 
                         if !matches!(self.peek(), Token::Symbol(':')) {
-                            return Err(DryadError::new(
-                                2040,
-                                "Esperado ':' após chave do objeto no padrão",
-                            ));
+                            return Err(DryadError::from_catalog(error_catalog::e2040(), self.current_location()));
                         }
                         self.advance(); // consume ':'
 
@@ -3401,15 +3147,12 @@ impl Parser {
                     }
                 }
                 if !matches!(self.peek(), Token::Symbol('}')) {
-                    return Err(DryadError::new(2041, "Esperado '}' após padrões do objeto"));
+                    return Err(DryadError::from_catalog(error_catalog::e2041(), self.current_location()));
                 }
                 self.advance();
                 Ok(Pattern::Object(patterns))
             }
-            _ => Err(DryadError::new(
-                2042,
-                &format!("Padrão inválido: {:?}", self.peek()),
-            )),
+            _ => Err(DryadError::from_catalog_fmt(error_catalog::e2042(), &format!("Padrão inválido: {:?}", self.peek()), self.current_location())),
         }
     }
 }

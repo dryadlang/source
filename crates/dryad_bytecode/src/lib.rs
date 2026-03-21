@@ -15,12 +15,25 @@
 //! ## Exemplo de Uso
 //!
 //! ```rust,no_run
-//! use dryad_bytecode::{Compiler, VM};
-//! use dryad_parser::Parser;
+//! use dryad_bytecode::{Compiler, VM, Chunk, OpCode, Value};
+//! use dryad_parser::ast::{Program, Stmt, Expr, Literal};
+//! use dryad_errors::SourceLocation;
 //!
-//! // Parse do código fonte
-//! let source = "print 1 + 2;";
-//! let program = Parser::parse(source).unwrap();
+//! // Criar um programa simples (ex: 1 + 2)
+//! let loc = SourceLocation {
+//!     line: 1, column: 1, file: None, position: 0, source_line: None
+//! };
+//! let program = Program {
+//!     statements: vec![Stmt::Expression(
+//!         Expr::Binary(
+//!             Box::new(Expr::Literal(Literal::Number(1.0), loc.clone())),
+//!             "+".to_string(),
+//!             Box::new(Expr::Literal(Literal::Number(2.0), loc.clone())),
+//!             loc.clone()
+//!         ),
+//!         loc
+//!     )]
+//! };
 //!
 //! // Compila para bytecode
 //! let mut compiler = Compiler::new();

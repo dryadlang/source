@@ -88,7 +88,7 @@ impl PartialEq for Object {
 }
 
 /// Informação sobre um upvalue em uma função
-/// 
+///
 /// Armazena metadados sobre como capturar variáveis de escopos externos
 #[derive(Debug, Clone, PartialEq)]
 pub struct UpvalueInfo {
@@ -99,7 +99,7 @@ pub struct UpvalueInfo {
 }
 
 /// Upvalue - referência a variável capturada por uma closure
-/// 
+///
 /// Upvalues podem estar "abertos" (apontando para pilha) ou "fechados" (valor copiado para heap)
 #[derive(Debug, Clone)]
 pub enum Upvalue {
@@ -129,7 +129,6 @@ pub struct Function {
     /// Informações sobre upvalues capturados
     pub upvalue_info: Vec<UpvalueInfo>,
 }
-
 
 /// Chunk de bytecode (importado de chunk.rs)
 use crate::chunk::Chunk;

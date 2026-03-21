@@ -179,3 +179,90 @@ fn test_function_with_local_variables() {
     let result = vm.interpret(chunk.unwrap());
     assert_eq!(result, InterpretResult::Ok);
 }
+
+#[test]
+fn test_recursive_function_sum_to() {
+    // Programa:
+    // fn sum_to(n) {
+    //     if (n <= 1) {
+    //         return n;
+    //     }
+    //     return n + sum_to(n - 1);
+    // }
+    // var x = sum_to(3);  // Expected: 1 + 2 + 3 = 6
+
+    let program = Program {
+        statements: vec![
+            // Declaração da função recursiva
+            Stmt::FunctionDeclaration {
+                name: "sum_to".to_string(),
+                params: vec![("n".to_string(), Some(Type::Number), None)],
+                return_type: Some(Type::Number),
+                body: Box::new(Stmt::Block(
+                    vec![
+                        // if (n <= 1) { return n; }
+                        Stmt::If(
+                            Expr::Binary(
+                                Box::new(Expr::Variable("n".to_string(), dummy_loc())),
+                                "<=".to_string(),
+                                Box::new(Expr::Literal(Literal::Number(1.0), dummy_loc())),
+                                dummy_loc(),
+                            ),
+                            Box::new(Stmt::Block(
+                                vec![Stmt::Return(
+                                    Some(Expr::Variable("n".to_string(), dummy_loc())),
+                                    dummy_loc(),
+                                )],
+                                dummy_loc(),
+                            )),
+                            dummy_loc(),
+                        ),
+                        // return n + sum_to(n - 1);
+                        Stmt::Return(
+                            Some(Expr::Binary(
+                                Box::new(Expr::Variable("n".to_string(), dummy_loc())),
+                                "+".to_string(),
+                                Box::new(Expr::Call(
+                                    Box::new(Expr::Variable("sum_to".to_string(), dummy_loc())),
+                                    vec![Expr::Binary(
+                                        Box::new(Expr::Variable("n".to_string(), dummy_loc())),
+                                        "-".to_string(),
+                                        Box::new(Expr::Literal(Literal::Number(1.0), dummy_loc())),
+                                        dummy_loc(),
+                                    )],
+                                    dummy_loc(),
+                                )),
+                                dummy_loc(),
+                            )),
+                            dummy_loc(),
+                        ),
+                    ],
+                    dummy_loc(),
+                )),
+                location: dummy_loc(),
+                is_async: false,
+                rest_param: None,
+            },
+            // var x = sum_to(3);
+            Stmt::VarDeclaration(
+                dryad_parser::ast::Pattern::Identifier("x".to_string()),
+                None,
+                Some(Expr::Call(
+                    Box::new(Expr::Variable("sum_to".to_string(), dummy_loc())),
+                    vec![Expr::Literal(Literal::Number(3.0), dummy_loc())],
+                    dummy_loc(),
+                )),
+                dummy_loc(),
+            ),
+        ],
+    };
+
+    let mut compiler = Compiler::new();
+    let chunk = compiler.compile(program);
+    assert!(chunk.is_ok(), "Erro na compilação: {:?}", chunk.err());
+
+    let mut vm = VM::new();
+    let result = vm.interpret(chunk.unwrap());
+    // This should succeed without "Não é possível adicionar function com number" error
+    assert_eq!(result, InterpretResult::Ok);
+}

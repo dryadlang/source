@@ -724,7 +724,7 @@ impl Compiler {
 
         // Move self para enclosing (temporariamente)
         let mut enclosing_compiler = std::mem::replace(self, function_compiler);
-        
+
         // Configura a referência ao compilador pai
         self.enclosing = Some(Box::new(enclosing_compiler));
 
@@ -911,6 +911,17 @@ impl Compiler {
 
             Expr::ClassInstantiation(class_name, args, loc) => {
                 self.compile_class_instantiation(class_name, args, loc.line)
+            }
+
+            Expr::This(_loc) => {
+                self.emit_op(OpCode::This, _loc.line);
+                Ok(())
+            }
+
+            Expr::Super(loc) => {
+                // Super needs a placeholder index for now (could be used for parent class resolution)
+                self.emit_op(OpCode::Super(0), loc.line);
+                Ok(())
             }
 
             // Expressões não implementadas
@@ -1322,10 +1333,10 @@ impl Compiler {
         }
 
         // Adiciona novo upvalue
-        self.upvalues.push(crate::value::UpvalueInfo { index, is_local });
+        self.upvalues
+            .push(crate::value::UpvalueInfo { index, is_local });
         (self.upvalues.len() - 1) as u8
     }
-
 
     // ============================================
     // Emissão de Código

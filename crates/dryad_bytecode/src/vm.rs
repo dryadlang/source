@@ -159,15 +159,9 @@ impl VM {
 
             // PASSO 1: Ler opcode SEM manter borrow do frame
             let op = {
-                let frame = self
-                    .frames
-                    .last()
-                    .ok_or("Não há frame para executar")?;
-                
-                frame
-                    .peek_op()
-                    .ok_or("Fim inesperado do bytecode")?
-                    .clone()
+                let frame = self.frames.last().ok_or("Não há frame para executar")?;
+
+                frame.peek_op().ok_or("Fim inesperado do bytecode")?.clone()
             }; // borrow termina aqui
 
             // Debug: mostrar instrução atual
@@ -199,10 +193,7 @@ impl VM {
                 ExecutionControl::Break | ExecutionControl::ContinueLoop => {
                     // Estes são tratados pelo compilador que gera jumps apropriados
                     // Não deveriam chegar aqui na prática
-                    return Err(format!(
-                        "Controle de fluxo {:?} fora de contexto",
-                        control
-                    ));
+                    return Err(format!("Controle de fluxo {:?} fora de contexto", control));
                 }
             }
         }
@@ -429,14 +420,16 @@ impl VM {
 
             OpCode::JumpIfFalse(offset) => {
                 if !self.peek(0)?.is_truthy() {
-                    let new_ip = self.current_frame_ip().ok_or("Sem frame atual")? + *offset as usize;
+                    let new_ip =
+                        self.current_frame_ip().ok_or("Sem frame atual")? + *offset as usize;
                     self.set_frame_ip(new_ip);
                 }
             }
 
             OpCode::JumpIfTrue(offset) => {
                 if self.peek(0)?.is_truthy() {
-                    let new_ip = self.current_frame_ip().ok_or("Sem frame atual")? + *offset as usize;
+                    let new_ip =
+                        self.current_frame_ip().ok_or("Sem frame atual")? + *offset as usize;
                     self.set_frame_ip(new_ip);
                 }
             }
@@ -492,7 +485,7 @@ impl VM {
             OpCode::Closure(upvalue_count) => {
                 // A função já está no topo da pilha (colocada por Constant)
                 let function_value = self.peek(0)?.clone();
-                
+
                 let function = match function_value {
                     Value::Function(f) => f,
                     _ => return Err("Closure requer uma função".to_string()),
@@ -501,22 +494,27 @@ impl VM {
                 // Cria upvalues para a closure
                 let mut upvalue_ids = Vec::new();
                 for i in 0..*upvalue_count {
-                    let upvalue_info = function.upvalue_info.get(i as usize)
+                    let upvalue_info = function
+                        .upvalue_info
+                        .get(i as usize)
                         .ok_or("Informação de upvalue inválida")?;
 
                     let upvalue_id = if upvalue_info.is_local {
                         // Captura variável local do frame atual
-                        let stack_start = self.current_frame_stack_start()
-                            .ok_or("Sem frame atual")?;
+                        let stack_start =
+                            self.current_frame_stack_start().ok_or("Sem frame atual")?;
                         let local_slot = stack_start + upvalue_info.index as usize;
-                        
+
                         // Cria upvalue "aberto" (apontando para pilha)
-                        self.heap.allocate(crate::value::Object::Upvalue(
-                            std::cell::RefCell::new(crate::value::Upvalue::Open(local_slot))
-                        ))
+                        self.heap
+                            .allocate(crate::value::Object::Upvalue(std::cell::RefCell::new(
+                                crate::value::Upvalue::Open(local_slot),
+                            )))
                     } else {
                         // Captura upvalue do frame pai
-                        let parent_upvalue = self.frames.last()
+                        let parent_upvalue = self
+                            .frames
+                            .last()
                             .and_then(|f| f.upvalues.get(upvalue_info.index as usize))
                             .ok_or("Upvalue pai não encontrado")?;
                         *parent_upvalue
@@ -529,10 +527,9 @@ impl VM {
                 self.pop()?;
 
                 // Cria a closure no heap
-                let closure_id = self.heap.allocate(crate::value::Object::Closure(
-                    function,
-                    upvalue_ids.clone(),
-                ));
+                let closure_id = self
+                    .heap
+                    .allocate(crate::value::Object::Closure(function, upvalue_ids.clone()));
 
                 // Empilha a closure
                 self.push(Value::Object(closure_id));
@@ -545,7 +542,9 @@ impl VM {
 
             OpCode::GetUpvalue(idx) => {
                 // Obtém o upvalue do frame atual
-                let upvalue_id = self.frames.last()
+                let upvalue_id = self
+                    .frames
+                    .last()
                     .and_then(|f| f.upvalues.get(*idx as usize))
                     .ok_or("Upvalue não encontrado")?;
 
@@ -555,11 +554,11 @@ impl VM {
                     if let crate::value::Object::Upvalue(upvalue_cell) = &*upvalue_ref {
                         let upvalue = upvalue_cell.borrow();
                         let value = match &*upvalue {
-                            crate::value::Upvalue::Open(stack_idx) => {
-                                self.stack.get(*stack_idx)
-                                    .ok_or("Índice de pilha inválido")?
-                                    .clone()
-                            }
+                            crate::value::Upvalue::Open(stack_idx) => self
+                                .stack
+                                .get(*stack_idx)
+                                .ok_or("Índice de pilha inválido")?
+                                .clone(),
                             crate::value::Upvalue::Closed(val) => val.clone(),
                         };
                         drop(upvalue);
@@ -575,7 +574,9 @@ impl VM {
 
             OpCode::SetUpvalue(idx) => {
                 // Obtém o upvalue do frame atual
-                let upvalue_id = self.frames.last()
+                let upvalue_id = self
+                    .frames
+                    .last()
                     .and_then(|f| f.upvalues.get(*idx as usize))
                     .ok_or("Upvalue não encontrado")?;
 
@@ -609,10 +610,10 @@ impl VM {
             OpCode::CloseUpvalue => {
                 // Move o upvalue da pilha para o heap (fecha o upvalue)
                 let value = self.pop()?;
-                
+
                 // Procura upvalues abertos que apontam para esta posição da pilha
                 let stack_pos = self.stack.len();
-                
+
                 // Itera sobre todos os frames e fecha upvalues que apontam para esta posição
                 for frame in &self.frames {
                     for upvalue_id in &frame.upvalues {
@@ -800,14 +801,31 @@ impl VM {
 
             OpCode::This => {
                 // 'this' é sempre a primeira variável local no frame atual
-                let stack_start = self.current_frame_stack_start().ok_or("'this' fora de método")?;
+                let stack_start = self
+                    .current_frame_stack_start()
+                    .ok_or("'this' fora de método")?;
                 let this_value = self.stack[stack_start].clone();
                 self.push(this_value);
             }
 
             OpCode::Super(_idx) => {
-                // TODO: Implementar herança completa
-                return Err("'super' não implementado".to_string());
+                // Super retorna uma referência ao objeto atual para chamar métodos da superclasse
+                // 'this' é sempre a primeira variável local no frame atual
+                let stack_start = self
+                    .current_frame_stack_start()
+                    .ok_or("'super' fora de método")?;
+                let this_value = self.stack[stack_start].clone();
+
+                // Valida que 'this' é um objeto (Instance)
+                match this_value {
+                    Value::Object(_) => {
+                        // Empilha 'this' para ser usado na chamada do método da superclasse
+                        self.push(this_value);
+                    }
+                    _ => {
+                        return Err("'super' só é válido dentro de métodos de instância".to_string())
+                    }
+                }
             }
 
             // ============================================
@@ -1097,8 +1115,6 @@ impl VM {
                 // Vamos apenas associar à variável (o compilador já criou a variável local)
                 // Não precisamos fazer nada aqui, pois o Catch é seguido de uma atribuição
             }
-
-
         }
 
         Ok(ExecutionControl::Continue)
@@ -1123,8 +1139,6 @@ impl VM {
         let idx = self.stack.len().saturating_sub(1 + distance);
         self.stack.get(idx).ok_or_else(|| "Pilha vazia".to_string())
     }
-
-
 
     // ============================================
     // Chamadas de Função
@@ -1216,10 +1230,7 @@ impl VM {
     // ============================================
 
     /// Trata uma exceção lançada
-    fn handle_exception(
-        &mut self,
-        exception: Value,
-    ) -> Result<ExecutionControl, String> {
+    fn handle_exception(&mut self, exception: Value) -> Result<ExecutionControl, String> {
         // Procura um try frame que possa lidar com a exceção
         while let Some(try_frame) = self.try_frames.pop() {
             // Restaura o estado da pilha

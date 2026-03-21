@@ -10,6 +10,8 @@ fn dummy_loc() -> SourceLocation {
         line: 1,
         column: 1,
         file: None,
+        position: 0,
+        source_line: None,
     }
 }
 
@@ -20,7 +22,7 @@ fn test_foreach_array() {
     // for x in arr {
     //     print x;
     // }
-    
+
     let program = Program {
         statements: vec![
             // var arr = [1, 2, 3];
@@ -42,12 +44,14 @@ fn test_foreach_array() {
                 Pattern::Identifier("x".to_string()),
                 Expr::Variable("arr".to_string(), dummy_loc()),
                 Box::new(Stmt::Block(
-                    vec![
-                        Stmt::Print(
-                            Expr::Variable("x".to_string(), dummy_loc()),
+                    vec![Stmt::Expression(
+                        Expr::Call(
+                            Box::new(Expr::Variable("print".to_string(), dummy_loc())),
+                            vec![Expr::Variable("x".to_string(), dummy_loc())],
                             dummy_loc(),
                         ),
-                    ],
+                        dummy_loc(),
+                    )],
                     dummy_loc(),
                 )),
                 dummy_loc(),
@@ -73,7 +77,7 @@ fn test_break_in_while() {
     //     print i;
     //     i = i + 1;
     // }
-    
+
     let program = Program {
         statements: vec![
             // var i = 0;
@@ -105,8 +109,12 @@ fn test_break_in_while() {
                             dummy_loc(),
                         ),
                         // print i;
-                        Stmt::Print(
-                            Expr::Variable("i".to_string(), dummy_loc()),
+                        Stmt::Expression(
+                            Expr::Call(
+                                Box::new(Expr::Variable("print".to_string(), dummy_loc())),
+                                vec![Expr::Variable("i".to_string(), dummy_loc())],
+                                dummy_loc(),
+                            ),
                             dummy_loc(),
                         ),
                         // i = i + 1;
@@ -145,56 +153,58 @@ fn test_continue_in_for() {
     //     print i;
     // }
     // Deve imprimir: 0, 1, 3, 4
-    
+
     let program = Program {
-        statements: vec![
-            Stmt::For(
-                Some(Box::new(Stmt::VarDeclaration(
-                    Pattern::Identifier("i".to_string()),
-                    None,
-                    Some(Expr::Literal(Literal::Number(0.0), dummy_loc())),
-                    dummy_loc(),
-                ))),
-                Some(Expr::Binary(
+        statements: vec![Stmt::For(
+            Some(Box::new(Stmt::VarDeclaration(
+                Pattern::Identifier("i".to_string()),
+                None,
+                Some(Expr::Literal(Literal::Number(0.0), dummy_loc())),
+                dummy_loc(),
+            ))),
+            Some(Expr::Binary(
+                Box::new(Expr::Variable("i".to_string(), dummy_loc())),
+                "<".to_string(),
+                Box::new(Expr::Literal(Literal::Number(5.0), dummy_loc())),
+                dummy_loc(),
+            )),
+            Some(Box::new(Stmt::Assignment(
+                Pattern::Identifier("i".to_string()),
+                Expr::Binary(
                     Box::new(Expr::Variable("i".to_string(), dummy_loc())),
-                    "<".to_string(),
-                    Box::new(Expr::Literal(Literal::Number(5.0), dummy_loc())),
+                    "+".to_string(),
+                    Box::new(Expr::Literal(Literal::Number(1.0), dummy_loc())),
                     dummy_loc(),
-                )),
-                Some(Box::new(Stmt::Assignment(
-                    Pattern::Identifier("i".to_string()),
-                    Expr::Binary(
-                        Box::new(Expr::Variable("i".to_string(), dummy_loc())),
-                        "+".to_string(),
-                        Box::new(Expr::Literal(Literal::Number(1.0), dummy_loc())),
+                ),
+                dummy_loc(),
+            ))),
+            Box::new(Stmt::Block(
+                vec![
+                    // if (i == 2) continue;
+                    Stmt::If(
+                        Expr::Binary(
+                            Box::new(Expr::Variable("i".to_string(), dummy_loc())),
+                            "==".to_string(),
+                            Box::new(Expr::Literal(Literal::Number(2.0), dummy_loc())),
+                            dummy_loc(),
+                        ),
+                        Box::new(Stmt::Continue(dummy_loc())),
                         dummy_loc(),
                     ),
-                    dummy_loc(),
-                ))),
-                Box::new(Stmt::Block(
-                    vec![
-                        // if (i == 2) continue;
-                        Stmt::If(
-                            Expr::Binary(
-                                Box::new(Expr::Variable("i".to_string(), dummy_loc())),
-                                "==".to_string(),
-                                Box::new(Expr::Literal(Literal::Number(2.0), dummy_loc())),
-                                dummy_loc(),
-                            ),
-                            Box::new(Stmt::Continue(dummy_loc())),
+                    // print i;
+                    Stmt::Expression(
+                        Expr::Call(
+                            Box::new(Expr::Variable("print".to_string(), dummy_loc())),
+                            vec![Expr::Variable("i".to_string(), dummy_loc())],
                             dummy_loc(),
                         ),
-                        // print i;
-                        Stmt::Print(
-                            Expr::Variable("i".to_string(), dummy_loc()),
-                            dummy_loc(),
-                        ),
-                    ],
-                    dummy_loc(),
-                )),
+                        dummy_loc(),
+                    ),
+                ],
                 dummy_loc(),
-            ),
-        ],
+            )),
+            dummy_loc(),
+        )],
     };
 
     let mut compiler = Compiler::new();

@@ -17,7 +17,7 @@ fn dummy_loc() -> SourceLocation {
 }
 
 #[test]
-#[ignore] // These tests document realistic program structures, not full VM support
+#[ignore] // TODO: ClassInstantiation not fully implemented - classes need to be callable objects
 fn test_e2e_realistic_oop_program() {
     // Realistic program: Bank account system with transactions
     //
@@ -203,7 +203,7 @@ fn test_e2e_realistic_oop_program() {
 }
 
 #[test]
-#[ignore]
+#[ignore] // TODO: Test AST uses Stmt::Expression instead of Stmt::Assignment for update - doesn't actually increment i
 fn test_e2e_complex_control_flow() {
     // Program with nested control flow
     //
@@ -303,7 +303,6 @@ fn test_e2e_complex_control_flow() {
 }
 
 #[test]
-#[ignore]
 fn test_e2e_exception_handling() {
     // Program with exception handling
     //
@@ -378,7 +377,6 @@ fn test_e2e_exception_handling() {
 }
 
 #[test]
-#[ignore]
 fn test_e2e_array_operations() {
     // Program with array operations
     //

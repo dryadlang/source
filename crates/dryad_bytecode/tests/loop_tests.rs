@@ -69,6 +69,48 @@ fn test_foreach_array() {
 }
 
 #[test]
+fn test_simple_for_loop() {
+    // for (var i = 0; i < 3; i = i + 1) {}
+
+    let program = Program {
+        statements: vec![Stmt::For(
+            Some(Box::new(Stmt::VarDeclaration(
+                Pattern::Identifier("i".to_string()),
+                None,
+                Some(Expr::Literal(Literal::Number(0.0), dummy_loc())),
+                dummy_loc(),
+            ))),
+            Some(Expr::Binary(
+                Box::new(Expr::Variable("i".to_string(), dummy_loc())),
+                "<".to_string(),
+                Box::new(Expr::Literal(Literal::Number(3.0), dummy_loc())),
+                dummy_loc(),
+            )),
+            Some(Box::new(Stmt::Assignment(
+                Pattern::Identifier("i".to_string()),
+                Expr::Binary(
+                    Box::new(Expr::Variable("i".to_string(), dummy_loc())),
+                    "+".to_string(),
+                    Box::new(Expr::Literal(Literal::Number(1.0), dummy_loc())),
+                    dummy_loc(),
+                ),
+                dummy_loc(),
+            ))),
+            Box::new(Stmt::Block(vec![], dummy_loc())),
+            dummy_loc(),
+        )],
+    };
+
+    let mut compiler = Compiler::new();
+    let chunk = compiler.compile(program);
+    assert!(chunk.is_ok(), "Compilation failed: {:?}", chunk.err());
+
+    let mut vm = VM::new();
+    let result = vm.interpret(chunk.unwrap());
+    assert_eq!(result, InterpretResult::Ok);
+}
+
+#[test]
 fn test_break_in_while() {
     // Programa:
     // var i = 0;

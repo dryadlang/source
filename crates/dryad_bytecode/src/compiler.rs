@@ -15,11 +15,23 @@ use dryad_parser::ast::{
 
 /// Informações sobre um loop atual (para break/continue)
 #[derive(Debug, Clone)]
+enum LoopType {
+    For,
+    While,
+    DoWhile,
+}
+
 struct LoopInfo {
-    /// Posição do início do loop (para continue)
+    /// Tipo de loop (afeta comportamento de continue)
+    loop_type: LoopType,
+    /// Posição do início do loop (para break)
     start_pos: usize,
+    /// Posição para onde continue deve pular (update code para for, condition para while)
+    continue_target: usize,
     /// Lista de jumps de break para resolver
     breaks: Vec<usize>,
+    /// Lista de posições de Jump(0) que serão continue para for loops - precisam ser patchadas
+    continues: Vec<usize>,
     /// Profundidade do escopo quando o loop começou
     scope_depth: usize,
 }
@@ -199,30 +211,51 @@ impl Compiler {
             }
 
             Stmt::Continue(loc) => {
-                // Sai do escopo do loop para ir para a atualização/condição
-                if let Some(loop_info) = self.loop_stack.last() {
-                    // Copia os valores necessários antes de fazer borrow mutável
-                    let start_pos = loop_info.start_pos;
-                    let scope_depth = loop_info.scope_depth;
+                // Extrai todos os valores necessários do loop_info
+                let (loop_type, scope_depth, should_record_continue) =
+                    if let Some(loop_info) = self.loop_stack.last() {
+                        (
+                            loop_info.loop_type.clone(),
+                            loop_info.scope_depth,
+                            matches!(loop_info.loop_type, LoopType::For),
+                        )
+                    } else {
+                        return Err("'continue' fora de um loop".to_string());
+                    };
 
-                    // Remove variáveis locais até a profundidade do loop
-                    let pop_count = self.locals.len() - scope_depth;
-                    if pop_count > 0 {
-                        if pop_count == 1 {
-                            self.emit_op(OpCode::Pop, loc.line);
-                        } else {
-                            self.emit_op(OpCode::PopN(pop_count as u8), loc.line);
+                // Remove variáveis locais até a profundidade do loop
+                let pop_count = self.locals.len() - scope_depth;
+                if pop_count > 0 {
+                    if pop_count == 1 {
+                        self.emit_op(OpCode::Pop, loc.line);
+                    } else {
+                        self.emit_op(OpCode::PopN(pop_count as u8), loc.line);
+                    }
+                }
+
+                // Jump depende do tipo de loop
+                match loop_type {
+                    LoopType::For => {
+                        // Para for loops, continue deve ir para o update code via Jump
+                        // Registra a posição do Jump para posterior patching
+                        let jump_pos = self.current_chunk.len();
+                        self.emit_op(OpCode::Jump(0), loc.line); // Placeholder
+
+                        // Adiciona à lista de continues para patching
+                        if let Some(loop_info) = self.loop_stack.last_mut() {
+                            loop_info.continues.push(jump_pos);
                         }
                     }
-
-                    // Jump de volta ao início do loop
-                    let offset = self.current_chunk.len() - start_pos + 1;
-                    self.emit_op(OpCode::Loop(offset as u16), loc.line);
-
-                    Ok(())
-                } else {
-                    Err("'continue' fora de um loop".to_string())
+                    LoopType::While | LoopType::DoWhile => {
+                        // Para while/do-while, use Loop para ir para a condição
+                        if let Some(loop_info) = self.loop_stack.last() {
+                            let offset = self.current_chunk.len() - loop_info.continue_target + 1;
+                            self.emit_op(OpCode::Loop(offset as u16), loc.line);
+                        }
+                    }
                 }
+
+                Ok(())
             }
 
             Stmt::Return(expr, loc) => {
@@ -413,8 +446,11 @@ impl Compiler {
 
         // Adiciona informação do loop na pilha
         self.loop_stack.push(LoopInfo {
+            loop_type: LoopType::While,
             start_pos: loop_start,
+            continue_target: loop_start,
             breaks: Vec::new(),
+            continues: Vec::new(),
             scope_depth: self.scope_depth,
         });
 
@@ -457,6 +493,9 @@ impl Compiler {
         // Compila o corpo
         self.compile_statement(body)?;
 
+        // Marca onde continue pula para (a condição)
+        let continue_target = self.current_chunk.len();
+
         // Compila a condição
         self.compile_expression(condition)?;
 
@@ -466,11 +505,11 @@ impl Compiler {
         // Remove condição
         self.emit_op(OpCode::Pop, line);
 
-        // Loop
-        let offset = self.current_chunk.len() - loop_start + 1;
+        // Loop de volta
+        let offset = self.current_chunk.len() - loop_start;
         self.emit_op(OpCode::Loop(offset as u16), line);
 
-        // Patch exit
+        // Patch do exit jump
         self.patch_jump(exit_jump);
         self.emit_op(OpCode::Pop, line);
 
@@ -495,13 +534,6 @@ impl Compiler {
         // Marca início do loop
         let loop_start = self.current_chunk.len();
 
-        // Adiciona informação do loop na pilha
-        self.loop_stack.push(LoopInfo {
-            start_pos: loop_start,
-            breaks: Vec::new(),
-            scope_depth: self.scope_depth,
-        });
-
         // Condição
         let exit_jump = if let Some(cond) = condition {
             self.compile_expression(cond)?;
@@ -512,8 +544,45 @@ impl Compiler {
             None
         };
 
+        // Adiciona informação do loop na pilha ANTES de compilar body
+        // (para que break/continue statements possam encontrá-la)
+        self.loop_stack.push(LoopInfo {
+            loop_type: LoopType::For,
+            start_pos: loop_start,
+            continue_target: 0, // Placeholder - será atualizado abaixo
+            breaks: Vec::new(),
+            continues: Vec::new(),
+            scope_depth: self.scope_depth,
+        });
+
         // Corpo
         self.compile_statement(body)?;
+
+        // Atualiza continue_target para a posição do update code
+        let (continue_target, continue_positions) =
+            if let Some(loop_info) = self.loop_stack.last_mut() {
+                loop_info.continue_target = self.current_chunk.len();
+                let target = loop_info.continue_target;
+
+                // Coleta as posições dos continues para patching
+                let positions: Vec<usize> = loop_info.continues.drain(..).collect();
+                (target, positions)
+            } else {
+                (0, Vec::new())
+            };
+
+        // Patch continue jumps para ir para o update code
+        for continue_pos in continue_positions {
+            // Calcula o offset para pular do Jump até o continue_target
+            let jump_offset = continue_target as i32 - (continue_pos + 1) as i32;
+            if jump_offset > 0 {
+                if let Some(OpCode::Jump(ref mut offset)) =
+                    self.current_chunk.code.get_mut(continue_pos)
+                {
+                    *offset = jump_offset as u16;
+                }
+            }
+        }
 
         // Atualização
         if let Some(update_stmt) = update {
@@ -524,17 +593,17 @@ impl Compiler {
         let offset = self.current_chunk.len() - loop_start + 1;
         self.emit_op(OpCode::Loop(offset as u16), line);
 
-        // Patch exit
-        if let Some(exit) = exit_jump {
-            self.patch_jump(exit);
-            self.emit_op(OpCode::Pop, line);
-        }
-
-        // Resolve os breaks
+        // Resolve breaks
         if let Some(loop_info) = self.loop_stack.pop() {
             for break_jump in loop_info.breaks {
                 self.patch_jump(break_jump);
             }
+        }
+
+        // Patch exit
+        if let Some(exit) = exit_jump {
+            self.patch_jump(exit);
+            self.emit_op(OpCode::Pop, line);
         }
 
         self.end_scope(line);

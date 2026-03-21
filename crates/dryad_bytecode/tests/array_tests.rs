@@ -10,6 +10,8 @@ fn dummy_loc() -> SourceLocation {
         line: 1,
         column: 1,
         file: None,
+        position: 0,
+        source_line: None,
     }
 }
 
@@ -17,21 +19,19 @@ fn dummy_loc() -> SourceLocation {
 fn test_array_creation() {
     // Programa: var arr = [1, 2, 3];
     let program = Program {
-        statements: vec![
-            Stmt::VarDeclaration(
-                dryad_parser::ast::Pattern::Identifier("arr".to_string()),
-                None,
-                Some(Expr::Array(
-                    vec![
-                        Expr::Literal(Literal::Number(1.0), dummy_loc()),
-                        Expr::Literal(Literal::Number(2.0), dummy_loc()),
-                        Expr::Literal(Literal::Number(3.0), dummy_loc()),
-                    ],
-                    dummy_loc(),
-                )),
+        statements: vec![Stmt::VarDeclaration(
+            dryad_parser::ast::Pattern::Identifier("arr".to_string()),
+            None,
+            Some(Expr::Array(
+                vec![
+                    Expr::Literal(Literal::Number(1.0), dummy_loc()),
+                    Expr::Literal(Literal::Number(2.0), dummy_loc()),
+                    Expr::Literal(Literal::Number(3.0), dummy_loc()),
+                ],
                 dummy_loc(),
-            ),
-        ],
+            )),
+            dummy_loc(),
+        )],
     };
 
     let mut compiler = Compiler::new();
@@ -48,7 +48,7 @@ fn test_array_indexing() {
     // Programa:
     // var arr = [10, 20, 30];
     // print arr[1];  # Deve imprimir 20
-    
+
     let program = Program {
         statements: vec![
             // var arr = [10, 20, 30];
@@ -66,10 +66,14 @@ fn test_array_indexing() {
                 dummy_loc(),
             ),
             // print arr[1];
-            Stmt::Print(
-                Expr::Index(
-                    Box::new(Expr::Variable("arr".to_string(), dummy_loc())),
-                    Box::new(Expr::Literal(Literal::Number(1.0), dummy_loc())),
+            Stmt::Expression(
+                Expr::Call(
+                    Box::new(Expr::Variable("print".to_string(), dummy_loc())),
+                    vec![Expr::Index(
+                        Box::new(Expr::Variable("arr".to_string(), dummy_loc())),
+                        Box::new(Expr::Literal(Literal::Number(1.0), dummy_loc())),
+                        dummy_loc(),
+                    )],
                     dummy_loc(),
                 ),
                 dummy_loc(),
@@ -92,7 +96,7 @@ fn test_array_mutation() {
     // var arr = [1, 2, 3];
     // arr[0] = 100;
     // print arr[0];  # Deve imprimir 100
-    
+
     let program = Program {
         statements: vec![
             // var arr = [1, 2, 3];
@@ -117,10 +121,14 @@ fn test_array_mutation() {
                 dummy_loc(),
             ),
             // print arr[0];
-            Stmt::Print(
-                Expr::Index(
-                    Box::new(Expr::Variable("arr".to_string(), dummy_loc())),
-                    Box::new(Expr::Literal(Literal::Number(0.0), dummy_loc())),
+            Stmt::Expression(
+                Expr::Call(
+                    Box::new(Expr::Variable("print".to_string(), dummy_loc())),
+                    vec![Expr::Index(
+                        Box::new(Expr::Variable("arr".to_string(), dummy_loc())),
+                        Box::new(Expr::Literal(Literal::Number(0.0), dummy_loc())),
+                        dummy_loc(),
+                    )],
                     dummy_loc(),
                 ),
                 dummy_loc(),
@@ -141,21 +149,19 @@ fn test_array_mutation() {
 fn test_tuple_creation() {
     // Programa: var t = (1, 2, 3);
     let program = Program {
-        statements: vec![
-            Stmt::VarDeclaration(
-                dryad_parser::ast::Pattern::Identifier("t".to_string()),
-                None,
-                Some(Expr::Tuple(
-                    vec![
-                        Expr::Literal(Literal::Number(1.0), dummy_loc()),
-                        Expr::Literal(Literal::Number(2.0), dummy_loc()),
-                        Expr::Literal(Literal::Number(3.0), dummy_loc()),
-                    ],
-                    dummy_loc(),
-                )),
+        statements: vec![Stmt::VarDeclaration(
+            dryad_parser::ast::Pattern::Identifier("t".to_string()),
+            None,
+            Some(Expr::Tuple(
+                vec![
+                    Expr::Literal(Literal::Number(1.0), dummy_loc()),
+                    Expr::Literal(Literal::Number(2.0), dummy_loc()),
+                    Expr::Literal(Literal::Number(3.0), dummy_loc()),
+                ],
                 dummy_loc(),
-            ),
-        ],
+            )),
+            dummy_loc(),
+        )],
     };
 
     let mut compiler = Compiler::new();
@@ -172,7 +178,7 @@ fn test_tuple_access() {
     // Programa:
     // var t = (10, 20, 30);
     // print t.1;  # Deve imprimir 20
-    
+
     let program = Program {
         statements: vec![
             // var t = (10, 20, 30);
@@ -190,10 +196,14 @@ fn test_tuple_access() {
                 dummy_loc(),
             ),
             // print t.1;
-            Stmt::Print(
-                Expr::TupleAccess(
-                    Box::new(Expr::Variable("t".to_string(), dummy_loc())),
-                    1,
+            Stmt::Expression(
+                Expr::Call(
+                    Box::new(Expr::Variable("print".to_string(), dummy_loc())),
+                    vec![Expr::TupleAccess(
+                        Box::new(Expr::Variable("t".to_string(), dummy_loc())),
+                        1,
+                        dummy_loc(),
+                    )],
                     dummy_loc(),
                 ),
                 dummy_loc(),

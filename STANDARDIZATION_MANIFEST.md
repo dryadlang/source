@@ -104,25 +104,114 @@ O projeto DEVE usar **um unico tipo de erro**: `DryadError` do crate `dryad_erro
 
 **Acao:** Eliminar `RuntimeError` de `dryad_runtime/src/errors.rs`. Todas as funcoes que hoje retornam `RuntimeError` devem ser migradas para retornar `DryadError`.
 
-### 2.2 Construtores de Erro
+### 2.2 Construtores de Erro — Usar Catálogo Centralizado
 
-Usar SEMPRE os construtores tipados do `DryadError`:
+O projeto usa um **catálogo centralizado** (`error_catalog.rs`) com todas as definições de erro. Use SEMPRE `from_catalog` ou `from_catalog_fmt`:
+
+#### 2.2.1 Uso Básico — `from_catalog()`
+
+Use quando a mensagem padrão do catálogo é apropriada:
 
 ```rust
-// CORRETO — construtor tipado com localizacao
-DryadError::runtime(3001, "Variavel nao definida", location, stack_trace)
-DryadError::lexer(1001, "Caracter inesperado", location)
-DryadError::io_error(5001, "Arquivo nao encontrado", location, "read".into(), Some(path))
+use dryad_errors::{error_catalog, DryadError, SourceLocation};
 
-// PROIBIDO — construtor generico sem contexto
-DryadError::new(3001, "Variavel nao definida")  // Perde localizacao!
+// CORRETO — usa mensagem do catálogo
+return Err(DryadError::from_catalog(
+    error_catalog::e2003(),  // Error code from catalog
+    self.current_location()  // Location info
+));
+```
+
+**Exemplo Real (Parser):**
+```rust
+// Esperado semicolon após statement
+if !self.check_semicolon() {
+    return Err(DryadError::from_catalog(
+        error_catalog::e2003(),
+        self.current_location()
+    ));
+}
+```
+
+#### 2.2.2 Com Mensagem Customizada — `from_catalog_fmt()`
+
+Use quando precisa interpolar variáveis ou contexto específico:
+
+```rust
+// CORRETO — preserva informação específica do runtime
+return Err(DryadError::from_catalog_fmt(
+    error_catalog::e3005(),                           // Error code
+    &format!("Undefined variable: '{}'", var_name),  // Custom message
+    self.current_location()                          // Location
+));
+```
+
+**Exemplo Real (Runtime):**
+```rust
+// Variável não definida no escopo
+if !self.scope.contains(&identifier) {
+    return Err(DryadError::from_catalog_fmt(
+        error_catalog::e3005(),
+        &format!("Undefined variable: '{}'", identifier),
+        location
+    ));
+}
+```
+
+#### 2.2.3 Quando Localização Não Está Disponível
+
+Use `SourceLocation::unknown()` como fallback:
+
+```rust
+// Aceitável quando não há informação de localização
+return Err(DryadError::from_catalog(
+    error_catalog::e3100(),
+    SourceLocation::unknown()
+));
+```
+
+#### 2.2.4 Validação de Erro — Checklist
+
+Antes de usar um código de erro, verifique:
+
+- [ ] O código existe em `error_catalog.rs` (ex: `e3005` existe?)
+- [ ] O código está na faixa certa:
+  - 1000-1999 para Lexer
+  - 2000-2999 para Parser
+  - 3000-3999 para Runtime
+  - 5000-5999 para I/O
+- [ ] Se precisa de `SourceLocation`, use `self.current_location()` ou `self.location`
+- [ ] Se precisa de contexto dinâmico, use `from_catalog_fmt()`
+- [ ] A mensagem está em English (catálogo) ou Portuguese (output para usuário)
+
+#### 2.2.5 PROIBIDO
+
+```rust
+// ❌ PROIBIDO — construtor legado (deprecated)
+DryadError::new(3001, "Variavel nao definida")
+
+// ❌ PROIBIDO — sem localização
+return Err(DryadError::from_catalog(error_catalog::e3005(), ???));
+
+// ❌ PROIBIDO — sem estruturar erro
+panic!("Undefined variable");
+valor.unwrap();  // Can panic in production
+
+// ❌ PROIBIDO — concatenação de strings
+let msg = "Error: ".to_string() + &var_name;
+return Err(DryadError::from_catalog_fmt(
+    error_catalog::e3005(),
+    &msg,  // Use format!() instead
+    location
+));
 ```
 
 **Regras:**
-- `DryadError::new()` deve ser removido ou marcado como `#[deprecated]`
-- Todo erro DEVE incluir `SourceLocation` valido
-- Erros de modulos nativos devem usar os construtores tipados (nao strings)
-- Implementar `From<RuntimeError> for DryadError` como ponte temporaria durante a migracao
+- `DryadError::new()` é deprecated — use `from_catalog` ou `from_catalog_fmt`
+- Todo erro DEVE incluir `SourceLocation` (mínimo: `SourceLocation::unknown()`)
+- Erros dinâmicos usam `from_catalog_fmt()`, nunca concatenação de strings
+- Código de erro DEVE estar definido em error_catalog.rs (validação em compile time)
+- Não criar novos tipos de erro — sempre usar `DryadError` com código apropriado
 
 ### 2.3 Propagacao de Erros
 

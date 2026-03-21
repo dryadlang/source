@@ -586,6 +586,9 @@ impl Compiler {
         let exit_jump = self.emit_jump(OpCode::JumpIfFalse(0), line);
         self.emit_op(OpCode::Pop, line); // Remove o valor nil/falso
 
+        // Novo escopo para a variável do padrão
+        self.begin_scope();
+
         // Atribui à variável do padrão
         match pattern {
             Pattern::Identifier(name) => {
@@ -602,12 +605,8 @@ impl Compiler {
         // Compila o corpo
         self.compile_statement(body)?;
 
-        // Remove a variável do padrão
+        // Remove a variável do padrão (fecha o escopo do corpo)
         self.end_scope(line);
-        // Recria o escopo temporário
-        self.begin_scope();
-        self.add_local("__iterable".to_string());
-        self.add_local("__index".to_string());
 
         // Incrementa o índice: __index = __index + 1
         self.emit_op(

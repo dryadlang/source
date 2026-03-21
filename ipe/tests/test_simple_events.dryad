@@ -1,0 +1,33 @@
+#<console_io>
+#<ffi>
+#<system_env>
+
+function main() {
+    println("Starting event test...");
+    
+    let platform = native_platform();
+    let ext = ".so";
+    if platform == "windows" {
+        ext = ".dll";
+    }
+    
+    let path = "./ipe/native/ipe" + ext;
+    println("Loading: " + path);
+    
+    let result = ffi_load_library(path, "ipe");
+    println("Load result: " + result);
+    
+    if result {
+        let init = ffi_call("ipe", "ipe_init", "i32");
+        println("Init result: " + init);
+        
+        if init != 0 {
+            let win = ffi_call("ipe", "ipe_window_create", "pointer", 640, 480, "Test");
+            println("Window: " + win);
+        }
+    }
+    
+    println("Test done!");
+}
+
+main();

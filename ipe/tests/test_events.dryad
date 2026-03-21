@@ -1,0 +1,109 @@
+#<console_io>
+#<ffi>
+#<system_env>
+
+// Load IPE library
+let ipe_lib = "ipe";
+
+function load_ipe() {
+    let platform = native_platform();
+    let ext = ".so";
+    if platform == "windows" {
+        ext = ".dll";
+    }
+    let path = "./ipe/native/ipe" + ext;
+    return ffi_load_library(path, ipe_lib);
+}
+
+function main() {
+    println("=== IPE Event System Demo ===");
+    
+    if !load_ipe() {
+        println("Failed to load IPE library");
+        return;
+    }
+    
+    // Initialize
+    let init_result = ffi_call(ipe_lib, "ipe_init", "i32");
+    if init_result == 0 {
+        println("Failed to initialize IPE");
+        return;
+    }
+    println("IPE initialized");
+    
+    // Create window
+    let win = ffi_call(ipe_lib, "ipe_window_create", "pointer", 800, 600, "Event Demo");
+    if win == 0 {
+        println("Failed to create window");
+        return;
+    }
+    println("Window created");
+    
+    // Register event handlers using global state
+    let key_pressed = false;
+    let mouse_clicked = false;
+    let last_mouse_x = 0;
+    let last_mouse_y = 0;
+    
+    println("Press keys, click mouse, or move mouse...");
+    println("Press ESC to exit");
+    
+    // Main loop
+    let running = 1;
+    while (running != 0) {
+        // Process events
+        running = ffi_call(ipe_lib, "ipe_process_events", "i32");
+        
+        // Clear background
+        ffi_call(ipe_lib, "ipe_clear_background", "void", 0xFF222222);
+        
+        // Check for key down (ESC to exit)
+        let key_down = ffi_call(ipe_lib, "ipe_event_has_key_down", "i32");
+        if key_down != 0 {
+            let key_code = ffi_call(ipe_lib, "ipe_input_get_key_code", "i32");
+            if key_code == 27 {  // ESC
+                println("ESC pressed, exiting...");
+                break;
+            }
+            key_pressed = true;
+        }
+        
+        // Check for mouse down
+        let mouse_down = ffi_call(ipe_lib, "ipe_event_has_mouse_down", "i32");
+        if mouse_down != 0 {
+            mouse_clicked = true;
+        }
+        
+        // Get mouse position
+        let mouse_x = ffi_call(ipe_lib, "ipe_input_mouse_x", "i32");
+        let mouse_y = ffi_call(ipe_lib, "ipe_input_mouse_y", "i32");
+        
+        // Draw instructions
+        ffi_call(ipe_lib, "ipe_draw_text", "void", "Press ESC to exit", 50, 50, 0xFFFFFFFF);
+        
+        // Draw mouse position
+        let pos_text = "Mouse: " + mouse_x + ", " + mouse_y;
+        ffi_call(ipe_lib, "ipe_draw_text", "void", pos_text, 50, 100, 0xFFFFFFFF);
+        
+        // Draw click indicator
+        if mouse_clicked {
+            ffi_call(ipe_lib, "ipe_draw_text", "void", "CLICK!", mouse_x, mouse_y - 20, 0xFFFFFF00);
+        }
+        
+        // Draw key press indicator
+        if key_pressed {
+            ffi_call(ipe_lib, "ipe_draw_text", "void", "Key Pressed!", 50, 150, 0xFF00FFFF);
+            key_pressed = false;
+        }
+        
+        // Present
+        ffi_call(ipe_lib, "ipe_present", "void");
+        
+        // Clear events
+        ffi_call(ipe_lib, "ipe_input_clear_events", "void");
+    }
+    
+    // Cleanup
+    ffi_call(ipe_lib, "ipe_window_close", "void");
+    println("Demo completed!");
+}

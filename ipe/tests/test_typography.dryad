@@ -1,0 +1,112 @@
+#<console_io>
+#<ffi>
+#<system_env>
+
+// IPE Typography Demo
+
+let lib = "ipe";
+
+function load_ipe() {
+    let platform = native_platform();
+    let ext = ".so";
+    if platform == "windows" {
+        ext = ".dll";
+    }
+    let path = "./ipe/native/ipe" + ext;
+    return ffi_load_library(path, lib);
+}
+
+function main() {
+    println("=== IPE Typography Demo ===");
+    
+    if !load_ipe() {
+        println("Failed to load IPE");
+        return;
+    }
+    
+    let init = ffi_call(lib, "ipe_init", "i32");
+    if init == 0 {
+        println("Failed to initialize");
+        return;
+    }
+    println("IPE initialized");
+    
+    let win = ffi_call(lib, "ipe_window_create", "pointer", 800, 600, "Typography Demo");
+    if win == 0 {
+        println("Failed to create window");
+        return;
+    }
+    println("Window created");
+    
+    // Try to load font
+    let font_path = "/usr/share/fonts/Adwaita/AdwaitaSans-Regular.ttf";
+    let font = ffi_call(lib, "ipe_font_load", "pointer", font_path, 24);
+    println("Font load result: " + font);
+    
+    let anim_x = 100;
+    let hue = 0;
+    
+    println("Running... Press ESC to exit");
+    
+    while (ffi_call(lib, "ipe_is_window_open", "i32") != 0) {
+        ffi_call(lib, "ipe_process_events", "void");
+        
+        if ffi_call(lib, "ipe_event_has_key_down", "i32") != 0 {
+            let key = ffi_call(lib, "ipe_input_get_key_code", "i32");
+            if key == 27 {
+                break;
+            }
+        }
+        
+        anim_x = anim_x + 1;
+        if anim_x > 700 { anim_x = 100; }
+        hue = (hue + 1) % 360;
+        
+        // Clear
+        ffi_call(lib, "ipe_clear_background", "void", 0xFF1A1A2E);
+        
+        // Title
+        ffi_call(lib, "ipe_draw_text", "void", "IPE Typography Module Demo", 200, 50, 0xFFFFFFFF);
+        ffi_call(lib, "ipe_draw_text", "void", "Press ESC to exit", 280, 80, 0xFFAAAAAA);
+        
+        // Different sizes
+        ffi_call(lib, "ipe_draw_text", "void", "Heading 1 (32px)", 50, 130, 0xFFFFFFFF);
+        ffi_call(lib, "ipe_draw_text", "void", "Heading 2 (24px)", 50, 180, 0xFFFFFFFF);
+        ffi_call(lib, "ipe_draw_text", "void", "Body text (16px)", 50, 230, 0xFFFFFFFF);
+        ffi_call(lib, "ipe_draw_text", "void", "Caption (12px)", 50, 280, 0xFFAAAAAA);
+        
+        // Rainbow text
+        let r = 0;
+        let g = 0;
+        let b = 0;
+        if hue < 60 { r = 255; g = (hue * 255) / 60; }
+        else if hue < 120 { r = ((120 - hue) * 255) / 60; g = 255; }
+        else if hue < 180 { g = 255; b = ((hue - 120) * 255) / 60; }
+        else if hue < 240 { g = ((240 - hue) * 255) / 60; b = 255; }
+        else if hue < 300 { r = ((hue - 240) * 255) / 60; b = 255; }
+        else { r = 255; b = ((360 - hue) * 255) / 60; }
+        let color = 0xFF000000 | (b << 16) | (g << 8) | r;
+        
+        ffi_call(lib, "ipe_draw_text", "void", "Rainbow Colored Text!", anim_x, 350, color);
+        
+        // With font (if loaded)
+        if font != 0 {
+            ffi_call(lib, "ipe_draw_text_ex", "void", "Rendered with TTF Font!", 50, 450, font);
+        } else {
+            ffi_call(lib, "ipe_draw_text", "void", "Font not loaded (path: " + font_path + ")", 50, 450, 0xFFFF0000);
+        }
+        
+        // Mouse position
+        let mx = ffi_call(lib, "ipe_input_mouse_x", "i32");
+        let my = ffi_call(lib, "ipe_input_mouse_y", "i32");
+        ffi_call(lib, "ipe_draw_text", "void", "Mouse: " + mx + ", " + my, 50, 550, 0xFFFFFFFF);
+        
+        ffi_call(lib, "ipe_present", "void");
+        ffi_call(lib, "ipe_input_clear_events", "void");
+    }
+    
+    ffi_call(lib, "ipe_window_close", "void");
+    println("Done!");
+}
+
+main();

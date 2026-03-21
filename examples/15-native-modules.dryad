@@ -1,0 +1,186 @@
+// 15-native-modules.dryad — Native module showcase
+// Covers: console_io, file_io, time, system_env, crypto, debug, encode_decode, utils
+
+#<console_io>
+#<debug>
+#<time>
+#<system_env>
+#<crypto>
+#<encode_decode>
+#<utils>
+
+// ============================================================
+// #<console_io> — Console input/output
+// ============================================================
+println("=== #<console_io> ===");
+
+println("println() prints with newline");
+print("print() prints without newline");
+println(" <- continued");
+native_println("native_println() also works");
+
+// input("prompt") reads a line — skipped here to keep non-interactive
+// let name = input("Enter name: ");
+
+// ============================================================
+// #<debug> — Debugging and type inspection
+// ============================================================
+println("\n=== #<debug> ===");
+
+println("typeof 42: " + native_typeof(42));
+println("typeof 'hello': " + native_typeof("hello"));
+println("typeof true: " + native_typeof(true));
+println("typeof null: " + native_typeof(null));
+println("typeof [1,2]: " + native_typeof([1, 2]));
+println("typeof {a:1}: " + native_typeof({a: 1}));
+
+debug("This is a debug message");
+log("info", "This is a log message");
+
+// Assertions
+native_assert(true);
+native_assert_equal(1 + 1, 2);
+native_assert_not_equal("a", "b");
+native_assert_true(10 > 5);
+native_assert_false(10 < 5);
+
+println("All assertions passed!");
+
+// Performance timing
+native_perf_start("example_timer");
+let sum = 0;
+for (let i = 0; i < 1000; i++) {
+    sum += i;
+}
+let elapsed = native_perf_end("example_timer");
+println("Sum of 0..999 = " + sum + " (took " + elapsed + "ms)");
+
+// Regex test via debug
+println("Regex test 'hello' ~ '^h': " + native_test_regex("^h", "hello"));
+
+// ============================================================
+// #<time> — Time and date functions
+// ============================================================
+println("\n=== #<time> ===");
+
+let now = native_now();
+println("native_now(): " + now + " ms");
+
+let timestamp = native_timestamp();
+println("native_timestamp(): " + timestamp);
+
+let dateStr = native_date();
+println("native_date(): " + dateStr);
+
+let timeStr = native_time();
+println("native_time(): " + timeStr);
+
+let uptime = native_uptime();
+println("native_uptime(): " + uptime + " ms");
+
+// native_sleep(100);  // Pauses for 100ms — uncomment to test
+
+// ============================================================
+// #<system_env> — System environment
+// ============================================================
+println("\n=== #<system_env> ===");
+
+let platform = native_platform();
+println("Platform: " + platform);
+
+let arch = native_arch();
+println("Architecture: " + arch);
+
+let cwd = get_current_dir();
+println("Current dir: " + cwd);
+
+let pid = native_pid();
+println("Process ID: " + pid);
+
+// Read an environment variable
+let home = native_env("HOME");
+println("HOME: " + home);
+
+let path = native_env("PATH");
+println("PATH (first 60 chars): " + path);
+
+// ============================================================
+// #<crypto> — Cryptographic functions
+// ============================================================
+println("\n=== #<crypto> ===");
+
+let hash = sha256("Hello, Dryad!");
+println("SHA-256 of 'Hello, Dryad!': " + hash);
+
+let md5 = native_hash_md5("test");
+println("MD5 of 'test': " + md5);
+
+let uuid = native_uuid();
+println("UUID v4: " + uuid);
+
+let b64 = native_base64_encode("Hello World");
+println("Base64 encode: " + b64);
+let decoded = native_base64_decode(b64);
+println("Base64 decode: " + decoded);
+
+let hexEncoded = native_hex_encode("Hi");
+println("Hex encode 'Hi': " + hexEncoded);
+
+let hmac = native_hmac_sha256("message", "secret");
+println("HMAC-SHA256: " + hmac);
+
+// ============================================================
+// #<encode_decode> — JSON, CSV, XML encoding/decoding
+// ============================================================
+println("\n=== #<encode_decode> ===");
+
+// JSON
+let obj = { name: "Dryad", version: 1, features: ["classes", "async", "threads"] };
+let json = native_json_encode(obj);
+println("JSON encode: " + json);
+
+let parsed = native_json_decode(json);
+println("JSON decode name: " + parsed.name);
+println("JSON decode version: " + parsed.version);
+
+// CSV
+let csvData = [["Name", "Age"], ["Alice", "30"], ["Bob", "25"]];
+let csv = native_csv_encode(csvData);
+println("CSV encode:\n" + csv);
+
+// XML
+let xmlData = { root: "hello" };
+let xml = native_xml_encode(xmlData);
+println("XML encode: " + xml);
+
+// ============================================================
+// #<utils> — Utility functions
+// ============================================================
+println("\n=== #<utils> ===");
+
+// Random numbers
+let randInt = native_random_int(1, 100);
+println("Random int (1-100): " + randInt);
+
+let randFloat = native_random_float(0, 1);
+println("Random float (0-1): " + randFloat);
+
+// Regex operations
+let match = native_regex_match("(\\d+)", "abc123def");
+println("Regex match digits: " + match);
+
+let replaced = native_regex_replace("\\d+", "NUM", "abc123def456");
+println("Regex replace: " + replaced);
+
+let parts = native_regex_split(",\\s*", "a, b, c, d");
+println("Regex split: " + parts);
+
+let test = native_regex_test("^hello", "hello world");
+println("Regex test: " + test);
+
+// Clone
+let original = [1, 2, 3];
+let cloned = native_clone(original);
+println("Cloned: " + cloned);
+
+println("\nNative modules demo complete!");

@@ -1,0 +1,761 @@
+#<ffi>
+
+// IPE Layout Module
+// Complex layout systems: Flexbox, Grid, Box, Stack
+
+// Layout types
+let LAYOUT_FLEX = "flex";
+let LAYOUT_GRID = "grid";
+let LAYOUT_BOX = "box";
+let LAYOUT_STACK = "stack";
+
+// Direction
+let DIRECTION_ROW = "row";
+let DIRECTION_COLUMN = "column";
+let DIRECTION_ROW_REVERSE = "row-reverse";
+let DIRECTION_COLUMN_REVERSE = "column-reverse";
+
+// Justify content
+let JUSTIFY_START = "flex-start";
+let JUSTIFY_END = "flex-end";
+let JUSTIFY_CENTER = "center";
+let JUSTIFY_SPACE_BETWEEN = "space-between";
+let JUSTIFY_SPACE_AROUND = "space-around";
+let JUSTIFY_SPACE_EVENLY = "space-evenly";
+
+// Align items
+let ALIGN_STRETCH = "stretch";
+let ALIGN_START = "flex-start";
+let ALIGN_END = "flex-end";
+let ALIGN_CENTER = "center";
+let ALIGN_BASELINE = "baseline";
+
+// Wrap
+let WRAP_NO_WRAP = "nowrap";
+let WRAP_WRAP = "wrap";
+let WRAP_WRAP_REVERSE = "wrap-reverse";
+
+// ========== Layout Element ==========
+
+function create_element(w, h) {
+    return {
+        "x": 0,
+        "y": 0,
+        "width": w,
+        "height": h,
+        "min_width": 0,
+        "min_height": 0,
+        "max_width": 99999,
+        "max_height": 99999,
+        "margin_top": 0,
+        "margin_right": 0,
+        "margin_bottom": 0,
+        "margin_left": 0,
+        "padding_top": 0,
+        "padding_right": 0,
+        "padding_bottom": 0,
+        "padding_left": 0,
+        "flex_grow": 0,
+        "flex_shrink": 1,
+        "flex_basis": "auto",
+        "align_self": "auto",
+        "children": [],
+        "layout": null,
+        "dirty": true,
+        "data": null  // User data
+    };
+}
+
+function set_position(el, x, y) {
+    el["x"] = x;
+    el["y"] = y;
+}
+
+function set_size(el, w, h) {
+    el["width"] = w;
+    el["height"] = h;
+    el["dirty"] = true;
+}
+
+function add_child(el, child) {
+    el["children"].push(child);
+    el["dirty"] = true;
+}
+
+function remove_child(el, child) {
+    let i = 0;
+    while i < el["children"].length {
+        if el["children"][i] == child {
+            el["children"].splice(i, 1);
+            el["dirty"] = true;
+            return;
+        }
+        i = i + 1;
+    }
+}
+
+function get_children(el) {
+    return el["children"];
+}
+
+function get_bounds(el) {
+    return {
+        "x": el["x"],
+        "y": el["y"],
+        "width": el["width"],
+        "height": el["height"],
+        "right": el["x"] + el["width"],
+        "bottom": el["y"] + el["height"]
+    };
+}
+
+// ========== Flex Layout ==========
+
+function flex_container(children, config) {
+    let container = create_element(0, 0);
+    container["layout"] = "flex";
+    container["children"] = children;
+    
+    // Flex config
+    container["flex_direction"] = config["direction"];
+    container["flex_wrap"] = config["wrap"];
+    container["justify_content"] = config["justify"];
+    container["align_items"] = config["align"];
+    container["gap"] = config["gap"];
+    
+    return container;
+}
+
+function layout_flex(container) {
+    let direction = container["flex_direction"];
+    let wrap = container["flex_wrap"];
+    let justify = container["justify_content"];
+    let align = container["align_items"];
+    let gap = container["gap"];
+    
+    if gap == null { gap = 0; }
+    
+    let children = container["children"];
+    let container_w = container["width"];
+    let container_h = container["height"];
+    
+    // Calculate flex lines
+    let lines = [];
+    let current_line = [];
+    let current_line_w = 0;
+    let i = 0;
+    
+    while i < children.length {
+        let child = children[i];
+        let child_w = child["width"];
+        let child_h = child["height"];
+        
+        if direction == DIRECTION_ROW || direction == DIRECTION_ROW_REVERSE {
+            if wrap == WRAP_WRAP && current_line_w + child_w > container_w && current_line_w > 0 {
+                lines.push(current_line);
+                current_line = [];
+                current_line_w = 0;
+            }
+            current_line.push(child);
+            current_line_w = current_line_w + child_w + gap;
+        } else {
+            // Column
+            current_line.push(child);
+        }
+        i = i + 1;
+    }
+    
+    if current_line.length > 0 {
+        lines.push(current_line);
+    }
+    
+    // Layout each line
+    let offset_x = 0;
+    let offset_y = 0;
+    
+    let line_idx = 0;
+    while line_idx < lines.length {
+        let line = lines[line_idx];
+        let line_w = 0;
+        let line_h = 0;
+        
+        // Calculate line size
+        let j = 0;
+        while j < line.length {
+            let child = line[j];
+            if direction == DIRECTION_ROW || direction == DIRECTION_ROW_REVERSE {
+                line_w = line_w + child["width"] + gap;
+                if child["height"] > line_h {
+                    line_h = child["height"];
+                }
+            } else {
+                line_h = line_h + child["height"] + gap;
+                if child["width"] > line_w {
+                    line_w = child["width"];
+                }
+            }
+            j = j + 1;
+        }
+        line_w = line_w - gap;
+        line_h = line_h - gap;
+        
+        // Position children in line
+        let child_x = offset_x;
+        let child_y = offset_y;
+        
+        if justify == JUSTIFY_CENTER {
+            child_x = offset_x + (container_w - line_w) / 2;
+        } else if justify == JUSTIFY_END {
+            child_x = offset_x + container_w - line_w;
+        } else if justify == JUSTIFY_SPACE_BETWEEN {
+            let spacing = (container_w - line_w) / (line.length - 1);
+            if line.length == 1 { spacing = 0; }
+            child_x = offset_x;
+            j = 0;
+            while j < line.length {
+                let child = line[j];
+                set_position(child, child_x, child_y);
+                child_x = child_x + child["width"] + spacing;
+                j = j + 1;
+            }
+            // Skip standard positioning
+            j = line.length; // Skip to end
+        }
+        
+        j = 0;
+        while j < line.length {
+            let child = line[j];
+            
+            if justify == JUSTIFY_SPACE_BETWEEN {
+                // Already positioned
+            } else {
+                set_position(child, child_x, child_y);
+            }
+            
+            // Align item
+            if align == ALIGN_CENTER {
+                child["y"] = offset_y + (line_h - child["height"]) / 2;
+            } else if align == ALIGN_END {
+                child["y"] = offset_y + line_h - child["height"];
+            }
+            
+            if direction == DIRECTION_ROW || direction == DIRECTION_ROW_REVERSE {
+                child_x = child_x + child["width"] + gap;
+            } else {
+                child_y = child_y + child["height"] + gap;
+            }
+            j = j + 1;
+        }
+        
+        if direction == DIRECTION_ROW || direction == DIRECTION_ROW_REVERSE {
+            offset_x = 0;
+            offset_y = offset_y + line_h + gap;
+        } else {
+            offset_x = offset_x + line_w + gap;
+            offset_y = 0;
+        }
+        
+        line_idx = line_idx + 1;
+    }
+    
+    container["dirty"] = false;
+    return container;
+}
+
+// ========== Grid Layout ==========
+
+function grid_container(children, config) {
+    let container = create_element(0, 0);
+    container["layout"] = "grid";
+    container["children"] = children;
+    
+    container["grid_columns"] = config["columns"];
+    container["grid_rows"] = config["rows"];
+    container["grid_gap"] = config["gap"];
+    container["grid_column_gap"] = config["column_gap"];
+    container["grid_row_gap"] = config["row_gap"];
+    container["grid_auto_flow"] = config["auto_flow"];
+    
+    return container;
+}
+
+function layout_grid(container) {
+    let children = container["children"];
+    let columns = container["grid_columns"];
+    let rows = container["grid_rows"];
+    let col_gap = container["grid_column_gap"];
+    let row_gap = container["grid_row_gap"];
+    let gap = container["grid_gap"];
+    
+    if col_gap == null { col_gap = gap; }
+    if row_gap == null { row_gap = gap; }
+    if col_gap == null { col_gap = 0; }
+    if row_gap == null { row_gap = 0; }
+    
+    let container_w = container["width"];
+    let container_h = container["height"];
+    
+    // Calculate cell sizes
+    let cell_w = 0;
+    let cell_h = 0;
+    
+    if columns > 0 {
+        cell_w = (container_w - (columns - 1) * col_gap) / columns;
+    }
+    if rows > 0 {
+        cell_h = (container_h - (rows - 1) * row_gap) / rows;
+    }
+    
+    // Position each child
+    let i = 0;
+    while i < children.length {
+        let child = children[i];
+        
+        let col = i % columns;
+        let row = (i - col) / columns;
+        
+        if row >= rows { break; }
+        
+        let x = col * (cell_w + col_gap);
+        let y = row * (cell_h + row_gap);
+        
+        set_position(child, x, y);
+        
+        // Use full cell or child size
+        if child["width"] <= cell_w && child["height"] <= cell_h {
+            // Center in cell
+            let child_x = x + (cell_w - child["width"]) / 2;
+            let child_y = y + (cell_h - child["height"]) / 2;
+            set_position(child, child_x, child_y);
+        }
+        
+        i = i + 1;
+    }
+    
+    container["dirty"] = false;
+    return container;
+}
+
+// ========== Box Layout ==========
+
+function box_container(children) {
+    let container = create_element(0, 0);
+    container["layout"] = "box";
+    container["children"] = children;
+    return container;
+}
+
+function layout_box(container) {
+    let children = container["children"];
+    let x = container["x"];
+    let y = container["y"];
+    
+    let i = 0;
+    while i < children.length {
+        let child = children[i];
+        
+        // Apply margin
+        let child_x = x + child["margin_left"];
+        let child_y = y + child["margin_top"];
+        
+        set_position(child, child_x, child_y);
+        
+        // Move to next position
+        x = x + child["width"] + child["margin_left"] + child["margin_right"];
+        y = y + child["height"] + child["margin_top"] + child["margin_bottom"];
+        
+        i = i + 1;
+    }
+    
+    container["dirty"] = false;
+    return container;
+}
+
+// ========== Stack Layout ==========
+
+function stack_container(children, direction_val) {
+    let container = create_element(0, 0);
+    container["layout"] = "stack";
+    container["children"] = children;
+    container["stack_direction"] = direction_val;
+    return container;
+}
+
+function layout_stack(container) {
+    let children = container["children"];
+    let direction = container["stack_direction"];
+    
+    let x = container["x"];
+    let y = container["y"];
+    let max_w = 0;
+    let max_h = 0;
+    
+    // First pass: calculate sizes
+    let i = 0;
+    while i < children.length {
+        let child = children[i];
+        if child["width"] > max_w { max_w = child["width"]; }
+        if child["height"] > max_h { max_h = child["height"]; }
+        i = i + 1;
+    }
+    
+    // Second pass: position (overlapping)
+    i = 0;
+    while i < children.length {
+        let child = children[i];
+        
+        if direction == "center" {
+            set_position(child, x + (max_w - child["width"]) / 2, y + (max_h - child["height"]) / 2);
+        } else if direction == "start" {
+            set_position(child, x, y);
+        } else if direction == "end" {
+            set_position(child, x + max_w - child["width"], y + max_h - child["height"]);
+        } else if direction == "spread" {
+            // Spread children across
+            let offset = i * 20;
+            set_position(child, x + offset, y + offset);
+        }
+        
+        i = i + 1;
+    }
+    
+    container["dirty"] = false;
+    return container;
+}
+
+// ========== Layout Container Factory ==========
+
+function container(type, children, config) {
+    if type == LAYOUT_FLEX {
+        return flex_container(children, config);
+    } else if type == LAYOUT_GRID {
+        return grid_container(children, config);
+    } else if type == LAYOUT_BOX {
+        return box_container(children);
+    } else if type == LAYOUT_STACK {
+        return stack_container(children, config["direction"]);
+    }
+    return create_element(0, 0);
+}
+
+// ========== Layout Calculation ==========
+
+function calculate_layout(container, width, height) {
+    container["width"] = width;
+    container["height"] = height;
+    container["dirty"] = true;
+    
+    if container["layout"] == "flex" {
+        return layout_flex(container);
+    } else if container["layout"] == "grid" {
+        return layout_grid(container);
+    } else if container["layout"] == "box" {
+        return layout_box(container);
+    } else if container["layout"] == "stack" {
+        return layout_stack(container);
+    }
+    
+    return container;
+}
+
+function update_layout(container) {
+    if container["dirty"] {
+        if container["layout"] == "flex" {
+            return layout_flex(container);
+        } else if container["layout"] == "grid" {
+            return layout_grid(container);
+        } else if container["layout"] == "box" {
+            return layout_box(container);
+        } else if container["layout"] == "stack" {
+            return layout_stack(container);
+        }
+    }
+    return container;
+}
+
+// ========== Flex Item Helpers ==========
+
+function flex_item(w, h, config) {
+    let el = create_element(w, h);
+    
+    el["flex_grow"] = config["grow"];
+    el["flex_shrink"] = config["shrink"];
+    el["flex_basis"] = config["basis"];
+    el["align_self"] = config["align"];
+    el["margin_top"] = config["margin_top"];
+    el["margin_right"] = config["margin_right"];
+    el["margin_bottom"] = config["margin_bottom"];
+    el["margin_left"] = config["margin_left"];
+    
+    return el;
+}
+
+function flex_grow(el, value) {
+    el["flex_grow"] = value;
+    el["dirty"] = true;
+}
+
+function flex_shrink(el, value) {
+    el["flex_shrink"] = value;
+    el["dirty"] = true;
+}
+
+function margin(el, top, right, bottom, left) {
+    el["margin_top"] = top;
+    el["margin_right"] = right;
+    el["margin_bottom"] = bottom;
+    el["margin_left"] = left;
+    el["dirty"] = true;
+}
+
+function padding(el, top, right, bottom, left) {
+    el["padding_top"] = top;
+    el["padding_right"] = right;
+    el["padding_bottom"] = bottom;
+    el["padding_left"] = left;
+    el["dirty"] = true;
+}
+
+// ========== Grid Item Helpers ==========
+
+function grid_item(config) {
+    let el = create_element(config["width"], config["height"]);
+    
+    el["grid_column"] = config["column"];
+    el["grid_row"] = config["row"];
+    el["grid_column_span"] = config["column_span"];
+    el["grid_row_span"] = config["row_span"];
+    
+    return el;
+}
+
+function grid_span(el, col_span, row_span) {
+    el["grid_column_span"] = col_span;
+    el["grid_row_span"] = row_span;
+    el["dirty"] = true;
+}
+
+// ========== Responsive Helpers ==========
+
+function breakpoint(width) {
+    if width < 576 { return "xs"; }
+    if width < 768 { return "sm"; }
+    if width < 992 { return "md"; }
+    if width < 1200 { return "lg"; }
+    return "xl";
+}
+
+function responsive(config, screen_width) {
+    let bp = breakpoint(screen_width);
+    return config[bp];
+}
+
+// ========== Flexible Grid (Auto-fit) ==========
+
+function flexible_grid(container, available_w, available_h) {
+    let children = container["children"];
+    let min_col_width = container["min_column_width"];
+    let max_col_width = container["max_column_width"];
+    let gap = container["grid_gap"];
+    let row_height = container["row_height"];
+    
+    if min_col_width == null { min_col_width = 100; }
+    if max_col_width == null { max_col_width = 400; }
+    if gap == null { gap = 10; }
+    if row_height == null { row_height = 80; }
+    
+    // Calculate number of columns that fit
+    let num_cols = 1;
+    let col_width = available_w;
+    
+    // Try to fit as many columns as possible
+    num_cols = available_w / min_col_width;
+    if num_cols < 1 { num_cols = 1; }
+    if num_cols > children.length { num_cols = children.length; }
+    
+    // Calculate actual column width
+    col_width = (available_w - (num_cols - 1) * gap) / num_cols;
+    if col_width < min_col_width { col_width = min_col_width; }
+    if col_width > max_col_width { col_width = max_col_width; }
+    
+    // Recalculate columns with max width constraint
+    num_cols = (available_w + gap) / (max_col_width + gap);
+    if num_cols < 1 { num_cols = 1; }
+    if num_cols > children.length { num_cols = children.length; }
+    
+    col_width = (available_w - (num_cols - 1) * gap) / num_cols;
+    
+    container["calculated_columns"] = num_cols;
+    container["calculated_cell_width"] = col_width;
+    container["calculated_cell_height"] = row_height;
+    
+    // Position each child
+    let i = 0;
+    while i < children.length {
+        let child = children[i];
+        
+        let col = i % num_cols;
+        let row = (i - col) / num_cols;
+        
+        let x = container["x"] + col * (col_width + gap);
+        let y = container["y"] + row * (row_height + gap);
+        
+        set_position(child, x, y);
+        
+        // Apply cell dimensions
+        let child_w = col_width;
+        let child_h = row_height;
+        
+        // Handle spanning
+        if child["grid_column_span"] != null {
+            child_w = col_width * child["grid_column_span"] + gap * (child["grid_column_span"] - 1);
+        }
+        if child["grid_row_span"] != null {
+            child_h = row_height * child["grid_row_span"] + gap * (child["grid_row_span"] - 1);
+        }
+        
+        set_size(child, child_w, child_h);
+        
+        i = i + 1;
+    }
+    
+    // Calculate total grid size
+    let num_rows = (children.length + num_cols - 1) / num_cols;
+    container["calculated_rows"] = num_rows;
+    container["calculated_height"] = num_rows * row_height + (num_rows - 1) * gap;
+    
+    container["dirty"] = false;
+    return container;
+}
+
+function responsive_grid(container, window_w, window_h) {
+    // Calculate available space (subtract padding/margin)
+    let padding = container["padding_left"] + container["padding_right"];
+    let margin = container["margin_left"] + container["margin_right"];
+    let available_w = window_w - padding - margin;
+    let available_h = window_h - padding - margin;
+    
+    // Use responsive column configuration
+    let cols = container["responsive_columns"];
+    let min_w = container["min_width"];
+    let max_w = container["max_width"];
+    
+    // Determine actual column count based on breakpoints
+    if cols != null {
+        // Use predefined responsive columns
+        let bp = breakpoint(window_w);
+        
+        if bp == "xs" {
+            container["min_column_width"] = cols["xs"];
+        } else if bp == "sm" {
+            container["min_column_width"] = cols["sm"];
+        } else if bp == "md" {
+            container["min_column_width"] = cols["md"];
+        } else if bp == "lg" {
+            container["min_column_width"] = cols["lg"];
+        } else {
+            container["min_column_width"] = cols["xl"];
+        }
+    }
+    
+    return flexible_grid(container, available_w, available_h);
+}
+
+function set_responsive_columns(container, columns_config) {
+    container["responsive_columns"] = columns_config;
+    container["dirty"] = true;
+}
+
+function set_min_column_width(container, width) {
+    container["min_column_width"] = width;
+    container["dirty"] = true;
+}
+
+function set_max_column_width(container, width) {
+    container["max_column_width"] = width;
+    container["dirty"] = true;
+}
+
+function set_row_height(container, height) {
+    container["row_height"] = height;
+    container["dirty"] = true;
+}
+
+function set_gap(container, gap_size) {
+    container["grid_gap"] = gap_size;
+    container["dirty"] = true;
+}
+
+// ========== Auto Layout (fills available space) ==========
+
+function auto_layout(container, available_w, available_h) {
+    let children = container["children"];
+    let direction = container["auto_direction"];
+    
+    if direction == null { direction = "row"; }
+    
+    let gap = container["grid_gap"];
+    if gap == null { gap = 10; }
+    
+    if direction == "row" {
+        // Calculate equal widths
+        let total_gap = gap * (children.length - 1);
+        let cell_w = (available_w - total_gap) / children.length;
+        
+        let i = 0;
+        while i < children.length {
+            let child = children[i];
+            set_size(child, cell_w, available_h);
+            set_position(child, container["x"] + i * (cell_w + gap), container["y"]);
+            i = i + 1;
+        }
+    } else {
+        // Column
+        let total_gap = gap * (children.length - 1);
+        let cell_h = (available_h - total_gap) / children.length;
+        
+        let i = 0;
+        while i < children.length {
+            let child = children[i];
+            set_size(child, available_w, cell_h);
+            set_position(child, container["x"], container["y"] + i * (cell_h + gap));
+            i = i + 1;
+        }
+    }
+    
+    container["dirty"] = false;
+    return container;
+}
+
+function set_auto_direction(container, direction) {
+    container["auto_direction"] = direction;
+    container["dirty"] = true;
+}
+
+// ========== Layout Debug ==========
+
+function debug_layout(container, indent) {
+    if indent == null { indent = 0; }
+    
+    let prefix = "";
+    let i = 0;
+    while i < indent {
+        prefix = prefix + "  ";
+        i = i + 1;
+    }
+    
+    let info = prefix + "[" + container["layout"] + "] ";
+    info = info + " " + container["x"] + "," + container["y"];
+    info = info + " " + container["width"] + "x" + container["height"];
+    
+    let children = container["children"];
+    if children.length > 0 {
+        info = info + " (" + children.length + " children)";
+    }
+    
+    let j = 0;
+    while j < children.length {
+        debug_layout(children[j], indent + 1);
+        j = j + 1;
+    }
+}

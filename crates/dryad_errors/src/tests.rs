@@ -46,12 +46,12 @@ mod tests {
 
         let context = DebugContext::new()
             .with_variables(variables.clone())
-            .with_suggestion("Verifique se a variável está declarada".to_string())
-            .with_help_url("https://raw.githubusercontent.com/Dryad-lang/source/main/DRYAD_ERROR_GUIDE.md#e3002-variável-não-definida".to_string());
+            .with_suggestion("Check if the variable is declared".to_string())
+            .with_help_url("https://raw.githubusercontent.com/Dryad-lang/source/main/DRYAD_ERROR_GUIDE.md#e3002-undefined-variable".to_string());
 
         assert_eq!(context.variables, Some(variables));
         assert_eq!(context.suggestions.len(), 1);
-        assert_eq!(context.help_url, Some("https://raw.githubusercontent.com/Dryad-lang/source/main/DRYAD_ERROR_GUIDE.md#e3002-variável-não-definida".to_string()));
+        assert_eq!(context.help_url, Some("https://raw.githubusercontent.com/Dryad-lang/source/main/DRYAD_ERROR_GUIDE.md#e3002-undefined-variable".to_string()));
     }
 
     #[test]
@@ -59,16 +59,16 @@ mod tests {
         let location = SourceLocation::new(Some(PathBuf::from("test.dryad")), 5, 10, 50)
             .with_source_line("let x = @;".to_string());
 
-        let error = DryadError::lexer(1001, "Caracter inválido '@'", location.clone());
+        let error = DryadError::lexer(1001, "Invalid character '@'", location.clone());
 
         assert_eq!(error.code(), 1001);
-        assert_eq!(error.message(), "Caracter inválido '@'");
+        assert_eq!(error.message(), "Invalid character '@'");
         assert_eq!(error.location(), &location);
 
         if let DryadError::Lexer { debug_context, .. } = &error {
             assert!(debug_context.is_none());
         } else {
-            panic!("Erro não é do tipo Lexer");
+            panic!("Error is not of type Lexer");
         }
     }
 
@@ -80,7 +80,7 @@ mod tests {
 
         let error = DryadError::parser(
             2001,
-            "Token inesperado",
+            "Unexpected token",
             location,
             expected.clone(),
             found.clone(),
@@ -95,7 +95,7 @@ mod tests {
             assert_eq!(*exp, expected);
             assert_eq!(*f, found);
         } else {
-            panic!("Erro não é do tipo Parser");
+            panic!("Error is not of type Parser");
         }
     }
 
@@ -111,7 +111,7 @@ mod tests {
         stack_trace.push_frame(frame1);
         stack_trace.push_frame(frame2);
 
-        let error = DryadError::runtime(3001, "Divisão por zero", location, stack_trace);
+        let error = DryadError::runtime(3001, "Division by zero", location, stack_trace);
 
         if let DryadError::Runtime {
             stack_trace: st, ..
@@ -122,7 +122,7 @@ mod tests {
             assert_eq!(st.frames[1].function_name, "foo");
             assert_eq!(st.frames[1].context, Some("function call".to_string()));
         } else {
-            panic!("Erro não é do tipo Runtime");
+            panic!("Error is not of type Runtime");
         }
     }
 
@@ -131,7 +131,7 @@ mod tests {
         let location = SourceLocation::new(None, 8, 3, 75);
         let error = DryadError::type_error(
             4001,
-            "Tipos incompatíveis",
+            "Incompatible types",
             location,
             "Number".to_string(),
             "String".to_string(),
@@ -146,7 +146,7 @@ mod tests {
             assert_eq!(*expected_type, "Number");
             assert_eq!(*found_type, "String");
         } else {
-            panic!("Erro não é do tipo Type");
+            panic!("Error is not of type Type");
         }
     }
 
@@ -157,7 +157,7 @@ mod tests {
 
         let error = DryadError::io_error(
             5001,
-            "Arquivo não encontrado",
+            "File not found",
             location,
             "read".to_string(),
             path.clone(),
@@ -170,7 +170,7 @@ mod tests {
             assert_eq!(*operation, "read");
             assert_eq!(*p, path);
         } else {
-            panic!("Erro não é do tipo Io");
+            panic!("Error is not of type Io");
         }
     }
 
@@ -182,10 +182,10 @@ mod tests {
 
         let debug_context = DebugContext::new()
             .with_variables(variables)
-            .with_suggestion("Inicialize a variável counter com um valor positivo".to_string());
+            .with_suggestion("Initialize the counter variable with a positive value".to_string());
 
         let error =
-            DryadError::lexer(1002, "Valor inválido", location).with_debug_context(debug_context);
+            DryadError::lexer(1002, "Invalid value", location).with_debug_context(debug_context);
 
         if let DryadError::Lexer {
             debug_context: Some(ctx),
@@ -195,7 +195,7 @@ mod tests {
             assert!(ctx.variables.is_some());
             assert_eq!(ctx.suggestions.len(), 1);
         } else {
-            panic!("Debug context não foi adicionado corretamente");
+            panic!("Debug context was not added correctly");
         }
     }
 
@@ -205,7 +205,7 @@ mod tests {
 
         let error = DryadError::Warning {
             code: 8001,
-            message: "Variável não utilizada".to_string(),
+            message: "Unused variable".to_string(),
             location,
             severity: WarningSeverity::Low,
             debug_context: None,
@@ -214,7 +214,7 @@ mod tests {
         if let DryadError::Warning { severity, .. } = &error {
             assert_eq!(*severity, WarningSeverity::Low);
         } else {
-            panic!("Erro não é do tipo Warning");
+            panic!("Error is not of type Warning");
         }
     }
 
@@ -223,23 +223,23 @@ mod tests {
         let location = SourceLocation::new(Some(PathBuf::from("test.dryad")), 10, 5, 100)
             .with_source_line("let x = invalid_char@;".to_string());
 
-        let error = DryadError::lexer(1001, "Caracter inválido '@'", location);
+        let error = DryadError::lexer(1001, "Invalid character '@'", location);
         let display_str = format!("{}", error);
 
-        assert!(display_str.contains("E1001: Erro Léxico"));
-        assert!(display_str.contains("Caracter inválido '@'"));
+        assert!(display_str.contains("E1001: Lexer Error"));
+        assert!(display_str.contains("Invalid character '@'"));
         assert!(display_str.contains("test.dryad:10:5"));
         assert!(display_str.contains("let x = invalid_char@;"));
-        assert!(display_str.contains("^")); // Ponteiro visual
+        assert!(display_str.contains("^")); // Visual pointer
     }
 
     #[test]
     fn test_backward_compatibility() {
-        let error = DryadError::new(1001, "Erro de teste");
+        let error = DryadError::new(1001, "Test error");
         assert_eq!(error.code(), 1001);
-        assert_eq!(error.message(), "Erro de teste");
+        assert_eq!(error.message(), "Test error");
 
-        // Deve criar um erro Lexer baseado no código
+        // Should create a Lexer error based on the code
         assert!(matches!(error, DryadError::Lexer { .. }));
     }
 
@@ -258,40 +258,40 @@ mod tests {
         stack_trace.push_frame(frame1);
         stack_trace.push_frame(frame2);
 
-        let error = DryadError::runtime(3001, "Divisão por zero", location, stack_trace);
+        let error = DryadError::runtime(3001, "Division by zero", location, stack_trace);
         let display_str = format!("{}", error);
 
         assert!(display_str.contains("Stack Trace:"));
         assert!(display_str.contains("main"));
         assert!(display_str.contains("calculate"));
         assert!(display_str.contains("within for loop"));
-        assert!(display_str.contains("┌─")); // Formatação visual do stack trace
+        assert!(display_str.contains("┌─")); // Visual formatting of the stack trace
     }
 
     #[test]
     fn test_auto_context_generation() {
         let location = SourceLocation::new(None, 1, 1, 0);
-        let error = DryadError::lexer(1001, "Caracter inválido '@'", location).with_auto_context();
+        let error = DryadError::lexer(1001, "Invalid character '@'", location).with_auto_context();
 
         if let DryadError::Lexer {
             debug_context: Some(ctx),
             ..
         } = &error
         {
-            // Verifica se as sugestões automáticas foram adicionadas
+            // Check if auto suggestions were added
             assert!(!ctx.suggestions.is_empty());
             assert!(ctx
                 .suggestions
                 .iter()
-                .any(|s| s.contains("Use apenas letras, números, underscore")));
+                .any(|s| s.contains("Use only letters, numbers, underscores")));
 
-            // Verifica se a URL foi gerada corretamente
+            // Check if the URL was generated correctly
             assert!(ctx.help_url.is_some());
             let url = ctx.help_url.as_ref().unwrap();
             assert!(url.contains("https://dryadlang.org/errors"));
             assert!(url.contains("e1001-unexpected-character"));
         } else {
-            panic!("Contexto automático não foi adicionado corretamente");
+            panic!("Auto context was not added correctly");
         }
     }
 
@@ -299,9 +299,9 @@ mod tests {
     fn test_different_error_codes_auto_context() {
         let location = SourceLocation::new(None, 1, 1, 0);
 
-        // Teste para erro 1003 (comentário não fechado)
+        // Test for error 1003 (unclosed comment)
         let error_1003 =
-            DryadError::lexer(1003, "Comentário não fechado", location.clone()).with_auto_context();
+            DryadError::lexer(1003, "Unclosed comment", location.clone()).with_auto_context();
 
         if let DryadError::Lexer {
             debug_context: Some(ctx),
@@ -312,9 +312,9 @@ mod tests {
             assert!(url.contains("e1003-unterminated-comment-block"));
         }
 
-        // Teste para erro 3001 (variável não definida)
+        // Test for error 3001 (undefined variable)
         let stack_trace = StackTrace::new();
-        let error_3001 = DryadError::runtime(3001, "Variável não definida", location, stack_trace)
+        let error_3001 = DryadError::runtime(3001, "Undefined variable", location, stack_trace)
             .with_auto_context();
 
         if let DryadError::Runtime {
@@ -327,7 +327,7 @@ mod tests {
             assert!(ctx
                 .suggestions
                 .iter()
-                .any(|s| s.contains("Declare a variável")));
+                .any(|s| s.contains("Declare the variable")));
         }
     }
 }

@@ -1,0 +1,302 @@
+#<ffi>
+
+// IPE Animation Module
+// Provides animation system: tweens, frames, transitions
+
+let lib = "ipe";
+let loaded = false;
+
+// Active tweens storage
+let tweens = [];
+
+// Time tracking
+let start_time = 0;
+let last_frame_time = 0;
+
+function load() {
+    if loaded {
+        return true;
+    }
+    
+    let path = "./ipe/native/ipe.so";
+    if ffi_load_library(path, lib) {
+        loaded = true;
+        return true;
+    }
+    return false;
+}
+
+function init() {
+    if !load() {
+        return false;
+    }
+    start_time = current_time_ms();
+    last_frame_time = start_time;
+    return true;
+}
+
+// ========== Time ==========
+
+function current_time_ms() {
+    // Would use SDL_GetTicks or similar
+    // For now, use a simple counter
+    // In real implementation, call SDL_GetTicks
+    return 0;
+}
+
+function delta_time() {
+    let now = current_time_ms();
+    let dt = now - last_frame_time;
+    last_frame_time = now;
+    return dt;
+}
+
+function elapsed() {
+    return current_time_ms() - start_time;
+}
+
+// ========== Tween System ==========
+
+// Tween definition: { object, property, from, to, duration, start_time, easing, on_complete }
+let Easing = {
+    "linear": function(t) {
+        return t;
+    },
+    
+    "ease_in": function(t) {
+        return t * t;
+    },
+    
+    "ease_out": function(t) {
+        return t * (2 - t);
+    },
+    
+    "ease_in_out": function(t) {
+        if t < 0.5 {
+            return 2 * t * t;
+        }
+        return -1 + (4 - 2 * t) * t;
+    },
+    
+    "bounce": function(t) {
+        if t < 0.5 {
+            return 8 * t * t * t * t;
+        }
+        let f = (--t);
+        return 1 - 8 * f * f * f * f;
+    },
+    
+    "elastic": function(t) {
+        if t == 0 || t == 1 {
+            return t;
+        }
+        let p = 0.3;
+        return pow(2, -10 * t) * sin((t - p / 4) * (2 * PI) / p) + 1;
+    }
+};
+
+// Tween helper functions
+function pow(base, exp) {
+    let result = 1;
+    let i = 0;
+    while i < exp {
+        result = result * base;
+        i = i + 1;
+    }
+    return result;
+}
+
+let PI = 3.14159265359;
+
+// Create a new tween
+function tween(obj, prop, from, to, duration_ms, easing_fn) {
+    let t = {
+        "object": obj,
+        "property": prop,
+        "from": from,
+        "to": to,
+        "duration": duration_ms,
+        "start": elapsed(),
+        "easing": easing_fn,
+        "complete": false
+    };
+    tweens.push(t);
+    return t;
+}
+
+// Create and start tween
+function animate(obj, prop, to, duration_ms) {
+    let from = obj[prop];
+    return tween(obj, prop, from, to, duration_ms, Easing["ease_in_out"]);
+}
+
+// Update all tweens - call each frame
+function update() {
+    let now = elapsed();
+    let i = 0;
+    
+    while i < tweens.length {
+        let t = tweens[i];
+        
+        if t["complete"] {
+            i = i + 1;
+            continue;
+        }
+        
+        let elapsed_ms = now - t["start"];
+        let progress = elapsed_ms / t["duration"];
+        
+        if progress >= 1 {
+            // Complete the tween
+            t["object"][t["property"]] = t["to"];
+            t["complete"] = true;
+            
+            // Call completion handler if exists
+            if t["on_complete"] != null {
+                t["on_complete"]();
+            }
+        } else {
+            // Interpolate
+            let eased = t["easing"](progress);
+            let value = t["from"] + (t["to"] - t["from"]) * eased;
+            t["object"][t["property"]] = value;
+        }
+        
+        i = i + 1;
+    }
+}
+
+// Remove completed tweens
+function cleanup() {
+    let i = 0;
+    while i < tweens.length {
+        if tweens[i]["complete"] {
+            tweens.splice(i, 1);
+        } else {
+            i = i + 1;
+        }
+    }
+}
+
+// Stop a tween
+function stop_tween(t) {
+    t["complete"] = true;
+}
+
+// Stop all tweens on an object
+function stop_all_on(obj) {
+    let i = 0;
+    while i < tweens.length {
+        if tweens[i]["object"] == obj {
+            tweens[i]["complete"] = true;
+        }
+        i = i + 1;
+    }
+}
+
+// ========== Frame-based Animation ==========
+
+let frame_callbacks = [];
+let frame_count = 0;
+
+function on_frame(fn) {
+    frame_callbacks.push(fn);
+}
+
+function off_frame(fn) {
+    let i = 0;
+    while i < frame_callbacks.length {
+        if frame_callbacks[i] == fn {
+            frame_callbacks.splice(i, 1);
+            return;
+        }
+        i = i + 1;
+    }
+}
+
+function dispatch_frames() {
+    frame_count = frame_count + 1;
+    
+    let i = 0;
+    while i < frame_callbacks.length {
+        frame_callbacks[i](frame_count);
+        i = i + 1;
+    }
+}
+
+// ========== Main Loop Helper ==========
+
+function run(update_fn, render_fn) {
+    while is_window_open() {
+        dispatch_frames();
+        update();
+        
+        if update_fn != null {
+            update_fn();
+        }
+        
+        if render_fn != null {
+            render_fn();
+        }
+        
+        cleanup();
+    }
+}
+
+// Check if window is open (would need lib reference)
+function is_window_open() {
+    if !loaded { return false; }
+    return ffi_call(lib, "ipe_is_window_open", "i32") != 0;
+}
+
+// Process events
+function process() {
+    if !loaded { return; }
+    ffi_call(lib, "ipe_process_events", "void");
+}
+
+// ========== Predefined Animations ==========
+
+// Fade in
+function fade_in(obj, duration_ms) {
+    obj["alpha"] = 0;
+    return tween(obj, "alpha", 0, 1, duration_ms, Easing["ease_out"]);
+}
+
+// Fade out
+function fade_out(obj, duration_ms) {
+    obj["alpha"] = 1;
+    return tween(obj, "alpha", 1, 0, duration_ms, Easing["ease_in"]);
+}
+
+// Move to position
+function move_to(obj, x, y, duration_ms) {
+    obj["x"] = x;
+    obj["y"] = y;
+    return null; // Would need x/y properties
+}
+
+// Scale
+function scale_to(obj, scale_x, scale_y, duration_ms) {
+    return animate(obj, "scale", scale_x, duration_ms); // Simplified
+}
+
+// Pulse (scale up and back)
+function pulse(obj, scale_factor, duration_ms) {
+    let original_scale = obj["scale"];
+    animate(obj, "scale", original_scale * scale_factor, duration_ms / 2);
+    // Would chain another tween for return
+}
+
+// Shake
+function shake(obj, intensity, duration_ms) {
+    // Simple shake effect
+    let original_x = obj["x"];
+    let shake_count = duration_ms / 50;
+    let i = 0;
+    while i < shake_count {
+        obj["x"] = original_x + intensity * (i % 2 == 0 ? 1 : -1);
+        i = i + 1;
+    }
+    obj["x"] = original_x;
+}

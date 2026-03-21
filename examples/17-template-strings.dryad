@@ -1,0 +1,136 @@
+// 17-template-strings.dryad — Template strings with interpolation
+// Covers: backtick strings, ${expression}, multi-line, complex expressions
+
+#<console_io>
+#<time>
+
+// ============================================================
+// 1. Basic template strings
+// ============================================================
+println("=== 1. Basic backtick strings ===");
+
+let simple = `Hello, World!`;
+println(simple);
+
+let name = "Dryad";
+let greeting = `Hello, ${name}!`;
+println(greeting);
+
+// ============================================================
+// 2. Expression interpolation
+// ============================================================
+println("\n=== 2. ${expression} interpolation ===");
+
+let a = 10;
+let b = 20;
+println(`${a} + ${b} = ${a + b}`);
+println(`${a} * ${b} = ${a * b}`);
+println(`${a} > ${b}? ${a > b}`);
+
+// String operations in interpolation
+let firstName = "John";
+let lastName = "Doe";
+println(`Full name: ${firstName + " " + lastName}`);
+
+// Function calls in interpolation
+function square(n) {
+    return n * n;
+}
+println(`Square of 7: ${square(7)}`);
+println(`Square of 12: ${square(12)}`);
+
+// ============================================================
+// 3. Multi-line template strings
+// ============================================================
+println("\n=== 3. Multi-line templates ===");
+
+let multiLine = `This is line 1
+This is line 2
+This is line 3`;
+println(multiLine);
+
+// Multi-line with interpolation
+let item = "Widget";
+let qty = 5;
+let price = 9.99;
+let receipt = `
+--- Receipt ---
+Item:     ${item}
+Quantity: ${qty}
+Price:    $${price}
+Total:    $${qty * price}
+---------------`;
+println(receipt);
+
+// ============================================================
+// 4. Complex expressions in interpolation
+// ============================================================
+println("\n=== 4. Complex expressions ===");
+
+// Ternary-like with logical operators
+let age = 25;
+let category = `Status: ${age >= 18 && "adult" || "minor"}`;
+println(category);
+
+// Nested template usage
+let x = 5;
+let y = 10;
+println(`Point (${x}, ${y}) is in ${x > 0 && y > 0 && "Quadrant I" || "other"}`);
+
+// Math expressions
+println(`2^10 = ${2 ** 10}`);
+println(`Bits: ${0xFF & 0x0F}`);
+
+// ============================================================
+// 5. Template strings with variables
+// ============================================================
+println("\n=== 5. Building formatted output ===");
+
+let users = [
+    { name: "Alice", score: 95 },
+    { name: "Bob", score: 87 },
+    { name: "Charlie", score: 92 }
+];
+
+println("Leaderboard:");
+let rank = 1;
+for (user in users) {
+    println(`  #${rank}: ${user.name} — ${user.score} points`);
+    rank++;
+}
+
+// ============================================================
+// 6. Templates with native module calls
+// ============================================================
+println("\n=== 6. Templates with native calls ===");
+
+let now = native_date();
+let timeNow = native_time();
+println(`Current date: ${now}`);
+println(`Current time: ${timeNow}`);
+
+let platform = "Dryad";
+let version = "0.1.0";
+println(`Running ${platform} v${version} at ${now}`);
+
+// ============================================================
+// 7. Concatenation comparison
+// ============================================================
+println("\n=== 7. Template vs concatenation ===");
+
+let lang = "Dryad";
+let year = 2026;
+
+// Old way (concatenation)
+let concat = "Welcome to " + lang + " (" + year + ")!";
+println(concat);
+
+// New way (template string)
+let template = `Welcome to ${lang} (${year})!`;
+println(template);
+
+// Templates are cleaner for complex formatting
+let host = "localhost";
+let port = 8080;
+let path = "/api/v1";
+println(`URL: http://${host}:${port}${path}`);

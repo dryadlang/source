@@ -141,7 +141,7 @@ Key things to remember:
 - Uses JavaScript-like syntax but with class-based OOP
 - Supports async/await, threads, and mutexes
 - Native modules available via # directive (e.g., #io, #crypto)
-- Scope chain: block-scoped for let/const, function-scoped for var
+- Scope chain: block-scoped for let/const
 ```
 
 ---

@@ -1,0 +1,172 @@
+import ipe
+
+func test_hit_testing() {
+    print("Test 1: Hit Testing")
+    
+    // Create root + button child
+    let root = ipe.control_create(0, 0, 800, 600)
+    let button = ipe.control_create(100, 100, 150, 50)
+    
+    if root == 0 || button == 0 {
+        print("[X] Failed: Could not create controls")
+        return false
+    }
+    
+    ipe.control_add_child(root, button)
+    ipe.control_set_root(root)
+    
+    // Test click at button position - should hit button
+    // Note: We can't directly verify hit testing without callback tracking,
+    // but we can verify the API doesn't crash
+    ipe.control_handle_mouse_click(125, 125)
+    print("[✓] Passed: Mouse click at button position processed")
+    
+    // Test click outside button - should hit root
+    ipe.control_handle_mouse_click(10, 10)
+    print("[✓] Passed: Mouse click outside button processed")
+    
+    ipe.control_destroy(root)
+    return true
+}
+
+func test_focus_management() {
+    print("\nTest 2: Focus Management")
+    
+    // Create two controls
+    let ctrl1 = ipe.control_create(10, 10, 100, 50)
+    let ctrl2 = ipe.control_create(120, 10, 100, 50)
+    
+    if ctrl1 == 0 || ctrl2 == 0 {
+        print("[X] Failed: Could not create controls")
+        return false
+    }
+    
+    // Set focus to first control
+    ipe.control_set_focus(ctrl1)
+    let focused = ipe.control_get_focus()
+    
+    if focused != ctrl1 {
+        print("[X] Failed: First control should be focused")
+        ipe.control_destroy(ctrl1)
+        ipe.control_destroy(ctrl2)
+        return false
+    }
+    print("[✓] Passed: First control is focused")
+    
+    // Set focus to second control
+    ipe.control_set_focus(ctrl2)
+    focused = ipe.control_get_focus()
+    
+    if focused != ctrl2 {
+        print("[X] Failed: Second control should be focused")
+        ipe.control_destroy(ctrl1)
+        ipe.control_destroy(ctrl2)
+        return false
+    }
+    print("[✓] Passed: Second control is focused")
+    
+    ipe.control_destroy(ctrl1)
+    ipe.control_destroy(ctrl2)
+    return true
+}
+
+func test_event_callback_api() {
+    print("\nTest 3: Event Callback API")
+    
+    // Create a control
+    let ctrl = ipe.control_create(10, 10, 100, 50)
+    
+    if ctrl == 0 {
+        print("[X] Failed: Could not create control")
+        return false
+    }
+    
+    // Set focus
+    ipe.control_set_focus(ctrl)
+    
+    // Call key press handler (verify it doesn't crash)
+    ipe.control_handle_key_press(65) // Key 'A'
+    print("[✓] Passed: Key press handler called without crash")
+    
+    // Call mouse move handler
+    ipe.control_handle_mouse_move(50, 50)
+    print("[✓] Passed: Mouse move handler called without crash")
+    
+    ipe.control_destroy(ctrl)
+    return true
+}
+
+func test_integration_with_drawing() {
+    print("\nTest 4: Integration with Drawing")
+    
+    // Initialize IPE
+    if !ipe.init() {
+        print("[X] Failed: Could not initialize IPE")
+        return false
+    }
+    
+    let window = ipe.createWindow(400, 300, "Event Test")
+    if window == 0 {
+        print("[X] Failed: Could not create window")
+        return false
+    }
+    
+    // Create root + button
+    let root = ipe.control_create(0, 0, 400, 300)
+    let button = ipe.control_create(150, 125, 100, 50)
+    
+    if root == 0 || button == 0 {
+        print("[X] Failed: Could not create controls")
+        ipe.close()
+        return false
+    }
+    
+    ipe.control_set_color(root, 0xF0F0F0FF, 0x000000FF)
+    ipe.control_set_color(button, 0x4444FFFF, 0x0000FFFF)
+    ipe.control_add_child(root, button)
+    ipe.control_set_root(root)
+    
+    // Draw controls
+    ipe.clear(0xFFFFFFFF)
+    ipe.control_draw_recursive(root, window)
+    
+    // Simulate mouse click
+    ipe.control_handle_mouse_click(175, 150)
+    print("[✓] Passed: Mouse click integrated with drawing")
+    
+    // Process events (should not crash)
+    ipe.processEvents()
+    print("[✓] Passed: Event processing works with controls")
+    
+    ipe.control_destroy(root)
+    ipe.close()
+    return true
+}
+
+func main() {
+    print("=== IPE Control System - Event Handling Tests ===\n")
+    
+    let results = []
+    results.push(test_hit_testing())
+    results.push(test_focus_management())
+    results.push(test_event_callback_api())
+    results.push(test_integration_with_drawing())
+    
+    let passed = 0
+    let total = results.length
+    
+    for let i = 0; i < total; i = i + 1 {
+        if results[i] {
+            passed = passed + 1
+        }
+    }
+    
+    print("\n=== Summary ===")
+    print("Passed: " + passed + "/" + total)
+    
+    if passed == total {
+        print("All tests passed! ✓")
+    } else {
+        print("Some tests failed.")
+    }
+}

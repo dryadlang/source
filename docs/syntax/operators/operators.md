@@ -69,7 +69,7 @@ Desde a versão 0.1.1, o Dryad suporta o operador `::` para acesso a membros de 
 
 ```dryad
 namespace::member       // Acesso a membro de namespace
-namespace::subns::var  // Membros aninhados
+namespace::subns::member  // Membros aninhados
 ```
 
 ### Exemplos

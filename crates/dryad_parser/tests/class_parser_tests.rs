@@ -43,7 +43,7 @@ fn test_class_declaration_parsing() {
     if let Ok(program) = result {
         assert_eq!(program.statements.len(), 1);
 
-        if let Stmt::ClassDeclaration(name, parent, members, _) = &program.statements[0] {
+        if let Stmt::ClassDeclaration(name, parent, _, members, _) = &program.statements[0] {
             assert_eq!(name, "Pessoa");
             assert!(parent.is_none());
             assert_eq!(members.len(), 1);
@@ -90,7 +90,7 @@ fn test_class_with_inheritance() {
     );
 
     if let Ok(program) = result {
-        if let Stmt::ClassDeclaration(name, parent, _, _) = &program.statements[0] {
+        if let Stmt::ClassDeclaration(name, parent, _, _, _) = &program.statements[0] {
             assert_eq!(name, "Estudante");
             assert_eq!(parent.as_ref().unwrap(), "Pessoa");
         } else {
@@ -125,7 +125,7 @@ fn test_class_with_visibility_modifiers() {
     );
 
     if let Ok(program) = result {
-        if let Stmt::ClassDeclaration(_, _, members, _) = &program.statements[0] {
+        if let Stmt::ClassDeclaration(_, _, _, members, _) = &program.statements[0] {
             assert_eq!(members.len(), 3);
 
             // Check visibility modifiers
@@ -171,7 +171,7 @@ fn test_class_with_static_methods() {
     );
 
     if let Ok(program) = result {
-        if let Stmt::ClassDeclaration(_, _, members, _) = &program.statements[0] {
+        if let Stmt::ClassDeclaration(_, _, _, members, _) = &program.statements[0] {
             assert_eq!(members.len(), 2);
 
             for member in members {
@@ -205,7 +205,7 @@ fn test_class_with_properties() {
     );
 
     if let Ok(program) = result {
-        if let Stmt::ClassDeclaration(_, _, members, _) = &program.statements[0] {
+        if let Stmt::ClassDeclaration(_, _, _, members, _) = &program.statements[0] {
             assert_eq!(members.len(), 3);
 
             // Check first property
@@ -257,7 +257,7 @@ fn test_empty_class() {
     );
 
     if let Ok(program) = result {
-        if let Stmt::ClassDeclaration(name, parent, members, _) = &program.statements[0] {
+        if let Stmt::ClassDeclaration(name, parent, _, members, _) = &program.statements[0] {
             assert_eq!(name, "EmptyClass");
             assert!(parent.is_none());
             assert!(members.is_empty());
@@ -295,7 +295,7 @@ fn test_class_with_multiple_members() {
     );
 
     if let Ok(program) = result {
-        if let Stmt::ClassDeclaration(_, _, members, _) = &program.statements[0] {
+        if let Stmt::ClassDeclaration(_, _, _, members, _) = &program.statements[0] {
             assert_eq!(members.len(), 4);
 
             // First: property
@@ -463,11 +463,11 @@ fn test_class_with_async_methods() {
     );
 
     if let Ok(program) = result {
-        if let Stmt::ClassDeclaration(_, _, members, _) = &program.statements[0] {
+        if let Stmt::ClassDeclaration(_, _, _, members, _) = &program.statements[0] {
             assert_eq!(members.len(), 1);
 
             if let ClassMember::Method { is_async, name, .. } = &members[0] {
-                assert!(*is_async, "Expected async method");
+                assert!(is_async, "Expected async method");
                 assert_eq!(name, "fetchData");
             } else {
                 panic!("Expected method member");
@@ -496,7 +496,7 @@ fn test_super_keyword() {
     );
 
     if let Ok(program) = result {
-        if let Stmt::ClassDeclaration(_, _, members, _) = &program.statements[0] {
+        if let Stmt::ClassDeclaration(_, _, _, members, _) = &program.statements[0] {
             if let ClassMember::Method { body, .. } = &members[0] {
                 if let Stmt::Block(statements, _) = body.as_ref() {
                     if let Stmt::Expression(expr, _) = &statements[0] {

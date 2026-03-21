@@ -1,12 +1,18 @@
 #<ffi>
 #<system_env>
 
+// IPE Framework - Main Module
+// A class-based API wrapper for the IPE graphics library
+
 module ipe {
     let lib_loaded = false;
     let lib_path = "";
     let lib_alias = "ipe";
+    let _window_width = 800;
+    let _window_height = 600;
 
-    // Detecta o SO e retorna a extensão e caminho apropriados
+    // ========== Platform Detection ==========
+    
     function detect_platform() {
         let platform = native_platform();
         let ext = ".so";
@@ -28,7 +34,8 @@ module ipe {
         };
     }
 
-    // Tenta carregar a biblioteca usando uma lista de caminhos comuns
+    // ========== Library Loading ==========
+    
     function load() {
         if (lib_loaded) return true;
 
@@ -37,7 +44,6 @@ module ipe {
         let ext = info["ext"];
         let lib_name = info["name"];
 
-        // Lista de caminhos candidatos
         let candidates = [
             "./ipe/native/" + lib_name + ext,
             "./ipe/native/ipe" + ext,
@@ -48,128 +54,789 @@ module ipe {
             lib_name + ext,
             "ipe" + ext
         ];
-
-        println("Detectado SO: " + platform);
         
         for (p in candidates) {
-            println("  Tentando carregar: " + p);
-            
-            // tenta carregar cada candidato com o alias fixo "ipe"
             if (ffi_load_library(p, lib_alias)) {
                 lib_loaded = true;
                 lib_path = p;
-                println("  [✓] Biblioteca carregada de: " + p);
                 return true;
             }
         }
 
-        println("[X] Falha ao carregar biblioteca de nenhum caminho candidato");
         return false;
     }
 
     function init() {
         if (!load()) return false;
-        println("Inicializando Ipe Framework...");
         let res = ffi_call(lib_alias, "ipe_init", "i32");
-        if (res != 0) {
-            println("[✓] Ipe inicializado com sucesso");
-            return true;
-        }
-        println("[X] Falha ao inicializar Ipe");
-        return false;
-    }
-
-    function createWindow(width, height, title) {
-        if (!lib_loaded) {
-            println("[X] Biblioteca nao carregada. Chame init() primeiro");
-            return null;
-        }
-        println("Criando janela: " + width + "x" + height + " - " + title);
-        return ffi_call(lib_alias, "ipe_window_create", "pointer", width, height, title);
-    }
-
-    function clear(color) {
-        if (!lib_loaded) return;
-        ffi_call(lib_alias, "ipe_clear_background", "void", color);
-    }
-
-    function drawRect(x, y, w, h, color) {
-        if (!lib_loaded) return;
-        ffi_call(lib_alias, "ipe_draw_rect", "void", x, y, w, h, color);
-    }
-
-    function drawCircle(x, y, radius, color) {
-        if (!lib_loaded) return;
-        ffi_call(lib_alias, "ipe_draw_circle", "void", x, y, radius, color);
-    }
-
-    function drawLine(x1, y1, x2, y2, color, thickness) {
-        if (!lib_loaded) return;
-        ffi_call(lib_alias, "ipe_draw_line", "void", x1, y1, x2, y2, color, thickness);
-    }
-
-    function getMouseX() {
-        if (!lib_loaded) return 0;
-        return ffi_call(lib_alias, "ipe_get_mouse_x", "i32");
-    }
-
-    function getMouseY() {
-        if (!lib_loaded) return 0;
-        return ffi_call(lib_alias, "ipe_get_mouse_y", "i32");
-    }
-
-    function getKeyCode() {
-        if (!lib_loaded) return 0;
-        return ffi_call(lib_alias, "ipe_get_key_code", "i32");
-    }
-
-    function drawRoundedRect(x, y, w, h, radius, color) {
-        if (!lib_loaded) return;
-        ffi_call(lib_alias, "ipe_draw_rounded_rect", "void", x, y, w, h, radius, color);
-    }
-
-    function drawTriangle(x1, y1, x2, y2, x3, y3, color) {
-        if (!lib_loaded) return;
-        ffi_call(lib_alias, "ipe_draw_triangle", "void", x1, y1, x2, y2, x3, y3, color);
-    }
-
-    // Note: Polygon requires passing arrays, which needs FFI buffer support
-    // For now, use drawTriangle multiple times to form polygons
-    
-    function drawText(text, x, y, color) {
-        if (!lib_loaded) return;
-        ffi_call(lib_alias, "ipe_draw_text", "void", text, x, y, color);
-    }
-
-    function processEvents() {
-        if (!lib_loaded) return 0;
-        return ffi_call(lib_alias, "ipe_process_events", "i32");
-    }
-
-    function isOpen() {
-        if (!lib_loaded) return false;
-        let res = ffi_call(lib_alias, "ipe_is_window_open", "i32");
         return res != 0;
     }
 
-    function close() {
-        if (!lib_loaded) return;
-        println("Fechando janela...");
-        ffi_call(lib_alias, "ipe_window_close", "void");
-        lib_loaded = false;
-    }
-
-    function unload() {
-        if (!lib_loaded) return false;
-        println("Descarregando biblioteca...");
-        let res = ffi_unload_library(lib_alias);
-        if (res) {
-            lib_loaded = false;
-            lib_path = "";
+    // ========== Colors ==========
+    
+    let Colors = {
+        // Basic colors (ARGB format)
+        "transparent": 0x00000000,
+        "black": 0xFF000000,
+        "white": 0xFFFFFFFF,
+        "red": 0xFF0000FF,
+        "green": 0xFF00FF00,
+        "blue": 0xFFFF0000,
+        "yellow": 0xFF00FFFF,
+        "cyan": 0xFFFFFF00,
+        "magenta": 0xFFFF00FF,
+        "orange": 0xFF0066FF,
+        "purple": 0xFF9900FF,
+        "pink": 0xFFFF66B5,
+        
+        // Grays
+        "gray": 0xFF808080,
+        "gray_dark": 0xFF404040,
+        "gray_light": 0xFFC0C0C0,
+        
+        // Theme colors (light bg, dark text - FIXED from inverted)
+        "bg_primary": 0xFF1A1A2E,
+        "bg_secondary": 0xFF16213E,
+        "bg_card": 0xFF0F3460,
+        "text_primary": 0xFFFFFFFF,
+        "text_secondary": 0xFFAAAAAA,
+        "text_muted": 0xFF666666,
+        "accent": 0xFF4DA8DA,
+        "success": 0xFF4CAF50,
+        "warning": 0xFFFFC107,
+        "error": 0xFFF44336,
+        
+        // Helper to lighten a color
+        "lighten": function(color, amount) {
+            let a = (color >> 24) & 0xFF;
+            let r = (color >> 16) & 0xFF;
+            let g = (color >> 8) & 0xFF;
+            let b = color & 0xFF;
+            
+            r = r + amount;
+            g = g + amount;
+            b = b + amount;
+            
+            if r > 255 { r = 255; }
+            if g > 255 { g = 255; }
+            if b > 255 { b = 255; }
+            
+            return (a << 24) | (r << 16) | (g << 8) | b;
+        },
+        
+        // Helper to darken a color
+        "darken": function(color, amount) {
+            let a = (color >> 24) & 0xFF;
+            let r = (color >> 16) & 0xFF;
+            let g = (color >> 8) & 0xFF;
+            let b = color & 0xFF;
+            
+            r = r - amount;
+            g = g - amount;
+            b = b - amount;
+            
+            if r < 0 { r = 0; }
+            if g < 0 { g = 0; }
+            if b < 0 { b = 0; }
+            
+            return (a << 24) | (r << 16) | (g << 8) | b;
+        },
+        
+        // Create color from RGB
+        "rgb": function(r, g, b) {
+            return 0xFF000000 | (r << 16) | (g << 8) | b;
+        },
+        
+        // Create color from RGBA
+        "rgba": function(r, g, b, a) {
+            return (a << 24) | (r << 16) | (g << 8) | b;
+        },
+        
+        // Create color from hex string
+        "hex": function(hex_str) {
+            // Parse "#RRGGBB" or "RRGGBB"
+            let h = hex_str;
+            if h[0] == "#" { h = h.slice(1); }
+            let val = 0;
+            let i = 0;
+            while (i < h.length) {
+                let c = h[i];
+                let v = 0;
+                if c >= "0" && c <= "9" { v = c - "0"; }
+                else if c >= "a" && c <= "f" { v = 10 + (c - "a"); }
+                else if c >= "A" && c <= "F" { v = 10 + (c - "A"); }
+                val = val * 16 + v;
+                i = i + 1;
+            }
+            return 0xFF000000 | val;
         }
-        return res;
+    };
+
+    // ========== Window Class ==========
+    
+    class Window {
+        init(width, height, title) {
+            if (!lib_loaded) {
+                if (!init()) {
+                    return null;
+                }
+            }
+            _window_width = width;
+            _window_height = height;
+            ffi_call(lib_alias, "ipe_window_create", "pointer", width, height, title);
+            return this;
+        }
+        
+        width() {
+            return _window_width;
+        }
+        
+        height() {
+            return _window_height;
+        }
+        
+        // Get actual window size (may differ from initial size)
+        get_width() {
+            return ffi_call(lib_alias, "ipe_window_get_width", "i32");
+        }
+        
+        get_height() {
+            return ffi_call(lib_alias, "ipe_window_get_height", "i32");
+        }
+        
+        is_open() {
+            return ffi_call(lib_alias, "ipe_is_window_open", "i32") != 0;
+        }
+        
+        close() {
+            ffi_call(lib_alias, "ipe_window_close", "void");
+        }
+        
+        process_events() {
+            ffi_call(lib_alias, "ipe_process_events", "void");
+        }
     }
 
+    // ========== Draw Class ==========
+    
+    class Draw {
+        init() {
+            return this;
+        }
+        
+        clear(color) {
+            ffi_call(lib_alias, "ipe_clear_background", "void", color);
+        }
+        
+        rect(x, y, w, h, color) {
+            ffi_call(lib_alias, "ipe_draw_rect", "void", x, y, w, h, color);
+        }
+        
+        rect_outline(x, y, w, h, color, thickness) {
+            if thickness == null { thickness = 1; }
+            // Top
+            ffi_call(lib_alias, "ipe_draw_line", "void", x, y, x + w, y, color, thickness);
+            // Bottom
+            ffi_call(lib_alias, "ipe_draw_line", "void", x, y + h, x + w, y + h, color, thickness);
+            // Left
+            ffi_call(lib_alias, "ipe_draw_line", "void", x, y, x, y + h, color, thickness);
+            // Right
+            ffi_call(lib_alias, "ipe_draw_line", "void", x + w, y, x + w, y + h, color, thickness);
+        }
+        
+        circle(x, y, radius, color) {
+            ffi_call(lib_alias, "ipe_draw_circle", "void", x, y, radius, color);
+        }
+        
+        circle_outline(x, y, radius, color, thickness) {
+            if thickness == null { thickness = 1; }
+            // Draw multiple lines to approximate circle outline
+            let segments = 32;
+            let angle = 0;
+            let step = 360 / segments;
+            let prev_x = x + radius;
+            let prev_y = y;
+            
+            let i = 0;
+            while (i < segments) {
+                angle = angle + step;
+                let rad = angle * 3.14159 / 180;
+                let new_x = x + radius * cos(rad);
+                let new_y = y + radius * sin(rad);
+                ffi_call(lib_alias, "ipe_draw_line", "void", prev_x, prev_y, new_x, new_y, color, thickness);
+                prev_x = new_x;
+                prev_y = new_y;
+                i = i + 1;
+            }
+        }
+        
+        line(x1, y1, x2, y2, color, thickness) {
+            if thickness == null { thickness = 1; }
+            ffi_call(lib_alias, "ipe_draw_line", "void", x1, y1, x2, y2, color, thickness);
+        }
+        
+        triangle(x1, y1, x2, y2, x3, y3, color) {
+            ffi_call(lib_alias, "ipe_draw_triangle", "void", x1, y1, x2, y2, x3, y3, color);
+        }
+        
+        rounded_rect(x, y, w, h, radius, color) {
+            ffi_call(lib_alias, "ipe_draw_rounded_rect", "void", x, y, w, h, radius, color);
+        }
+        
+        text(text, x, y, color) {
+            ffi_call(lib_alias, "ipe_draw_text", "void", text, x, y, color);
+        }
+        
+        present() {
+            ffi_call(lib_alias, "ipe_present", "void");
+        }
+        
+        // Transformations
+        push() {
+            ffi_call(lib_alias, "ipe_transform_push", "void");
+        }
+        
+        pop() {
+            ffi_call(lib_alias, "ipe_transform_pop", "void");
+        }
+        
+        translate(dx, dy) {
+            ffi_call(lib_alias, "ipe_transform_translate", "void", dx, dy);
+        }
+        
+        scale(sx, sy) {
+            ffi_call(lib_alias, "ipe_transform_scale", "void", sx, sy);
+        }
+        
+        rotate(angle) {
+            ffi_call(lib_alias, "ipe_transform_rotate", "void", angle);
+        }
+    }
+
+    // ========== Input Class ==========
+    
+    class Input {
+        init() {
+            return this;
+        }
+        
+        // Keyboard
+        is_key_down(key_code) {
+            return ffi_call(lib_alias, "ipe_input_key_down", "i32", key_code) != 0;
+        }
+        
+        is_key_pressed(key_code) {
+            return ffi_call(lib_alias, "ipe_input_key_pressed", "i32", key_code) != 0;
+        }
+        
+        is_key_released(key_code) {
+            return ffi_call(lib_alias, "ipe_input_key_released", "i32", key_code) != 0;
+        }
+        
+        // Mouse position
+        mouse_x() {
+            return ffi_call(lib_alias, "ipe_input_mouse_x", "i32");
+        }
+        
+        mouse_y() {
+            return ffi_call(lib_alias, "ipe_input_mouse_y", "i32");
+        }
+        
+        mouse_pos() {
+            let x = ffi_call(lib_alias, "ipe_input_mouse_x", "i32");
+            let y = ffi_call(lib_alias, "ipe_input_mouse_y", "i32");
+            return {"x": x, "y": y};
+        }
+        
+        // Mouse buttons
+        is_mouse_down(button) {
+            return ffi_call(lib_alias, "ipe_input_mouse_button_down", "i32", button) != 0;
+        }
+        
+        is_mouse_clicked(button) {
+            return ffi_call(lib_alias, "ipe_input_mouse_button_clicked", "i32", button) != 0;
+        }
+        
+        // Scroll
+        scroll_delta() {
+            return ffi_call(lib_alias, "ipe_input_mouse_scroll_delta", "i32");
+        }
+        
+        // Events
+        has_key_down() {
+            return ffi_call(lib_alias, "ipe_event_has_key_down", "i32") != 0;
+        }
+        
+        has_key_up() {
+            return ffi_call(lib_alias, "ipe_event_has_key_up", "i32") != 0;
+        }
+        
+        has_mouse_down() {
+            return ffi_call(lib_alias, "ipe_event_has_mouse_down", "i32") != 0;
+        }
+        
+        has_mouse_up() {
+            return ffi_call(lib_alias, "ipe_event_has_mouse_up", "i32") != 0;
+        }
+        
+        has_mouse_move() {
+            return ffi_call(lib_alias, "ipe_event_has_mouse_move", "i32") != 0;
+        }
+        
+        has_scroll() {
+            return ffi_call(lib_alias, "ipe_event_has_scroll", "i32") != 0;
+        }
+        
+        clear() {
+            ffi_call(lib_alias, "ipe_input_clear_events", "void");
+        }
+    }
+
+    // ========== Key Constants ==========
+    
+    let Key = {
+        "ESCAPE": 27,
+        "RETURN": 13,
+        "SPACE": 32,
+        "TAB": 9,
+        "UP": 1073741906,
+        "DOWN": 1073741905,
+        "LEFT": 1073741904,
+        "RIGHT": 1073741903,
+        "A": 65,
+        "Z": 90,
+        "0": 48,
+        "9": 57
+    };
+
+    // ========== Mouse Button Constants ==========
+    
+    let MouseButton = {
+        "LEFT": 1,
+        "MIDDLE": 2,
+        "RIGHT": 3
+    };
+
+    // ========== Typography Class ==========
+    
+    class Typography {
+        init() {
+            return this;
+        }
+        
+        load_font(path, size) {
+            return ffi_call(lib_alias, "ipe_font_load", "pointer", path, size);
+        }
+        
+        draw(text, x, y, color) {
+            ffi_call(lib_alias, "ipe_draw_text", "void", text, x, y, color);
+        }
+        
+        draw_with_font(text, x, y, font, color) {
+            ffi_call(lib_alias, "ipe_draw_text_ex", "void", text, x, y, font, color);
+        }
+        
+        width(text, font) {
+            if font == null {
+                return text.length * 10;
+            }
+            return ffi_call(lib_alias, "ipe_text_width", "i32", text, font);
+        }
+        
+        // Draw centered text
+        draw_centered(text, x, y, color, container_width) {
+            let tw = text.length * 10;
+            let start_x = x + (container_width - tw) / 2;
+            this.draw(text, start_x, y, color);
+        }
+        
+        // Draw right-aligned text
+        draw_right(text, x, y, color, container_width) {
+            let tw = text.length * 10;
+            let start_x = x + container_width - tw;
+            this.draw(text, start_x, y, color);
+        }
+        
+        // Text styles (FIXED: dark text on light bg)
+        let styles = {
+            "h1": {"size": 32, "color": Colors.text_primary, "bold": true},
+            "h2": {"size": 24, "color": Colors.text_primary, "bold": true},
+            "h3": {"size": 20, "color": Colors.text_primary, "bold": true},
+            "body": {"size": 16, "color": Colors.text_primary, "bold": false},
+            "caption": {"size": 12, "color": Colors.text_secondary, "bold": false},
+            "button": {"size": 16, "color": Colors.text_primary, "bold": true}
+        };
+    }
+
+    // ========== Responsive Layout System ==========
+    
+    let Responsive = {
+        // Breakpoint definitions
+        "breakpoints": {
+            "xs": 0,
+            "sm": 576,
+            "md": 768,
+            "lg": 992,
+            "xl": 1200
+        },
+        
+        // Get current breakpoint
+        "get_breakpoint": function(width) {
+            if width < 576 { return "xs"; }
+            if width < 768 { return "sm"; }
+            if width < 992 { return "md"; }
+            if width < 1200 { return "lg"; }
+            return "xl";
+        },
+        
+        // Calculate columns based on breakpoint
+        "get_columns": function(width, config) {
+            let bp = this.get_breakpoint(width);
+            return config[bp];
+        },
+        
+        // Calculate responsive grid
+        "calculate_grid": function(container_w, container_h, config) {
+            let gap = config["gap"];
+            let padding = config["padding"];
+            let min_col = config["min_column_width"];
+            let max_col = config["max_column_width"];
+            
+            if gap == null { gap = 20; }
+            if padding == null { padding = 40; }
+            if min_col == null { min_col = 120; }
+            if max_col == null { max_col = 250; }
+            
+            let available_w = container_w - (padding * 2);
+            
+            // Calculate how many columns fit
+            let num_cols = 1;
+            let col_width = available_w;
+            
+            // Try to maximize columns while respecting min/max
+            num_cols = available_w / min_col;
+            if num_cols < 1 { num_cols = 1; }
+            
+            col_width = (available_w - (num_cols - 1) * gap) / num_cols;
+            
+            // Apply max constraint
+            if col_width > max_col {
+                col_width = max_col;
+                num_cols = (available_w + gap) / (col_width + gap);
+                if num_cols < 1 { num_cols = 1; }
+            }
+            
+            // Recalculate final width
+            col_width = (available_w - (num_cols - 1) * gap) / num_cols;
+            
+            return {
+                "columns": num_cols,
+                "column_width": col_width,
+                "gap": gap,
+                "padding": padding,
+                "available_width": available_w
+            };
+        }
+    };
+
+    // ========== Layout Class ==========
+    
+    class Layout {
+        init() {
+            this._container_width = 800;
+            this._container_height = 600;
+            this._gap = 20;
+            this._padding = 40;
+            this._min_column_width = 120;
+            this._max_column_width = 250;
+            this._row_height = 80;
+            this._children = [];
+            return this;
+        }
+        
+        set_size(w, h) {
+            this._container_width = w;
+            this._container_height = h;
+            return this;
+        }
+        
+        set_gap(gap) {
+            this._gap = gap;
+            return this;
+        }
+        
+        set_padding(padding) {
+            this._padding = padding;
+            return this;
+        }
+        
+        set_min_column_width(w) {
+            this._min_column_width = w;
+            return this;
+        }
+        
+        set_max_column_width(w) {
+            this._max_column_width = w;
+            return this;
+        }
+        
+        set_row_height(h) {
+            this._row_height = h;
+            return this;
+        }
+        
+        add(child) {
+            this._children.push(child);
+            return this;
+        }
+        
+        // Calculate responsive layout
+        calculate() {
+            let config = {
+                "gap": this._gap,
+                "padding": this._padding,
+                "min_column_width": this._min_column_width,
+                "max_column_width": this._max_column_width
+            };
+            
+            let grid = Responsive.calculate_grid(this._container_width, this._container_height, config);
+            
+            this._calculated_columns = grid["columns"];
+            this._calculated_column_width = grid["column_width"];
+            
+            // Position children
+            let i = 0;
+            while (i < this._children.length) {
+                let child = this._children[i];
+                
+                let col = i % grid["columns"];
+                let row = (i - col) / grid["columns"];
+                
+                let x = grid["padding"] + col * (grid["column_width"] + grid["gap"]);
+                let y = grid["padding"] + row * (this._row_height + grid["gap"]);
+                
+                child["x"] = x;
+                child["y"] = y;
+                child["width"] = grid["column_width"];
+                child["height"] = this._row_height;
+                
+                i = i + 1;
+            }
+            
+            // Calculate total height needed
+            let num_rows = (this._children.length + grid["columns"] - 1) / grid["columns"];
+            this._total_height = grid["padding"] * 2 + num_rows * this._row_height + (num_rows - 1) * grid["gap"];
+            
+            return this;
+        }
+        
+        get_children() {
+            return this._children;
+        }
+        
+        get_total_height() {
+            return this._total_height;
+        }
+        
+        get_columns() {
+            return this._calculated_columns;
+        }
+        
+        get_column_width() {
+            return this._calculated_column_width;
+        }
+    }
+
+    // ========== UI Components ==========
+    
+    class Button {
+        init(x, y, w, h, text) {
+            this.x = x;
+            this.y = y;
+            this.width = w;
+            this.height = h;
+            this.text = text;
+            this.color = Colors.bg_card;
+            this.text_color = Colors.text_primary;
+            this.hover_color = Colors.accent;
+            this.is_hovered = false;
+            this.is_clicked = false;
+            return this;
+        }
+        
+        set_position(x, y) {
+            this.x = x;
+            this.y = y;
+            return this;
+        }
+        
+        set_size(w, h) {
+            this.width = w;
+            this.height = h;
+            return this;
+        }
+        
+        set_color(color) {
+            this.color = color;
+            return this;
+        }
+        
+        set_text_color(color) {
+            this.text_color = color;
+            return this;
+        }
+        
+        contains(px, py) {
+            return px >= this.x && px <= this.x + this.width &&
+                   py >= this.y && py <= this.y + this.height;
+        }
+        
+        update(mx, my, clicked) {
+            this.is_hovered = this.contains(mx, my);
+            if clicked && this.is_hovered {
+                this.is_clicked = true;
+            } else {
+                this.is_clicked = false;
+            }
+            return this.is_clicked;
+        }
+        
+        draw(draw_ctx) {
+            let bg_color = this.color;
+            if this.is_hovered {
+                bg_color = this.hover_color;
+            }
+            
+            draw_ctx.rect(this.x, this.y, this.width, this.height, bg_color);
+            draw_ctx.rect_outline(this.x, this.y, this.width, this.height, Colors.text_muted, 1);
+            
+            // Center text
+            let text_w = this.text.length * 10;
+            let text_x = this.x + (this.width - text_w) / 2;
+            let text_y = this.y + (this.height - 16) / 2;
+            draw_ctx.text(this.text, text_x, text_y, this.text_color);
+        }
+    }
+
+    // ========== Card Component ==========
+    
+    class Card {
+        init(x, y, w, h) {
+            this.x = x;
+            this.y = y;
+            this.width = w;
+            this.height = h;
+            this.color = Colors.bg_card;
+            this.border_color = Colors.text_muted;
+            return this;
+        }
+        
+        set_position(x, y) {
+            this.x = x;
+            this.y = y;
+            return this;
+        }
+        
+        set_size(w, h) {
+            this.width = w;
+            this.height = h;
+            return this;
+        }
+        
+        draw(draw_ctx) {
+            draw_ctx.rect(this.x, this.y, this.width, this.height, this.color);
+            draw_ctx.rect_outline(this.x, this.y, this.width, this.height, this.border_color, 1);
+        }
+    }
+
+    // ========== Application Helper ==========
+    
+    class App {
+        init(title, width, height) {
+            this.title = title;
+            this.window = Window.new(width, height, title);
+            this.draw = Draw.new();
+            this.input = Input.new();
+            this.running = false;
+            this._on_update = null;
+            this._on_render = null;
+            return this;
+        }
+        
+        on_update(fn) {
+            this._on_update = fn;
+            return this;
+        }
+        
+        on_render(fn) {
+            this._on_render = fn;
+            return this;
+        }
+        
+        run() {
+            this.running = true;
+            
+            while (this.running && this.window.is_open()) {
+                this.window.process_events();
+                
+                if (this._on_update != null) {
+                    this._on_update(this);
+                }
+                
+                if (this._on_render != null) {
+                    this._on_render(this);
+                }
+                
+                this.draw.present();
+                this.input.clear();
+            }
+        }
+        
+        stop() {
+            this.running = false;
+        }
+        
+        width() {
+            return this.window.get_width();
+        }
+        
+        height() {
+            return this.window.get_height();
+        }
+    }
+
+    // ========== Shortcut Functions ==========
+    
+    function create_window(width, height, title) {
+        return Window.new(width, height, title);
+    }
+    
+    function create_draw() {
+        return Draw.new();
+    }
+    
+    function create_input() {
+        return Input.new();
+    }
+    
+    function create_layout() {
+        return Layout.new();
+    }
+    
+    function create_app(title, width, height) {
+        return App.new(title, width, height);
+    }
+    
+    function create_button(x, y, w, h, text) {
+        return Button.new(x, y, w, h, text);
+    }
+    
+    function create_card(x, y, w, h) {
+        return Card.new(x, y, w, h);
+    }
+
+    // ========== Status ==========
+    
     function get_status() {
         return {
             "loaded": lib_loaded,
@@ -177,285 +844,15 @@ module ipe {
             "alias": lib_alias
         };
     }
-
-    // ========== Task 5: Input Polling API Wrappers ==========
     
-    // Key constants
-    let IPE_KEY_ESCAPE = 27;
-    let IPE_KEY_RETURN = 13;
-    let IPE_KEY_SPACE = 32;
-    let IPE_KEY_TAB = 9;
-    let IPE_KEY_UP = 1073741906;
-    let IPE_KEY_DOWN = 1073741905;
-    let IPE_KEY_LEFT = 1073741904;
-    let IPE_KEY_RIGHT = 1073741903;
-    
-    // A-Z: 65-90
-    let IPE_KEY_A = 65;
-    let IPE_KEY_Z = 90;
-    
-    // 0-9: 48-57
-    let IPE_KEY_0 = 48;
-    let IPE_KEY_9 = 57;
-    
-    // Modifier constants
-    let IPE_MOD_SHIFT = 0x01;
-    let IPE_MOD_CTRL = 0x02;
-    let IPE_MOD_ALT = 0x04;
-    let IPE_MOD_GUI = 0x08;
-    
-    // Polling API: Keyboard state
-    function input_key_down(key_code) {
-        if (!lib_loaded) return false;
-        let res = ffi_call(lib_alias, "ipe_input_key_down", "i32", key_code);
-        return res != 0;
+    function is_loaded() {
+        return lib_loaded;
     }
     
-    function input_key_pressed(key_code) {
-        if (!lib_loaded) return false;
-        let res = ffi_call(lib_alias, "ipe_input_key_pressed", "i32", key_code);
-        return res != 0;
-    }
-    
-    function input_key_released(key_code) {
-        if (!lib_loaded) return false;
-        let res = ffi_call(lib_alias, "ipe_input_key_released", "i32", key_code);
-        return res != 0;
-    }
-    
-    // Polling API: Mouse position
-    function input_mouse_x() {
-        if (!lib_loaded) return 0;
-        return ffi_call(lib_alias, "ipe_input_mouse_x", "i32");
-    }
-    
-    function input_mouse_y() {
-        if (!lib_loaded) return 0;
-        return ffi_call(lib_alias, "ipe_input_mouse_y", "i32");
-    }
-    
-    function input_mouse_pos() {
-        if (!lib_loaded) return {"x": 0, "y": 0};
-        let x = ffi_call(lib_alias, "ipe_input_mouse_x", "i32");
-        let y = ffi_call(lib_alias, "ipe_input_mouse_y", "i32");
-        return {"x": x, "y": y};
-    }
-    
-    // Polling API: Mouse buttons
-    function input_mouse_button_down(button) {
-        if (!lib_loaded) return false;
-        let res = ffi_call(lib_alias, "ipe_input_mouse_button_down", "i32", button);
-        return res != 0;
-    }
-    
-    function input_mouse_button_clicked(button) {
-        if (!lib_loaded) return false;
-        let res = ffi_call(lib_alias, "ipe_input_mouse_button_clicked", "i32", button);
-        return res != 0;
-    }
-    
-    // Polling API: Mouse scroll
-    function input_mouse_scroll_delta() {
-        if (!lib_loaded) return 0;
-        return ffi_call(lib_alias, "ipe_input_mouse_scroll_delta", "i32");
-    }
-    
-    // Polling API: Modifiers
-    function input_modifier_active(modifier) {
-        if (!lib_loaded) return 0;
-        return ffi_call(lib_alias, "ipe_input_modifier_active", "i32", modifier);
-    }
-    
-    // ========== Task 9: Transformations API ==========
-    
-    function transformPush() {
-        if (!lib_loaded) return;
-        ffi_call(lib_alias, "ipe_transform_push", "void");
-    }
-    
-    function transformPop() {
-        if (!lib_loaded) return;
-        ffi_call(lib_alias, "ipe_transform_pop", "void");
-    }
-    
-    function translate(dx, dy) {
-        if (!lib_loaded) return;
-        ffi_call(lib_alias, "ipe_transform_translate", "void", dx, dy);
-    }
-    
-    function scale(sx, sy) {
-        if (!lib_loaded) return;
-        ffi_call(lib_alias, "ipe_transform_scale", "void", sx, sy);
-    }
-    
-    function rotate(angle) {
-        if (!lib_loaded) return;
-        ffi_call(lib_alias, "ipe_transform_rotate", "void", angle);
-    }
-    
-    function transformReset() {
-        if (!lib_loaded) return;
-        ffi_call(lib_alias, "ipe_transform_reset", "void");
-    }
-
-    // ========== Task 8: Advanced Styling API ==========
-    
-    // Blend modes
-    let IPE_BLEND_NORMAL = 0;
-    let IPE_BLEND_ALPHA = 1;
-    let IPE_BLEND_ADD = 2;
-    let IPE_BLEND_MULTIPLY = 3;
-    let IPE_BLEND_SCREEN = 4;
-    
-    // Gradient types
-    let IPE_GRADIENT_NONE = 0;
-    let IPE_GRADIENT_LINEAR_H = 1;
-    let IPE_GRADIENT_LINEAR_V = 2;
-    let IPE_GRADIENT_RADIAL = 3;
-
-    function drawRectStyled(x, y, w, h, style_buffer) {
-        if (!lib_loaded) return;
-        ffi_call(lib_alias, "ipe_draw_rect_styled", "void", x, y, w, h, style_buffer);
-    }
-    
-    function drawCircleStyled(cx, cy, radius, style_buffer) {
-        if (!lib_loaded) return;
-        ffi_call(lib_alias, "ipe_draw_circle_styled", "void", cx, cy, radius, style_buffer);
-    }
-    
-    function drawPolygonStyled(points_buffer, count, style_buffer) {
-        if (!lib_loaded) return;
-        ffi_call(lib_alias, "ipe_draw_polygon_styled", "void", points_buffer, count, style_buffer);
-    }
-
-    // Helpers to create style buffers
-    function createRectStyle() {
-        let buf = ffi_create_buffer(76); // 19 fields * 4 bytes
-        // Default values
-        ffi_write_buffer(buf, 0, 0xFFFFFF, "u32"); // fill_color
-        ffi_write_buffer(buf, 36, 1.0, "f32");    // opacity
-        return buf;
-    }
-    
-    function createCircleStyle() {
-        let buf = ffi_create_buffer(48); // 12 fields * 4 bytes
-        ffi_write_buffer(buf, 0, 0xFFFFFF, "u32"); // fill_color
-        ffi_write_buffer(buf, 12, 1.0, "f32");    // opacity
-        return buf;
-    }
-    
-    function createPolygonStyle() {
-        let buf = ffi_create_buffer(48); // 12 fields * 4 bytes
-        ffi_write_buffer(buf, 0, 0xFFFFFF, "u32"); // fill_color
-        ffi_write_buffer(buf, 16, 1.0, "f32");    // opacity
-        return buf;
-    }
-    
-    // ========== Task 6: Input Event Queue Wrappers ==========
-    
-    // Event type constants
-    let IPE_EVENT_KEY_DOWN = 1;
-    let IPE_EVENT_KEY_UP = 2;
-    let IPE_EVENT_MOUSE_MOVE = 3;
-    let IPE_EVENT_MOUSE_DOWN = 4;
-    let IPE_EVENT_MOUSE_UP = 5;
-    let IPE_EVENT_SCROLL = 6;
-    let IPE_EVENT_WINDOW_CLOSE = 7;
-    let IPE_EVENT_WINDOW_RESIZE = 8;
-    
-    // Event queue API
-    function input_event_count() {
-        if (!lib_loaded) return 0;
-        return ffi_call(lib_alias, "ipe_input_event_count", "i32");
-    }
-    
-    function input_clear_events() {
-        if (!lib_loaded) return;
-        ffi_call(lib_alias, "ipe_input_clear_events", "void");
-    }
-    
-    // Note: Event structure retrieval requires pointer handling
-    // This is a simplified interface that gets event count and clears queue
-    // For full event data, use ipe_input_get_events() with FFI buffer support (advanced)
-    
-    // ========== Task 7.5: Text Rendering Enhancements ==========
-    
-    function fontLoad(path, size) {
-        if (!lib_loaded) return null;
-        return ffi_call(lib_alias, "ipe_font_load", "pointer", path, size);
-    }
-    
-    function drawTextEx(text, x, y, font, color) {
-        if (!lib_loaded) return;
-        ffi_call(lib_alias, "ipe_draw_text_ex", "void", text, x, y, font, color);
-    }
-    
-    function textWidth(text, font) {
-        if (!lib_loaded) return 0;
-        return ffi_call(lib_alias, "ipe_text_width", "i32", text, font);
-    }
-    
-    // ========== UI Control System ==========
-    
-    function control_create(x, y, w, h) {
-        if (!lib_loaded) return 0;
-        return ffi_call(lib_alias, "ipe_control_create", "pointer", x, y, w, h);
-    }
-    
-    function control_destroy(ctrl) {
-        if (!lib_loaded) return;
-        ffi_call(lib_alias, "ipe_control_destroy", "void", ctrl);
-    }
-    
-    function control_set_color(ctrl, bg_color, border_color) {
-        if (!lib_loaded) return;
-        ffi_call(lib_alias, "ipe_control_set_color", "void", ctrl, bg_color, border_color);
-    }
-    
-    function control_set_position(ctrl, x, y) {
-        if (!lib_loaded) return;
-        ffi_call(lib_alias, "ipe_control_set_position", "void", ctrl, x, y);
-    }
-    
-    function control_set_size(ctrl, w, h) {
-        if (!lib_loaded) return;
-        ffi_call(lib_alias, "ipe_control_set_size", "void", ctrl, w, h);
-    }
-    
-    function control_set_visible(ctrl, visible) {
-        if (!lib_loaded) return;
-        let vis = visible ? 1 : 0;
-        ffi_call(lib_alias, "ipe_control_set_visible", "void", ctrl, vis);
-    }
-    
-    function control_set_enabled(ctrl, enabled) {
-        if (!lib_loaded) return;
-        let en = enabled ? 1 : 0;
-        ffi_call(lib_alias, "ipe_control_set_enabled", "void", ctrl, en);
-    }
-    
-    function control_add_child(parent, child) {
-        if (!lib_loaded) return;
-        ffi_call(lib_alias, "ipe_control_add_child", "void", parent, child);
-    }
-    
-    function control_remove_child(parent, child) {
-        if (!lib_loaded) return;
-        ffi_call(lib_alias, "ipe_control_remove_child", "void", parent, child);
-    }
-    
-    function control_set_root(ctrl) {
-        if (!lib_loaded) return;
-        ffi_call(lib_alias, "ipe_control_set_root", "void", ctrl);
-    }
-    
-    function control_get_root() {
-        if (!lib_loaded) return 0;
-        return ffi_call(lib_alias, "ipe_control_get_root", "pointer");
-    }
-    
-    function control_draw_recursive(ctrl, window) {
-        if (!lib_loaded) return;
-        ffi_call(lib_alias, "ipe_control_draw_recursive", "void", ctrl, window);
+    function unload() {
+        if (lib_loaded) {
+            ffi_unload_library(lib_alias);
+            lib_loaded = false;
+        }
     }
 }

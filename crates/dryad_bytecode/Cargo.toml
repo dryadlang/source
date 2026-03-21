@@ -9,4 +9,8 @@ dryad_errors = { workspace = true }
 dryad_parser = { workspace = true }
 
 [dev-dependencies]
-# Testes serão adicionados posteriormente
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "compiler_performance"
+harness = false

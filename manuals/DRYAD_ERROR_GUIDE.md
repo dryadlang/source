@@ -154,14 +154,14 @@ let text = "Hello\\n World"; // Use \n para nova linha
 **Exemplo de Código Problemático:**
 ```dryad
 if (x > 0 {  // E2001: Esperado ')', encontrado '{'
-    console.log("positive");
+    println("positive");
 }
 ```
 
 **Solução:**
 ```dryad
 if (x > 0) {  // Adicione o parêntese de fechamento
-    console.log("positive");
+    println("positive");
 }
 ```
 
@@ -225,7 +225,7 @@ let divisor = 0;
 if (divisor != 0) {
     let result = 10 / divisor;
 } else {
-    console.log("Erro: divisor não pode ser zero");
+    println("Erro: divisor não pode ser zero");
 }
 ```
 
@@ -247,13 +247,13 @@ function safe_divide(a, b) {
 
 **Exemplo de Código Problemático:**
 ```dryad
-console.log(undefined_var);  // E3002: Variável não definida
+println(undefined_var);  // E3002: Variável não definida
 ```
 
 **Solução:**
 ```dryad
 let undefined_var = "agora está definida";
-console.log(undefined_var);
+println(undefined_var);
 ```
 
 ---
@@ -270,7 +270,7 @@ nonexistent_function();  // E3003: Função não encontrada
 **Solução:**
 ```dryad
 function nonexistent_function() {
-    console.log("Agora existe!");
+    println("Agora existe!");
 }
 nonexistent_function();
 ```
@@ -317,7 +317,7 @@ let text = "não é número";
 if (is_numeric(text)) {
     let num = Number(text);
 } else {
-    console.log("Valor não é numérico");
+    println("Valor não é numérico");
 }
 ```
 
@@ -338,9 +338,9 @@ let content = read_file("arquivo_inexistente.txt");  // E5001
 ```dryad
 if (file_exists("arquivo.txt")) {
     let content = read_file("arquivo.txt");
-    console.log(content);
+    println(content);
 } else {
-    console.log("Arquivo não encontrado");
+    println("Arquivo não encontrado");
 }
 ```
 
@@ -431,7 +431,7 @@ const y = 10;  // Constante
 ```dryad
 let unused_var = 42;  // W8001: Nunca utilizada
 let used_var = 10;
-console.log(used_var);
+println(used_var);
 ```
 
 **Soluções:**

@@ -54,7 +54,7 @@ A sintaxe `thread function` é um açúcar sintático para o spawn de threads do
 
 ### 2. Declaração de Variáveis
 
-O parser suporta `let` e `const`. O uso de `var` é permitido por retrocompatibilidade, mas tratado internamente como `let`.
+O parser suporta `let` (mutável) e `const` (imutável). `var` **não é suportado** — use `let`.
 
 ```dryad
 let x = 10;

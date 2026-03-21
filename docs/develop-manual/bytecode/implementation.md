@@ -164,7 +164,7 @@ pub struct Compiler {
 **Suporte atual:**
 
 - Expressões literais, variáveis, binárias, unárias
-- Declarações de variáveis (var, const)
+- Declarações de variáveis (let, const)
 - Atribuições simples
 - Blocos e escopos
 - Controle de fluxo: if/else, while, do-while, for
@@ -207,8 +207,8 @@ use dryad_parser::Parser;
 fn main() {
     // Código fonte
     let source = r#"
-        var x = 10;
-        var y = 20;
+        let x = 10;
+        let y = 20;
         print x + y;
     "#;
 

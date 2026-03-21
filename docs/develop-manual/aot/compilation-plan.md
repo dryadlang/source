@@ -246,11 +246,11 @@ main:
     push rbp
     mov rbp, rsp
 
-    ; var x = 10
+    ; let x = 10
     mov rax, 10
     push rax
 
-    ; var y = 20
+    ; let y = 20
     mov rax, 20
     push rax
 
@@ -506,8 +506,8 @@ dryad build script.dryad -Os -o meu_app          # Otimizar tamanho
 // hello.dryad
 fn main() {
     print "Hello, World!";
-    var x = 10;
-    var y = 20;
+    let x = 10;
+    let y = 20;
     print x + y;
 }
 ```

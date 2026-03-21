@@ -41,15 +41,17 @@ match (valor) {
 
 ### 3. Organização via Namespaces
 
-O Dryad permite agrupar declarações em blocos nomeados para evitar colisões no escopo global:
+> ⚠️ **NÃO IMPLEMENTADO**: O bloco `namespace` existe no AST (`Stmt::Namespace`) mas **não está implementado** no lexer (não é keyword) nem no parser (sem handler). O operador `::` funciona como acesso a propriedade.
 
 ```dryad
+// BROKEN — namespace como bloco NÃO funciona
 namespace MathUtils {
     let PI = 3.14159;
     fn circleArea(r) => PI * (r ** 2);
 }
 
-println(MathUtils.circleArea(10));
+// O operador :: funciona como acesso a propriedade:
+// MathUtils::circleArea(10) — equivalente a MathUtils.circleArea(10)
 ```
 
 ### 4. Sistema de Erros (Result & ?)
@@ -83,13 +85,24 @@ println("Hello World");
 
 ### Operadores e Precedência
 
-| Nível | Operadores           | Descrição                 |
-| :---- | :------------------- | :------------------------ |
-| 1     | `()`, `[]`, `.`, `?` | Agrupamento e Acesso, Try |
-| 2     | `!`, `-`, `~`, `...` | Unários, Spread           |
-| 3     | `**`                 | Exponenciação             |
-| 4     | `*`, `/`, `%`, `%%`  | Multiplicativos           |
-| 5     | `+`, `-`             | Aditivos                  |
+> Para a tabela completa de precedência, consulte `SYNTAX_MANIFEST.md` (seção 7.1) na raiz do projeto.
+
+| Nível | Operadores                          | Descrição                 |
+| :---- | :---------------------------------- | :------------------------ |
+| 1 (menor) | `=`                            | Atribuição em expressão   |
+| 2     | `\|\|`                              | OR lógico                 |
+| 3     | `&&`                                | AND lógico                |
+| 4     | `\|`                                | OR bitwise                |
+| 5     | `^`                                 | XOR bitwise               |
+| 6     | `&`                                 | AND bitwise               |
+| 7     | `==`, `!=`                          | Igualdade                 |
+| 8     | `<`, `<=`, `>`, `>=`               | Comparação                |
+| 9     | `<<`, `>>`, `<<<`, `>>>`           | Shift bitwise             |
+| 10    | `+`, `-`                            | Aditivos                  |
+| 11    | `*`, `/`, `%`, `%%`                | Multiplicativos           |
+| 12    | `**`, `^^`, `##`                   | Potência (direita-assoc.) |
+| 13    | `!`, `-`, `++`, `--` (pré)         | Unários                   |
+| 14 (maior) | `++`, `--` (pós), `[]`, `.`, `()`, `::` | Postfix e Acesso |
 
 ---
 

@@ -176,8 +176,8 @@ impl Lexer {
 - **Funções**: `function`, `async`, `thread`, `return`
 - **Classes**: `class`, `extends`, `this`, `super`, `public`, `private`, `protected`, `static`
 - **Exceções**: `try`, `catch`, `finally`, `throw`
-- **Módulos**: `use`, `export`, `using`
-- **Primitivos**: `let`, `var`, `true`, `false`, `null`, `const`
+- **Módulos**: `use`, `import`, `export`, `from`, `as`
+- **Primitivos**: `let`, `const`, `true`, `false`, `null`
 - **Threading**: `mutex`, `await`
 
 #### 3. **Operadores**
@@ -243,7 +243,7 @@ pub enum Stmt {
     While(Expr, Box<Stmt>),              // while (condição) { }
     DoWhile(Box<Stmt>, Expr),            // do { } while (condição)
     For(Option<Box<Stmt>>, Option<Expr>, Option<Box<Stmt>>, Box<Stmt>),
-    ForEach(String, Expr, Box<Stmt>),    // for var in iterable { }
+    ForEach(Pattern, Expr, Box<Stmt>),  // for pattern in iterable { }
     Break,                               // break;
     Continue,                            // continue;
     

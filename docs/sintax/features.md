@@ -35,7 +35,7 @@ Legenda: ✅ 100% | 🚧 Em andamento | 📋 Planejado
 
 - [x] **Classes**: ✅ Membros estáticos, propriedades e métodos.
 - [x] **Visibilidade**: ✅ `public` e `private` funcionais (verificação em runtime).
-- [x] **Interfaces**: ✅ Implementação de múltiplos contratos via `implements`.
+- [x] **Interfaces**: ⛔ **QUEBRADO** — Parser espera `Token::Keyword("interface")` mas lexer gera `Token::Identifier`. Não funcional até `interface` e `implements` serem adicionados como keywords no lexer.
 - [x] **Pattern Matching**: ✅ Match avançado, bindings, guards e rest patterns (`...`).
 - [x] **Destructuring & Spread**: ✅ Suporte total em let, const, arrays e funções.
 
@@ -44,6 +44,8 @@ Legenda: ✅ 100% | 🚧 Em andamento | 📋 Planejado
 - [x] **Oak PM**: ✅ Instalação e execução de pacotes via CLI.
 - [x] **Dryad Checker**: ✅ Verificação de tipos para variáveis e assinaturas.
 - [w] **AOT Compilation**: 🚧 Protótipo funcional para Windows/Linux (55%).
+- [x] **Import Identifier**: ✅ Suporte a `import modulo` (sem aspas) desde v0.1.1.
+- [x] **Namespace Operator**: ✅ Suporte a `::` para acesso a propriedades. Nota: `namespace` como bloco declarativo (`namespace Name { ... }`) **NÃO está implementado** — AST existe mas lexer e parser não suportam.
 
 ---
 

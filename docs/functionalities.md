@@ -24,8 +24,8 @@ Legenda:
 
 ### Controle de Fluxo
 
-- **[implementado]**: Estruturas de controle como `if`, `else`, `while`, `for` e `for-in`.
-- **[parcialmente]**: Suporte a `switch` ainda em desenvolvimento.
+- **[implementado]**: Estruturas de controle como `if`, `else`, `while`, `for`, `for-in` e `match` (pattern matching).
+- **[não implementado]**: `switch` não existe — use `match` como alternativa.
 
 ### Funções
 

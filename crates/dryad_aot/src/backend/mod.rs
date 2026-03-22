@@ -4,6 +4,8 @@
 //! Backends convertem a IR para código de máquina específico de arquitetura.
 
 pub mod arm64;
+pub mod liveness;
+pub mod register_allocator;
 pub mod x86_64;
 
 use crate::ir::IrModule;

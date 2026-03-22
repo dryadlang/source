@@ -3,8 +3,13 @@
 //!
 //! Gera código de máquina x86_64 a partir da IR.
 
-use super::Backend;
+use super::{
+    liveness::LivenessAnalyzer,
+    register_allocator::{AllocationResult, LinearScanAllocator, PhysicalReg},
+    Backend,
+};
 use crate::ir::*;
+use std::collections::HashMap;
 
 /// Backend para x86_64
 pub struct X86_64Backend {
@@ -35,16 +40,20 @@ impl X86_64Backend {
 
     /// Compila uma função
     fn compile_function(&self, func: &IrFunction) -> Result<Vec<u8>, String> {
-        let mut codegen = X86_64Codegen::new(self.calling_conv);
+        let live_ranges = LivenessAnalyzer::analyze(func);
+        let allocation = LinearScanAllocator::allocate(&live_ranges);
+
+        let mut codegen = X86_64Codegen::new(self.calling_conv, allocation);
 
         // Prologue
         codegen.emit_push_rbp();
         codegen.emit_mov_rbp_rsp();
 
-        // Alocar stack para variáveis locais
+        // Alocar stack para variáveis locais + spills
         let locals_size = self.calculate_locals_size(func);
-        if locals_size > 0 {
-            codegen.emit_sub_rsp(locals_size);
+        let total_stack_needed = locals_size + codegen.alloc.total_spill_size as u32;
+        if total_stack_needed > 0 {
+            codegen.emit_sub_rsp(total_stack_needed);
         }
 
         // Compilar cada bloco
@@ -84,49 +93,59 @@ impl X86_64Backend {
     ) -> Result<(), String> {
         match instr {
             IrInstruction::LoadConst { dest, value } => {
-                // TODO: Implementar carregamento de constantes
+                let dest_reg = codegen.get_phys_reg(*dest)?;
                 match value {
                     IrValue::Constant(IrConstant::I32(n)) => {
-                        codegen.emit_mov_imm32(*dest as u8, *n);
+                        codegen.emit_mov_imm32(dest_reg, *n);
                     }
                     IrValue::Constant(IrConstant::I64(n)) => {
-                        codegen.emit_mov_imm64(*dest as u8, *n);
+                        codegen.emit_mov_imm64(dest_reg, *n);
                     }
                     _ => return Err(format!("Constante não suportada: {:?}", value)),
                 }
             }
 
             IrInstruction::Add { dest, lhs, rhs } => {
-                // mov rax, lhs
-                // add rax, rhs
-                // mov dest, rax
-                codegen.emit_mov_reg_reg(0, *lhs as u8); // rax = lhs
-                codegen.emit_add_reg_reg(0, *rhs as u8); // rax += rhs
-                codegen.emit_mov_reg_reg(*dest as u8, 0); // dest = rax
+                let dest_reg = codegen.get_phys_reg(*dest)?;
+                let lhs_reg = codegen.get_phys_reg(*lhs)?;
+                let rhs_reg = codegen.get_phys_reg(*rhs)?;
+
+                codegen.emit_mov_reg_reg(0, lhs_reg); // rax = lhs
+                codegen.emit_add_reg_reg(0, rhs_reg); // rax += rhs
+                codegen.emit_mov_reg_reg(dest_reg, 0); // dest = rax
             }
 
             IrInstruction::Sub { dest, lhs, rhs } => {
-                codegen.emit_mov_reg_reg(0, *lhs as u8);
-                codegen.emit_sub_reg_reg(0, *rhs as u8);
-                codegen.emit_mov_reg_reg(*dest as u8, 0);
+                let dest_reg = codegen.get_phys_reg(*dest)?;
+                let lhs_reg = codegen.get_phys_reg(*lhs)?;
+                let rhs_reg = codegen.get_phys_reg(*rhs)?;
+
+                codegen.emit_mov_reg_reg(0, lhs_reg);
+                codegen.emit_sub_reg_reg(0, rhs_reg);
+                codegen.emit_mov_reg_reg(dest_reg, 0);
             }
 
             IrInstruction::Mul { dest, lhs, rhs } => {
-                codegen.emit_mov_reg_reg(0, *lhs as u8);
-                codegen.emit_imul_reg_reg(0, *rhs as u8);
-                codegen.emit_mov_reg_reg(*dest as u8, 0);
+                let dest_reg = codegen.get_phys_reg(*dest)?;
+                let lhs_reg = codegen.get_phys_reg(*lhs)?;
+                let rhs_reg = codegen.get_phys_reg(*rhs)?;
+
+                codegen.emit_mov_reg_reg(0, lhs_reg);
+                codegen.emit_imul_reg_reg(0, rhs_reg);
+                codegen.emit_mov_reg_reg(dest_reg, 0);
             }
 
             IrInstruction::CmpEq { dest, lhs, rhs } => {
-                // cmp lhs, rhs
-                // sete dest
-                codegen.emit_mov_reg_reg(0, *lhs as u8);
-                codegen.emit_cmp_reg_reg(0, *rhs as u8);
-                codegen.emit_sete(*dest as u8);
+                let dest_reg = codegen.get_phys_reg(*dest)?;
+                let lhs_reg = codegen.get_phys_reg(*lhs)?;
+                let rhs_reg = codegen.get_phys_reg(*rhs)?;
+
+                codegen.emit_mov_reg_reg(0, lhs_reg);
+                codegen.emit_cmp_reg_reg(0, rhs_reg);
+                codegen.emit_sete(dest_reg);
             }
 
             _ => {
-                // Outras instruções ainda não implementadas
                 return Err(format!("Instrução não suportada: {:?}", instr));
             }
         }
@@ -143,8 +162,8 @@ impl X86_64Backend {
         match term {
             IrTerminator::Return(reg) => {
                 if let Some(r) = reg {
-                    // mov rax, reg
-                    codegen.emit_mov_reg_reg(0, *r as u8);
+                    let ret_reg = codegen.get_phys_reg(*r)?;
+                    codegen.emit_mov_reg_reg(0, ret_reg); // rax = return value
                 }
                 // Epilogue
                 codegen.emit_mov_rsp_rbp();
@@ -161,10 +180,8 @@ impl X86_64Backend {
                 then_block,
                 else_block,
             } => {
-                // test cond, cond
-                // jz else_block
-                // jmp then_block
-                codegen.emit_test_reg_reg(*cond as u8, *cond as u8);
+                let cond_reg = codegen.get_phys_reg(*cond)?;
+                codegen.emit_test_reg_reg(cond_reg, cond_reg);
                 codegen.emit_jz(*else_block);
                 codegen.emit_jmp(*then_block);
             }
@@ -215,17 +232,37 @@ struct X86_64Codegen {
     /// Convenção de chamada
     calling_conv: CallingConvention,
 
-    /// Labels pendentes (para resolver saltos)
-    pending_labels: Vec<(BlockId, usize)>,
+    /// Resultado de alocação de registradores
+    alloc: AllocationResult,
+
+    /// Mapeamento de RegisterId para PhysicalReg encoding
+    reg_map: HashMap<RegisterId, u8>,
 }
 
 impl X86_64Codegen {
-    fn new(calling_conv: CallingConvention) -> Self {
+    fn new(calling_conv: CallingConvention, alloc: AllocationResult) -> Self {
+        let mut reg_map = HashMap::new();
+
+        for (vreg, phys_opt) in &alloc.alloc {
+            if let Some(phys) = phys_opt {
+                reg_map.insert(*vreg, phys.encoding());
+            }
+        }
+
         Self {
             code: Vec::new(),
             calling_conv,
-            pending_labels: Vec::new(),
+            alloc,
+            reg_map,
         }
+    }
+
+    /// Maps virtual register to physical register encoding
+    fn get_phys_reg(&self, vreg: RegisterId) -> Result<u8, String> {
+        self.reg_map
+            .get(&vreg)
+            .copied()
+            .ok_or_else(|| format!("Virtual register {} not allocated", vreg))
     }
 
     // Instruções básicas

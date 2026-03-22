@@ -175,3 +175,66 @@ impl Generator for ElfGenerator {
         ""
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::ir::IrModule;
+
+    #[test]
+    fn test_elf_header_validity() {
+        let gen = ElfGenerator::new();
+        let code = vec![0x90; 100];
+        let module = IrModule {
+            name: "test".to_string(),
+            functions: vec![],
+            globals: vec![],
+            metadata: std::collections::HashMap::new(),
+            next_register_id: 0,
+            next_block_id: 0,
+        };
+
+        let elf_binary = gen
+            .generate_object(&module, &code)
+            .expect("ELF generation failed");
+
+        // Check ELF magic number
+        assert_eq!(&elf_binary[0..4], b"\x7FELF", "ELF magic number mismatch");
+
+        // Check ELFCLASS64 (2)
+        assert_eq!(elf_binary[4], 2, "ELFCLASS64 mismatch");
+
+        // Check minimum size
+        assert!(elf_binary.len() >= 64, "ELF binary too small");
+    }
+
+    #[test]
+    fn test_elf_program_headers() {
+        let gen = ElfGenerator::new();
+        let code = vec![0x90; 100];
+        let module = IrModule {
+            name: "test".to_string(),
+            functions: vec![],
+            globals: vec![],
+            metadata: std::collections::HashMap::new(),
+            next_register_id: 0,
+            next_block_id: 0,
+        };
+
+        let elf_binary = gen
+            .generate_object(&module, &code)
+            .expect("ELF generation failed");
+
+        // Check ELF magic
+        assert_eq!(&elf_binary[0..4], b"\x7FELF");
+
+        // Check minimum 4KB alignment
+        assert_eq!(elf_binary.len() % 4096, 0, "ELF binary not aligned to 4KB");
+
+        // Check that binary contains code
+        assert!(
+            elf_binary.len() > 256,
+            "ELF binary too small to contain program header + code"
+        );
+    }
+}

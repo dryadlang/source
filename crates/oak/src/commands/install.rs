@@ -132,7 +132,7 @@ async fn install_single_package(
     Ok(())
 }
 
-fn calculate_dir_hash(dir: &Path) -> Result<String, Box<dyn std::error::Error>> {
+pub fn calculate_dir_hash(dir: &Path) -> Result<String, Box<dyn std::error::Error>> {
     let mut hasher = Sha256::new();
     let mut entries: Vec<PathBuf> = Vec::new();
     

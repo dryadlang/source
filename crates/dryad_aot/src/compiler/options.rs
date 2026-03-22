@@ -1,7 +1,7 @@
 // crates/dryad_aot/src/compiler/options.rs
 //! Opções de compilação
 
-use crate::backend::{x86_64::X86_64Backend, Backend};
+use crate::backend::{arm64::Arm64Backend, x86_64::X86_64Backend, Backend};
 use crate::generator::{elf::ElfGenerator, pe::PeGenerator, Generator};
 
 /// Alvo de compilação
@@ -40,9 +40,8 @@ impl Target {
             Target::X86_64Linux | Target::X86_64Windows | Target::X86_64MacOS => {
                 Box::new(X86_64Backend::new())
             }
-            _ => {
-                // TODO: Implementar ARM64
-                unimplemented!("ARM64 ainda não suportado");
+            Target::Arm64Linux | Target::Arm64Windows | Target::Arm64MacOS => {
+                Box::new(Arm64Backend::new())
             }
         }
     }

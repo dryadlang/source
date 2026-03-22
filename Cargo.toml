@@ -8,8 +8,10 @@ members = [
     "crates/dryad_benchmark",
     "crates/dryad_bytecode",
     "crates/dryad_aot",
-    "crates/oak"
-, "crates/dryad_checker"]
+    "crates/oak",
+    "crates/dryad_checker",
+    "binary_dryad_test"
+]
 resolver = "2"
 
 [workspace.dependencies]

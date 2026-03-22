@@ -61,6 +61,9 @@ impl X86_64Backend {
             self.compile_block(block, &mut codegen)?;
         }
 
+        // Resolver saltos após compilar todos os blocos
+        codegen.resolve_labels();
+
         // Epilogue (caso não tenha ret explícito)
         codegen.emit_mov_rsp_rbp();
         codegen.emit_pop_rbp();
@@ -237,6 +240,12 @@ struct X86_64Codegen {
 
     /// Mapeamento de RegisterId para PhysicalReg encoding
     reg_map: HashMap<RegisterId, u8>,
+
+    /// Mapeamento de BlockId para posição de código
+    label_positions: HashMap<BlockId, usize>,
+
+    /// Saltos pendentes: (posição do offset, tamanho, BlockId destino)
+    pending_jumps: Vec<(usize, usize, BlockId)>,
 }
 
 impl X86_64Codegen {
@@ -254,6 +263,24 @@ impl X86_64Codegen {
             calling_conv,
             alloc,
             reg_map,
+            label_positions: HashMap::new(),
+            pending_jumps: Vec::new(),
+        }
+    }
+
+    #[cfg(test)]
+    fn new_for_test() -> Self {
+        Self {
+            code: Vec::new(),
+            calling_conv: CallingConvention::SystemV,
+            alloc: AllocationResult {
+                alloc: HashMap::new(),
+                spill_offsets: HashMap::new(),
+                total_spill_size: 0,
+            },
+            reg_map: HashMap::new(),
+            label_positions: HashMap::new(),
+            pending_jumps: Vec::new(),
         }
     }
 
@@ -386,30 +413,154 @@ impl X86_64Codegen {
         self.code.push(modrm);
     }
 
-    fn emit_jmp(&mut self, _block_id: BlockId) {
-        // jmp rel32
-        // TODO: Implementar resolução de labels
+    fn emit_jmp(&mut self, block_id: BlockId) {
+        let offset = self.code.len();
         self.code.push(0xE9);
-        self.code.extend(&[0x00, 0x00, 0x00, 0x00]); // Placeholder
+        let placeholder_offset = self.code.len();
+        self.code.extend(&[0x00, 0x00, 0x00, 0x00]);
+        self.record_pending_jump(block_id, placeholder_offset, 4);
     }
 
-    fn emit_jz(&mut self, _block_id: BlockId) {
-        // jz rel32
-        // TODO: Implementar resolução de labels
+    fn emit_jz(&mut self, block_id: BlockId) {
         self.code.push(0x0F);
         self.code.push(0x84);
-        self.code.extend(&[0x00, 0x00, 0x00, 0x00]); // Placeholder
+        let placeholder_offset = self.code.len();
+        self.code.extend(&[0x00, 0x00, 0x00, 0x00]);
+        self.record_pending_jump(block_id, placeholder_offset, 4);
     }
 
     fn emit_label(&mut self, block_id: BlockId) {
-        // Marca a posição atual como um label
-        let pos = self.code.len();
-        // TODO: Resolver saltos pendentes para este label
-        let _ = block_id; // Evitar warning por enquanto
-        let _ = pos;
+        self.record_label(block_id);
+    }
+
+    #[cfg(test)]
+    fn emit_nop(&mut self) {
+        self.code.push(0x90);
+    }
+
+    fn record_label(&mut self, block_id: BlockId) {
+        self.label_positions.insert(block_id, self.code.len());
+    }
+
+    fn record_pending_jump(&mut self, block_id: BlockId, offset: usize, size: usize) {
+        self.pending_jumps.push((offset, size, block_id));
+    }
+
+    fn resolve_labels(&mut self) {
+        for (offset, size, target_block) in self.pending_jumps.drain(..) {
+            if let Some(&target_pos) = self.label_positions.get(&target_block) {
+                let current_pos = offset + size;
+                let delta = target_pos as i32 - current_pos as i32;
+
+                let delta_bytes = delta.to_le_bytes();
+                for (i, &byte) in delta_bytes.iter().enumerate() {
+                    self.code[offset + i] = byte;
+                }
+            }
+        }
     }
 
     fn finish(self) -> Vec<u8> {
         self.code
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_label_resolution() {
+        let mut codegen = X86_64Codegen::new_for_test();
+
+        // Emit forward jump (target not yet at this position)
+        let offset_before_jmp = codegen.code.len();
+        codegen.emit_jmp(0); // Jump to label 0
+
+        // Emit code
+        codegen.emit_nop();
+        codegen.emit_nop();
+
+        // Mark label 0 at this position
+        let label_position = codegen.code.len();
+        codegen.emit_label(0);
+
+        // Now resolve labels
+        codegen.resolve_labels();
+
+        // Extract the 4-byte offset from the jump instruction
+        let offset_bytes = &codegen.code[offset_before_jmp + 1..offset_before_jmp + 5];
+        let offset_value = i32::from_le_bytes([
+            offset_bytes[0],
+            offset_bytes[1],
+            offset_bytes[2],
+            offset_bytes[3],
+        ]);
+
+        // Calculate expected offset: target - (jmp_position + jmp_instruction_size)
+        let expected_offset = label_position as i32 - (offset_before_jmp as i32 + 5);
+
+        assert_eq!(offset_value, expected_offset);
+    }
+
+    #[test]
+    fn test_backward_jump_resolution() {
+        let mut codegen = X86_64Codegen::new_for_test();
+
+        // Emit some code
+        codegen.emit_nop();
+        codegen.emit_nop();
+
+        let label_0_pos = codegen.code.len();
+        codegen.emit_label(0);
+
+        // Emit more code
+        codegen.emit_nop();
+
+        // Emit backward jump to label 0
+        let jmp_pos = codegen.code.len();
+        codegen.emit_jmp(0);
+
+        codegen.resolve_labels();
+
+        let offset_bytes = &codegen.code[jmp_pos + 1..jmp_pos + 5];
+        let offset_value = i32::from_le_bytes([
+            offset_bytes[0],
+            offset_bytes[1],
+            offset_bytes[2],
+            offset_bytes[3],
+        ]);
+
+        let expected_offset = label_0_pos as i32 - (jmp_pos as i32 + 5);
+        assert_eq!(offset_value, expected_offset);
+    }
+
+    #[test]
+    fn test_conditional_jump_resolution() {
+        let mut codegen = X86_64Codegen::new_for_test();
+
+        let jmp_pos = codegen.code.len();
+        codegen.emit_jz(0); // jz to label 0
+
+        // Emit nops
+        for _ in 0..5 {
+            codegen.emit_nop();
+        }
+
+        let label_0_pos = codegen.code.len();
+        codegen.emit_label(0);
+
+        codegen.resolve_labels();
+
+        let offset_bytes = &codegen.code[jmp_pos + 2..jmp_pos + 6];
+        let offset_value = i32::from_le_bytes([
+            offset_bytes[0],
+            offset_bytes[1],
+            offset_bytes[2],
+            offset_bytes[3],
+        ]);
+
+        let expected_offset = label_0_pos as i32 - (jmp_pos as i32 + 6);
+        assert_eq!(offset_value, expected_offset);
     }
 }

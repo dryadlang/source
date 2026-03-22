@@ -19,10 +19,15 @@ fn test_bytecode_to_pe_simple_arithmetic() {
     assert_eq!(ir_module.functions.len(), 1);
 
     let gen = PeGenerator::new();
+    let machine_code = vec![0x90; 512];
     let pe_binary = gen
-        .generate_object(&ir_module, &vec![0x90; 100])
+        .generate_object(&ir_module, &machine_code)
         .expect("PE generation failed");
 
-    assert_eq!(&pe_binary[0..2], b"MZ");
-    assert!(pe_binary.len() >= 512);
+    assert_eq!(&pe_binary[0..2], b"MZ", "MZ header magic number mismatch");
+    assert!(
+        pe_binary.len() >= 512,
+        "PE binary must be at least 512 bytes"
+    );
+    assert_eq!(&pe_binary[64..68], b"PE\0\0", "PE signature mismatch");
 }

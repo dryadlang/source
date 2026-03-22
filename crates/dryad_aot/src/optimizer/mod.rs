@@ -54,6 +54,9 @@ mod tests {
             metadata: HashMap::new(),
             next_register_id: 0,
             next_block_id: 0,
+            locals: vec![],
+            next_local_id: 0,
+            current_stack_offset: 0,
         };
 
         let pipeline = OptimizationPipeline::new();
@@ -94,6 +97,9 @@ mod tests {
             metadata: HashMap::new(),
             next_register_id: 0,
             next_block_id: 2,
+            locals: vec![],
+            next_local_id: 0,
+            current_stack_offset: 0,
         };
 
         let pipeline = OptimizationPipeline::new();

@@ -60,14 +60,16 @@ dryad build script.dryad --target=x86_64-windows -o programa.exe
 ## Status
 
 - [x] Estrutura básica
-- [x] IR completa
-- [x] Conversor Bytecode → IR
-- [x] Backend x86_64 (parcial)
+- [x] IR completa  
+- [x] Conversor Bytecode → IR (completo para 60+ opcodes)
+- [x] Backend x86_64 (partial)
+- [x] Backend ARM64 (completo)
 - [x] Gerador ELF básico
-- [ ] Gerador PE
-- [ ] Backend ARM64
-- [ ] Otimizações
-- [ ] Debug info
+- [x] Gerador PE (PE32+ completo)
+- [x] Otimizações (DCE + constant folding)
+- [x] Local variables (stack allocation)
+- [ ] Debug info (DWARF)
+- [ ] Runtime library linking
 
 ## Alvos Suportados
 

@@ -3,7 +3,7 @@
 //!
 //! Instruções de baixo nível independentes de arquitetura específica.
 
-use super::{BlockId, IrType, IrValue, RegisterId};
+use super::{BlockId, IrValue, RegisterId};
 
 /// Instrução da IR
 #[derive(Debug, Clone, PartialEq)]

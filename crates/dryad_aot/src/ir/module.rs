@@ -3,7 +3,7 @@
 //!
 //! Representa um módulo completo com funções, globais e metadados.
 
-use super::{BlockId, IrBlock, IrInstruction, IrType, IrValue};
+use super::{BlockId, IrBlock, IrType, IrValue};
 use std::collections::HashMap;
 
 /// Módulo IR completo
@@ -26,6 +26,15 @@ pub struct IrModule {
 
     /// Contador de blocos
     pub next_block_id: u32,
+
+    /// Variáveis locais do módulo
+    pub locals: Vec<IrLocal>,
+
+    /// Contador para IDs únicos de variáveis locais
+    pub next_local_id: u32,
+
+    /// Offset atual do stack para alocação
+    pub current_stack_offset: i32,
 }
 
 impl IrModule {
@@ -37,6 +46,9 @@ impl IrModule {
             metadata: HashMap::new(),
             next_register_id: 0,
             next_block_id: 0,
+            locals: Vec::new(),
+            next_local_id: 0,
+            current_stack_offset: 0,
         }
     }
 

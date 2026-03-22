@@ -79,10 +79,10 @@ impl PeGenerator {
         header.extend(&(0x100000u64).to_le_bytes()); // HeapReserveSize
         header.extend(&(0x1000u64).to_le_bytes()); // HeapCommitSize
         header.extend(&(0u32).to_le_bytes()); // LoaderFlags
-        header.extend(&(16u32).to_le_bytes()); // NumberOfRvaAndSizes
+        header.extend(&(14u32).to_le_bytes()); // NumberOfRvaAndSizes
 
-        // Data directories (16 entries, 8 bytes each)
-        for _ in 0..16 {
+        // Data directories (14 entries, 8 bytes each = 112 bytes)
+        for _ in 0..14 {
             header.extend(&(0u32).to_le_bytes()); // VirtualAddress
             header.extend(&(0u32).to_le_bytes()); // Size
         }

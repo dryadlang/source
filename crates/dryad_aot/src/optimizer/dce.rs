@@ -25,6 +25,9 @@ impl Optimizer for DeadCodeEliminator {
             metadata: module.metadata,
             next_register_id: module.next_register_id,
             next_block_id: module.next_block_id,
+            locals: module.locals,
+            next_local_id: module.next_local_id,
+            current_stack_offset: module.current_stack_offset,
         }
     }
 }

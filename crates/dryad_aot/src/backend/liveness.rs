@@ -4,7 +4,6 @@
 //! Determines which virtual registers are live at each instruction.
 
 use crate::ir::*;
-use std::collections::HashSet;
 
 /// Computes live ranges for all virtual registers in a function
 pub struct LivenessAnalyzer;

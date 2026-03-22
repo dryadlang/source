@@ -277,8 +277,25 @@ impl BytecodeToIrConverter {
                 self.set_terminator(IrTerminator::Return(value));
             }
 
+            OpCode::GetLocal(local_idx) => {
+                let local_offset = (*local_idx as i32) * 8;
+                let dest = self.push_register();
+                self.add_instruction(IrInstruction::LoadLocal {
+                    dest,
+                    offset: local_offset,
+                });
+            }
+
+            OpCode::SetLocal(local_idx) => {
+                let value = self.pop_register()?;
+                let addr_reg = self.module.new_register();
+                self.add_instruction(IrInstruction::Store {
+                    ptr: addr_reg,
+                    value,
+                });
+            }
+
             _ => {
-                // Outros opcodes ainda não implementados
                 return Err(format!("Opcode não suportado: {:?}", op));
             }
         }
@@ -471,5 +488,44 @@ mod converter_tests {
             .iter()
             .any(|instr| matches!(instr, IrInstruction::LogicalAnd { .. }));
         assert!(has_and, "LogicalAnd instruction not found");
+    }
+
+    #[test]
+    fn test_convert_get_local() {
+        let mut chunk = Chunk::empty();
+        chunk.push_op(OpCode::GetLocal(0), 1);
+
+        let mut converter = BytecodeToIrConverter::new();
+        let module = converter.convert(&chunk).expect("Convert failed");
+
+        let func = &module.functions[0];
+        let block = &func.blocks[0];
+        let has_load_local = block
+            .instructions
+            .iter()
+            .any(|instr| matches!(instr, IrInstruction::LoadLocal { .. }));
+        assert!(
+            has_load_local,
+            "LoadLocal instruction not found for GetLocal"
+        );
+    }
+
+    #[test]
+    fn test_convert_set_local() {
+        let mut chunk = Chunk::empty();
+        chunk.add_constant(Value::Number(42.0)).unwrap();
+        chunk.push_op(OpCode::Constant(0), 1);
+        chunk.push_op(OpCode::SetLocal(0), 1);
+
+        let mut converter = BytecodeToIrConverter::new();
+        let module = converter.convert(&chunk).expect("Convert failed");
+
+        let func = &module.functions[0];
+        let block = &func.blocks[0];
+        let has_store = block
+            .instructions
+            .iter()
+            .any(|instr| matches!(instr, IrInstruction::Store { .. }));
+        assert!(has_store, "Store instruction not found for SetLocal");
     }
 }

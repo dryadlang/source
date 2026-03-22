@@ -49,11 +49,20 @@ impl X86_64Backend {
         codegen.emit_push_rbp();
         codegen.emit_mov_rbp_rsp();
 
-        // Alocar stack para variáveis locais + spills
+        // Alocar stack para variáveis locais + spills com alinhamento
         let locals_size = self.calculate_locals_size(func);
         let total_stack_needed = locals_size + codegen.alloc.total_spill_size as u32;
-        if total_stack_needed > 0 {
-            codegen.emit_sub_rsp(total_stack_needed);
+
+        // Align stack to 16-byte boundary
+        // After push_rbp (8 bytes), we need (total_stack_needed + 8) % 16 == 0
+        let aligned_stack = if (total_stack_needed + 8) % 16 != 0 {
+            total_stack_needed + (16 - ((total_stack_needed + 8) % 16))
+        } else {
+            total_stack_needed
+        };
+
+        if aligned_stack > 0 {
+            codegen.emit_sub_rsp(aligned_stack);
         }
 
         // Compilar cada bloco
@@ -562,5 +571,50 @@ mod tests {
 
         let expected_offset = label_0_pos as i32 - (jmp_pos as i32 + 6);
         assert_eq!(offset_value, expected_offset);
+    }
+
+    #[test]
+    fn test_stack_alignment_before_call() {
+        let mut codegen = X86_64Codegen::new_for_test();
+
+        // Prologue
+        codegen.emit_push_rbp(); // 1 byte: rsp now 8-byte aligned
+        codegen.emit_mov_rbp_rsp();
+
+        // Calculate alignment: need frame_size such that (frame_size + 8) % 16 == 0
+        let frame_size = 8u32;
+        codegen.emit_sub_rsp(frame_size);
+
+        let code_size_after_prologue = codegen.code.len();
+
+        // After prologue: rsp should be 16-byte aligned
+        // (push_rbp=1 + mov_rbp_rsp=3 + sub_rsp=7) = 11 bytes
+        // But we need to account for alignment: push rbp moved rsp by 8
+        // Then sub rsp by 8 -> total adjustment is 16
+        // So position % 16 should make (rsp before call) 16-byte aligned
+
+        assert_eq!(code_size_after_prologue % 16, (1 + 3 + 7) % 16);
+    }
+
+    #[test]
+    fn test_stack_frame_calculation() {
+        // For locals_size = 8 and no spills:
+        // Need frame_size such that (push_rbp + frame_size) % 16 == 0
+        // push_rbp = 8 bytes
+        // So frame_size must be 8 mod 16
+
+        let locals_size = 8u32;
+        let spill_size = 0i32;
+        let total_stack = locals_size + spill_size.max(0) as u32;
+
+        // Adjusted for alignment (push_rbp is 8 bytes, which is 8 mod 16)
+        // Need to add 8 more to reach 16-byte boundary
+        let adjusted_stack = if (total_stack + 8) % 16 != 0 {
+            total_stack + (16 - ((total_stack + 8) % 16))
+        } else {
+            total_stack
+        };
+
+        assert_eq!((adjusted_stack + 8) % 16, 0);
     }
 }

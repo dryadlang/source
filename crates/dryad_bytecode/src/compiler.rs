@@ -923,9 +923,81 @@ impl Compiler {
                         // Eles seriam inicializados quando uma instância é criada
                     }
                 }
-                _ => {
-                    // Getters e setters - não implementados ainda
+                ClassMember::Getter {
+                    visibility: _visibility,
+                    is_static: _is_static,
+                    name: getter_name,
+                    body,
+                } => {
+                    let mut getter_compiler = Compiler::new();
+                    getter_compiler.scope_depth = 1;
+
+                    getter_compiler.add_local("this".to_string());
+
+                    getter_compiler.compile_statement(*body)?;
+
+                    getter_compiler.emit_op(OpCode::Nil, line);
+                    getter_compiler.emit_op(OpCode::Return, line);
+
+                    let getter_function = crate::value::Function {
+                        name: format!("__get_{}", getter_name),
+                        arity: 0,
+                        chunk: getter_compiler.current_chunk,
+                        upvalue_count: 0,
+                        upvalue_info: Vec::new(),
+                    };
+
+                    let method_idx = self.make_constant(
+                        crate::value::Value::Function(std::rc::Rc::new(getter_function)),
+                        line,
+                    )?;
+                    self.emit_op(OpCode::Constant(method_idx), line);
+
+                    let method_name_idx = self.make_constant(
+                        crate::value::Value::String(format!("__get_{}", getter_name)),
+                        line,
+                    )?;
+                    self.emit_op(OpCode::Method(method_name_idx), line);
                 }
+                ClassMember::Setter {
+                    visibility: _visibility,
+                    is_static: _is_static,
+                    name: setter_name,
+                    param,
+                    body,
+                } => {
+                    let mut setter_compiler = Compiler::new();
+                    setter_compiler.scope_depth = 1;
+
+                    setter_compiler.add_local("this".to_string());
+                    setter_compiler.add_local(param.clone());
+
+                    setter_compiler.compile_statement(*body)?;
+
+                    setter_compiler.emit_op(OpCode::Nil, line);
+                    setter_compiler.emit_op(OpCode::Return, line);
+
+                    let setter_function = crate::value::Function {
+                        name: format!("__set_{}", setter_name),
+                        arity: 1,
+                        chunk: setter_compiler.current_chunk,
+                        upvalue_count: 0,
+                        upvalue_info: Vec::new(),
+                    };
+
+                    let method_idx = self.make_constant(
+                        crate::value::Value::Function(std::rc::Rc::new(setter_function)),
+                        line,
+                    )?;
+                    self.emit_op(OpCode::Constant(method_idx), line);
+
+                    let method_name_idx = self.make_constant(
+                        crate::value::Value::String(format!("__set_{}", setter_name)),
+                        line,
+                    )?;
+                    self.emit_op(OpCode::Method(method_name_idx), line);
+                }
+                _ => {}
             }
         }
 

@@ -749,16 +749,63 @@ impl VM {
                         let obj_ref = obj.borrow();
                         match &*obj_ref {
                             Object::Instance { class_name, fields } => {
-                                // Procura primeiro nos campos da instância
-                                if let Some(value) = fields.get(&prop_name) {
+                                let getter_name = format!("__get_{}", prop_name);
+                                let mut getter_found: Option<Rc<Function>> = None;
+                                let mut current_class_name = Some(class_name.clone());
+
+                                while let Some(class_name_str) = current_class_name {
+                                    if let Some(Value::Object(class_id)) =
+                                        self.globals.get(&class_name_str)
+                                    {
+                                        if let Some(class_obj) = self.heap.get(*class_id) {
+                                            let class_ref = class_obj.borrow();
+                                            if let Object::Class {
+                                                methods,
+                                                superclass,
+                                                ..
+                                            } = &*class_ref
+                                            {
+                                                if let Some(getter) = methods.get(&getter_name) {
+                                                    getter_found = Some(Rc::clone(getter));
+                                                    break;
+                                                }
+                                                current_class_name =
+                                                    superclass.as_ref().and_then(|super_id| {
+                                                        self.heap.get(*super_id).and_then(
+                                                            |super_obj| {
+                                                                let super_ref = super_obj.borrow();
+                                                                if let Object::Class {
+                                                                    name, ..
+                                                                } = &*super_ref
+                                                                {
+                                                                    Some(name.clone())
+                                                                } else {
+                                                                    None
+                                                                }
+                                                            },
+                                                        )
+                                                    });
+                                            } else {
+                                                break;
+                                            }
+                                        } else {
+                                            break;
+                                        }
+                                    } else {
+                                        break;
+                                    }
+                                }
+
+                                if let Some(getter) = getter_found {
+                                    self.push(Value::Object(object_id));
+                                    self.call_function(getter, 0)?;
+                                } else if let Some(value) = fields.get(&prop_name) {
                                     self.push(value.clone());
                                 } else {
-                                    // Se não encontrou, procura na classe e suas superclasses
                                     let mut method_found: Option<Rc<Function>> = None;
                                     let mut current_class_name = Some(class_name.clone());
 
                                     while let Some(class_name_str) = current_class_name {
-                                        // Procura a classe nos globals
                                         if let Some(Value::Object(class_id)) =
                                             self.globals.get(&class_name_str)
                                         {
@@ -770,12 +817,10 @@ impl VM {
                                                     ..
                                                 } = &*class_ref
                                                 {
-                                                    // Procura o método nesta classe
                                                     if let Some(method) = methods.get(&prop_name) {
                                                         method_found = Some(Rc::clone(method));
                                                         break;
                                                     }
-                                                    // Move para a superclasse
                                                     current_class_name =
                                                         superclass.as_ref().and_then(|super_id| {
                                                             self.heap.get(*super_id).and_then(
@@ -806,7 +851,6 @@ impl VM {
                                     }
 
                                     if let Some(method) = method_found {
-                                        // Retorna o método como uma closure
                                         let closure_id =
                                             self.heap.allocate(Object::Closure(method, vec![]));
                                         self.push(Value::Object(closure_id));
@@ -843,13 +887,71 @@ impl VM {
 
                 if let Value::Object(object_id) = object {
                     if let Some(obj) = self.heap.get(object_id) {
-                        let mut obj_ref = obj.borrow_mut();
-                        match &mut *obj_ref {
-                            Object::Instance { fields, .. } => {
-                                fields.insert(prop_name, value.clone());
+                        match &*obj.borrow() {
+                            Object::Instance { class_name, .. } => {
+                                let setter_name = format!("__set_{}", prop_name);
+                                let mut setter_found: Option<Rc<Function>> = None;
+                                let mut current_class_name = Some(class_name.clone());
+
+                                while let Some(class_name_str) = current_class_name {
+                                    if let Some(Value::Object(class_id)) =
+                                        self.globals.get(&class_name_str)
+                                    {
+                                        if let Some(class_obj) = self.heap.get(*class_id) {
+                                            let class_ref = class_obj.borrow();
+                                            if let Object::Class {
+                                                methods,
+                                                superclass,
+                                                ..
+                                            } = &*class_ref
+                                            {
+                                                if let Some(setter) = methods.get(&setter_name) {
+                                                    setter_found = Some(Rc::clone(setter));
+                                                    break;
+                                                }
+                                                current_class_name =
+                                                    superclass.as_ref().and_then(|super_id| {
+                                                        self.heap.get(*super_id).and_then(
+                                                            |super_obj| {
+                                                                let super_ref = super_obj.borrow();
+                                                                if let Object::Class {
+                                                                    name, ..
+                                                                } = &*super_ref
+                                                                {
+                                                                    Some(name.clone())
+                                                                } else {
+                                                                    None
+                                                                }
+                                                            },
+                                                        )
+                                                    });
+                                            } else {
+                                                break;
+                                            }
+                                        } else {
+                                            break;
+                                        }
+                                    } else {
+                                        break;
+                                    }
+                                }
+
+                                if let Some(setter) = setter_found {
+                                    self.push(Value::Object(object_id));
+                                    self.push(value.clone());
+                                    self.call_function(setter, 1)?;
+                                } else {
+                                    let mut obj_ref = obj.borrow_mut();
+                                    if let Object::Instance { fields, .. } = &mut *obj_ref {
+                                        fields.insert(prop_name, value.clone());
+                                    }
+                                }
                             }
                             Object::Map(map) => {
-                                map.insert(prop_name, value.clone());
+                                let mut obj_ref = obj.borrow_mut();
+                                if let Object::Map(map_mut) = &mut *obj_ref {
+                                    map_mut.insert(prop_name, value.clone());
+                                }
                             }
                             _ => return Err("Objeto não suporta propriedades".to_string()),
                         }

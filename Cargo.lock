@@ -703,6 +703,7 @@ version = "0.1.0"
 dependencies = [
  "criterion",
  "dryad_errors",
+ "dryad_lexer",
  "dryad_parser",
 ]
 

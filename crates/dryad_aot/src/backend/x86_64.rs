@@ -469,6 +469,110 @@ impl X86_64Codegen {
         }
     }
 
+    fn emit_xor_reg_reg(&mut self, dest: u8, src: u8) {
+        // xor r64, r64
+        let modrm = 0xC0 | ((src & 7) << 3) | (dest & 7);
+        let rex = 0x48 | ((src >> 3) & 1) | (((dest >> 3) & 1) << 2);
+        self.code.push(rex);
+        self.code.push(0x31);
+        self.code.push(modrm);
+    }
+
+    fn emit_div_reg(&mut self, divisor: u8) {
+        // div r64 - divides rdx:rax by r64, result in rax, remainder in rdx
+        let modrm = 0xF0 | (divisor & 7);
+        let rex = 0x48 | ((divisor >> 3) & 1);
+        self.code.push(rex);
+        self.code.push(0xF7);
+        self.code.push(modrm);
+    }
+
+    fn emit_setne(&mut self, reg: u8) {
+        // setne r8 - set if not equal
+        let modrm = 0xC0 | (reg & 7);
+        let rex = 0x40 | ((reg >> 3) & 1);
+        self.code.push(rex);
+        self.code.push(0x0F);
+        self.code.push(0x95);
+        self.code.push(modrm);
+    }
+
+    fn emit_setl(&mut self, reg: u8) {
+        // setl r8 - set if less
+        let modrm = 0xC0 | (reg & 7);
+        let rex = 0x40 | ((reg >> 3) & 1);
+        self.code.push(rex);
+        self.code.push(0x0F);
+        self.code.push(0x9C);
+        self.code.push(modrm);
+    }
+
+    fn emit_setle(&mut self, reg: u8) {
+        // setle r8 - set if less or equal
+        let modrm = 0xC0 | (reg & 7);
+        let rex = 0x40 | ((reg >> 3) & 1);
+        self.code.push(rex);
+        self.code.push(0x0F);
+        self.code.push(0x9E);
+        self.code.push(modrm);
+    }
+
+    fn emit_setg(&mut self, reg: u8) {
+        // setg r8 - set if greater
+        let modrm = 0xC0 | (reg & 7);
+        let rex = 0x40 | ((reg >> 3) & 1);
+        self.code.push(rex);
+        self.code.push(0x0F);
+        self.code.push(0x9F);
+        self.code.push(modrm);
+    }
+
+    fn emit_setge(&mut self, reg: u8) {
+        // setge r8 - set if greater or equal
+        let modrm = 0xC0 | (reg & 7);
+        let rex = 0x40 | ((reg >> 3) & 1);
+        self.code.push(rex);
+        self.code.push(0x0F);
+        self.code.push(0x9D);
+        self.code.push(modrm);
+    }
+
+    fn emit_and_reg_reg(&mut self, dest: u8, src: u8) {
+        // and r64, r64
+        let modrm = 0xC0 | ((src & 7) << 3) | (dest & 7);
+        let rex = 0x48 | ((src >> 3) & 1) | (((dest >> 3) & 1) << 2);
+        self.code.push(rex);
+        self.code.push(0x21);
+        self.code.push(modrm);
+    }
+
+    fn emit_or_reg_reg(&mut self, dest: u8, src: u8) {
+        // or r64, r64
+        let modrm = 0xC0 | ((src & 7) << 3) | (dest & 7);
+        let rex = 0x48 | ((src >> 3) & 1) | (((dest >> 3) & 1) << 2);
+        self.code.push(rex);
+        self.code.push(0x09);
+        self.code.push(modrm);
+    }
+
+    fn emit_shl_reg_reg(&mut self, dest: u8, src: u8) {
+        // shl r64, cl (assume src is already in rcx / register 1)
+        let modrm = 0xE0 | (dest & 7);
+        let rex = 0x48 | ((dest >> 3) & 1);
+        self.code.push(rex);
+        self.code.push(0xD3);
+        self.code.push(modrm);
+    }
+
+    fn emit_shr_reg_reg(&mut self, dest: u8, src: u8) {
+        // shr r64, cl
+        let modrm = 0xE8 | (dest & 7);
+        let rex = 0x48 | ((dest >> 3) & 1);
+        self.code.push(rex);
+        self.code.push(0xD3);
+        self.code.push(modrm);
+    }
+
     fn finish(self) -> Vec<u8> {
         self.code
     }
@@ -616,5 +720,81 @@ mod tests {
         };
 
         assert_eq!((adjusted_stack + 8) % 16, 0);
+    }
+
+    #[test]
+    fn test_div_instruction_codegen() {
+        let mut codegen = X86_64Codegen::new_for_test();
+
+        codegen.emit_mov_imm64(0, 10);
+        codegen.emit_xor_reg_reg(2, 2);
+        codegen.emit_mov_imm64(1, 3);
+        codegen.emit_div_reg(1);
+
+        assert!(codegen.code.len() > 0);
+        assert!(codegen.code.contains(&0x48));
+    }
+
+    #[test]
+    fn test_mod_instruction_codegen() {
+        let mut codegen = X86_64Codegen::new_for_test();
+
+        codegen.emit_mov_imm64(0, 10);
+        codegen.emit_xor_reg_reg(2, 2);
+        codegen.emit_mov_imm64(1, 3);
+        codegen.emit_div_reg(1);
+
+        assert!(codegen.code.len() > 0);
+    }
+
+    #[test]
+    fn test_cmp_ne_instruction() {
+        let mut codegen = X86_64Codegen::new_for_test();
+
+        codegen.emit_mov_imm64(0, 5);
+        codegen.emit_mov_imm64(1, 5);
+        codegen.emit_cmp_reg_reg(0, 1);
+        codegen.emit_setne(0);
+
+        assert!(codegen.code.len() > 0);
+        assert!(codegen.code.contains(&0x95));
+    }
+
+    #[test]
+    fn test_cmp_lt_instruction() {
+        let mut codegen = X86_64Codegen::new_for_test();
+
+        codegen.emit_cmp_reg_reg(0, 1);
+        codegen.emit_setl(0);
+
+        assert!(codegen.code.len() > 0);
+        assert!(codegen.code.contains(&0x9C));
+    }
+
+    #[test]
+    fn test_logic_and_instruction() {
+        let mut codegen = X86_64Codegen::new_for_test();
+
+        codegen.emit_and_reg_reg(0, 1);
+
+        assert!(codegen.code.len() > 0);
+    }
+
+    #[test]
+    fn test_logic_or_instruction() {
+        let mut codegen = X86_64Codegen::new_for_test();
+
+        codegen.emit_or_reg_reg(0, 1);
+
+        assert!(codegen.code.len() > 0);
+    }
+
+    #[test]
+    fn test_shift_left_instruction() {
+        let mut codegen = X86_64Codegen::new_for_test();
+
+        codegen.emit_shl_reg_reg(0, 1);
+
+        assert!(codegen.code.len() > 0);
     }
 }

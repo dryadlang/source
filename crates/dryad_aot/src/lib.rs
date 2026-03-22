@@ -28,16 +28,17 @@
 //! compiler.compile_file("script.dryad", "output")?;
 //! ```
 
-pub mod ir;
 pub mod backend;
-pub mod generator;
-pub mod linker;
 pub mod compiler;
+pub mod generator;
+pub mod ir;
+pub mod linker;
+pub mod optimizer;
 
-pub use compiler::{AotCompiler, CompileOptions, Target};
-pub use ir::{IrModule, IrFunction, IrInstruction, IrType, IrValue};
 pub use backend::x86_64::X86_64Backend;
+pub use compiler::{AotCompiler, CompileOptions, Target};
 pub use generator::elf::ElfGenerator;
+pub use ir::{IrFunction, IrInstruction, IrModule, IrType, IrValue};
 
 /// Versão da crate
 pub const VERSION: &str = env!("CARGO_PKG_VERSION");

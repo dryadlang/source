@@ -288,9 +288,14 @@ impl BytecodeToIrConverter {
 
             OpCode::SetLocal(local_idx) => {
                 let value = self.pop_register()?;
-                let addr_reg = self.module.new_register();
+                let local_offset = (*local_idx as i32) * 8;
+                let local_addr = self.module.new_register();
+                self.add_instruction(IrInstruction::LoadLocal {
+                    dest: local_addr,
+                    offset: local_offset,
+                });
                 self.add_instruction(IrInstruction::Store {
-                    ptr: addr_reg,
+                    ptr: local_addr,
                     value,
                 });
             }

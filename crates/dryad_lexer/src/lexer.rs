@@ -344,6 +344,14 @@ impl<'a> Lexer<'a> {
             '}' => {
                 if self.brace_level > 0 {
                     self.brace_level -= 1;
+                    if let Some(&template_level) = self.template_nesting.last() {
+                        if self.brace_level == template_level {
+                            return Ok(TokenWithLocation {
+                                token: Token::InterpolationEnd,
+                                location: start_location,
+                            });
+                        }
+                    }
                 }
                 Ok(TokenWithLocation {
                     token: Token::Symbol('}'),

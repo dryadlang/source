@@ -47,11 +47,46 @@ impl PeGenerator {
         header
     }
 
-    /// Cria PE optional header (mínimo)
+    /// Creates PE32+ optional header (224 bytes)
     fn create_optional_header(code_size: u32) -> Vec<u8> {
         let mut header = Vec::new();
-        header.extend(&(0x20bu16).to_le_bytes()); // Magic (PE32+)
-        header.extend(&vec![0u8; 222]); // Placeholder para restante
+
+        header.extend(&(0x20Bu16).to_le_bytes()); // Magic (PE32+)
+        header.push(1); // MajorLinkerVersion
+        header.push(0); // MinorLinkerVersion
+        header.extend(&code_size.to_le_bytes()); // SizeOfCode
+        header.extend(&(0u32).to_le_bytes()); // SizeOfInitializedData
+        header.extend(&(0u32).to_le_bytes()); // SizeOfUninitializedData
+        header.extend(&(0x1000u32).to_le_bytes()); // AddressOfEntryPoint
+        header.extend(&(0x1000u32).to_le_bytes()); // BaseOfCode
+        header.extend(&(0x140000000u64).to_le_bytes()); // ImageBase
+        header.extend(&(0x1000u32).to_le_bytes()); // SectionAlignment
+        header.extend(&(0x200u32).to_le_bytes()); // FileAlignment
+        header.extend(&(6u16).to_le_bytes()); // MajorOperatingSystemVersion
+        header.extend(&(0u16).to_le_bytes()); // MinorOperatingSystemVersion
+        header.extend(&(0u16).to_le_bytes()); // MajorImageVersion
+        header.extend(&(0u16).to_le_bytes()); // MinorImageVersion
+        header.extend(&(6u16).to_le_bytes()); // MajorSubsystemVersion
+        header.extend(&(0u16).to_le_bytes()); // MinorSubsystemVersion
+        header.extend(&(0u32).to_le_bytes()); // Win32VersionValue
+        header.extend(&(0x2000u32).to_le_bytes()); // SizeOfImage
+        header.extend(&(0x400u32).to_le_bytes()); // SizeOfHeaders
+        header.extend(&(0u32).to_le_bytes()); // CheckSum
+        header.extend(&(3u16).to_le_bytes()); // Subsystem
+        header.extend(&(0u16).to_le_bytes()); // DllCharacteristics
+        header.extend(&(0x100000u64).to_le_bytes()); // StackReserveSize
+        header.extend(&(0x1000u64).to_le_bytes()); // StackCommitSize
+        header.extend(&(0x100000u64).to_le_bytes()); // HeapReserveSize
+        header.extend(&(0x1000u64).to_le_bytes()); // HeapCommitSize
+        header.extend(&(0u32).to_le_bytes()); // LoaderFlags
+        header.extend(&(16u32).to_le_bytes()); // NumberOfRvaAndSizes
+
+        // Data directories (16 entries, 8 bytes each)
+        for _ in 0..16 {
+            header.extend(&(0u32).to_le_bytes()); // VirtualAddress
+            header.extend(&(0u32).to_le_bytes()); // Size
+        }
+
         header
     }
 }
@@ -116,6 +151,9 @@ mod tests {
             metadata: HashMap::new(),
             next_register_id: 0,
             next_block_id: 0,
+            locals: vec![],
+            next_local_id: 0,
+            current_stack_offset: 0,
         };
 
         let pe_binary = gen
@@ -130,5 +168,37 @@ mod tests {
 
         // Check PE signature
         assert_eq!(&pe_binary[64..68], PE_MAGIC, "PE signature mismatch");
+    }
+
+    #[test]
+    fn test_pe_optional_header_structure() {
+        let header = PeGenerator::create_optional_header(0x1000);
+
+        // Verify magic is 0x20B (PE32+)
+        let magic = u16::from_le_bytes([header[0], header[1]]);
+        assert_eq!(magic, 0x20B, "Optional header magic should be 0x20B");
+
+        // Verify header is not all zeros
+        assert!(
+            header.iter().any(|&b| b != 0),
+            "Optional header should not be all zeros"
+        );
+
+        // Verify header size is exactly 224 bytes
+        assert_eq!(header.len(), 224, "Optional header must be 224 bytes");
+    }
+
+    #[test]
+    fn test_pe_image_base() {
+        let header = PeGenerator::create_optional_header(0x1000);
+
+        // ImageBase is at offset 24, 8 bytes, u64
+        let image_base_bytes = [
+            header[24], header[25], header[26], header[27], header[28], header[29], header[30],
+            header[31],
+        ];
+        let image_base = u64::from_le_bytes(image_base_bytes);
+
+        assert_eq!(image_base, 0x140000000, "ImageBase should be 0x140000000");
     }
 }

@@ -1033,6 +1033,28 @@ impl VM {
                 self.push(Value::Object(tuple_id));
             }
 
+            OpCode::Object(count) => {
+                // Desempilha 'count' pares chave-valor (key, value, key, value, ...)
+                let mut properties = HashMap::new();
+                let pair_count = *count as usize;
+
+                for _ in 0..pair_count {
+                    let value = self.pop()?;
+                    let key = self.pop()?;
+
+                    let key_str = match key {
+                        Value::String(s) => s,
+                        _ => return Err("Chaves de objeto devem ser strings".to_string()),
+                    };
+
+                    properties.insert(key_str, value);
+                }
+
+                // Aloca no heap
+                let obj_id = self.heap.allocate(Object::Map(properties));
+                self.push(Value::Object(obj_id));
+            }
+
             OpCode::TupleAccess(idx) => {
                 let tuple = self.pop()?;
                 let index = *idx as usize;

@@ -481,3 +481,48 @@ fn test_compound_assignment_bytecode() {
     let result = vm.interpret(chunk.unwrap());
     assert_eq!(result, InterpretResult::Ok, "Bytecode execution failed");
 }
+
+#[test]
+fn test_object_literal_bytecode() {
+    use dryad_lexer::Lexer;
+    use dryad_parser::Parser;
+
+    let source = r#"
+        let obj = { name: "Alice", age: 30 };
+    "#;
+
+    let mut lexer = Lexer::new(source);
+    let mut parser = Parser::new_from_lexer(&mut lexer).expect("Parser creation failed");
+    let program = parser.parse().expect("Parse failed");
+
+    let mut compiler = Compiler::new();
+    let chunk = compiler.compile(program);
+    assert!(chunk.is_ok(), "Compilation failed: {:?}", chunk.err());
+
+    let mut vm = VM::new();
+    let result = vm.interpret(chunk.unwrap());
+    assert_eq!(result, InterpretResult::Ok, "Bytecode execution failed");
+}
+
+#[test]
+fn test_object_property_access_bytecode() {
+    use dryad_lexer::Lexer;
+    use dryad_parser::Parser;
+
+    let source = r#"
+        let obj = { name: "Alice", age: 30 };
+        let n = obj.name;
+    "#;
+
+    let mut lexer = Lexer::new(source);
+    let mut parser = Parser::new_from_lexer(&mut lexer).expect("Parser creation failed");
+    let program = parser.parse().expect("Parse failed");
+
+    let mut compiler = Compiler::new();
+    let chunk = compiler.compile(program);
+    assert!(chunk.is_ok(), "Compilation failed: {:?}", chunk.err());
+
+    let mut vm = VM::new();
+    let result = vm.interpret(chunk.unwrap());
+    assert_eq!(result, InterpretResult::Ok, "Bytecode execution failed");
+}

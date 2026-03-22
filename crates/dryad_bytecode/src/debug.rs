@@ -131,6 +131,7 @@ impl Disassembler {
             OpCode::SetIndex => Self::print_simple_instruction("SET_INDEX", offset),
             OpCode::Tuple(count) => Self::print_byte_instruction("TUPLE", *count, offset),
             OpCode::TupleAccess(idx) => Self::print_byte_instruction("TUPLE_ACCESS", *idx, offset),
+            OpCode::Object(count) => Self::print_short_instruction("OBJECT", *count, offset),
 
             // Pilha
             OpCode::Pop => Self::print_simple_instruction("POP", offset),

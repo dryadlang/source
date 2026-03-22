@@ -991,6 +991,10 @@ impl Compiler {
                 Ok(())
             }
 
+            Expr::ObjectLiteral(properties, loc) => {
+                self.compile_object_literal(properties, loc.line)
+            }
+
             // Expressões não implementadas
             _ => Err(format!(
                 "Expressão ainda não suportada pelo bytecode: {:?}",
@@ -1205,6 +1209,47 @@ impl Compiler {
             return Err("Tuple muito grande".to_string());
         }
         self.emit_op(OpCode::Tuple(count as u8), line);
+
+        Ok(())
+    }
+
+    fn compile_object_literal(
+        &mut self,
+        properties: Vec<ObjectProperty>,
+        line: usize,
+    ) -> Result<(), String> {
+        // Conta propriedades (apenas Property, não Method por enquanto)
+        let property_count = properties
+            .iter()
+            .filter(|p| matches!(p, ObjectProperty::Property(_, _)))
+            .count();
+
+        // Compila cada propriedade
+        for property in properties {
+            match property {
+                ObjectProperty::Property(key, value) => {
+                    // Compila chave como string constante
+                    let key_idx = self.make_constant(Value::String(key), line)?;
+                    self.emit_op(OpCode::Constant(key_idx), line);
+
+                    // Compila valor da propriedade
+                    self.compile_expression(value)?;
+                }
+                ObjectProperty::Method { .. } => {
+                    // Methods não são suportados nesta fase
+                    return Err(
+                        "Métodos em object literals ainda não são suportados no bytecode"
+                            .to_string(),
+                    );
+                }
+            }
+        }
+
+        // Cria o objeto
+        if property_count > u16::MAX as usize {
+            return Err("Objeto muito grande".to_string());
+        }
+        self.emit_op(OpCode::Object(property_count as u16), line);
 
         Ok(())
     }

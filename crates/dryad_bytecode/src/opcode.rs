@@ -164,7 +164,7 @@ pub enum OpCode {
     Catch(u8), // índice do nome da variável
 
     // ============================================
-    // Arrays e Tuples
+    // Arrays, Tuples e Objects
     // ============================================
     /// Cria um novo array (número de elementos)
     Array(u16),
@@ -176,6 +176,8 @@ pub enum OpCode {
     Tuple(u8),
     /// Acessa elemento de tuple por índice
     TupleAccess(u8),
+    /// Cria um novo objeto (número de pares chave-valor)
+    Object(u16),
 
     // ============================================
     // Manipulação de Pilha
@@ -262,6 +264,7 @@ impl OpCode {
             OpCode::SetIndex => "SET_INDEX",
             OpCode::Tuple(_) => "TUPLE",
             OpCode::TupleAccess(_) => "TUPLE_ACCESS",
+            OpCode::Object(_) => "OBJECT",
             OpCode::Pop => "POP",
             OpCode::PopN(_) => "POP_N",
             OpCode::Dup => "DUP",
@@ -307,6 +310,7 @@ impl OpCode {
             OpCode::Array(_) => 3,
             OpCode::Tuple(_) => 2,
             OpCode::TupleAccess(_) => 2,
+            OpCode::Object(_) => 3,
             OpCode::PopN(_) => 2,
             OpCode::DupN(_) => 2,
             OpCode::TryBegin(_, _) => 5, // 1 + 2 + 2 bytes
@@ -390,7 +394,8 @@ impl OpCode {
             | OpCode::Index
             | OpCode::SetIndex
             | OpCode::Tuple(_)
-            | OpCode::TupleAccess(_) => OpCodeCategory::Collections,
+            | OpCode::TupleAccess(_)
+            | OpCode::Object(_) => OpCodeCategory::Collections,
             OpCode::Pop | OpCode::PopN(_) | OpCode::Dup | OpCode::DupN(_) | OpCode::Swap => {
                 OpCodeCategory::Stack
             }

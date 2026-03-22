@@ -157,6 +157,16 @@ impl X86_64Backend {
                 codegen.emit_sete(dest_reg);
             }
 
+            IrInstruction::CmpNe { dest, lhs, rhs } => {
+                let dest_reg = codegen.get_phys_reg(*dest)?;
+                let lhs_reg = codegen.get_phys_reg(*lhs)?;
+                let rhs_reg = codegen.get_phys_reg(*rhs)?;
+
+                codegen.emit_mov_reg_reg(0, lhs_reg);
+                codegen.emit_cmp_reg_reg(0, rhs_reg);
+                codegen.emit_setne(dest_reg);
+            }
+
             _ => {
                 return Err(format!("Instrução não suportada: {:?}", instr));
             }
@@ -796,5 +806,27 @@ mod tests {
         codegen.emit_shl_reg_reg(0, 1);
 
         assert!(codegen.code.len() > 0);
+    }
+
+    #[test]
+    fn test_compile_cmp_ne_instruction() {
+        let backend = X86_64Backend::new();
+        let mut codegen = X86_64Codegen::new_for_test();
+
+        codegen.reg_map.insert(0, 0);
+        codegen.reg_map.insert(1, 1);
+        codegen.reg_map.insert(2, 2);
+
+        let instr = IrInstruction::CmpNe {
+            dest: 0,
+            lhs: 1,
+            rhs: 2,
+        };
+
+        let result = backend.compile_instruction(&instr, &mut codegen);
+
+        assert!(result.is_ok());
+        assert!(codegen.code.len() > 0);
+        assert!(codegen.code.contains(&0x95));
     }
 }

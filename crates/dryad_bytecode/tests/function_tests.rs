@@ -3,7 +3,7 @@
 
 use dryad_bytecode::{Compiler, InterpretResult, VM};
 use dryad_errors::SourceLocation;
-use dryad_parser::ast::{Expr, Literal, Program, Stmt, Type};
+use dryad_parser::ast::{Expr, Literal, Pattern, Program, Stmt, Type};
 
 fn dummy_loc() -> SourceLocation {
     SourceLocation {
@@ -86,7 +86,7 @@ fn test_function_call() {
             },
             // var x = add(1, 2);
             Stmt::VarDeclaration(
-                dryad_parser::ast::Pattern::Identifier("x".to_string()),
+                Pattern::Identifier("x".to_string()),
                 None,
                 Some(Expr::Call(
                     Box::new(Expr::Variable("add".to_string(), dummy_loc())),
@@ -132,7 +132,7 @@ fn test_function_with_local_variables() {
                     vec![
                         // var result = x * y;
                         Stmt::VarDeclaration(
-                            dryad_parser::ast::Pattern::Identifier("result".to_string()),
+                            Pattern::Identifier("result".to_string()),
                             Some(Type::Number),
                             Some(Expr::Binary(
                                 Box::new(Expr::Variable("x".to_string(), dummy_loc())),
@@ -156,7 +156,7 @@ fn test_function_with_local_variables() {
             },
             // var z = multiply(3, 4);
             Stmt::VarDeclaration(
-                dryad_parser::ast::Pattern::Identifier("z".to_string()),
+                Pattern::Identifier("z".to_string()),
                 None,
                 Some(Expr::Call(
                     Box::new(Expr::Variable("multiply".to_string(), dummy_loc())),
@@ -241,7 +241,7 @@ fn test_recursive_function_sum_to() {
                 rest_param: None,
             },
             Stmt::VarDeclaration(
-                dryad_parser::ast::Pattern::Identifier("x".to_string()),
+                Pattern::Identifier("x".to_string()),
                 None,
                 Some(Expr::Call(
                     Box::new(Expr::Variable("sum_to".to_string(), dummy_loc())),
@@ -319,7 +319,7 @@ fn test_nested_function_calls() {
                 rest_param: None,
             },
             Stmt::VarDeclaration(
-                dryad_parser::ast::Pattern::Identifier("result".to_string()),
+                Pattern::Identifier("result".to_string()),
                 None,
                 Some(Expr::Call(
                     Box::new(Expr::Variable("add".to_string(), dummy_loc())),
@@ -340,6 +340,85 @@ fn test_nested_function_calls() {
                             ],
                             dummy_loc(),
                         ),
+                    ],
+                    dummy_loc(),
+                )),
+                dummy_loc(),
+            ),
+        ],
+    };
+
+    let mut compiler = Compiler::new();
+    let chunk = compiler.compile(program);
+    assert!(chunk.is_ok(), "Erro na compilação: {:?}", chunk.err());
+
+    let mut vm = VM::new();
+    let result = vm.interpret(chunk.unwrap());
+    assert_eq!(result, InterpretResult::Ok);
+}
+
+#[test]
+fn test_function_parameter_access_stack_start() {
+    // Test that verifies GetLocal(n) correctly accesses stack[stack_start + n]
+    // This tests the theory: locals[i] should be stack[stack_start + i]
+    //
+    // Program:
+    // function add_three(a, b, c) {
+    //     return a + b + c;
+    // }
+    // var x = add_three(10, 20, 30);
+    //
+    // Expected: 10 + 20 + 30 = 60
+    //
+    // Stack analysis:
+    // Before Call: [..., <fn>, 10, 20, 30]
+    // Call(3) opcode:
+    //   - arg_count = 3
+    //   - stack_start = len - 3 (points to 10)
+    // GetLocal(0) should access stack[stack_start + 0] = 10 ✓
+    // GetLocal(1) should access stack[stack_start + 1] = 20 ✓
+    // GetLocal(2) should access stack[stack_start + 2] = 30 ✓
+
+    let program = Program {
+        statements: vec![
+            Stmt::FunctionDeclaration {
+                name: "add_three".to_string(),
+                params: vec![
+                    ("a".to_string(), Some(Type::Number), None),
+                    ("b".to_string(), Some(Type::Number), None),
+                    ("c".to_string(), Some(Type::Number), None),
+                ],
+                return_type: Some(Type::Number),
+                body: Box::new(Stmt::Block(
+                    vec![Stmt::Return(
+                        Some(Expr::Binary(
+                            Box::new(Expr::Binary(
+                                Box::new(Expr::Variable("a".to_string(), dummy_loc())),
+                                "+".to_string(),
+                                Box::new(Expr::Variable("b".to_string(), dummy_loc())),
+                                dummy_loc(),
+                            )),
+                            "+".to_string(),
+                            Box::new(Expr::Variable("c".to_string(), dummy_loc())),
+                            dummy_loc(),
+                        )),
+                        dummy_loc(),
+                    )],
+                    dummy_loc(),
+                )),
+                location: dummy_loc(),
+                is_async: false,
+                rest_param: None,
+            },
+            Stmt::VarDeclaration(
+                Pattern::Identifier("x".to_string()),
+                Some(Type::Number),
+                Some(Expr::Call(
+                    Box::new(Expr::Variable("add_three".to_string(), dummy_loc())),
+                    vec![
+                        Expr::Literal(Literal::Number(10.0), dummy_loc()),
+                        Expr::Literal(Literal::Number(20.0), dummy_loc()),
+                        Expr::Literal(Literal::Number(30.0), dummy_loc()),
                     ],
                     dummy_loc(),
                 )),

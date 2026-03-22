@@ -171,6 +171,20 @@ impl BytecodeToIrConverter {
                 self.add_instruction(IrInstruction::CmpLt { dest, lhs, rhs });
             }
 
+            OpCode::GreaterEqual => {
+                let rhs = self.pop_register()?;
+                let lhs = self.pop_register()?;
+                let dest = self.push_register();
+                self.add_instruction(IrInstruction::CmpGe { dest, lhs, rhs });
+            }
+
+            OpCode::LessEqual => {
+                let rhs = self.pop_register()?;
+                let lhs = self.pop_register()?;
+                let dest = self.push_register();
+                self.add_instruction(IrInstruction::CmpLe { dest, lhs, rhs });
+            }
+
             OpCode::Not => {
                 let src = self.pop_register()?;
                 let dest = self.push_register();
@@ -196,6 +210,20 @@ impl BytecodeToIrConverter {
                 let lhs = self.pop_register()?;
                 let dest = self.push_register();
                 self.add_instruction(IrInstruction::Or { dest, lhs, rhs });
+            }
+
+            OpCode::And => {
+                let rhs = self.pop_register()?;
+                let lhs = self.pop_register()?;
+                let dest = self.push_register();
+                self.add_instruction(IrInstruction::LogicalAnd { dest, lhs, rhs });
+            }
+
+            OpCode::Or => {
+                let rhs = self.pop_register()?;
+                let lhs = self.pop_register()?;
+                let dest = self.push_register();
+                self.add_instruction(IrInstruction::LogicalOr { dest, lhs, rhs });
             }
 
             OpCode::BitXor => {
@@ -401,5 +429,47 @@ mod converter_tests {
             .iter()
             .any(|instr| matches!(instr, IrInstruction::Shl { .. }));
         assert!(has_shl, "ShiftLeft instruction not found");
+    }
+
+    #[test]
+    fn test_convert_greater_equal() {
+        let mut chunk = Chunk::empty();
+        chunk.add_constant(Value::Number(10.0)).unwrap();
+        chunk.add_constant(Value::Number(5.0)).unwrap();
+        chunk.push_op(OpCode::Constant(0), 1);
+        chunk.push_op(OpCode::Constant(1), 1);
+        chunk.push_op(OpCode::GreaterEqual, 1);
+
+        let mut converter = BytecodeToIrConverter::new();
+        let module = converter.convert(&chunk).expect("Convert failed");
+
+        let func = &module.functions[0];
+        let block = &func.blocks[0];
+        let has_ge = block
+            .instructions
+            .iter()
+            .any(|instr| matches!(instr, IrInstruction::CmpGe { .. }));
+        assert!(has_ge, "GreaterEqual instruction not found");
+    }
+
+    #[test]
+    fn test_convert_logical_and() {
+        let mut chunk = Chunk::empty();
+        chunk.add_constant(Value::Boolean(true)).unwrap();
+        chunk.add_constant(Value::Boolean(false)).unwrap();
+        chunk.push_op(OpCode::Constant(0), 1);
+        chunk.push_op(OpCode::Constant(1), 1);
+        chunk.push_op(OpCode::And, 1);
+
+        let mut converter = BytecodeToIrConverter::new();
+        let module = converter.convert(&chunk).expect("Convert failed");
+
+        let func = &module.functions[0];
+        let block = &func.blocks[0];
+        let has_and = block
+            .instructions
+            .iter()
+            .any(|instr| matches!(instr, IrInstruction::LogicalAnd { .. }));
+        assert!(has_and, "LogicalAnd instruction not found");
     }
 }

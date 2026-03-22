@@ -138,6 +138,20 @@ pub enum IrInstruction {
         rhs: RegisterId,
     },
 
+    /// AND lógico (&&): dest = lhs && rhs
+    LogicalAnd {
+        dest: RegisterId,
+        lhs: RegisterId,
+        rhs: RegisterId,
+    },
+
+    /// OR lógico (||): dest = lhs || rhs
+    LogicalOr {
+        dest: RegisterId,
+        lhs: RegisterId,
+        rhs: RegisterId,
+    },
+
     /// XOR: dest = lhs ^ rhs
     Xor {
         dest: RegisterId,

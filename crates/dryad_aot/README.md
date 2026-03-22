@@ -62,12 +62,18 @@ dryad build script.dryad --target=x86_64-windows -o programa.exe
 - [x] Estrutura básica
 - [x] IR completa  
 - [x] Conversor Bytecode → IR (completo para 60+ opcodes)
+  - [x] Operações aritméticas básicas (Add, Sub, Mul, Div, Mod, Negate)
+  - [x] Operações bitwise (And, Or, Xor, Not, ShiftLeft, ShiftRight)
+  - [x] Comparações (Equal, Greater, Less, GreaterEqual, LessEqual)
+  - [x] Operações lógicas (And, Or, Not)
+  - [x] Variáveis locais (GetLocal, SetLocal)
 - [x] Backend x86_64 (partial)
 - [x] Backend ARM64 (completo)
 - [x] Gerador ELF básico
-- [x] Gerador PE (PE32+ completo)
+- [x] Gerador PE (PE32+ completo com bytecode→PE pipeline)
 - [x] Otimizações (DCE + constant folding)
-- [x] Local variables (stack allocation)
+- [x] Local variables (stack allocation e acesso)
+- [x] Integration test (bytecode → PE executable)
 - [ ] Debug info (DWARF)
 - [ ] Runtime library linking
 

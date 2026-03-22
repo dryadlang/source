@@ -177,6 +177,54 @@ impl BytecodeToIrConverter {
                 self.add_instruction(IrInstruction::Not { dest, src });
             }
 
+            OpCode::Modulo => {
+                let rhs = self.pop_register()?;
+                let lhs = self.pop_register()?;
+                let dest = self.push_register();
+                self.add_instruction(IrInstruction::Mod { dest, lhs, rhs });
+            }
+
+            OpCode::BitAnd => {
+                let rhs = self.pop_register()?;
+                let lhs = self.pop_register()?;
+                let dest = self.push_register();
+                self.add_instruction(IrInstruction::And { dest, lhs, rhs });
+            }
+
+            OpCode::BitOr => {
+                let rhs = self.pop_register()?;
+                let lhs = self.pop_register()?;
+                let dest = self.push_register();
+                self.add_instruction(IrInstruction::Or { dest, lhs, rhs });
+            }
+
+            OpCode::BitXor => {
+                let rhs = self.pop_register()?;
+                let lhs = self.pop_register()?;
+                let dest = self.push_register();
+                self.add_instruction(IrInstruction::Xor { dest, lhs, rhs });
+            }
+
+            OpCode::BitNot => {
+                let src = self.pop_register()?;
+                let dest = self.push_register();
+                self.add_instruction(IrInstruction::Not { dest, src });
+            }
+
+            OpCode::ShiftLeft => {
+                let rhs = self.pop_register()?;
+                let lhs = self.pop_register()?;
+                let dest = self.push_register();
+                self.add_instruction(IrInstruction::Shl { dest, lhs, rhs });
+            }
+
+            OpCode::ShiftRight => {
+                let rhs = self.pop_register()?;
+                let lhs = self.pop_register()?;
+                let dest = self.push_register();
+                self.add_instruction(IrInstruction::Shr { dest, lhs, rhs });
+            }
+
             OpCode::Print => {
                 let value = self.pop_register()?;
                 // TODO: Implementar chamada a função de print do runtime
@@ -264,5 +312,94 @@ impl BytecodeToIrConverter {
 impl Default for BytecodeToIrConverter {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod converter_tests {
+    use super::*;
+
+    #[test]
+    fn test_convert_modulo() {
+        let mut chunk = Chunk::empty();
+        chunk.add_constant(Value::Number(10.0)).unwrap();
+        chunk.add_constant(Value::Number(3.0)).unwrap();
+        chunk.push_op(OpCode::Constant(0), 1);
+        chunk.push_op(OpCode::Constant(1), 1);
+        chunk.push_op(OpCode::Modulo, 1);
+
+        let mut converter = BytecodeToIrConverter::new();
+        let module = converter.convert(&chunk).expect("Convert failed");
+
+        let func = &module.functions[0];
+        let block = &func.blocks[0];
+        let has_modulo = block
+            .instructions
+            .iter()
+            .any(|instr| matches!(instr, IrInstruction::Mod { .. }));
+        assert!(has_modulo, "Modulo instruction not found");
+    }
+
+    #[test]
+    fn test_convert_bitwise_and() {
+        let mut chunk = Chunk::empty();
+        chunk.add_constant(Value::Number(12.0)).unwrap();
+        chunk.add_constant(Value::Number(10.0)).unwrap();
+        chunk.push_op(OpCode::Constant(0), 1);
+        chunk.push_op(OpCode::Constant(1), 1);
+        chunk.push_op(OpCode::BitAnd, 1);
+
+        let mut converter = BytecodeToIrConverter::new();
+        let module = converter.convert(&chunk).expect("Convert failed");
+
+        let func = &module.functions[0];
+        let block = &func.blocks[0];
+        let has_and = block
+            .instructions
+            .iter()
+            .any(|instr| matches!(instr, IrInstruction::And { .. }));
+        assert!(has_and, "BitAnd instruction not found");
+    }
+
+    #[test]
+    fn test_convert_bitwise_or() {
+        let mut chunk = Chunk::empty();
+        chunk.add_constant(Value::Number(12.0)).unwrap();
+        chunk.add_constant(Value::Number(10.0)).unwrap();
+        chunk.push_op(OpCode::Constant(0), 1);
+        chunk.push_op(OpCode::Constant(1), 1);
+        chunk.push_op(OpCode::BitOr, 1);
+
+        let mut converter = BytecodeToIrConverter::new();
+        let module = converter.convert(&chunk).expect("Convert failed");
+
+        let func = &module.functions[0];
+        let block = &func.blocks[0];
+        let has_or = block
+            .instructions
+            .iter()
+            .any(|instr| matches!(instr, IrInstruction::Or { .. }));
+        assert!(has_or, "BitOr instruction not found");
+    }
+
+    #[test]
+    fn test_convert_shift_left() {
+        let mut chunk = Chunk::empty();
+        chunk.add_constant(Value::Number(5.0)).unwrap();
+        chunk.add_constant(Value::Number(2.0)).unwrap();
+        chunk.push_op(OpCode::Constant(0), 1);
+        chunk.push_op(OpCode::Constant(1), 1);
+        chunk.push_op(OpCode::ShiftLeft, 1);
+
+        let mut converter = BytecodeToIrConverter::new();
+        let module = converter.convert(&chunk).expect("Convert failed");
+
+        let func = &module.functions[0];
+        let block = &func.blocks[0];
+        let has_shl = block
+            .instructions
+            .iter()
+            .any(|instr| matches!(instr, IrInstruction::Shl { .. }));
+        assert!(has_shl, "ShiftLeft instruction not found");
     }
 }

@@ -207,6 +207,67 @@ impl X86_64Backend {
                 codegen.emit_setge(dest_reg);
             }
 
+            IrInstruction::And { dest, lhs, rhs } => {
+                let dest_reg = codegen.get_phys_reg(*dest)?;
+                let lhs_reg = codegen.get_phys_reg(*lhs)?;
+                let rhs_reg = codegen.get_phys_reg(*rhs)?;
+
+                codegen.emit_mov_reg_reg(0, lhs_reg);
+                codegen.emit_and_reg_reg(0, rhs_reg);
+                codegen.emit_mov_reg_reg(dest_reg, 0);
+            }
+
+            IrInstruction::Or { dest, lhs, rhs } => {
+                let dest_reg = codegen.get_phys_reg(*dest)?;
+                let lhs_reg = codegen.get_phys_reg(*lhs)?;
+                let rhs_reg = codegen.get_phys_reg(*rhs)?;
+
+                codegen.emit_mov_reg_reg(0, lhs_reg);
+                codegen.emit_or_reg_reg(0, rhs_reg);
+                codegen.emit_mov_reg_reg(dest_reg, 0);
+            }
+
+            IrInstruction::Xor { dest, lhs, rhs } => {
+                let dest_reg = codegen.get_phys_reg(*dest)?;
+                let lhs_reg = codegen.get_phys_reg(*lhs)?;
+                let rhs_reg = codegen.get_phys_reg(*rhs)?;
+
+                codegen.emit_mov_reg_reg(0, lhs_reg);
+                codegen.emit_xor_reg_reg(0, rhs_reg);
+                codegen.emit_mov_reg_reg(dest_reg, 0);
+            }
+
+            IrInstruction::Not { dest, src } => {
+                let dest_reg = codegen.get_phys_reg(*dest)?;
+                let src_reg = codegen.get_phys_reg(*src)?;
+
+                codegen.emit_mov_reg_reg(0, src_reg);
+                codegen.emit_not(0);
+                codegen.emit_mov_reg_reg(dest_reg, 0);
+            }
+
+            IrInstruction::Shl { dest, lhs, rhs } => {
+                let dest_reg = codegen.get_phys_reg(*dest)?;
+                let lhs_reg = codegen.get_phys_reg(*lhs)?;
+                let rhs_reg = codegen.get_phys_reg(*rhs)?;
+
+                codegen.emit_mov_reg_reg(0, lhs_reg);
+                codegen.emit_mov_reg_reg(1, rhs_reg);
+                codegen.emit_shl_reg_reg(0, 1);
+                codegen.emit_mov_reg_reg(dest_reg, 0);
+            }
+
+            IrInstruction::Shr { dest, lhs, rhs } => {
+                let dest_reg = codegen.get_phys_reg(*dest)?;
+                let lhs_reg = codegen.get_phys_reg(*lhs)?;
+                let rhs_reg = codegen.get_phys_reg(*rhs)?;
+
+                codegen.emit_mov_reg_reg(0, lhs_reg);
+                codegen.emit_mov_reg_reg(1, rhs_reg);
+                codegen.emit_shr_reg_reg(0, 1);
+                codegen.emit_mov_reg_reg(dest_reg, 0);
+            }
+
             _ => {
                 return Err(format!("Instrução não suportada: {:?}", instr));
             }
@@ -620,6 +681,15 @@ impl X86_64Codegen {
         let rex = 0x48 | ((dest >> 3) & 1);
         self.code.push(rex);
         self.code.push(0xD3);
+        self.code.push(modrm);
+    }
+
+    fn emit_not(&mut self, reg: u8) {
+        // NOT r64 - opcode F7 /2
+        let rex = 0x48 | ((reg >> 3) & 1);
+        let modrm = 0xD0 | (reg & 7);
+        self.code.push(rex);
+        self.code.push(0xF7);
         self.code.push(modrm);
     }
 

@@ -268,6 +268,37 @@ impl X86_64Backend {
                 codegen.emit_mov_reg_reg(dest_reg, 0);
             }
 
+            IrInstruction::Div { dest, lhs, rhs } => {
+                let dest_reg = codegen.get_phys_reg(*dest)?;
+                let lhs_reg = codegen.get_phys_reg(*lhs)?;
+                let rhs_reg = codegen.get_phys_reg(*rhs)?;
+
+                codegen.emit_mov_reg_reg(0, lhs_reg);
+                codegen.emit_xor_reg_reg(2, 2);
+                codegen.emit_div_reg(rhs_reg);
+                codegen.emit_mov_reg_reg(dest_reg, 0);
+            }
+
+            IrInstruction::Mod { dest, lhs, rhs } => {
+                let dest_reg = codegen.get_phys_reg(*dest)?;
+                let lhs_reg = codegen.get_phys_reg(*lhs)?;
+                let rhs_reg = codegen.get_phys_reg(*rhs)?;
+
+                codegen.emit_mov_reg_reg(0, lhs_reg);
+                codegen.emit_xor_reg_reg(2, 2);
+                codegen.emit_div_reg(rhs_reg);
+                codegen.emit_mov_reg_reg(dest_reg, 2);
+            }
+
+            IrInstruction::Neg { dest, src } => {
+                let dest_reg = codegen.get_phys_reg(*dest)?;
+                let src_reg = codegen.get_phys_reg(*src)?;
+
+                codegen.emit_mov_reg_reg(0, src_reg);
+                codegen.emit_neg(0);
+                codegen.emit_mov_reg_reg(dest_reg, 0);
+            }
+
             _ => {
                 return Err(format!("Instrução não suportada: {:?}", instr));
             }
@@ -593,6 +624,15 @@ impl X86_64Codegen {
         // div r64 - divides rdx:rax by r64, result in rax, remainder in rdx
         let modrm = 0xF0 | (divisor & 7);
         let rex = 0x48 | ((divisor >> 3) & 1);
+        self.code.push(rex);
+        self.code.push(0xF7);
+        self.code.push(modrm);
+    }
+
+    fn emit_neg(&mut self, reg: u8) {
+        // NEG r64 - opcode F7 /3
+        let rex = 0x48 | ((reg >> 3) & 1);
+        let modrm = 0xD8 | (reg & 7);
         self.code.push(rex);
         self.code.push(0xF7);
         self.code.push(modrm);

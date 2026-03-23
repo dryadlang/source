@@ -110,20 +110,14 @@ impl AotCompiler {
         let ir_module = self.optimize_ir(ir_module);
 
         // 3. IR → Código de máquina
-        let object_code = self.backend.compile_module(&ir_module)?;
+        let machine_code = self.backend.compile_module(&ir_module)?;
 
-        // 4. Gerar arquivo objeto
-        let object_file = format!("{}.o", output);
-        std::fs::write(&object_file, object_code)
-            .map_err(|e| format!("Erro ao escrever arquivo objeto: {}", e))?;
+        // 4. Gerar binário usando o gerador apropriado
+        let binary = self.generator.generate_object(&ir_module, &machine_code)?;
 
-        // 5. Linkar executável
-        self.link(&object_file, output)?;
-
-        // 6. Limpar arquivo objeto (opcional)
-        if self.options.cleanup_object {
-            let _ = std::fs::remove_file(&object_file);
-        }
+        // 5. Escrever executável
+        std::fs::write(output, binary)
+            .map_err(|e| format!("Erro ao escrever executável: {}", e))?;
 
         Ok(())
     }

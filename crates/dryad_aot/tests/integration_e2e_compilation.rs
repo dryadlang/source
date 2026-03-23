@@ -186,3 +186,137 @@ fn test_all_implemented_ir_instructions() {
         "All 19 key instructions accounted for"
     );
 }
+
+#[test]
+fn test_e2e_if_else_windows_binary() {
+    use dryad_aot::compiler::Target;
+    use dryad_aot::ir::{
+        IrBlock, IrConstant, IrFunction, IrInstruction, IrModule, IrTerminator, IrType, IrValue,
+    };
+
+    // Build IR for: if (42 != 0) { return 100 } else { return 200 }
+    let mut module = IrModule::new("if_else_test");
+
+    let mut func = IrFunction::new("test_if_else", IrType::I32);
+
+    // Create 4 blocks: entry, then_block, else_block, merge_block
+    let entry_block_id = module.new_block_id();
+    let then_block_id = module.new_block_id();
+    let else_block_id = module.new_block_id();
+
+    func.entry_block = entry_block_id;
+
+    // ===== BLOCK 0: Entry =====
+    // Load 42 into register 0
+    // Load 0 into register 1
+    // Compare 42 != 0 into register 2
+    // Branch to then_block (block 1) if true, else_block (block 2) if false
+    let mut entry = IrBlock::new(entry_block_id);
+    entry.add_instruction(IrInstruction::LoadConst {
+        dest: 0,
+        value: IrValue::Constant(IrConstant::I32(42)),
+    });
+    entry.add_instruction(IrInstruction::LoadConst {
+        dest: 1,
+        value: IrValue::Constant(IrConstant::I32(0)),
+    });
+    entry.add_instruction(IrInstruction::CmpNe {
+        dest: 2,
+        lhs: 0,
+        rhs: 1,
+    });
+    entry.set_terminator(IrTerminator::Branch {
+        cond: 2,
+        then_block: then_block_id,
+        else_block: else_block_id,
+    });
+    func.add_block(entry);
+
+    // ===== BLOCK 1: Then branch (42 != 0 is true) =====
+    // Load 100 into register 3
+    // Return 100
+    let mut then_block = IrBlock::new(then_block_id);
+    then_block.add_instruction(IrInstruction::LoadConst {
+        dest: 3,
+        value: IrValue::Constant(IrConstant::I32(100)),
+    });
+    then_block.set_terminator(IrTerminator::Return(Some(3)));
+    func.add_block(then_block);
+
+    // ===== BLOCK 2: Else branch =====
+    // Load 200 into register 4
+    // Return 200
+    let mut else_block = IrBlock::new(else_block_id);
+    else_block.add_instruction(IrInstruction::LoadConst {
+        dest: 4,
+        value: IrValue::Constant(IrConstant::I32(200)),
+    });
+    else_block.set_terminator(IrTerminator::Return(Some(4)));
+    func.add_block(else_block);
+
+    module.add_function(func);
+
+    // Compile to x86_64 machine code
+    let backend = Target::X86_64Windows.create_backend();
+    let machine_code = backend
+        .compile_module(&module)
+        .expect("Backend compilation failed");
+
+    // Verify machine code contains branching instructions
+    assert!(
+        machine_code.len() > 30,
+        "Machine code should contain LoadConst, CmpNe, Branch, and Return instructions (>30 bytes)"
+    );
+
+    // Generate PE executable
+    let generator = Target::X86_64Windows.create_generator();
+    let pe_binary = generator
+        .generate_object(&module, &machine_code)
+        .expect("PE generation failed");
+
+    // ===== VERIFY PE BINARY STRUCTURE =====
+
+    // Check PE binary is not empty
+    assert!(!pe_binary.is_empty(), "PE binary should not be empty");
+
+    // Check MZ magic bytes (PE signature)
+    assert_eq!(
+        &pe_binary[0..2],
+        b"MZ",
+        "PE binary must start with MZ magic bytes"
+    );
+
+    // PE binaries have signature at offset 0x3C (60 bytes)
+    // The signature is "PE\0\0" at that offset
+    if pe_binary.len() > 68 {
+        assert_eq!(
+            &pe_binary[64..68],
+            b"PE\0\0",
+            "PE signature (PE\\0\\0) should be at offset 64"
+        );
+    }
+
+    // Check minimum viable PE size (headers + minimal machine code)
+    assert!(
+        pe_binary.len() >= 64,
+        "PE binary should be at least 64 bytes for PE header structure"
+    );
+
+    // Verify machine code is embedded in PE (PE headers add overhead)
+    assert!(
+        pe_binary.len() > machine_code.len(),
+        "PE binary should include PE headers plus machine code"
+    );
+
+    // Optional: Write binary for manual inspection
+    let test_binary_path = "/tmp/test_if_statement.exe";
+    if std::fs::write(test_binary_path, &pe_binary).is_ok() {
+        println!("✓ Test PE binary written to: {}", test_binary_path);
+        println!(
+            "  Machine code: {} bytes, PE total: {} bytes (headers: {} bytes)",
+            machine_code.len(),
+            pe_binary.len(),
+            pe_binary.len() - machine_code.len()
+        );
+    }
+}

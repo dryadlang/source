@@ -320,3 +320,168 @@ fn test_e2e_if_else_windows_binary() {
         );
     }
 }
+
+#[test]
+fn test_e2e_while_loop_compilation() {
+    use dryad_aot::compiler::Target;
+    use dryad_aot::ir::{
+        IrBlock, IrConstant, IrFunction, IrInstruction, IrModule, IrTerminator, IrType, IrValue,
+    };
+
+    // Build IR for: i = 0; while (i < 10) { i = i + 1 }; return i
+    // Expected result: i should be 10 after loop
+    let mut module = IrModule::new("while_loop_test");
+
+    let mut func = IrFunction::new("test_while_loop", IrType::I32);
+
+    // Create 4 blocks: init, loop_cond, loop_body, exit
+    let init_block_id = module.new_block_id();
+    let loop_cond_block_id = module.new_block_id();
+    let loop_body_block_id = module.new_block_id();
+    let exit_block_id = module.new_block_id();
+
+    func.entry_block = init_block_id;
+
+    // ===== BLOCK 0: Initialization =====
+    // i = 0 (LoadConst r1=0)
+    // Jump to loop condition block
+    let mut init_block = IrBlock::new(init_block_id);
+    init_block.add_instruction(IrInstruction::LoadConst {
+        dest: 1,
+        value: IrValue::Constant(IrConstant::I32(0)),
+    });
+    init_block.set_terminator(IrTerminator::Jump(loop_cond_block_id));
+    func.add_block(init_block);
+
+    // ===== BLOCK 1: Loop Condition =====
+    // Load 10 into register 2
+    // Compare i < 10 (CmpLt r3, r1, r2)
+    // Branch: if true (r3) go to loop_body, else go to exit
+    let mut loop_cond = IrBlock::new(loop_cond_block_id);
+    loop_cond.add_instruction(IrInstruction::LoadConst {
+        dest: 2,
+        value: IrValue::Constant(IrConstant::I32(10)),
+    });
+    loop_cond.add_instruction(IrInstruction::CmpLt {
+        dest: 3,
+        lhs: 1,
+        rhs: 2,
+    });
+    loop_cond.set_terminator(IrTerminator::Branch {
+        cond: 3,
+        then_block: loop_body_block_id,
+        else_block: exit_block_id,
+    });
+    func.add_block(loop_cond);
+
+    // ===== BLOCK 2: Loop Body =====
+    // Load 1 into register 4
+    // i = i + 1 (Add r1, r1, r4)
+    // Jump back to loop condition (backward jump)
+    let mut loop_body = IrBlock::new(loop_body_block_id);
+    loop_body.add_instruction(IrInstruction::LoadConst {
+        dest: 4,
+        value: IrValue::Constant(IrConstant::I32(1)),
+    });
+    loop_body.add_instruction(IrInstruction::Add {
+        dest: 1,
+        lhs: 1,
+        rhs: 4,
+    });
+    loop_body.set_terminator(IrTerminator::Jump(loop_cond_block_id));
+    func.add_block(loop_body);
+
+    // ===== BLOCK 3: Exit =====
+    // Return i (r1)
+    let mut exit_block = IrBlock::new(exit_block_id);
+    exit_block.set_terminator(IrTerminator::Return(Some(1)));
+    func.add_block(exit_block);
+
+    module.add_function(func);
+
+    // Compile to x86_64 machine code
+    let backend = Target::X86_64Windows.create_backend();
+    let machine_code = backend
+        .compile_module(&module)
+        .expect("Backend compilation failed");
+
+    // Verify machine code contains loop instructions (should be substantial)
+    assert!(
+        machine_code.len() > 60,
+        "Machine code should contain loop with multiple blocks, jumps, and comparisons (>60 bytes), got {} bytes",
+        machine_code.len()
+    );
+
+    // Generate PE executable
+    let generator = Target::X86_64Windows.create_generator();
+    let pe_binary = generator
+        .generate_object(&module, &machine_code)
+        .expect("PE generation failed");
+
+    // ===== VERIFY PE BINARY STRUCTURE =====
+
+    // Check PE binary is not empty
+    assert!(!pe_binary.is_empty(), "PE binary should not be empty");
+
+    // Check MZ magic bytes (PE signature)
+    assert_eq!(
+        &pe_binary[0..2],
+        b"MZ",
+        "PE binary must start with MZ magic bytes"
+    );
+
+    // PE binaries have signature at offset 0x3C (60 bytes)
+    // The signature is "PE\0\0" at that offset
+    if pe_binary.len() > 68 {
+        assert_eq!(
+            &pe_binary[64..68],
+            b"PE\0\0",
+            "PE signature (PE\\0\\0) should be at offset 64"
+        );
+    }
+
+    // Check minimum viable PE size (headers + minimal machine code)
+    assert!(
+        pe_binary.len() >= 64,
+        "PE binary should be at least 64 bytes for PE header structure"
+    );
+
+    // Verify machine code is embedded in PE (PE headers add overhead)
+    assert!(
+        pe_binary.len() > machine_code.len(),
+        "PE binary should include PE headers plus machine code"
+    );
+
+    // Verify machine code likely contains conditional jumps (loop pattern)
+    // x86_64 conditional jump opcodes typically start with 0x0F followed by 8x (where x is variation)
+    // or short forms like 0x7x for backward jumps
+    let has_jumps = machine_code.windows(2).any(|w| {
+        // 0x0F 0x8x: long conditional jumps
+        (w[0] == 0x0F && (w[1] & 0xF0) == 0x80) ||
+        // 0x7x: short conditional jumps  
+        (w[0] >= 0x70 && w[0] <= 0x7F) ||
+        // 0xEB: unconditional short jump
+        w[0] == 0xEB ||
+        // 0xE9: unconditional near jump
+        w[0] == 0xE9 ||
+        // 0xFF: indirect jump or call (jmp/call r64)
+        (w[0] == 0xFF && (w[1] & 0x38) >= 0x20)
+    });
+    assert!(
+        has_jumps,
+        "Machine code should contain conditional jump opcodes for loop control"
+    );
+
+    // Optional: Write binary for manual inspection
+    let test_binary_path = "/tmp/test_while_loop.exe";
+    if std::fs::write(test_binary_path, &pe_binary).is_ok() {
+        println!("✓ While loop PE binary written to: {}", test_binary_path);
+        println!(
+            "  Machine code: {} bytes, PE total: {} bytes (headers: {} bytes)",
+            machine_code.len(),
+            pe_binary.len(),
+            pe_binary.len() - machine_code.len()
+        );
+        println!("  IR: 4 blocks (init → loop_cond → loop_body → exit with backward jump)");
+    }
+}

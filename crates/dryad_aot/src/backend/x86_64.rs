@@ -1142,4 +1142,87 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn test_call_simple_function() {
+        let backend = X86_64Backend::new();
+        let mut func = IrFunction::new("test_call", IrType::I64);
+
+        let mut block0 = IrBlock::new(0);
+        block0.add_instruction(IrInstruction::LoadConst {
+            dest: 1,
+            value: IrValue::Constant(IrConstant::I64(42)),
+        });
+        block0.add_instruction(IrInstruction::Call {
+            dest: Some(2),
+            func: 0,
+            args: vec![],
+        });
+        block0.set_terminator(IrTerminator::Return(Some(2)));
+
+        func.add_block(block0);
+        func.entry_block = 0;
+
+        let module = IrModule::new("test");
+        let mut module_mut = module;
+        module_mut.add_function(func);
+
+        let result = backend.compile_module(&module_mut);
+        assert!(
+            result.is_err(),
+            "Call instruction should fail with 'not implemented' error"
+        );
+
+        if let Err(err) = result {
+            assert!(
+                err.contains("não suportada") || err.contains("Call"),
+                "Error should mention 'não suportada' or 'Call', got: {}",
+                err
+            );
+        }
+    }
+
+    #[test]
+    fn test_e2e_function_call_with_args() {
+        let backend = X86_64Backend::new();
+        let mut func = IrFunction::new("test_call_args", IrType::I64);
+
+        let mut block0 = IrBlock::new(0);
+        block0.add_instruction(IrInstruction::LoadConst {
+            dest: 1,
+            value: IrValue::Constant(IrConstant::I64(10)),
+        });
+        block0.add_instruction(IrInstruction::LoadConst {
+            dest: 2,
+            value: IrValue::Constant(IrConstant::I64(20)),
+        });
+        // SystemV ABI: first arg in rdi (register 0), second in rsi (register 1)
+        block0.add_instruction(IrInstruction::Call {
+            dest: Some(3),
+            func: 1,
+            args: vec![1, 2],
+        });
+        block0.set_terminator(IrTerminator::Return(Some(3)));
+
+        func.add_block(block0);
+        func.entry_block = 0;
+
+        let module = IrModule::new("test");
+        let mut module_mut = module;
+        module_mut.add_function(func);
+
+        let result = backend.compile_module(&module_mut);
+        assert!(
+            result.is_err(),
+            "Call instruction with args should fail with 'not implemented' error"
+        );
+
+        if let Err(err) = result {
+            assert!(
+                err.contains("não suportada") || err.contains("Call"),
+                "Error should mention 'não suportada' or 'Call', got: {}",
+                err
+            );
+        }
+    }
 }

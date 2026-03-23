@@ -299,6 +299,45 @@ impl X86_64Backend {
                 codegen.emit_mov_reg_reg(dest_reg, 0);
             }
 
+            IrInstruction::Call { dest, func, args } => {
+                // SystemV AMD64 ABI parameter passing:
+                // First 6 integer args: rdi(7), rsi(6), rdx(2), rcx(1), r8(8), r9(9)
+                let param_regs = [7, 6, 2, 1, 8, 9];
+
+                // Move first 6 arguments to parameter registers
+                for (i, &arg_vreg) in args.iter().take(6).enumerate() {
+                    let arg_reg = codegen.get_phys_reg(arg_vreg)?;
+                    let param_reg = param_regs[i];
+                    codegen.emit_mov_reg_reg(param_reg, arg_reg);
+                }
+
+                // Push remaining arguments on stack (right-to-left, i.e., highest index first)
+                for &arg_vreg in args.iter().skip(6).rev() {
+                    let arg_reg = codegen.get_phys_reg(arg_vreg)?;
+                    codegen.emit_mov_reg_reg(0, arg_reg);
+                    codegen.emit_push_reg(0);
+                }
+
+                // Emit call instruction
+                codegen.emit_call(*func);
+
+                // Clean up stack: add rsp to remove stack parameters
+                let stack_args = if args.len() > 6 {
+                    (args.len() - 6) as u32 * 8
+                } else {
+                    0
+                };
+                if stack_args > 0 {
+                    codegen.emit_add_rsp(stack_args);
+                }
+
+                // Move return value from rax to destination register if present
+                if let Some(dest_reg_vreg) = dest {
+                    let dest_reg = codegen.get_phys_reg(*dest_reg_vreg)?;
+                    codegen.emit_mov_reg_reg(dest_reg, 0);
+                }
+            }
+
             _ => {
                 return Err(format!("Instrução não suportada: {:?}", instr));
             }
@@ -731,6 +770,35 @@ impl X86_64Codegen {
         self.code.push(rex);
         self.code.push(0xF7);
         self.code.push(modrm);
+    }
+
+    fn emit_push_reg(&mut self, reg: u8) {
+        // PUSH r64
+        // For r0-r7: 0x50+r
+        // For r8-r15: 0x41 0x50+r (REX.B prefix)
+        if reg >= 8 {
+            self.code.push(0x41);
+            self.code.push(0x50 + (reg & 7));
+        } else {
+            self.code.push(0x50 + (reg & 7));
+        }
+    }
+
+    fn emit_call(&mut self, func_id: u32) {
+        // CALL rel32 - opcode 0xE8
+        // Emit: 0xE8 followed by 4-byte relative offset
+        // For now, placeholder offset (will be resolved during module linking)
+        self.code.push(0xE8);
+        let placeholder_offset = self.code.len();
+        self.code.extend(&[0x00, 0x00, 0x00, 0x00]);
+        self.record_pending_jump(func_id, placeholder_offset, 4);
+    }
+
+    fn emit_add_rsp(&mut self, amount: u32) {
+        // add rsp, imm32
+        // 0x48 0x81 0xC4 imm32
+        self.code.extend(&[0x48, 0x81, 0xC4]);
+        self.code.extend(&amount.to_le_bytes());
     }
 
     fn finish(self) -> Vec<u8> {
@@ -1169,17 +1237,9 @@ mod tests {
 
         let result = backend.compile_module(&module_mut);
         assert!(
-            result.is_err(),
-            "Call instruction should fail with 'not implemented' error"
+            result.is_ok(),
+            "Call instruction should compile successfully"
         );
-
-        if let Err(err) = result {
-            assert!(
-                err.contains("não suportada") || err.contains("Call"),
-                "Error should mention 'não suportada' or 'Call', got: {}",
-                err
-            );
-        }
     }
 
     #[test]
@@ -1213,16 +1273,8 @@ mod tests {
 
         let result = backend.compile_module(&module_mut);
         assert!(
-            result.is_err(),
-            "Call instruction with args should fail with 'not implemented' error"
+            result.is_ok(),
+            "Call instruction with args should compile successfully"
         );
-
-        if let Err(err) = result {
-            assert!(
-                err.contains("não suportada") || err.contains("Call"),
-                "Error should mention 'não suportada' or 'Call', got: {}",
-                err
-            );
-        }
     }
 }

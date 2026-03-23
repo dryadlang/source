@@ -979,4 +979,167 @@ mod tests {
         assert!(codegen.code.len() > 0);
         assert!(codegen.code.contains(&0x95));
     }
+
+    #[test]
+    fn test_jump_unconditional() {
+        let backend = X86_64Backend::new();
+        let mut func = IrFunction::new("test_jump", IrType::I64);
+
+        let mut block0 = IrBlock::new(0);
+        block0.add_instruction(IrInstruction::LoadConst {
+            dest: 1,
+            value: IrValue::Constant(IrConstant::I64(42)),
+        });
+        block0.set_terminator(IrTerminator::Jump(1));
+
+        let mut block1 = IrBlock::new(1);
+        block1.set_terminator(IrTerminator::Return(Some(1)));
+
+        func.add_block(block0);
+        func.add_block(block1);
+        func.entry_block = 0;
+
+        let module = IrModule::new("test");
+        let mut module_mut = module;
+        module_mut.add_function(func);
+
+        let result = backend.compile_module(&module_mut);
+        assert!(
+            result.is_ok(),
+            "Jump instruction should compile successfully"
+        );
+
+        if let Ok(code) = result {
+            assert!(code.len() > 0, "Generated code should not be empty");
+            assert!(
+                code.contains(&0xE9) || code.contains(&0xEB),
+                "Generated code should contain jmp opcode"
+            );
+        }
+    }
+
+    #[test]
+    fn test_branch_conditional() {
+        let backend = X86_64Backend::new();
+        let mut func = IrFunction::new("test_branch", IrType::I64);
+
+        let mut block0 = IrBlock::new(0);
+        block0.add_instruction(IrInstruction::LoadConst {
+            dest: 1,
+            value: IrValue::Constant(IrConstant::I64(5)),
+        });
+        block0.add_instruction(IrInstruction::LoadConst {
+            dest: 2,
+            value: IrValue::Constant(IrConstant::I64(5)),
+        });
+        block0.add_instruction(IrInstruction::CmpNe {
+            dest: 3,
+            lhs: 1,
+            rhs: 2,
+        });
+        block0.set_terminator(IrTerminator::Branch {
+            cond: 3,
+            then_block: 1,
+            else_block: 2,
+        });
+
+        let mut block1 = IrBlock::new(1);
+        block1.add_instruction(IrInstruction::LoadConst {
+            dest: 4,
+            value: IrValue::Constant(IrConstant::I64(10)),
+        });
+        block1.set_terminator(IrTerminator::Return(Some(4)));
+
+        let mut block2 = IrBlock::new(2);
+        block2.add_instruction(IrInstruction::LoadConst {
+            dest: 5,
+            value: IrValue::Constant(IrConstant::I64(20)),
+        });
+        block2.set_terminator(IrTerminator::Return(Some(5)));
+
+        func.add_block(block0);
+        func.add_block(block1);
+        func.add_block(block2);
+        func.entry_block = 0;
+
+        let module = IrModule::new("test");
+        let mut module_mut = module;
+        module_mut.add_function(func);
+
+        let result = backend.compile_module(&module_mut);
+        assert!(
+            result.is_ok(),
+            "Branch instruction should compile successfully"
+        );
+
+        if let Ok(code) = result {
+            assert!(code.len() > 0, "Generated code should not be empty");
+            assert!(
+                code.iter().any(|&b| b == 0x84 || b == 0x85),
+                "Generated code should contain conditional jump opcode"
+            );
+        }
+    }
+
+    #[test]
+    fn test_e2e_if_else_statement() {
+        let backend = X86_64Backend::new();
+        let mut func = IrFunction::new("test_if_else", IrType::I64);
+
+        let mut block0 = IrBlock::new(0);
+        block0.add_instruction(IrInstruction::LoadConst {
+            dest: 1,
+            value: IrValue::Constant(IrConstant::I64(10)),
+        });
+        block0.add_instruction(IrInstruction::LoadConst {
+            dest: 2,
+            value: IrValue::Constant(IrConstant::I64(5)),
+        });
+        block0.add_instruction(IrInstruction::CmpGt {
+            dest: 3,
+            lhs: 1,
+            rhs: 2,
+        });
+        block0.set_terminator(IrTerminator::Branch {
+            cond: 3,
+            then_block: 1,
+            else_block: 2,
+        });
+
+        let mut block1 = IrBlock::new(1);
+        block1.add_instruction(IrInstruction::Add {
+            dest: 4,
+            lhs: 1,
+            rhs: 2,
+        });
+        block1.set_terminator(IrTerminator::Return(Some(4)));
+
+        let mut block2 = IrBlock::new(2);
+        block2.add_instruction(IrInstruction::Sub {
+            dest: 5,
+            lhs: 1,
+            rhs: 2,
+        });
+        block2.set_terminator(IrTerminator::Return(Some(5)));
+
+        func.add_block(block0);
+        func.add_block(block1);
+        func.add_block(block2);
+        func.entry_block = 0;
+
+        let module = IrModule::new("test");
+        let mut module_mut = module;
+        module_mut.add_function(func);
+
+        let result = backend.compile_module(&module_mut);
+        assert!(result.is_ok(), "if/else IR should compile successfully");
+
+        if let Ok(code) = result {
+            assert!(code.len() > 0, "Generated code should not be empty");
+            assert!(
+                code.len() > 20,
+                "Generated code for if/else should be substantial"
+            );
+        }
+    }
 }

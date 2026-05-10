@@ -1,187 +1,214 @@
-#<console_io>
 
-let PI = 3.141592653589793;
-let E = 2.718281828459045;
+// Greenleaf - Scientific Functions
+// Pure Dryad implementation of mathematical functions
 
-function abs(x) {
+// Constants
+export const PI = 3.141592653589793;
+export const E = 2.718281828459045;
+export const GOLDEN_RATIO = 1.618033988749895;
+export const EULER_GAMMA = 0.5772156649015329;
+
+// Basic Functions
+
+export function abs(x) {
     if (x < 0) { return -x; }
     return x;
 }
 
-function pow(x, y) {
-    if (y == 0) { return 1; }
-    if (y == 1) { return x; }
-    if (y < 0) { return 1 / pow(x, -y); }
-    
-    let rem = y % 1;
-    if (rem != 0) {
-        return exp(y * ln(x));
+export function floor(x) {
+    if (x >= 0) {
+        let rem = x % 1;
+        return x - rem;
+    } else {
+        let rem = x % 1;
+        if (rem == 0) { return x; }
+        return x - rem - 1;
     }
-    
-    let res = 1;
-    for (let i = 0; i < y; i++) {
-        res = res * x;
-    }
-    return res;
 }
 
-function sqrt(x) {
+export function ceil(x) {
+    if (x == floor(x)) { return x; }
+    return floor(x) + 1;
+}
+
+export function round(x) {
+    return floor(x + 0.5);
+}
+
+// Random Number Generator (LCG)
+let _rnd_state = 123456789;
+
+export function seed(s) {
+    _rnd_state = s;
+}
+
+export function random() {
+    let a = 1103515245;
+    let c = 12345;
+    let m = 2147483648; 
+    
+    _rnd_state = (_rnd_state * a + c) % m;
+    return _rnd_state / (m - 1.0); 
+}
+
+export function pow(base, exponent) {
+    if (exponent % 1 == 0) {
+        let res = 1;
+        let p = abs(exponent);
+        let i = 0;
+        for (i = 0; i < p; i++) {
+            res = res * base;
+        }
+        if (exponent < 0) { return 1/res; }
+        return res;
+    }
+    return exp(exponent * ln(base));
+}
+
+export function sqrt(x) {
     if (x < 0) { return null; }
     if (x == 0) { return 0; }
-    let res = x / 2.0;
-    for (let i = 0; i < 10; i++) {
-        res = (res + x / res) / 2.0;
+    
+    let z = x;
+    let i = 0;
+    for (i = 0; i < 10; i++) {
+        z = z - (z*z - x) / (2*z);
+    }
+    return z;
+}
+
+export function factorial(n) {
+    if (n < 0) { return null; }
+    if (n == 0) { return 1; }
+    let res = 1;
+    let i = 1;
+    for (i = 1; i <= n; i++) {
+        res = res * i;
     }
     return res;
 }
 
-function exp(x) {
-    let res = 1.0;
-    let term = 1.0;
-    for (let i = 1; i < 20; i++) {
-        term = term * x / i;
-        res = res + term;
-    }
-    return res;
-}
+// Trigonometric Functions
 
-function ln(x) {
-    if (x <= 0) { return null; }
-    let res = 0.0;
-    let y = (x - 1) / (x + 1);
-    let y2 = y * y;
-    let p = y;
-    for (let i = 0; i < 20; i++) {
-        res = res + p / (2 * i + 1);
-        p = p * y2;
-    }
-    return 2 * res;
-}
-
-function sin(x) {
-    let res = 0.0;
+export function sin(x) {
     let term = x;
+    let sum = x;
     let x2 = x * x;
-    for (let i = 1; i < 20; i = i + 2) {
-        res = res + term;
-        term = -term * x2 / ((i + 1) * (i + 2));
+    
+    let i = 1;
+    for (i = 1; i < 10; i++) {
+        term = -term * x2 / ((2*i) * (2*i+1));
+        sum = sum + term;
     }
-    return res;
+    return sum;
 }
 
-function cos(x) {
-    let res = 0.0;
-    let term = 1.0;
+export function cos(x) {
+    let term = 1;
+    let sum = 1;
     let x2 = x * x;
-    for (let i = 0; i < 20; i = i + 2) {
-        res = res + term;
-        term = -term * x2 / ((i + 1) * (i + 2));
+    
+    let i = 1;
+    for (i = 1; i < 10; i++) {
+        term = -term * x2 / ((2*i-1) * (2*i));
+        sum = sum + term;
     }
-    return res;
+    return sum;
 }
 
-function tan(x) {
+export function tan(x) {
     return sin(x) / cos(x);
 }
 
-function asin(x) {
-    if (x < -1 || x > 1) { return null; }
-    let res = x;
-    let term = x;
-    let x2 = x * x;
-    for (let i = 1; i < 20; i++) {
-        term = term * x2 * (2 * i - 1) * (2 * i - 1) / ((2 * i) * (2 * i + 1));
-        res = res + term;
+// Exponential and Logarithmic
+
+export function exp(x) {
+    let term = 1;
+    let sum = 1;
+    
+    let i = 1;
+    for (i = 1; i < 20; i++) {
+        term = term * x / i;
+        sum = sum + term;
     }
-    return res;
+    return sum;
 }
 
-function acos(x) {
-    return PI / 2 - asin(x);
-}
-
-function atan(x) {
-    if (x > -1 && x < 1) {
-        let res = x;
-        let term = x;
-        let x2 = x * x;
-        for (let i = 1; i < 20; i++) {
-            term = -term * x2;
-            res = res + term / (2 * i + 1);
-        }
-        return res;
-    }
-    if (x >= 1) { return PI / 2 - atan(1 / x); }
-    return -PI / 2 - atan(1 / x);
-}
-
-function gamma(x) {
+export function ln(x) {
     if (x <= 0) { return null; }
-    let res = sqrt(2 * PI / x) * pow(x / E * sqrt(x * sinh(1 / x) + 1 / (810 * pow(x, 6))), x);
-    return res;
-}
-
-function erf(x) {
-    let a1 = 0.254829592;
-    let a2 = -0.284496736;
-    let a3 = 1.421413741;
-    let a4 = -1.453152027;
-    let a5 = 1.061405429;
-    let p = 0.3275911;
-    let sign = 1;
-    if (x < 0) { sign = -1; }
-    x = abs(x);
-    let t = 1.0 / (1.0 + p * x);
-    let y = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * exp(-x * x);
-    return sign * y;
-}
-
-function bessel_j0(x) {
-    let res = 1.0;
-    let term = 1.0;
-    let x2 = x * x / 4.0;
-    for (let i = 1; i < 20; i++) {
-        term = -term * x2 / (i * i);
-        res = res + term;
+    
+    let y = (x - 1) / (x + 1);
+    let y2 = y * y;
+    let term = y;
+    let sum = y;
+    
+    let i = 1;
+    for (i = 1; i < 10; i++) {
+         term = term * y2;
+         sum = sum + term / (2*i + 1);
     }
-    return res;
+    return 2 * sum;
 }
 
-function zeta(s) {
-    if (s <= 1) { return null; }
-    let res = 0;
-    for (let i = 1; i < 100; i++) {
-        res = res + 1.0 / pow(i, s);
-    }
-    return res;
+export function log10(x) {
+    return ln(x) / ln(10);
 }
 
-function sinh(x) { return (exp(x) - exp(-x)) / 2; }
-function cosh(x) { return (exp(x) + exp(-x)) / 2; }
-function tanh(x) { return sinh(x) / cosh(x); }
+// Hyperbolic
 
-function integrate_numerical(f, a, b, n) {
+export function sinh(x) {
+    return (exp(x) - exp(-x)) / 2;
+}
+
+export function cosh(x) {
+    return (exp(x) + exp(-x)) / 2;
+}
+
+export function tanh(x) {
+    return sinh(x) / cosh(x);
+}
+
+// Numerical Calculus
+
+export function integrate_numerical(f, a, b, n) {
     let h = (b - a) / n;
-    let s = f(a) + f(b);
-    for (let i = 1; i < n; i++) {
+    let sum = 0.5 * (f(a) + f(b));
+    let i = 1;
+    for (i = 1; i < n; i++) {
         let x = a + i * h;
-        if (i % 2 == 0) { s = s + 2 * f(x); }
-        else { s = s + 4 * f(x); }
+        sum = sum + f(x);
     }
-    return s * h / 3;
+    return sum * h;
 }
 
-function derivative_numerical(f, x) {
-    let h = 0.000001;
+export function derivative_numerical(f, x, h) {
+    if (h == null) { h = 0.0001; }
     return (f(x + h) - f(x - h)) / (2 * h);
 }
 
-function find_root(f, a, b) {
-    for (let i = 0; i < 20; i++) {
-        let mid = (a + b) / 2;
-        if (f(mid) == 0) { return mid; }
-        if (f(a) * f(mid) < 0) { b = mid; }
-        else { a = mid; }
+export function find_root(f, a, b, tol) {
+    let fa = f(a);
+    let fb = f(b);
+    
+    if (fa * fb > 0) {
+        println("Error: f(a) and f(b) must have opposite signs");
+        return null;
     }
-    return (a + b) / 2;
+    
+    let mid = (a + b) / 2;
+    while ((b - a) / 2 > tol) {
+        mid = (a + b) / 2;
+        let fmid = f(mid);
+        
+        if (fmid == 0) { return mid; }
+        
+        if (fa * fmid < 0) {
+            b = mid;
+            fb = fmid;
+        } else {
+            a = mid;
+            fa = fmid;
+        }
+    }
+    return mid;
 }

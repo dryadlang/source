@@ -1,0 +1,76 @@
+
+// Test Matrix operations
+import { Matrix } from "../src/math/matrices.dryad";
+#<console_io>
+
+function assert(condition, message) {
+    if (!condition) {
+        println("FAIL: " + message);
+        // exit(1); // if exit exists
+    } else {
+        println("PASS: " + message);
+    }
+}
+
+function test_matrix_basics() {
+    println("Testing Matrix Basics...");
+    let m = new Matrix([[1, 2], [3, 4]]);
+    assert(m.rows == 2, "Rows should be 2");
+    assert(m.cols == 2, "Cols should be 2");
+    assert(m.get(0, 0) == 1, "Get (0,0)");
+    assert(m.get(1, 1) == 4, "Get (1,1)");
+    
+    let m2 = Matrix.identity(3);
+    assert(m2.get(0, 0) == 1, "Identity (0,0)");
+    assert(m2.get(1, 0) == 0, "Identity (1,0)");
+    assert(m2.get(2, 2) == 1, "Identity (2,2)");
+}
+
+function test_matrix_ops() {
+    println("Testing Matrix Ops...");
+    let A = new Matrix([[1, 2], [3, 4]]);
+    let B = new Matrix([[2, 0], [1, 2]]);
+    
+    // Add
+    let C = A.add(B);
+    // [[3, 2], [4, 6]]
+    assert(C.get(0, 0) == 3, "Add (0,0)");
+    assert(C.get(1, 1) == 6, "Add (1,1)");
+    
+    // Multiply
+    // [[1*2+2*1, 1*0+2*2], [3*2+4*1, 3*0+4*2]]
+    // [[4, 4], [10, 8]]
+    let D = A.multiply(B);
+    assert(D.get(0, 0) == 4, "Mul (0,0)");
+    assert(D.get(0, 1) == 4, "Mul (0,1)");
+    assert(D.get(1, 0) == 10, "Mul (1,0)");
+    assert(D.get(1, 1) == 8, "Mul (1,1)");
+    
+    // Transpose
+    let AT = A.transpose();
+    assert(AT.get(0, 1) == 3, "Transpose (0,1) should be (1,0) of A");
+}
+
+function test_determinant_inverse() {
+    println("Testing Det/Inv...");
+    let A = new Matrix([[4, 7], [2, 6]]);
+    // Det = 4*6 - 7*2 = 24 - 14 = 10
+    assert(A.determinant() == 10, "Determinant calculation");
+    
+    let Inv = A.inverse();
+    // Inv = 1/10 * [[6, -7], [-2, 4]]
+    // [[0.6, -0.7], [-0.2, 0.4]]
+    
+    // Floating point comparison approx?
+    let i00 = Inv.get(0, 0);
+    assert(i00 > 0.59 && i00 < 0.61, "Inverse (0,0)");
+    
+    // Check A * Inv = I
+    let I = A.multiply(Inv);
+    assert(I.get(0, 0) > 0.99, "A*Inv (0,0) is 1");
+    assert(I.get(0, 1) < 0.01 && I.get(0, 1) > -0.01, "A*Inv (0,1) is 0");
+}
+
+test_matrix_basics();
+test_matrix_ops();
+test_determinant_inverse();

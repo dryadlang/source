@@ -3,7 +3,7 @@
 **Versão:** 0.1.0  
 **Status:** ✅ Funcional e Testado  
 **Linguagem:** 100% Dryad Puro  
-**Licença:** MIT
+**Licença:** MIT  
 
 ---
 
@@ -36,7 +36,6 @@ Fern é a **primeira biblioteca matemática oficial** para a linguagem Dryad, un
 Manipulação de arrays multidimensionais com operações matemáticas.
 
 **Funções de Criação:**
-
 ```dryad
 import { zeros, ones, arange, eye } from "Fern/math/arrays";
 
@@ -47,7 +46,6 @@ let identity = eye(5);                // Matriz identidade 5x5
 ```
 
 **Classe Array:**
-
 ```dryad
 import { Array } from "Fern/math/arrays";
 
@@ -61,7 +59,6 @@ let val = arr.get([0, 1]);                  // Obter elemento
 ```
 
 **Operações entre Arrays:**
-
 ```dryad
 import { add_arrays, multiply_arrays, dot } from "Fern/math/arrays";
 
@@ -79,7 +76,6 @@ let dot_prod = dot(a, b);             // Produto escalar
 Análise estatística completa de dados.
 
 **Classe Statistics:**
-
 ```dryad
 import { Statistics } from "Fern/math/statistics";
 
@@ -105,7 +101,6 @@ let iqr = stats.iqr();             // Intervalo interquartil
 ```
 
 **Funções de Correlação:**
-
 ```dryad
 import { correlation, covariance } from "Fern/math/statistics";
 
@@ -117,7 +112,6 @@ let cov = covariance(x, y);        // Covariância
 ```
 
 **Distribuições Estatísticas:**
-
 ```dryad
 import { normal_pdf, normal_cdf, t_test } from "Fern/math/statistics";
 
@@ -133,7 +127,6 @@ let result = t_test(sample1, sample2);     // Teste t de Student
 Manipulação simbólica de expressões matemáticas.
 
 **Criação de Expressões:**
-
 ```dryad
 import { symbol, number, add, multiply, power } from "Fern/symbolic/algebra";
 
@@ -153,7 +146,6 @@ print("f(x) = " + expr.to_string());
 ```
 
 **Avaliação de Expressões:**
-
 ```dryad
 // Avaliar em x = 3
 let vars = {"x": 3};
@@ -162,7 +154,6 @@ print("f(3) = " + resultado);  // 2(3²) + 3(3) + 1 = 28
 ```
 
 **Cálculo Diferencial:**
-
 ```dryad
 // Derivada simbólica
 let derivada = expr.derivative("x");
@@ -173,7 +164,6 @@ print("f'(3) = " + derivada.evaluate(vars));  // 15
 ```
 
 **Integração:**
-
 ```dryad
 // Integração de polinômios simples
 let integral = power(x, number(2)).integrate("x");
@@ -181,7 +171,6 @@ print("∫x² dx = " + integral.to_string());  // x³/3
 ```
 
 **Funções Auxiliares:**
-
 ```dryad
 import { solve_linear, factor_quadratic, simplify } from "Fern/symbolic/algebra";
 
@@ -202,7 +191,6 @@ let simplificado = simplify(expr);
 Funções matemáticas avançadas e cálculo numérico.
 
 **Constantes Matemáticas:**
-
 ```dryad
 import { PI, E, GOLDEN_RATIO, EULER_GAMMA } from "Fern/scientific/functions";
 
@@ -213,7 +201,6 @@ print("γ = " + EULER_GAMMA);           // 0.5772156649015329
 ```
 
 **Funções Trigonométricas:**
-
 ```dryad
 import { sin, cos, tan, asin, acos } from "Fern/scientific/functions";
 
@@ -225,7 +212,6 @@ let arco_cos = acos(0.5);      // ~1.047 (60°)
 ```
 
 **Funções Hiperbólicas:**
-
 ```dryad
 import { sinh, cosh, tanh } from "Fern/scientific/functions";
 
@@ -235,7 +221,6 @@ let tanh_val = tanh(1);        // Tangente hiperbólica
 ```
 
 **Funções Exponenciais e Logarítmicas:**
-
 ```dryad
 import { exp, ln, log10, pow, sqrt } from "Fern/scientific/functions";
 
@@ -247,7 +232,6 @@ let raiz = sqrt(16);           // 4.0
 ```
 
 **Funções Especiais:**
-
 ```dryad
 import { factorial, gamma, erf, erfc, bessel_j0, zeta } from "Fern/scientific/functions";
 
@@ -260,7 +244,6 @@ let zeta_val = zeta(2);                // Função zeta de Riemann
 ```
 
 **Cálculo Numérico:**
-
 ```dryad
 import { integrate_numerical, derivative_numerical, find_root } from "Fern/scientific/functions";
 
@@ -281,7 +264,6 @@ let raiz = find_root(function(x) { return x*x - 2; }, 0, 2, 0.001);  // √2
 Estruturas de dados tabulares para análise de dados.
 
 **Criação de DataFrames:**
-
 ```dryad
 import { DataFrame, from_dict, read_csv_simple } from "Fern/data/frames";
 
@@ -298,7 +280,6 @@ let df_csv = read_csv_simple(csv_text);
 ```
 
 **Operações Básicas:**
-
 ```dryad
 // Obter coluna
 let precos = df.get_column("preco");
@@ -315,7 +296,6 @@ df.set_column("preco", novos_precos);
 ```
 
 **Filtragem e Seleção:**
-
 ```dryad
 // Filtrar linhas com condição
 let produtos_caros = df.filter(function(row) {
@@ -327,7 +307,6 @@ let df_ordenado = df.sort_by("preco", true);  // ascendente
 ```
 
 **Estatísticas Descritivas:**
-
 ```dryad
 // Estatísticas de uma coluna
 let estatisticas = df.describe("preco");
@@ -338,7 +317,6 @@ print("Std: " + estatisticas["std"]);
 ```
 
 **Agrupamento:**
-
 ```dryad
 // Agrupar e agregar
 let agrupado = df.groupby("categoria", function(valores) {
@@ -351,7 +329,6 @@ let agrupado = df.groupby("categoria", function(valores) {
 ```
 
 **Merge/Join:**
-
 ```dryad
 import { merge } from "Fern/data/frames";
 
@@ -370,7 +347,6 @@ let df_completo = merge(df1, df2, "id");
 ```
 
 **Visualização:**
-
 ```dryad
 // Representação em string (para debug/print)
 print(df.to_string());
@@ -383,7 +359,6 @@ print(df.to_string());
 ### Método 1: Instalação via Oak Package Manager (Recomendado)
 
 **Pré-requisitos:**
-
 - Dryad instalado e funcionando
 - Oak Package Manager compilado
 
@@ -405,7 +380,6 @@ oak list
 ```
 
 **Estrutura gerada:**
-
 ```
 meu-projeto/
 ├── oaklibs.json          # Configuração do projeto
@@ -455,7 +429,6 @@ Se você não está usando o Oak Package Manager:
 ```
 
 **Estrutura manual:**
-
 ```
 meu-projeto/
 ├── main.dryad
@@ -482,7 +455,6 @@ print("PI = " + PI);
 ```
 
 Execute:
-
 ```bash
 oak exec test_Fern.dryad
 ```
@@ -494,7 +466,6 @@ Se você ver a saída sem erros, o Fern está instalado corretamente! ✅
 ## 📚 Exemplos de Uso
 
 ### Exemplo Completo: Análise Estatística
-
 ```dryad
 // Carregar módulos
 // #include "Fern/src/math/statistics.dryad"
@@ -533,7 +504,6 @@ print(df.describe("lucro"));
 ```
 
 ### Exemplo: Álgebra Simbólica
-
 ```dryad
 // #include "Fern/src/symbolic/algebra.dryad"
 
@@ -658,7 +628,7 @@ for (let i = 0; i < n_pontos; i++) {
 
 // Calcular deslocamento total (integral da velocidade absoluta)
 let deslocamento = integrate_numerical(
-    function(t) {
+    function(t) { 
         let v = velocidade(t);
         if (v < 0) {
             return -v;
@@ -717,11 +687,11 @@ let pontos = [0, 1, 2, 3, 4];
 for (let i = 0; i < pontos.length; i++) {
     let x_val = pontos[i];
     let vars = {"x": x_val};
-
+    
     let y = f.evaluate(vars);
     let dy = f_linha.evaluate(vars);
     let ddy = f_duas_linhas.evaluate(vars);
-
+    
     print(x_val + "\t" + y + "\t" + dy + "\t" + ddy);
 }
 
@@ -828,7 +798,6 @@ for (let i = 0; i < 3; i++) {
 Após instalar o Fern, você pode importar módulos de três formas:
 
 **1. Named Imports (Recomendado):**
-
 ```dryad
 // Importar funções específicas
 import { zeros, ones, arange } from "Fern/math/arrays";
@@ -841,7 +810,6 @@ let stats = new Statistics([1, 2, 3, 4, 5]);
 ```
 
 **2. Namespace Imports:**
-
 ```dryad
 // Importar módulo completo com alias
 import * as arrays from "Fern/math/arrays";
@@ -852,7 +820,6 @@ let seno = sci.sin(sci.PI/2);
 ```
 
 **3. Side-effect Imports:**
-
 ```dryad
 // Apenas executar o módulo (útil para inicialização)
 import "Fern/lib";
@@ -888,7 +855,6 @@ Após executar `oak lock`, o arquivo `oaklock.json` mapeia todos os módulos:
 **Problema:** O Oak não consegue resolver os módulos.
 
 **Solução:**
-
 ```bash
 # Execute oak lock para gerar o arquivo de mapeamento
 oak lock
@@ -899,7 +865,6 @@ oak lock
 **Problema:** O caminho do import está incorreto.
 
 **Soluções:**
-
 1. Verifique o `oaklock.json` para ver os caminhos disponíveis
 2. Use o formato correto: `"Fern/modulo/submodulo"`
 3. Execute `oak list` para ver os módulos instalados
@@ -909,7 +874,6 @@ oak lock
 **Problema:** Tentando usar uma função que não foi importada.
 
 **Solução:**
-
 ```dryad
 // ❌ Errado - função não importada
 import { zeros } from "Fern/math/arrays";
@@ -926,7 +890,6 @@ let arr2 = ones(5);
 **Problema:** Código Fern usando sintaxe antiga.
 
 **Nota:** A versão instalada via Oak já vem com sintaxe correta. Se encontrar este erro:
-
 1. Reinstale: `oak install Fern --force`
 2. Execute: `oak lock`
 
@@ -935,7 +898,6 @@ let arr2 = ones(5);
 **Limitação:** Fern v0.1.0 é otimizado para arrays pequenos a médios (até ~100 elementos).
 
 **Recomendações:**
-
 - Para arrays grandes, considere usar funções nativas quando disponíveis
 - Versões futuras terão otimizações de performance
 
@@ -944,7 +906,6 @@ let arr2 = ones(5);
 ## 🗺️ Roadmap
 
 ### Versão 0.1.0 (Atual) ✅
-
 - [x] Arrays multidimensionais básicos
 - [x] Estatísticas descritivas
 - [x] DataFrames simples
@@ -953,7 +914,6 @@ let arr2 = ones(5);
 - [x] Integração com Oak Package Manager
 
 ### Versão 0.2.0 (Planejado)
-
 - [ ] Operações vetorizadas otimizadas
 - [ ] Suporte a arrays maiores (1000+ elementos)
 - [ ] Funções de agregação em DataFrames
@@ -962,7 +922,6 @@ let arr2 = ones(5);
 - [ ] Operações de matriz (determinante, inversa)
 
 ### Versão 0.3.0 (Futuro)
-
 - [ ] Machine Learning básico (regressão linear, k-means)
 - [ ] Séries temporais
 - [ ] Análise de Fourier
@@ -970,7 +929,6 @@ let arr2 = ones(5);
 - [ ] Integração com módulos nativos para performance
 
 ### Versão 1.0.0 (Visão)
-
 - [ ] Biblioteca completa e estável
 - [ ] Performance otimizada
 - [ ] Documentação completa
@@ -1115,15 +1073,13 @@ Feito com ❤️ pela comunidade Dryad
 ## 🔧 Funcionalidades Implementadas
 
 ### Arrays Multidimensionais
-
 - ✅ Criação de arrays (zeros, ones, arange, eye)
-- ✅ Operações básicas (+, -, \*, /) elemento a elemento
+- ✅ Operações básicas (+, -, *, /) elemento a elemento
 - ✅ Funções de agregação (sum, mean, min, max)
 - ✅ Indexação básica
 - ✅ Produto escalar (dot product)
 
 ### Estatísticas
-
 - ✅ Média, mediana, moda
 - ✅ Desvio padrão, variância
 - ✅ Quartis, IQR
@@ -1133,7 +1089,6 @@ Feito com ❤️ pela comunidade Dryad
 - ✅ Teste t simples
 
 ### Álgebra Simbólica
-
 - ✅ Expressões simbólicas básicas
 - ✅ Avaliação de expressões
 - ✅ Derivação simbólica (regras básicas)
@@ -1142,7 +1097,6 @@ Feito com ❤️ pela comunidade Dryad
 - ✅ Fatoração quadrática simples
 
 ### Funções Científicas
-
 - ✅ Funções trigonométricas (sin, cos, tan, asin, acos)
 - ✅ Funções exponenciais e logarítmicas
 - ✅ Potência e raízes
@@ -1155,7 +1109,6 @@ Feito com ❤️ pela comunidade Dryad
 - ✅ Método da bisseção para raízes
 
 ### DataFrames
-
 - ✅ Criação de DataFrames
 - ✅ Seleção de colunas e linhas
 - ✅ Filtragem de dados
@@ -1169,28 +1122,24 @@ Feito com ❤️ pela comunidade Dryad
 ## 🔮 Funcionalidades Planejadas
 
 ### Arrays
-
 - Indexação avançada
 - Broadcasting
 - Operações de matriz (multiplicação, inversa, etc.)
 - FFT básica
 
 ### Estatísticas
-
 - Regressão linear
 - Testes de hipóteses avançados
 - Análise de variância (ANOVA)
 - Distribuições adicionais
 
 ### Simbólico
-
 - Simplificação algébrica avançada
 - Equações diferenciais
 - Séries de Taylor
 - Sistemas de equações
 
 ### Científico
-
 - Otimização (gradiente descendente, etc.)
 - Interpolação
 - Integração avançada

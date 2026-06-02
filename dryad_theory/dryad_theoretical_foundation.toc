@@ -1,0 +1,89 @@
+\babel@toc {english}{}\relax 
+\contentsline {section}{\numberline {1}Introdução e Filosofia da Linguagem}{5}{section.1}%
+\contentsline {subsection}{\numberline {1.1}Visão Geral}{5}{subsection.1.1}%
+\contentsline {subsection}{\numberline {1.2}Características Distintivas}{5}{subsection.1.2}%
+\contentsline {subsection}{\numberline {1.3}Princípios de Design}{6}{subsection.1.3}%
+\contentsline {section}{\numberline {2}Estrutura Lexical}{6}{section.2}%
+\contentsline {subsection}{\numberline {2.1}Alfabeto e Caracteres}{6}{subsection.2.1}%
+\contentsline {subsection}{\numberline {2.2}Tokens e Classificação}{6}{subsection.2.2}%
+\contentsline {subsection}{\numberline {2.3}Palavras Reservadas}{7}{subsection.2.3}%
+\contentsline {subsection}{\numberline {2.4}Operadores}{8}{subsection.2.4}%
+\contentsline {subsection}{\numberline {2.5}Comentários e Whitespace}{9}{subsection.2.5}%
+\contentsline {subsection}{\numberline {2.6}Diretivas Nativas e Desambiguação Lexical}{9}{subsection.2.6}%
+\contentsline {section}{\numberline {3}Sistema de Tipos}{10}{section.3}%
+\contentsline {subsection}{\numberline {3.1}Fundamentos do Sistema de Tipos}{10}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}Tipos Primitivos}{10}{subsection.3.2}%
+\contentsline {subsection}{\numberline {3.3}Tipos Compostos}{10}{subsection.3.3}%
+\contentsline {subsection}{\numberline {3.4}Anotações de Tipo}{11}{subsection.3.4}%
+\contentsline {subsection}{\numberline {3.5}Modo Estrito de Tipos (Futuro)}{12}{subsection.3.5}%
+\contentsline {subsection}{\numberline {3.6}Coerção e Compatibilidade de Tipos}{13}{subsection.3.6}%
+\contentsline {section}{\numberline {4}Expressões}{13}{section.4}%
+\contentsline {subsection}{\numberline {4.1}Hierarquia de Precedência}{13}{subsection.4.1}%
+\contentsline {subsection}{\numberline {4.2}Expressões Primárias}{14}{subsection.4.2}%
+\contentsline {subsection}{\numberline {4.3}Expressões Binárias}{15}{subsection.4.3}%
+\contentsline {subsection}{\numberline {4.4}Expressões Unárias}{15}{subsection.4.4}%
+\contentsline {subsection}{\numberline {4.5}Acesso a Propriedades e Chamadas}{16}{subsection.4.5}%
+\contentsline {subsection}{\numberline {4.6}Match Expression}{16}{subsection.4.6}%
+\contentsline {section}{\numberline {5}Statements (Instruções)}{16}{section.5}%
+\contentsline {subsection}{\numberline {5.1}Declarações de Variáveis}{16}{subsection.5.1}%
+\contentsline {subsection}{\numberline {5.2}Statements de Controle de Fluxo}{17}{subsection.5.2}%
+\contentsline {subsection}{\numberline {5.3}Tratamento de Exceções}{18}{subsection.5.3}%
+\contentsline {subsection}{\numberline {5.4}Return Statement}{18}{subsection.5.4}%
+\contentsline {section}{\numberline {6}Declarações}{19}{section.6}%
+\contentsline {subsection}{\numberline {6.1}Funções}{19}{subsection.6.1}%
+\contentsline {subsection}{\numberline {6.2}Classes}{20}{subsection.6.2}%
+\contentsline {section}{\numberline {7}Sistema de Módulos}{21}{section.7}%
+\contentsline {subsection}{\numberline {7.1}Import Statement}{21}{subsection.7.1}%
+\contentsline {subsection}{\numberline {7.2}Export Statement}{22}{subsection.7.2}%
+\contentsline {subsection}{\numberline {7.3}Native Directives}{22}{subsection.7.3}%
+\contentsline {section}{\numberline {8}Modelo de Execução}{22}{section.8}%
+\contentsline {subsection}{\numberline {8.1}Arquitetura de Execução Híbrida}{22}{subsection.8.1}%
+\contentsline {subsection}{\numberline {8.2}Pipeline de Compilação}{23}{subsection.8.2}%
+\contentsline {subsection}{\numberline {8.3}Escopo e Resolução de Variáveis}{23}{subsection.8.3}%
+\contentsline {subsection}{\numberline {8.4}Execução de Funções}{24}{subsection.8.4}%
+\contentsline {subsection}{\numberline {8.5}Instanciação de Classes}{25}{subsection.8.5}%
+\contentsline {subsection}{\numberline {8.6}Representação Interna de Valores}{25}{subsection.8.6}%
+\contentsline {subsection}{\numberline {8.7}Gerenciamento de Memória}{26}{subsection.8.7}%
+\contentsline {section}{\numberline {9}Sistema de Erros}{26}{section.9}%
+\contentsline {subsection}{\numberline {9.1}Categorias de Erros}{26}{subsection.9.1}%
+\contentsline {subsection}{\numberline {9.2}Propagação de Exceções}{27}{subsection.9.2}%
+\contentsline {section}{\numberline {10}Modelo de Concorrência}{28}{section.10}%
+\contentsline {subsection}{\numberline {10.1}Async/Await}{28}{subsection.10.1}%
+\contentsline {subsection}{\numberline {10.2}Threads Nativos}{28}{subsection.10.2}%
+\contentsline {subsection}{\numberline {10.3}Sincronização com Mutex}{28}{subsection.10.3}%
+\contentsline {section}{\numberline {11}Foreign Function Interface (FFI)}{29}{section.11}%
+\contentsline {subsection}{\numberline {11.1}Sistema de Módulos Nativos}{29}{subsection.11.1}%
+\contentsline {subsection}{\numberline {11.2}Mapeamento de Tipos}{29}{subsection.11.2}%
+\contentsline {subsection}{\numberline {11.3}Convenção de Chamada}{30}{subsection.11.3}%
+\contentsline {section}{\numberline {12}Arquitetura de Runtime Mínimo com Intrinsics}{30}{section.12}%
+\contentsline {subsection}{\numberline {12.1}Filosofia do Self-Hosting}{30}{subsection.12.1}%
+\contentsline {subsection}{\numberline {12.2}Sistema de Intrinsics}{30}{subsection.12.2}%
+\contentsline {subsection}{\numberline {12.3}Pipeline de Compilação com Intrinsics}{31}{subsection.12.3}%
+\contentsline {subsection}{\numberline {12.4}Implementação no Runtime C++}{31}{subsection.12.4}%
+\contentsline {subsection}{\numberline {12.5}Standard Library em Dryad Puro}{32}{subsection.12.5}%
+\contentsline {subsection}{\numberline {12.6}Virtual File System (VFS)}{33}{subsection.12.6}%
+\contentsline {subsection}{\numberline {12.7}Networking e Async I/O}{34}{subsection.12.7}%
+\contentsline {subsection}{\numberline {12.8}Gerenciamento de Memória com Buffer}{36}{subsection.12.8}%
+\contentsline {subsection}{\numberline {12.9}Conjunto Mínimo de Syscalls}{37}{subsection.12.9}%
+\contentsline {subsection}{\numberline {12.10}Comparação com Sistema Anterior}{38}{subsection.12.10}%
+\contentsline {section}{\numberline {13}Bytecode e IR}{38}{section.13}%
+\contentsline {subsection}{\numberline {13.1}Bytecode VM}{38}{subsection.13.1}%
+\contentsline {subsection}{\numberline {13.2}Intermediate Representation (IR)}{39}{subsection.13.2}%
+\contentsline {section}{\numberline {14}Compilação AOT (Ahead-of-Time)}{39}{section.14}%
+\contentsline {subsection}{\numberline {14.1}Pipeline AOT}{39}{subsection.14.1}%
+\contentsline {subsection}{\numberline {14.2}Backends Suportados}{40}{subsection.14.2}%
+\contentsline {subsection}{\numberline {14.3}Formatos de Objeto}{40}{subsection.14.3}%
+\contentsline {section}{\numberline {15}Padrões de Programação}{40}{section.15}%
+\contentsline {subsection}{\numberline {15.1}Paradigma Orientado a Objetos}{40}{subsection.15.1}%
+\contentsline {subsection}{\numberline {15.2}Paradigma Funcional}{41}{subsection.15.2}%
+\contentsline {subsection}{\numberline {15.3}Paradigma Procedural}{41}{subsection.15.3}%
+\contentsline {section}{\numberline {16}Especificações Formais}{41}{section.16}%
+\contentsline {subsection}{\numberline {16.1}Gramática Formal (BNF Simplificada)}{41}{subsection.16.1}%
+\contentsline {subsection}{\numberline {16.2}Semântica Operacional (Informal)}{42}{subsection.16.2}%
+\contentsline {section}{\numberline {17}Limitações e Considerações}{43}{section.17}%
+\contentsline {subsection}{\numberline {17.1}Limitações Conhecidas}{43}{subsection.17.1}%
+\contentsline {subsection}{\numberline {17.2}Características de Performance}{43}{subsection.17.2}%
+\contentsline {section}{\numberline {18}Conclusão}{43}{section.18}%
+\contentsline {subsection}{\numberline {18.1}Resumo}{43}{subsection.18.1}%
+\contentsline {subsection}{\numberline {18.2}Filosofia de Design}{44}{subsection.18.2}%
+\contentsline {subsection}{\numberline {18.3}Direções Futuras}{44}{subsection.18.3}%

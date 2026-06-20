@@ -1,0 +1,94 @@
+// @std/buffers/buffer.dryad
+// Buffer implementation using arrays and objects
+//
+// A Buffer is represented as an object with:
+// - data: array of integers (bytes 0-255)
+// - length: number (buffer size)
+// - disposed: boolean (disposal state)
+
+function Buffer(size) {
+    if (size < 0) {
+        return ArgumentOutOfRangeException("Buffer size cannot be negative: " + size);
+    }
+    
+    let buf = __runtime_create_object();
+    __runtime_object_set(buf, "length", size);
+    __runtime_object_set(buf, "disposed", false);
+    
+    let data = [];
+    let i = 0;
+    while (i < size) {
+        data[i] = 0;
+        i = i + 1;
+    }
+    __runtime_object_set(buf, "data", data);
+    
+    return buf;
+}
+
+function Buffer_get(buf, index) {
+    let disposed = __runtime_object_get(buf, "disposed");
+    if (disposed) {
+        return ObjectDisposedException("Buffer");
+    }
+    
+    let length = __runtime_object_get(buf, "length");
+    if (index < 0 || index >= length) {
+        return IndexOutOfRangeException("Index " + index + " out of range [0, " + length + ")");
+    }
+    
+    let data = __runtime_object_get(buf, "data");
+    return data[index];
+}
+
+function Buffer_set(buf, index, value) {
+    let disposed = __runtime_object_get(buf, "disposed");
+    if (disposed) {
+        return ObjectDisposedException("Buffer");
+    }
+    
+    let length = __runtime_object_get(buf, "length");
+    if (index < 0 || index >= length) {
+        return IndexOutOfRangeException("Index " + index + " out of range [0, " + length + ")");
+    }
+    
+    let data = __runtime_object_get(buf, "data");
+    data[index] = value;
+    return null;
+}
+
+function Buffer_fill(buf, value) {
+    let disposed = __runtime_object_get(buf, "disposed");
+    if (disposed) {
+        return ObjectDisposedException("Buffer");
+    }
+    
+    let data = __runtime_object_get(buf, "data");
+    let length = __runtime_object_get(buf, "length");
+    
+    let i = 0;
+    while (i < length) {
+        data[i] = value;
+        i = i + 1;
+    }
+    
+    return null;
+}
+
+function Buffer_dispose(buf) {
+    let disposed = __runtime_object_get(buf, "disposed");
+    if (disposed) {
+        return null;
+    }
+    
+    __runtime_object_set(buf, "disposed", true);
+    __runtime_object_set(buf, "data", null);
+    
+    return null;
+}
+
+function Buffer_length(buf) {
+    return __runtime_object_get(buf, "length");
+}
+
+

@@ -1,0 +1,62 @@
+// @std/io/stream.dryad
+// Abstract Stream class for I/O operations
+//
+// NOTE: This file defines the Stream ABSTRACT CLASS specification.
+// Full implementation awaits class and abstract syntax support.
+//
+// Future abstract class definition:
+// ```
+// import { IDisposable } from "@std/core/disposable";
+// import { Buffer } from "@std/buffers/buffer";
+//
+// enum SeekOrigin {
+//     Begin = 0,
+//     Current = 1,
+//     End = 2
+// }
+//
+// abstract class Stream implements IDisposable {
+//     abstract get canRead(): boolean;
+//     abstract get canWrite(): boolean;
+//     abstract get canSeek(): boolean;
+//     abstract get length(): number;
+//     abstract get position(): number;
+//     abstract set position(value: number): void;
+//     
+//     abstract read(buffer: Buffer, offset: number, count: number): number;
+//     abstract write(buffer: Buffer, offset: number, count: number): void;
+//     abstract seek(offset: number, origin: SeekOrigin): number;
+//     abstract flush(): void;
+//     abstract close(): void;
+//     
+//     readByte(): number {
+//         let buf = new Buffer(1);
+//         let n = this.read(buf, 0, 1);
+//         if (n === 0) return -1;
+//         return buf.get(0);
+//     }
+//     
+//     writeByte(value: byte): void {
+//         let buf = new Buffer(1);
+//         buf.set(0, value);
+//         this.write(buf, 0, 1);
+//     }
+//     
+//     dispose(): void {
+//         this.close();
+//     }
+// }
+// ```
+//
+// Concrete subclasses will implement:
+// - FileStream (file I/O)
+// - MemoryStream (in-memory buffer)
+// - NetworkStream (socket I/O)
+
+function Stream() {
+    return "Stream abstract class placeholder - awaiting class syntax support";
+}
+
+function SeekOrigin() {
+    return "SeekOrigin enum placeholder - awaiting enum syntax support";
+}

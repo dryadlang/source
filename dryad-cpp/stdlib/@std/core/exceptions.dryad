@@ -1,0 +1,70 @@
+// @std/core/exceptions.dryad
+// Exception hierarchy for Dryad standard library
+// NOTE: Simplified implementation without object literals
+// Will migrate to proper class-based exceptions when class support is complete
+
+// Base Exception (returns message string for now)
+function Exception(message) {
+    return message;
+}
+
+// Argument exceptions
+function ArgumentException(message) {
+    return message;
+}
+
+function ArgumentNullException(paramName) {
+    return paramName + " cannot be null";
+}
+
+function ArgumentOutOfRangeException(message) {
+    return message;
+}
+
+// I/O exceptions
+function IOException(message) {
+    return message;
+}
+
+function FileNotFoundException(message) {
+    return message;
+}
+
+function DirectoryNotFoundException(message) {
+    return message;
+}
+
+function EndOfStreamException(message) {
+    return message;
+}
+
+// State exceptions
+function InvalidOperationException(message) {
+    return message;
+}
+
+function ObjectDisposedException(objectName) {
+    return "Cannot access disposed object: " + objectName;
+}
+
+// Collection exceptions
+function IndexOutOfRangeException(message) {
+    return message;
+}
+
+function KeyNotFoundException(message) {
+    return message;
+}
+
+// Network exceptions
+function NetworkException(message) {
+    return message;
+}
+
+function SocketException(message) {
+    return message;
+}
+
+function HttpException(message) {
+    return message;
+}

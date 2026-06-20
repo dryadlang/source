@@ -1,0 +1,37 @@
+// @std/core/disposable.dryad
+// IDisposable interface for Dryad standard library
+//
+// NOTE: This file defines the IDisposable CONTRACT only.
+// Full implementation awaits class/interface syntax support.
+//
+// Future interface definition:
+// ```
+// interface IDisposable {
+//     dispose(): void;
+// }
+// ```
+//
+// Usage pattern (when classes are available):
+// ```
+// class FileStream implements IDisposable {
+//     private _disposed: boolean = false;
+//     
+//     dispose(): void {
+//         if (this._disposed) return;
+//         this._disposed = true;
+//         // Clean up resources
+//     }
+// }
+//
+// using (let stream = new FileStream("data.txt")) {
+//     // Use stream
+// }  // dispose() called automatically
+// ```
+//
+// For now, resources that need cleanup should implement a dispose() function
+// following this convention. The `using` statement will be added in Phase 5.
+
+// Placeholder - will be replaced with proper interface when syntax is available
+function IDisposable() {
+    return "IDisposable interface placeholder";
+}

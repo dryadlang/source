@@ -53,6 +53,8 @@ enum class TokenType {
     Semicolon,
     Arrow,
     Question,
+    At,          // @ decorator marker
+    Hash,        // # module/intrinsic name prefix
     
     KeywordLet,
     KeywordConst,
@@ -83,6 +85,7 @@ enum class TokenType {
     KeywordFalse,
     KeywordNull,
     KeywordInternal,
+    KeywordExtern,   // extern for intrinsic functions
     
     Error
 };

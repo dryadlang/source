@@ -41,11 +41,16 @@ private:
     std::unique_ptr<Statement> parse_variable_declaration();
     std::unique_ptr<Statement> parse_function_declaration(bool is_internal = false);
     std::unique_ptr<Statement> parse_class_declaration(bool is_internal = false);
+    std::unique_ptr<Statement> parse_intrinsic_declaration();
     std::unique_ptr<Statement> parse_block_statement();
     std::unique_ptr<Statement> parse_expression_statement();
     std::unique_ptr<Statement> parse_if_statement();
     std::unique_ptr<Statement> parse_while_statement();
     std::unique_ptr<Statement> parse_return_statement();
+    
+    std::string parse_intrinsic_name();
+    std::vector<Parameter> parse_parameters();
+    std::string parse_return_type();
     
     std::unique_ptr<Expression> parse_expression();
     std::unique_ptr<Expression> parse_assignment();

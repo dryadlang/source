@@ -104,6 +104,16 @@ void Parser::synchronize() {
 }
 
 std::unique_ptr<Statement> Parser::parse_declaration() {
+    // Check for @intrinsic decorator
+    if (match(TokenType::At)) {
+        Token decorator = consume(TokenType::Identifier, "Expected decorator name after '@'");
+        if (decorator.lexeme == "intrinsic") {
+            return parse_intrinsic_declaration();
+        } else {
+            throw DryadException("Unknown decorator '@" + decorator.lexeme + "'");
+        }
+    }
+    
     // Check for 'internal' modifier
     bool is_internal = false;
     if (match(TokenType::KeywordInternal)) {
@@ -160,28 +170,11 @@ std::unique_ptr<Statement> Parser::parse_function_declaration(bool is_internal) 
     
     consume(TokenType::LeftParen, "Expected '(' after function name");
     
-    std::vector<Parameter> parameters;
-    if (!check(TokenType::RightParen)) {
-        do {
-            Token param_name = consume(TokenType::Identifier, "Expected parameter name");
-            
-            std::string type_annotation;
-            if (match(TokenType::Colon)) {
-                Token type = consume(TokenType::Identifier, "Expected type annotation");
-                type_annotation = type.lexeme;
-            }
-            
-            parameters.push_back({param_name.lexeme, type_annotation});
-        } while (match(TokenType::Comma));
-    }
+    std::vector<Parameter> parameters = parse_parameters();
     
     consume(TokenType::RightParen, "Expected ')' after parameters");
     
-    std::string return_type;
-    if (match(TokenType::Colon)) {
-        Token type = consume(TokenType::Identifier, "Expected return type");
-        return_type = type.lexeme;
-    }
+    std::string return_type = parse_return_type();
     
     consume(TokenType::LeftBrace, "Expected '{' before function body");
     auto body = parse_block_statement();
@@ -547,6 +540,69 @@ std::unique_ptr<Statement> Parser::parse_class_declaration(bool is_internal) {
     consume(TokenType::RightBrace, "Expected '}' after class body");
     
     return std::make_unique<ClassDeclaration>(name.lexeme, super_class, std::move(methods), loc);
+}
+
+std::unique_ptr<Statement> Parser::parse_intrinsic_declaration() {
+    SourceLocation loc = previous().location;
+    
+    consume(TokenType::LeftParen, "Expected '(' after @intrinsic");
+    Token intrinsic_name_token = consume(TokenType::StringLiteral, "Expected intrinsic name as string literal");
+    std::string intrinsic_name = intrinsic_name_token.lexeme;
+    consume(TokenType::RightParen, "Expected ')' after intrinsic name");
+    
+    consume(TokenType::KeywordExtern, "Expected 'extern' after @intrinsic(...) decorator");
+    consume(TokenType::KeywordFunction, "Expected 'function' after 'extern'");
+    
+    Token function_name = consume(TokenType::Identifier, "Expected function name");
+    
+    consume(TokenType::LeftParen, "Expected '(' after function name");
+    
+    std::vector<Parameter> parameters = parse_parameters();
+    
+    consume(TokenType::RightParen, "Expected ')' after parameters");
+    
+    std::string return_type = parse_return_type();
+    
+    consume(TokenType::Semicolon, "Expected ';' after intrinsic declaration");
+    
+    return std::make_unique<IntrinsicDeclaration>(
+        intrinsic_name,
+        function_name.lexeme,
+        std::move(parameters),
+        return_type,
+        loc
+    );
+}
+
+std::vector<Parameter> Parser::parse_parameters() {
+    std::vector<Parameter> parameters;
+    
+    if (!check(TokenType::RightParen)) {
+        do {
+            Token param_name = consume(TokenType::Identifier, "Expected parameter name");
+            
+            std::string type_annotation;
+            if (match(TokenType::Colon)) {
+                Token type = consume(TokenType::Identifier, "Expected type annotation");
+                type_annotation = type.lexeme;
+            }
+            
+            parameters.push_back({param_name.lexeme, type_annotation});
+        } while (match(TokenType::Comma));
+    }
+    
+    return parameters;
+}
+
+std::string Parser::parse_return_type() {
+    std::string return_type;
+    
+    if (match(TokenType::Colon)) {
+        Token type = consume(TokenType::Identifier, "Expected return type");
+        return_type = type.lexeme;
+    }
+    
+    return return_type;
 }
 
 } // namespace dryad

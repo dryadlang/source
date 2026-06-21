@@ -33,6 +33,7 @@ enum class ASTNodeType {
     VariableDeclaration,
     FunctionDeclaration,
     ClassDeclaration,
+    IntrinsicDeclaration,
     
     BlockStatement,
     ExpressionStatement,
@@ -212,6 +213,21 @@ public:
     
     FunctionDeclaration(std::string name, std::vector<Parameter> parameters, std::unique_ptr<BlockStatement> body, std::string return_type = "", bool is_internal = false, SourceLocation location = SourceLocation())
         : Statement(ASTNodeType::FunctionDeclaration, location), name(std::move(name)), parameters(std::move(parameters)), body(std::move(body)), return_type(std::move(return_type)), is_internal(is_internal) {}
+};
+
+class IntrinsicDeclaration : public Statement {
+public:
+    std::string intrinsic_name;
+    std::string function_name;
+    std::vector<Parameter> parameters;
+    std::string return_type;
+    
+    IntrinsicDeclaration(std::string intrinsic_name, std::string function_name, std::vector<Parameter> parameters, std::string return_type = "", SourceLocation location = SourceLocation())
+        : Statement(ASTNodeType::IntrinsicDeclaration, location), 
+          intrinsic_name(std::move(intrinsic_name)), 
+          function_name(std::move(function_name)), 
+          parameters(std::move(parameters)), 
+          return_type(std::move(return_type)) {}
 };
 
 class MethodDeclaration {

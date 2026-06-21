@@ -18,7 +18,7 @@ bool Token::is_operator() const {
 }
 
 bool Token::is_keyword() const {
-    return type >= TokenType::KeywordLet && type <= TokenType::KeywordNull;
+    return type >= TokenType::KeywordLet && type <= TokenType::KeywordExtern;
 }
 
 std::string token_type_to_string(TokenType type) {
@@ -61,6 +61,8 @@ std::string token_type_to_string(TokenType type) {
         {TokenType::Semicolon, ";"},
         {TokenType::Arrow, "->"},
         {TokenType::Question, "?"},
+        {TokenType::At, "@"},
+        {TokenType::Hash, "#"},
         {TokenType::KeywordLet, "let"},
         {TokenType::KeywordConst, "const"},
         {TokenType::KeywordFunction, "function"},
@@ -90,6 +92,7 @@ std::string token_type_to_string(TokenType type) {
         {TokenType::KeywordFalse, "false"},
         {TokenType::KeywordNull, "null"},
         {TokenType::KeywordInternal, "internal"},
+        {TokenType::KeywordExtern, "extern"},
         {TokenType::Error, "Error"}
     };
     

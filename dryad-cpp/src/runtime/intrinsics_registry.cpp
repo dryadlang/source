@@ -147,6 +147,48 @@ void IntrinsicsRegistry::register_memory_intrinsics() {
         ::free(reinterpret_cast<void*>(ptr_val));
         return Value();
     });
+    
+    register_intrinsic("syscall.realloc", [](const std::vector<Value>& args) -> Value {
+        if (args.size() < 2) {
+            throw DryadException("syscall.realloc requires 2 arguments");
+        }
+        
+        int64_t ptr_val = args[0].as_integer();
+        int64_t new_size = args[1].as_integer();
+        
+        void* new_ptr = ::realloc(reinterpret_cast<void*>(ptr_val), static_cast<size_t>(new_size));
+        return Value(reinterpret_cast<int64_t>(new_ptr));
+    });
+    
+    register_intrinsic("syscall.memcpy", [](const std::vector<Value>& args) -> Value {
+        if (args.size() < 3) {
+            throw DryadException("syscall.memcpy requires 3 arguments");
+        }
+        
+        int64_t dst_ptr = args[0].as_integer();
+        int64_t src_ptr = args[1].as_integer();
+        int64_t size = args[2].as_integer();
+        
+        ::memcpy(reinterpret_cast<void*>(dst_ptr),
+                reinterpret_cast<void*>(src_ptr),
+                static_cast<size_t>(size));
+        return Value(dst_ptr);
+    });
+    
+    register_intrinsic("syscall.memset", [](const std::vector<Value>& args) -> Value {
+        if (args.size() < 3) {
+            throw DryadException("syscall.memset requires 3 arguments");
+        }
+        
+        int64_t ptr_val = args[0].as_integer();
+        int64_t value = args[1].as_integer();
+        int64_t size = args[2].as_integer();
+        
+        ::memset(reinterpret_cast<void*>(ptr_val),
+                static_cast<int>(value),
+                static_cast<size_t>(size));
+        return Value(ptr_val);
+    });
 }
 
 void IntrinsicsRegistry::register_network_intrinsics() {

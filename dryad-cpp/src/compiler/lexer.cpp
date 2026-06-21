@@ -32,7 +32,8 @@ std::unordered_map<std::string, TokenType> Lexer::keywords_ = {
     {"true", TokenType::KeywordTrue},
     {"false", TokenType::KeywordFalse},
     {"null", TokenType::KeywordNull},
-    {"internal", TokenType::KeywordInternal}
+    {"internal", TokenType::KeywordInternal},
+    {"extern", TokenType::KeywordExtern}
 };
 
 Lexer::Lexer(std::string source)
@@ -171,6 +172,8 @@ Token Lexer::scan_token() {
         case ':': return Token(TokenType::Colon, ":", start_loc);
         case ';': return Token(TokenType::Semicolon, ";", start_loc);
         case '?': return Token(TokenType::Question, "?", start_loc);
+        case '@': return Token(TokenType::At, "@", start_loc);
+        case '#': return Token(TokenType::Hash, "#", start_loc);
         
         case '+':
             if (match('=')) return Token(TokenType::PlusEqual, "+=", start_loc);

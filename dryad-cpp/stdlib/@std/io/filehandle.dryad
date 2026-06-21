@@ -1,0 +1,145 @@
+// @std/io/filehandle.dryad
+// File handle abstraction for resource management
+//
+// FileHandle provides a managed way to work with files with proper
+// lifecycle management (open/close/dispose). Supports read and write modes.
+
+import { 
+    VFS_readFile, 
+    VFS_writeFile, 
+    _getGlobalVFS 
+} from "@std/io/file";
+
+// ============================================================================
+// FileHandle Class
+// ============================================================================
+
+// FileHandle(path, mode) - Create a file handle
+// Parameters:
+//   path - File path (string)
+//   mode - "read", "write", or "append"
+// Returns:
+//   FileHandle object with lifecycle management
+function FileHandle(path, mode) {
+    if (path == null || path == "") {
+        return ArgumentException("Path cannot be null or empty");
+    }
+    
+    if (mode == null || (mode != "read" && mode != "write" && mode != "append")) {
+        return ArgumentException("Mode must be 'read', 'write', or 'append'");
+    }
+    
+    let handle = __runtime_create_object();
+    __runtime_object_set(handle, "path", path);
+    __runtime_object_set(handle, "mode", mode);
+    __runtime_object_set(handle, "vfs", _getGlobalVFS());
+    __runtime_object_set(handle, "closed", false);
+    
+    return handle;
+}
+
+// FileHandle_isOpen(handle) - Check if handle is still open
+// Returns: boolean - true if handle is open, false if closed
+function FileHandle_isOpen(handle) {
+    if (handle == null) {
+        return false;
+    }
+    
+    let closed = __runtime_object_get(handle, "closed");
+    return !closed;
+}
+
+// FileHandle_read(handle) - Read file content
+// Returns: file content as string
+// Throws: ObjectDisposedException if handle is closed
+//         InvalidOperationException if not opened for reading
+function FileHandle_read(handle) {
+    if (handle == null) {
+        return ArgumentNullException("handle");
+    }
+    
+    let closed = __runtime_object_get(handle, "closed");
+    if (closed) {
+        return ObjectDisposedException("FileHandle");
+    }
+    
+    let mode = __runtime_object_get(handle, "mode");
+    if (mode != "read") {
+        return InvalidOperationException("FileHandle not open for reading");
+    }
+    
+    let path = __runtime_object_get(handle, "path");
+    let vfs = __runtime_object_get(handle, "vfs");
+    
+    return VFS_readFile(vfs, path);
+}
+
+// FileHandle_write(handle, content) - Write content to file
+// Parameters:
+//   handle - FileHandle object
+//   content - Content to write (string)
+// Returns: null on success, exception string on error
+// Throws: ObjectDisposedException if handle is closed
+//         InvalidOperationException if not opened for writing
+function FileHandle_write(handle, content) {
+    if (handle == null) {
+        return ArgumentNullException("handle");
+    }
+    
+    let closed = __runtime_object_get(handle, "closed");
+    if (closed) {
+        return ObjectDisposedException("FileHandle");
+    }
+    
+    let mode = __runtime_object_get(handle, "mode");
+    if (mode != "write" && mode != "append") {
+        return InvalidOperationException("FileHandle not open for writing");
+    }
+    
+    if (content == null) {
+        content = "";
+    }
+    
+    let path = __runtime_object_get(handle, "path");
+    let vfs = __runtime_object_get(handle, "vfs");
+    
+    return VFS_writeFile(vfs, path, content);
+}
+
+// FileHandle_close(handle) - Close the file handle
+// Releases resources and marks handle as closed
+// Returns: null
+function FileHandle_close(handle) {
+    if (handle == null) {
+        return null;
+    }
+    
+    __runtime_object_set(handle, "closed", true);
+    return null;
+}
+
+// FileHandle_dispose(handle) - Dispose the file handle (alias for close)
+// Returns: null
+function FileHandle_dispose(handle) {
+    return FileHandle_close(handle);
+}
+
+// FileHandle_getPath(handle) - Get the file path
+// Returns: path string
+function FileHandle_getPath(handle) {
+    if (handle == null) {
+        return null;
+    }
+    
+    return __runtime_object_get(handle, "path");
+}
+
+// FileHandle_getMode(handle) - Get the file mode
+// Returns: "read", "write", or "append"
+function FileHandle_getMode(handle) {
+    if (handle == null) {
+        return null;
+    }
+    
+    return __runtime_object_get(handle, "mode");
+}

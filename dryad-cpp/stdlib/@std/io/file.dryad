@@ -1,0 +1,190 @@
+// @std/io/file.dryad
+// High-level I/O functions using VFS backend
+//
+// This module provides user-friendly file I/O operations that delegate to
+// the VFS backend. Supports switching between native filesystem and
+// in-memory storage for testing.
+
+import { 
+    VFS, 
+    MemoryBackend, 
+    NativeBackend,
+    VFS_readFile, 
+    VFS_writeFile, 
+    VFS_exists, 
+    VFS_removeFile, 
+    VFS_listDirectory, 
+    VFS_mkdir,
+    VFS_dispose
+} from "@std/io/vfs";
+
+// Global default VFS instance (uses NativeBackend by default)
+let _globalVFS = null;
+
+// _getGlobalVFS - Initialize or return the global VFS instance
+function _getGlobalVFS() {
+    if (_globalVFS == null) {
+        let backend = NativeBackend();
+        _globalVFS = VFS(backend);
+    }
+    return _globalVFS;
+}
+
+// ============================================================================
+// Core I/O Functions
+// ============================================================================
+
+// readFile(path: string): string
+// Read entire file content as string
+// Parameters:
+//   path - File path to read
+// Returns:
+//   File content as string
+// Throws:
+//   FileNotFoundException if file doesn't exist
+//   ArgumentException if path is invalid
+function readFile(path) {
+    if (path == null || path == "") {
+        return ArgumentException("Path cannot be null or empty");
+    }
+    
+    let vfs = _getGlobalVFS();
+    return VFS_readFile(vfs, path);
+}
+
+// writeFile(path: string, content: string): void
+// Write content to file, creating or overwriting as needed
+// Parameters:
+//   path - File path to write
+//   content - Content to write (null content becomes empty string)
+// Returns:
+//   null on success, exception string on error
+// Throws:
+//   ArgumentException if path is invalid
+function writeFile(path, content) {
+    if (path == null || path == "") {
+        return ArgumentException("Path cannot be null or empty");
+    }
+    
+    if (content == null) {
+        content = "";
+    }
+    
+    let vfs = _getGlobalVFS();
+    return VFS_writeFile(vfs, path, content);
+}
+
+// exists(path: string): boolean
+// Check if file exists
+// Parameters:
+//   path - File path to check
+// Returns:
+//   true if file exists, false otherwise
+function exists(path) {
+    if (path == null || path == "") {
+        return false;
+    }
+    
+    let vfs = _getGlobalVFS();
+    return VFS_exists(vfs, path);
+}
+
+// removeFile(path: string): void
+// Delete file
+// Parameters:
+//   path - File path to delete
+// Returns:
+//   null on success, exception string on error
+// Throws:
+//   FileNotFoundException if file doesn't exist
+//   ArgumentException if path is invalid
+function removeFile(path) {
+    if (path == null || path == "") {
+        return ArgumentException("Path cannot be null or empty");
+    }
+    
+    let vfs = _getGlobalVFS();
+    return VFS_removeFile(vfs, path);
+}
+
+// listDirectory(path: string): array
+// List files in directory
+// Parameters:
+//   path - Directory path to list (defaults to ".")
+// Returns:
+//   Array of file names in directory
+function listDirectory(path) {
+    if (path == null || path == "") {
+        path = ".";
+    }
+    
+    let vfs = _getGlobalVFS();
+    return VFS_listDirectory(vfs, path);
+}
+
+// mkdir(path: string): void
+// Create directory
+// Parameters:
+//   path - Directory path to create
+// Returns:
+//   null on success, exception string on error
+function mkdir(path) {
+    if (path == null || path == "") {
+        return ArgumentException("Path cannot be null or empty");
+    }
+    
+    let vfs = _getGlobalVFS();
+    return VFS_mkdir(vfs, path);
+}
+
+// setVFSBackend(backend): void
+// Override default VFS backend (for testing)
+// Parameters:
+//   backend - FileSystemBackend implementation (MemoryBackend or NativeBackend)
+// Returns:
+//   null
+// Usage:
+//   import { MemoryBackend, setVFSBackend } from "@std/io/file";
+//   setVFSBackend(MemoryBackend()); // Switch to in-memory storage for tests
+function setVFSBackend(backend) {
+    if (_globalVFS != null) {
+        VFS_dispose(_globalVFS);
+    }
+    _globalVFS = VFS(backend);
+    return null;
+}
+
+// ============================================================================
+// Async I/O Functions (Placeholders for Phase 5)
+// ============================================================================
+// These will be implemented when Promise<T> support is complete
+
+// readFileAsync(path: string): Promise<string>
+function readFileAsync(path) {
+    return IOException("Async I/O not yet implemented");
+}
+
+// writeFileAsync(path: string, content: string): Promise<void>
+function writeFileAsync(path, content) {
+    return IOException("Async I/O not yet implemented");
+}
+
+// existsAsync(path: string): Promise<boolean>
+function existsAsync(path) {
+    return IOException("Async I/O not yet implemented");
+}
+
+// removeFileAsync(path: string): Promise<void>
+function removeFileAsync(path) {
+    return IOException("Async I/O not yet implemented");
+}
+
+// listDirectoryAsync(path: string): Promise<array>
+function listDirectoryAsync(path) {
+    return IOException("Async I/O not yet implemented");
+}
+
+// mkdirAsync(path: string): Promise<void>
+function mkdirAsync(path) {
+    return IOException("Async I/O not yet implemented");
+}

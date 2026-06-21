@@ -1,0 +1,565 @@
+// @std/io/vfs.dryad
+// Virtual File System interface and implementations
+//
+// The VFS provides an abstraction layer over different filesystem backends.
+// Users write against the VFS interface, and the underlying backend can be
+// swapped (real filesystem vs. in-memory for testing).
+
+// ============================================================================
+// Backend Protocol Definition
+// ============================================================================
+
+// FileSystemBackend protocol - all backends implement these methods:
+// - readFile(path: string): string
+// - writeFile(path: string, content: string): void
+// - listDirectory(path: string): array of strings
+// - removeFile(path: string): void
+// - exists(path: string): boolean
+// - mkdir(path: string): void
+// - dispose(): void
+
+function FileSystemBackend() {
+    return "FileSystemBackend protocol";
+}
+
+// ============================================================================
+// VFS Class - Routes operations to selected backend
+// ============================================================================
+
+// VFS constructor: Creates a VFS instance with specified backend
+// Parameters:
+//   backend - FileSystemBackend implementation (MemoryBackend or NativeBackend)
+// Returns:
+//   vfs object with backend reference and disposed flag
+function VFS(backend) {
+    let vfs = __runtime_create_object();
+    __runtime_object_set(vfs, "backend", backend);
+    __runtime_object_set(vfs, "disposed", false);
+    return vfs;
+}
+
+// VFS_readFile - Read entire file content as string
+function VFS_readFile(vfs, path) {
+    if (vfs == null) {
+        return ArgumentNullException("vfs");
+    }
+    
+    let disposed = __runtime_object_get(vfs, "disposed");
+    if (disposed) {
+        return ObjectDisposedException("VFS");
+    }
+    
+    if (path == null || path == "") {
+        return ArgumentException("Path cannot be null or empty");
+    }
+    
+    let backend = __runtime_object_get(vfs, "backend");
+    return FileSystemBackend_readFile(backend, path);
+}
+
+// VFS_writeFile - Write content to file
+function VFS_writeFile(vfs, path, content) {
+    if (vfs == null) {
+        return ArgumentNullException("vfs");
+    }
+    
+    let disposed = __runtime_object_get(vfs, "disposed");
+    if (disposed) {
+        return ObjectDisposedException("VFS");
+    }
+    
+    if (path == null || path == "") {
+        return ArgumentException("Path cannot be null or empty");
+    }
+    
+    if (content == null) {
+        content = "";
+    }
+    
+    let backend = __runtime_object_get(vfs, "backend");
+    return FileSystemBackend_writeFile(backend, path, content);
+}
+
+// VFS_listDirectory - List files in directory
+function VFS_listDirectory(vfs, path) {
+    if (vfs == null) {
+        return ArgumentNullException("vfs");
+    }
+    
+    let disposed = __runtime_object_get(vfs, "disposed");
+    if (disposed) {
+        return ObjectDisposedException("VFS");
+    }
+    
+    if (path == null || path == "") {
+        path = "/";
+    }
+    
+    let backend = __runtime_object_get(vfs, "backend");
+    return FileSystemBackend_listDirectory(backend, path);
+}
+
+// VFS_removeFile - Delete file
+function VFS_removeFile(vfs, path) {
+    if (vfs == null) {
+        return ArgumentNullException("vfs");
+    }
+    
+    let disposed = __runtime_object_get(vfs, "disposed");
+    if (disposed) {
+        return ObjectDisposedException("VFS");
+    }
+    
+    if (path == null || path == "") {
+        return ArgumentException("Path cannot be null or empty");
+    }
+    
+    let backend = __runtime_object_get(vfs, "backend");
+    return FileSystemBackend_removeFile(backend, path);
+}
+
+// VFS_exists - Check if file exists
+function VFS_exists(vfs, path) {
+    if (vfs == null) {
+        return ArgumentNullException("vfs");
+    }
+    
+    let disposed = __runtime_object_get(vfs, "disposed");
+    if (disposed) {
+        return ObjectDisposedException("VFS");
+    }
+    
+    if (path == null || path == "") {
+        return false;
+    }
+    
+    let backend = __runtime_object_get(vfs, "backend");
+    return FileSystemBackend_exists(backend, path);
+}
+
+// VFS_mkdir - Create directory
+function VFS_mkdir(vfs, path) {
+    if (vfs == null) {
+        return ArgumentNullException("vfs");
+    }
+    
+    let disposed = __runtime_object_get(vfs, "disposed");
+    if (disposed) {
+        return ObjectDisposedException("VFS");
+    }
+    
+    if (path == null || path == "") {
+        return ArgumentException("Path cannot be null or empty");
+    }
+    
+    let backend = __runtime_object_get(vfs, "backend");
+    return FileSystemBackend_mkdir(backend, path);
+}
+
+// VFS_dispose - Clean up VFS resources
+function VFS_dispose(vfs) {
+    if (vfs == null) {
+        return null;
+    }
+    
+    let disposed = __runtime_object_get(vfs, "disposed");
+    if (disposed) {
+        return null;
+    }
+    
+    __runtime_object_set(vfs, "disposed", true);
+    let backend = __runtime_object_get(vfs, "backend");
+    if (backend != null) {
+        FileSystemBackend_dispose(backend);
+    }
+    return null;
+}
+
+// ============================================================================
+// Backend Dispatch Functions
+// ============================================================================
+// These functions route to the appropriate backend implementation
+
+function FileSystemBackend_readFile(backend, path) {
+    if (backend == null) {
+        return ArgumentNullException("backend");
+    }
+    
+    let type = __runtime_object_get(backend, "type");
+    
+    if (type == "memory") {
+        return MemoryBackend_readFile(backend, path);
+    } else if (type == "native") {
+        return NativeBackend_readFile(backend, path);
+    }
+    
+    return IOException("Unknown backend type: " + type);
+}
+
+function FileSystemBackend_writeFile(backend, path, content) {
+    if (backend == null) {
+        return ArgumentNullException("backend");
+    }
+    
+    let type = __runtime_object_get(backend, "type");
+    
+    if (type == "memory") {
+        return MemoryBackend_writeFile(backend, path, content);
+    } else if (type == "native") {
+        return NativeBackend_writeFile(backend, path, content);
+    }
+    
+    return IOException("Unknown backend type: " + type);
+}
+
+function FileSystemBackend_exists(backend, path) {
+    if (backend == null) {
+        return false;
+    }
+    
+    let type = __runtime_object_get(backend, "type");
+    
+    if (type == "memory") {
+        return MemoryBackend_exists(backend, path);
+    } else if (type == "native") {
+        return NativeBackend_exists(backend, path);
+    }
+    
+    return false;
+}
+
+function FileSystemBackend_removeFile(backend, path) {
+    if (backend == null) {
+        return ArgumentNullException("backend");
+    }
+    
+    let type = __runtime_object_get(backend, "type");
+    
+    if (type == "memory") {
+        return MemoryBackend_removeFile(backend, path);
+    } else if (type == "native") {
+        return NativeBackend_removeFile(backend, path);
+    }
+    
+    return IOException("Unknown backend type: " + type);
+}
+
+function FileSystemBackend_listDirectory(backend, path) {
+    if (backend == null) {
+        return [];
+    }
+    
+    let type = __runtime_object_get(backend, "type");
+    
+    if (type == "memory") {
+        return MemoryBackend_listDirectory(backend, path);
+    } else if (type == "native") {
+        return NativeBackend_listDirectory(backend, path);
+    }
+    
+    return [];
+}
+
+function FileSystemBackend_mkdir(backend, path) {
+    if (backend == null) {
+        return ArgumentNullException("backend");
+    }
+    
+    let type = __runtime_object_get(backend, "type");
+    
+    if (type == "memory") {
+        return MemoryBackend_mkdir(backend, path);
+    } else if (type == "native") {
+        return NativeBackend_mkdir(backend, path);
+    }
+    
+    return IOException("Unknown backend type: " + type);
+}
+
+function FileSystemBackend_dispose(backend) {
+    if (backend == null) {
+        return null;
+    }
+    
+    let type = __runtime_object_get(backend, "type");
+    
+    if (type == "memory") {
+        return MemoryBackend_dispose(backend);
+    } else if (type == "native") {
+        return NativeBackend_dispose(backend);
+    }
+    
+    return null;
+}
+
+// ============================================================================
+// MemoryBackend - In-memory filesystem for testing
+// ============================================================================
+// Stores files in a key-value map: path -> content
+// No actual filesystem I/O, useful for testing and development
+
+function MemoryBackend() {
+    let backend = __runtime_create_object();
+    __runtime_object_set(backend, "type", "memory");
+    __runtime_object_set(backend, "files", __runtime_create_object());
+    __runtime_object_set(backend, "disposed", false);
+    return backend;
+}
+
+// MemoryBackend_readFile - Read file from memory storage
+function MemoryBackend_readFile(backend, path) {
+    if (path == null || path == "") {
+        return FileNotFoundException("Invalid path");
+    }
+    
+    let disposed = __runtime_object_get(backend, "disposed");
+    if (disposed) {
+        return ObjectDisposedException("MemoryBackend");
+    }
+    
+    let files = __runtime_object_get(backend, "files");
+    let content = __runtime_object_get(files, path);
+    
+    if (content == null) {
+        return FileNotFoundException("File not found: " + path);
+    }
+    
+    return content;
+}
+
+// MemoryBackend_writeFile - Write file to memory storage
+function MemoryBackend_writeFile(backend, path, content) {
+    if (path == null || path == "") {
+        return ArgumentException("Path cannot be empty");
+    }
+    
+    let disposed = __runtime_object_get(backend, "disposed");
+    if (disposed) {
+        return ObjectDisposedException("MemoryBackend");
+    }
+    
+    let files = __runtime_object_get(backend, "files");
+    __runtime_object_set(files, path, content);
+    return null;
+}
+
+// MemoryBackend_exists - Check if file exists in memory storage
+function MemoryBackend_exists(backend, path) {
+    if (path == null || path == "") {
+        return false;
+    }
+    
+    let disposed = __runtime_object_get(backend, "disposed");
+    if (disposed) {
+        return false;
+    }
+    
+    let files = __runtime_object_get(backend, "files");
+    let content = __runtime_object_get(files, path);
+    
+    return content != null;
+}
+
+// MemoryBackend_removeFile - Delete file from memory storage
+function MemoryBackend_removeFile(backend, path) {
+    if (path == null || path == "") {
+        return ArgumentException("Path cannot be empty");
+    }
+    
+    let disposed = __runtime_object_get(backend, "disposed");
+    if (disposed) {
+        return ObjectDisposedException("MemoryBackend");
+    }
+    
+    let files = __runtime_object_get(backend, "files");
+    let exists = __runtime_object_get(files, path);
+    
+    if (exists == null) {
+        return FileNotFoundException("File not found: " + path);
+    }
+    
+    __runtime_object_set(files, path, null);
+    return null;
+}
+
+// MemoryBackend_listDirectory - List files under path
+function MemoryBackend_listDirectory(backend, path) {
+    if (path == null || path == "") {
+        path = "/";
+    }
+    
+    let disposed = __runtime_object_get(backend, "disposed");
+    if (disposed) {
+        return [];
+    }
+    
+    let files = __runtime_object_get(backend, "files");
+    let result = [];
+    
+    // Note: Simplified implementation - full iteration requires object key enumeration
+    // This will be enhanced when runtime supports proper key iteration
+    
+    return result;
+}
+
+// MemoryBackend_mkdir - Create directory (no-op for in-memory backend)
+function MemoryBackend_mkdir(backend, path) {
+    if (path == null || path == "") {
+        return ArgumentException("Path cannot be empty");
+    }
+    
+    let disposed = __runtime_object_get(backend, "disposed");
+    if (disposed) {
+        return ObjectDisposedException("MemoryBackend");
+    }
+    
+    // In-memory backend doesn't need explicit directory creation
+    // Files are stored flat with full paths
+    return null;
+}
+
+// MemoryBackend_dispose - Clean up memory backend resources
+function MemoryBackend_dispose(backend) {
+    if (backend == null) {
+        return null;
+    }
+    
+    let disposed = __runtime_object_get(backend, "disposed");
+    if (disposed) {
+        return null;
+    }
+    
+    __runtime_object_set(backend, "disposed", true);
+    __runtime_object_set(backend, "files", null);
+    return null;
+}
+
+// ============================================================================
+// NativeBackend - OS filesystem operations
+// ============================================================================
+// Wraps platform-specific filesystem intrinsics
+// Full implementation awaits intrinsics integration
+
+function NativeBackend() {
+    let backend = __runtime_create_object();
+    __runtime_object_set(backend, "type", "native");
+    __runtime_object_set(backend, "disposed", false);
+    return backend;
+}
+
+// NativeBackend_readFile - Read from real filesystem
+function NativeBackend_readFile(backend, path) {
+    if (path == null || path == "") {
+        return FileNotFoundException("Invalid path");
+    }
+    
+    let disposed = __runtime_object_get(backend, "disposed");
+    if (disposed) {
+        return ObjectDisposedException("NativeBackend");
+    }
+    
+    // TODO: Implement with filesystem intrinsics
+    // __sys_open(path, flags) -> fd
+    // __sys_read(fd, buffer, offset, count) -> bytes_read
+    // __sys_close(fd)
+    
+    return IOException("NativeBackend read not yet fully implemented");
+}
+
+// NativeBackend_writeFile - Write to real filesystem
+function NativeBackend_writeFile(backend, path, content) {
+    if (path == null || path == "") {
+        return ArgumentException("Path cannot be empty");
+    }
+    
+    let disposed = __runtime_object_get(backend, "disposed");
+    if (disposed) {
+        return ObjectDisposedException("NativeBackend");
+    }
+    
+    // TODO: Implement with filesystem intrinsics
+    // __sys_open(path, flags) -> fd
+    // __sys_write(fd, buffer, offset, count) -> bytes_written
+    // __sys_close(fd)
+    
+    return IOException("NativeBackend write not yet fully implemented");
+}
+
+// NativeBackend_exists - Check if file exists on real filesystem
+function NativeBackend_exists(backend, path) {
+    if (path == null || path == "") {
+        return false;
+    }
+    
+    let disposed = __runtime_object_get(backend, "disposed");
+    if (disposed) {
+        return false;
+    }
+    
+    // TODO: Implement with __sys_access(path, 0) -> 0 if exists, -1 if not
+    
+    return false;
+}
+
+// NativeBackend_removeFile - Delete from real filesystem
+function NativeBackend_removeFile(backend, path) {
+    if (path == null || path == "") {
+        return ArgumentException("Path cannot be empty");
+    }
+    
+    let disposed = __runtime_object_get(backend, "disposed");
+    if (disposed) {
+        return ObjectDisposedException("NativeBackend");
+    }
+    
+    // TODO: Implement with __sys_unlink(path) -> 0 on success, -1 on error
+    
+    return IOException("NativeBackend remove not yet fully implemented");
+}
+
+// NativeBackend_listDirectory - List files on real filesystem
+function NativeBackend_listDirectory(backend, path) {
+    if (path == null || path == "") {
+        path = ".";
+    }
+    
+    let disposed = __runtime_object_get(backend, "disposed");
+    if (disposed) {
+        return [];
+    }
+    
+    // TODO: Implement with __sys_opendir, __sys_readdir, __sys_closedir
+    
+    return [];
+}
+
+// NativeBackend_mkdir - Create directory on real filesystem
+function NativeBackend_mkdir(backend, path) {
+    if (path == null || path == "") {
+        return ArgumentException("Path cannot be empty");
+    }
+    
+    let disposed = __runtime_object_get(backend, "disposed");
+    if (disposed) {
+        return ObjectDisposedException("NativeBackend");
+    }
+    
+    // TODO: Implement with __sys_mkdir(path, mode) -> 0 on success, -1 on error
+    
+    return IOException("NativeBackend mkdir not yet fully implemented");
+}
+
+// NativeBackend_dispose - Clean up native backend resources
+function NativeBackend_dispose(backend) {
+    if (backend == null) {
+        return null;
+    }
+    
+    let disposed = __runtime_object_get(backend, "disposed");
+    if (disposed) {
+        return null;
+    }
+    
+    __runtime_object_set(backend, "disposed", true);
+    return null;
+}

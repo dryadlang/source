@@ -1,10 +1,10 @@
 #include "dryad/runtime/intrinsics_registry.h"
+#include "dryad/runtime/intrinsics.h"
 #include "dryad/common/utils.h"
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/stat.h>
 #include <cerrno>
-#include <cstring>
 #include <ctime>
 
 namespace dryad {
@@ -149,45 +149,62 @@ void IntrinsicsRegistry::register_memory_intrinsics() {
     });
     
     register_intrinsic("syscall.realloc", [](const std::vector<Value>& args) -> Value {
-        if (args.size() < 2) {
-            throw DryadException("syscall.realloc requires 2 arguments");
+        if (args.size() < 2 || !args[0].is_integer() || !args[1].is_integer()) {
+            throw DryadException("syscall.realloc requires 2 integer arguments");
         }
         
-        int64_t ptr_val = args[0].as_integer();
-        int64_t new_size = args[1].as_integer();
-        
-        void* new_ptr = ::realloc(reinterpret_cast<void*>(ptr_val), static_cast<size_t>(new_size));
-        return Value(reinterpret_cast<int64_t>(new_ptr));
+        return MemoryManager::realloc(args[0].as_integer(), args[1].as_integer());
     });
     
     register_intrinsic("syscall.memcpy", [](const std::vector<Value>& args) -> Value {
-        if (args.size() < 3) {
-            throw DryadException("syscall.memcpy requires 3 arguments");
+        if (args.size() < 3 || !args[0].is_integer() || 
+            !args[1].is_integer() || !args[2].is_integer()) {
+            throw DryadException("syscall.memcpy requires 3 integer arguments");
         }
         
-        int64_t dst_ptr = args[0].as_integer();
-        int64_t src_ptr = args[1].as_integer();
-        int64_t size = args[2].as_integer();
-        
-        ::memcpy(reinterpret_cast<void*>(dst_ptr),
-                reinterpret_cast<void*>(src_ptr),
-                static_cast<size_t>(size));
-        return Value(dst_ptr);
+        return MemoryManager::memcpy(args[0].as_integer(), args[1].as_integer(), args[2].as_integer());
     });
     
     register_intrinsic("syscall.memset", [](const std::vector<Value>& args) -> Value {
-        if (args.size() < 3) {
-            throw DryadException("syscall.memset requires 3 arguments");
+        if (args.size() < 3 || !args[0].is_integer() || 
+            !args[1].is_integer() || !args[2].is_integer()) {
+            throw DryadException("syscall.memset requires 3 integer arguments");
         }
         
-        int64_t ptr_val = args[0].as_integer();
-        int64_t value = args[1].as_integer();
-        int64_t size = args[2].as_integer();
+        return MemoryManager::memset(args[0].as_integer(), args[1].as_integer(), args[2].as_integer());
+    });
+    
+    register_intrinsic("syscall.alloc_bytes", [](const std::vector<Value>& args) -> Value {
+        if (args.empty() || !args[0].is_integer()) {
+            throw DryadException("syscall.alloc_bytes requires 1 integer argument");
+        }
         
-        ::memset(reinterpret_cast<void*>(ptr_val),
-                static_cast<int>(value),
-                static_cast<size_t>(size));
-        return Value(ptr_val);
+        return MemoryManager::alloc_bytes(args[0].as_integer());
+    });
+    
+    register_intrinsic("syscall.free_bytes", [](const std::vector<Value>& args) -> Value {
+        if (args.empty() || !args[0].is_integer()) {
+            throw DryadException("syscall.free_bytes requires 1 integer argument");
+        }
+        
+        return MemoryManager::free_bytes(args[0].as_integer());
+    });
+    
+    register_intrinsic("syscall.buffer_get", [](const std::vector<Value>& args) -> Value {
+        if (args.size() < 2 || !args[0].is_integer() || !args[1].is_integer()) {
+            throw DryadException("syscall.buffer_get requires 2 integer arguments");
+        }
+        
+        return MemoryManager::buffer_get(args[0].as_integer(), args[1].as_integer());
+    });
+    
+    register_intrinsic("syscall.buffer_set", [](const std::vector<Value>& args) -> Value {
+        if (args.size() < 3 || !args[0].is_integer() || 
+            !args[1].is_integer() || !args[2].is_integer()) {
+            throw DryadException("syscall.buffer_set requires 3 integer arguments");
+        }
+        
+        return MemoryManager::buffer_set(args[0].as_integer(), args[1].as_integer(), args[2].as_integer());
     });
 }
 

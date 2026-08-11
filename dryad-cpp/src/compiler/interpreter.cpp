@@ -36,7 +36,8 @@ void Interpreter::setup_intrinsic_functions() {
     auto intrinsic_names = std::vector<std::string>{
         "syscall.open", "syscall.read", "syscall.write", "syscall.close",
         "syscall.unlink", "syscall.stat", "syscall.time", "syscall.clock_gettime",
-        "syscall.malloc", "syscall.free",
+        "syscall.malloc", "syscall.free", "syscall.realloc", "syscall.memcpy", "syscall.memset",
+        "syscall.alloc_bytes", "syscall.free_bytes", "syscall.buffer_get", "syscall.buffer_set",
         "syscall.socket", "syscall.connect", "syscall.bind", "syscall.listen",
         "syscall.accept", "syscall.send", "syscall.recv", "syscall.shutdown",
         "syscall.mkdir", "syscall.rmdir", "syscall.lseek", "syscall.rename",
@@ -53,10 +54,7 @@ void Interpreter::setup_intrinsic_functions() {
         if (name.find("syscall.") == 0) {
             func_name.replace(0, 8, "__");
         } else if (name.find("runtime.") == 0) {
-            func_name = "__" + name.substr(8);
-            for (char& c : func_name) {
-                if (c == '.') c = '_';
-            }
+            func_name = "__runtime_" + name.substr(8);
         }
         
         define_native(func_name, [name](const std::vector<Value>& args) -> Value {

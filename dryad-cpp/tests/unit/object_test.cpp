@@ -7,7 +7,7 @@ using namespace dryad;
 
 TEST(ObjectTest, CreateSimpleObject) {
     std::string code = R"(
-        let obj = __create_object();
+        let obj = __runtime_create_object();
     )";
     
     Lexer lexer(code);

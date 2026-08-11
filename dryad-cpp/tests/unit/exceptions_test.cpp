@@ -7,7 +7,7 @@ using namespace dryad;
 
 TEST(ExceptionsTest, GetStackTraceIntrinsic) {
     std::string code = R"(
-        let trace = __get_stack_trace();
+        let trace = __runtime_get_stack_trace();
     )";
     
     Lexer lexer(code);
@@ -29,7 +29,7 @@ TEST(ExceptionsTest, GetStackTraceIntrinsic) {
 TEST(ExceptionsTest, IntrinsicRegistered) {
     Interpreter interpreter;
     
-    auto intrinsic_fn = interpreter.global_env()->get("__get_stack_trace");
+    auto intrinsic_fn = interpreter.global_env()->get("__runtime_get_stack_trace");
     ASSERT_TRUE(intrinsic_fn.is_function());
 }
 

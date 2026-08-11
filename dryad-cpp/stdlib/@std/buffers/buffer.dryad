@@ -1,94 +1,250 @@
 // @std/buffers/buffer.dryad
-// Buffer implementation using arrays and objects
+// Managed byte buffer with bounds checking and zero-copy slicing.
 //
-// A Buffer is represented as an object with:
-// - data: array of integers (bytes 0-255)
-// - length: number (buffer size)
-// - disposed: boolean (disposal state)
+// Three modes:
+// 1. Managed (owned) - allocates and owns memory, frees on dispose
+// 2. Raw pointer (non-owning) - wraps existing memory, does not free
+// 3. Sliced (view) - zero-copy view over a parent buffer
+//
+// Errors are returned as values (strings from exceptions.dryad), never thrown.
 
-function Buffer(size) {
-    if (size < 0) {
-        return ArgumentOutOfRangeException("Buffer size cannot be negative: " + size);
-    }
-    
+function Buffer_CreateInternal(handle, length, capacity, ownsMemory, parentBuffer) {
     let buf = __runtime_create_object();
-    __runtime_object_set(buf, "length", size);
-    __runtime_object_set(buf, "disposed", false);
-    
-    let data = [];
-    let i = 0;
-    while (i < size) {
-        data[i] = 0;
-        i = i + 1;
-    }
-    __runtime_object_set(buf, "data", data);
-    
+    __runtime_object_set(buf, "_handle", handle);
+    __runtime_object_set(buf, "_length", length);
+    __runtime_object_set(buf, "_capacity", capacity);
+    __runtime_object_set(buf, "_disposed", false);
+    __runtime_object_set(buf, "_ownsMemory", ownsMemory);
+    __runtime_object_set(buf, "_parentBuffer", parentBuffer);
+    __runtime_object_set(buf, "_offset", 0);
     return buf;
 }
 
-function Buffer_get(buf, index) {
-    let disposed = __runtime_object_get(buf, "disposed");
-    if (disposed) {
-        return ObjectDisposedException("Buffer");
+function Buffer_New(size) {
+    if (size < 0) {
+        return ArgumentOutOfRangeException("Buffer size must be non-negative");
     }
-    
-    let length = __runtime_object_get(buf, "length");
-    if (index < 0 || index >= length) {
-        return IndexOutOfRangeException("Index " + index + " out of range [0, " + length + ")");
+    if (size == 0) {
+        return Buffer_CreateInternal(0, 0, 0, false, null);
     }
-    
-    let data = __runtime_object_get(buf, "data");
-    return data[index];
+    let handle = __alloc_bytes(size);
+    if (handle == null) {
+        return Exception("Failed to allocate buffer memory");
+    }
+    return Buffer_CreateInternal(handle, size, size, true, null);
 }
 
-function Buffer_set(buf, index, value) {
-    let disposed = __runtime_object_get(buf, "disposed");
+function Buffer_FromPtr(ptr, size, ownsMemory) {
+    if (size < 0) {
+        return ArgumentOutOfRangeException("Buffer size must be non-negative");
+    }
+    return Buffer_CreateInternal(ptr, size, size, ownsMemory, null);
+}
+
+function Buffer_GetActualHandle(buf) {
+    let parent = __runtime_object_get(buf, "_parentBuffer");
+    if (parent != null) {
+        return Buffer_GetActualHandle(parent);
+    }
+    return __runtime_object_get(buf, "_handle");
+}
+
+function Buffer_GetOffset(buf) {
+    let offset = __runtime_object_get(buf, "_offset");
+    let parent = __runtime_object_get(buf, "_parentBuffer");
+    if (parent != null) {
+        return offset + Buffer_GetOffset(parent);
+    }
+    return offset;
+}
+
+function Buffer_Len(buf) {
+    let disposed = __runtime_object_get(buf, "_disposed");
     if (disposed) {
         return ObjectDisposedException("Buffer");
     }
-    
-    let length = __runtime_object_get(buf, "length");
-    if (index < 0 || index >= length) {
-        return IndexOutOfRangeException("Index " + index + " out of range [0, " + length + ")");
+    return __runtime_object_get(buf, "_length");
+}
+
+function Buffer_Capacity(buf) {
+    let disposed = __runtime_object_get(buf, "_disposed");
+    if (disposed) {
+        return ObjectDisposedException("Buffer");
     }
-    
-    let data = __runtime_object_get(buf, "data");
-    data[index] = value;
+    return __runtime_object_get(buf, "_capacity");
+}
+
+function Buffer_Read(buf, index) {
+    let disposed = __runtime_object_get(buf, "_disposed");
+    if (disposed) {
+        return ObjectDisposedException("Buffer");
+    }
+    let length = __runtime_object_get(buf, "_length");
+    if (index < 0 || index >= length) {
+        return IndexOutOfRangeException("Buffer index out of range");
+    }
+    let actualHandle = Buffer_GetActualHandle(buf);
+    let actualIndex = Buffer_GetOffset(buf) + index;
+    return __buffer_get(actualHandle, actualIndex);
+}
+
+function Buffer_Write(buf, index, value) {
+    let disposed = __runtime_object_get(buf, "_disposed");
+    if (disposed) {
+        return ObjectDisposedException("Buffer");
+    }
+    let length = __runtime_object_get(buf, "_length");
+    if (index < 0 || index >= length) {
+        return IndexOutOfRangeException("Buffer index out of range");
+    }
+    if (value < 0 || value > 255) {
+        return ArgumentOutOfRangeException("Byte value must be between 0 and 255");
+    }
+    let actualHandle = Buffer_GetActualHandle(buf);
+    let actualIndex = Buffer_GetOffset(buf) + index;
+    __buffer_set(actualHandle, actualIndex, value);
     return null;
 }
 
-function Buffer_fill(buf, value) {
-    let disposed = __runtime_object_get(buf, "disposed");
+function Buffer_Fill(buf, value) {
+    let disposed = __runtime_object_get(buf, "_disposed");
     if (disposed) {
         return ObjectDisposedException("Buffer");
     }
-    
-    let data = __runtime_object_get(buf, "data");
-    let length = __runtime_object_get(buf, "length");
-    
+    if (value < 0 || value > 255) {
+        return ArgumentOutOfRangeException("Byte value must be between 0 and 255");
+    }
+    let length = __runtime_object_get(buf, "_length");
+    let actualHandle = Buffer_GetActualHandle(buf);
+    let offset = Buffer_GetOffset(buf);
+    if (offset == 0) {
+        __memset(actualHandle, value, length);
+    } else {
+        let i = 0;
+        while (i < length) {
+            __buffer_set(actualHandle, offset + i, value);
+            i = i + 1;
+        }
+    }
+    return null;
+}
+
+function Buffer_Slice(buf, start, end) {
+    let disposed = __runtime_object_get(buf, "_disposed");
+    if (disposed) {
+        return ObjectDisposedException("Buffer");
+    }
+    let length = __runtime_object_get(buf, "_length");
+    if (start < 0 || start > length) {
+        return IndexOutOfRangeException("Slice start out of range");
+    }
+    if (end < start || end > length) {
+        return IndexOutOfRangeException("Slice end out of range");
+    }
+    let sliceLength = end - start;
+    let slicedBuf = Buffer_CreateInternal(
+        __runtime_object_get(buf, "_handle"),
+        sliceLength,
+        __runtime_object_get(buf, "_capacity") - start,
+        false,
+        buf
+    );
+    __runtime_object_set(slicedBuf, "_offset", start);
+    return slicedBuf;
+}
+
+function Buffer_Resize(buf, newSize) {
+    let disposed = __runtime_object_get(buf, "_disposed");
+    if (disposed) {
+        return ObjectDisposedException("Buffer");
+    }
+    if (newSize < 0) {
+        return ArgumentOutOfRangeException("New size must be non-negative");
+    }
+    let parent = __runtime_object_get(buf, "_parentBuffer");
+    if (parent != null) {
+        return InvalidOperationException("Cannot resize a sliced buffer");
+    }
+    let owned = __runtime_object_get(buf, "_ownsMemory");
+    if (!owned) {
+        return InvalidOperationException("Cannot resize a non-owning buffer");
+    }
+    if (newSize == 0) {
+        let handle = __runtime_object_get(buf, "_handle");
+        if (handle != 0) {
+            __free_bytes(handle);
+        }
+        __runtime_object_set(buf, "_handle", 0);
+        __runtime_object_set(buf, "_length", 0);
+        __runtime_object_set(buf, "_capacity", 0);
+        return null;
+    }
+    let oldHandle = __runtime_object_get(buf, "_handle");
+    let oldCapacity = __runtime_object_get(buf, "_capacity");
+    if (newSize <= oldCapacity) {
+        __runtime_object_set(buf, "_length", newSize);
+        return null;
+    }
+    let newHandle = __alloc_bytes(newSize);
+    if (newHandle == null) {
+        return Exception("Failed to resize buffer");
+    }
+    let oldLength = __runtime_object_get(buf, "_length");
+    if (oldLength > 0 && oldHandle != 0) {
+        __memcpy(newHandle, oldHandle, oldLength);
+        __free_bytes(oldHandle);
+    }
+    __runtime_object_set(buf, "_handle", newHandle);
+    __runtime_object_set(buf, "_length", newSize);
+    __runtime_object_set(buf, "_capacity", newSize);
+    return null;
+}
+
+function Buffer_CopyTo(buf, dest, destOffset, count) {
+    let disposed = __runtime_object_get(buf, "_disposed");
+    if (disposed) {
+        return ObjectDisposedException("Buffer");
+    }
+    let destDisposed = __runtime_object_get(dest, "_disposed");
+    if (destDisposed) {
+        return ObjectDisposedException("Buffer");
+    }
+    let srcLength = __runtime_object_get(buf, "_length");
+    let dstLength = __runtime_object_get(dest, "_length");
+    if (count < 0 || count > srcLength) {
+        return ArgumentOutOfRangeException("Copy count exceeds source length");
+    }
+    if (destOffset < 0 || destOffset + count > dstLength) {
+        return IndexOutOfRangeException("Destination range out of bounds");
+    }
+    let srcHandle = Buffer_GetActualHandle(buf);
+    let srcOffset = Buffer_GetOffset(buf);
+    let dstHandle = Buffer_GetActualHandle(dest);
+    let dstActualOffset = Buffer_GetOffset(dest) + destOffset;
     let i = 0;
-    while (i < length) {
-        data[i] = value;
+    while (i < count) {
+        let byte = __buffer_get(srcHandle, srcOffset + i);
+        __buffer_set(dstHandle, dstActualOffset + i, byte);
         i = i + 1;
     }
-    
     return null;
 }
 
-function Buffer_dispose(buf) {
-    let disposed = __runtime_object_get(buf, "disposed");
+function Buffer_Dispose(buf) {
+    let disposed = __runtime_object_get(buf, "_disposed");
     if (disposed) {
         return null;
     }
-    
-    __runtime_object_set(buf, "disposed", true);
-    __runtime_object_set(buf, "data", null);
-    
+    let ownsMemory = __runtime_object_get(buf, "_ownsMemory");
+    if (ownsMemory) {
+        let handle = __runtime_object_get(buf, "_handle");
+        if (handle != 0) {
+            __free_bytes(handle);
+        }
+    }
+    __runtime_object_set(buf, "_disposed", true);
+    __runtime_object_set(buf, "_handle", 0);
+    __runtime_object_set(buf, "_length", 0);
+    __runtime_object_set(buf, "_capacity", 0);
     return null;
 }
-
-function Buffer_length(buf) {
-    return __runtime_object_get(buf, "length");
-}
-
-

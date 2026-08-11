@@ -1,0 +1,240 @@
+// tests/stdlib/buffers/buffer_test.dryad
+// Buffer API integration tests.
+// Loaded together with exceptions.dryad and buffer.dryad by
+// tests/unit/buffer_test.cpp (the parser has no import support yet).
+// Each test_* function returns true on success. Errors are returned as
+// values (strings), so tests check `err != null` instead of try/catch.
+
+function test_buffer_new_creation() {
+    let buf = Buffer_New(10);
+    let ok1 = Buffer_Len(buf) == 10;
+    let ok2 = Buffer_Capacity(buf) == 10;
+    Buffer_Dispose(buf);
+    return ok1 && ok2;
+}
+
+function test_buffer_new_negative_size() {
+    let err = Buffer_New(-5);
+    return err != null;
+}
+
+function test_buffer_new_zero_size() {
+    let buf = Buffer_New(0);
+    let ok1 = buf != null;
+    let ok2 = Buffer_Len(buf) == 0;
+    let ok3 = Buffer_Capacity(buf) == 0;
+    Buffer_Dispose(buf);
+    return ok1 && ok2 && ok3;
+}
+
+function test_buffer_read_write() {
+    let buf = Buffer_New(4);
+    Buffer_Write(buf, 0, 42);
+    Buffer_Write(buf, 1, 99);
+    Buffer_Write(buf, 2, 11);
+    Buffer_Write(buf, 3, 200);
+    let ok1 = Buffer_Read(buf, 0) == 42;
+    let ok2 = Buffer_Read(buf, 1) == 99;
+    let ok3 = Buffer_Read(buf, 2) == 11;
+    let ok4 = Buffer_Read(buf, 3) == 200;
+    Buffer_Dispose(buf);
+    return ok1 && ok2 && ok3 && ok4;
+}
+
+function test_buffer_read_out_of_bounds() {
+    let buf = Buffer_New(5);
+    let err = Buffer_Read(buf, 10);
+    Buffer_Dispose(buf);
+    return err != null;
+}
+
+function test_buffer_write_out_of_bounds() {
+    let buf = Buffer_New(5);
+    let err = Buffer_Write(buf, 10, 42);
+    Buffer_Dispose(buf);
+    return err != null;
+}
+
+function test_buffer_write_negative_index() {
+    let buf = Buffer_New(5);
+    let err = Buffer_Write(buf, -1, 42);
+    Buffer_Dispose(buf);
+    return err != null;
+}
+
+function test_buffer_write_value_range() {
+    let buf = Buffer_New(5);
+    let err = Buffer_Write(buf, 0, 300);
+    Buffer_Dispose(buf);
+    return err != null;
+}
+
+function test_buffer_fill() {
+    let buf = Buffer_New(5);
+    Buffer_Fill(buf, 255);
+    let ok1 = Buffer_Read(buf, 0) == 255;
+    let ok2 = Buffer_Read(buf, 2) == 255;
+    let ok3 = Buffer_Read(buf, 4) == 255;
+    Buffer_Dispose(buf);
+    return ok1 && ok2 && ok3;
+}
+
+function test_buffer_slice_view() {
+    let buf = Buffer_New(10);
+    Buffer_Write(buf, 0, 1);
+    Buffer_Write(buf, 1, 2);
+    Buffer_Write(buf, 2, 3);
+    Buffer_Write(buf, 3, 4);
+
+    let slice = Buffer_Slice(buf, 1, 4);
+    let ok1 = Buffer_Len(slice) == 3;
+    let ok2 = Buffer_Read(slice, 0) == 2;
+    let ok3 = Buffer_Read(slice, 1) == 3;
+    let ok4 = Buffer_Read(slice, 2) == 4;
+
+    Buffer_Dispose(slice);
+    Buffer_Dispose(buf);
+    return ok1 && ok2 && ok3 && ok4;
+}
+
+function test_buffer_slice_zero_copy() {
+    let buf = Buffer_New(10);
+    Buffer_Write(buf, 5, 77);
+
+    let slice = Buffer_Slice(buf, 5, 6);
+    let ok1 = Buffer_Read(slice, 0) == 77;
+
+    Buffer_Write(slice, 0, 88);
+    let ok2 = Buffer_Read(buf, 5) == 88;
+
+    Buffer_Dispose(slice);
+    Buffer_Dispose(buf);
+    return ok1 && ok2;
+}
+
+function test_buffer_slice_bad_range() {
+    let buf = Buffer_New(10);
+    let err1 = Buffer_Slice(buf, -1, 5);
+    let err2 = Buffer_Slice(buf, 5, 12);
+    let err3 = Buffer_Slice(buf, 7, 3);
+    Buffer_Dispose(buf);
+    return (err1 != null) && (err2 != null) && (err3 != null);
+}
+
+function test_buffer_resize_grow() {
+    let buf = Buffer_New(5);
+    Buffer_Write(buf, 0, 42);
+    Buffer_Write(buf, 1, 99);
+
+    let err = Buffer_Resize(buf, 10);
+    let ok1 = err == null;
+    let ok2 = Buffer_Len(buf) == 10;
+    let ok3 = Buffer_Capacity(buf) == 10;
+    let ok4 = Buffer_Read(buf, 0) == 42;
+    let ok5 = Buffer_Read(buf, 1) == 99;
+    let ok6 = Buffer_Read(buf, 5) == 0;
+
+    Buffer_Dispose(buf);
+    return ok1 && ok2 && ok3 && ok4 && ok5 && ok6;
+}
+
+function test_buffer_resize_shrink() {
+    let buf = Buffer_New(10);
+    Buffer_Write(buf, 0, 42);
+    Buffer_Write(buf, 1, 99);
+    Buffer_Write(buf, 2, 11);
+
+    Buffer_Resize(buf, 5);
+    let ok1 = Buffer_Len(buf) == 5;
+    let ok2 = Buffer_Read(buf, 0) == 42;
+    let ok3 = Buffer_Read(buf, 1) == 99;
+    let ok4 = Buffer_Read(buf, 2) == 11;
+
+    Buffer_Dispose(buf);
+    return ok1 && ok2 && ok3 && ok4;
+}
+
+function test_buffer_resize_slice_rejected() {
+    let buf = Buffer_New(10);
+    let slice = Buffer_Slice(buf, 2, 5);
+    let err = Buffer_Resize(slice, 20);
+    Buffer_Dispose(slice);
+    Buffer_Dispose(buf);
+    return err != null;
+}
+
+function test_buffer_copy_to() {
+    let src = Buffer_New(5);
+    Buffer_Write(src, 0, 10);
+    Buffer_Write(src, 1, 20);
+    Buffer_Write(src, 2, 30);
+    Buffer_Write(src, 3, 40);
+    Buffer_Write(src, 4, 50);
+
+    let dst = Buffer_New(5);
+    let err = Buffer_CopyTo(src, dst, 0, 5);
+    let ok1 = err == null;
+    let ok2 = Buffer_Read(dst, 0) == 10;
+    let ok3 = Buffer_Read(dst, 1) == 20;
+    let ok4 = Buffer_Read(dst, 4) == 50;
+
+    Buffer_Dispose(src);
+    Buffer_Dispose(dst);
+    return ok1 && ok2 && ok3 && ok4;
+}
+
+function test_buffer_copy_to_offset() {
+    let src = Buffer_New(5);
+    Buffer_Write(src, 0, 10);
+    Buffer_Write(src, 1, 20);
+
+    let dst = Buffer_New(10);
+    let err = Buffer_CopyTo(src, dst, 3, 2);
+    let ok1 = err == null;
+    let ok2 = Buffer_Read(dst, 3) == 10;
+    let ok3 = Buffer_Read(dst, 4) == 20;
+
+    Buffer_Dispose(src);
+    Buffer_Dispose(dst);
+    return ok1 && ok2 && ok3;
+}
+
+function test_buffer_copy_to_bad_range() {
+    let src = Buffer_New(5);
+    let dst = Buffer_New(5);
+    let err1 = Buffer_CopyTo(src, dst, 0, 6);
+    let err2 = Buffer_CopyTo(src, dst, 4, 5);
+    Buffer_Dispose(src);
+    Buffer_Dispose(dst);
+    return (err1 != null) && (err2 != null);
+}
+
+function test_buffer_use_after_dispose() {
+    let buf = Buffer_New(5);
+    Buffer_Dispose(buf);
+    let err = Buffer_Read(buf, 0);
+    return err != null;
+}
+
+function test_buffer_dispose_idempotent() {
+    let buf = Buffer_New(5);
+    Buffer_Dispose(buf);
+    let err = Buffer_Dispose(buf);
+    return err == null;
+}
+
+function test_buffer_from_ptr_non_owning() {
+    let ptr = __alloc_bytes(10);
+    __buffer_set(ptr, 0, 42);
+    __buffer_set(ptr, 1, 99);
+
+    let buf = Buffer_FromPtr(ptr, 10, false);
+    let ok1 = Buffer_Read(buf, 0) == 42;
+    let ok2 = Buffer_Read(buf, 1) == 99;
+
+    Buffer_Dispose(buf);
+    let ok3 = __buffer_get(ptr, 0) == 42;
+
+    __free_bytes(ptr);
+    return ok1 && ok2 && ok3;
+}

@@ -132,3 +132,43 @@ TEST(BufferTest, DisposeIdempotent) {
 TEST(BufferTest, FromPtrNonOwning) {
     EXPECT_TRUE(run_buffer_test("test_buffer_from_ptr_non_owning").is_truthy());
 }
+
+TEST(BufferTest, FromStringAscii) {
+    EXPECT_TRUE(run_buffer_test("test_buffer_from_string_ascii").is_truthy());
+}
+
+TEST(BufferTest, FromStringUtf8) {
+    EXPECT_TRUE(run_buffer_test("test_buffer_from_string_utf8").is_truthy());
+}
+
+TEST(BufferTest, FromStringMultibyte) {
+    EXPECT_TRUE(run_buffer_test("test_buffer_from_string_multibyte").is_truthy());
+}
+
+TEST(BufferTest, AsStringAscii) {
+    EXPECT_TRUE(run_buffer_test("test_buffer_as_string_ascii").is_truthy());
+}
+
+TEST(BufferTest, StringRoundtrip) {
+    EXPECT_TRUE(run_buffer_test("test_buffer_string_roundtrip").is_truthy());
+}
+
+TEST(BufferTest, FromStringEmpty) {
+    EXPECT_TRUE(run_buffer_test("test_buffer_from_string_empty").is_truthy());
+}
+
+TEST(BufferTest, AsStringEmpty) {
+    EXPECT_TRUE(run_buffer_test("test_buffer_as_string_empty").is_truthy());
+}
+
+TEST(BufferTest, FromStringNull) {
+    EXPECT_TRUE(run_buffer_test("test_buffer_from_string_null").is_truthy());
+}
+
+TEST(BufferTest, AsStringDisposed) {
+    EXPECT_TRUE(run_buffer_test("test_buffer_as_string_disposed").is_truthy());
+}
+
+TEST(BufferTest, StringViaSlice) {
+    EXPECT_TRUE(run_buffer_test("test_buffer_string_via_slice").is_truthy());
+}

@@ -24,6 +24,7 @@ public:
     void register_filesystem_intrinsics();
     void register_process_intrinsics();
     void register_memory_intrinsics();
+    void register_string_intrinsics();
     void register_time_intrinsics();
     void register_misc_intrinsics();
     void register_all();

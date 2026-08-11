@@ -230,6 +230,45 @@ function Buffer_CopyTo(buf, dest, destOffset, count) {
     return null;
 }
 
+function Buffer_FromString(str) {
+    if (str == null) {
+        return ArgumentNullException("str");
+    }
+    let length = __string_length(str);
+    if (length == 0) {
+        return Buffer_CreateInternal(0, 0, 0, false, null);
+    }
+    let handle = __alloc_bytes(length);
+    if (handle == null) {
+        return Exception("Failed to allocate buffer memory");
+    }
+    let buf = Buffer_CreateInternal(handle, length, length, true, null);
+    let written = __string_to_bytes(str, handle, 0);
+    if (written == null) {
+        __free_bytes(handle);
+        return Exception("Failed to copy string into buffer");
+    }
+    return buf;
+}
+
+function Buffer_AsString(buf) {
+    let disposed = __runtime_object_get(buf, "_disposed");
+    if (disposed) {
+        return ObjectDisposedException("Buffer");
+    }
+    let length = __runtime_object_get(buf, "_length");
+    if (length == 0) {
+        return "";
+    }
+    let handle = Buffer_GetActualHandle(buf);
+    let offset = Buffer_GetOffset(buf);
+    let result = __bytes_to_string(handle, offset, length);
+    if (result == null) {
+        return Exception("Failed to read string from buffer");
+    }
+    return result;
+}
+
 function Buffer_Dispose(buf) {
     let disposed = __runtime_object_get(buf, "_disposed");
     if (disposed) {

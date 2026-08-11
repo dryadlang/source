@@ -238,3 +238,95 @@ function test_buffer_from_ptr_non_owning() {
     __free_bytes(ptr);
     return ok1 && ok2 && ok3;
 }
+
+function test_buffer_from_string_ascii() {
+    // "Hello": H=72, e=101, l=108, l=108, o=111
+    let buf = Buffer_FromString("Hello");
+    let ok1 = Buffer_Len(buf) == 5;
+    let ok2 = Buffer_Read(buf, 0) == 72;
+    let ok3 = Buffer_Read(buf, 1) == 101;
+    let ok4 = Buffer_Read(buf, 4) == 111;
+    Buffer_Dispose(buf);
+    return ok1 && ok2 && ok3 && ok4;
+}
+
+function test_buffer_from_string_utf8() {
+    // "Olá": O(79) l(108) á(195 161) -> 4 bytes in UTF-8
+    let buf = Buffer_FromString("Olá");
+    let ok1 = Buffer_Len(buf) == 4;
+    let ok2 = Buffer_Read(buf, 0) == 79;
+    let ok3 = Buffer_Read(buf, 2) == 195;
+    let ok4 = Buffer_Read(buf, 3) == 161;
+    Buffer_Dispose(buf);
+    return ok1 && ok2 && ok3 && ok4;
+}
+
+function test_buffer_from_string_multibyte() {
+    // "🚀" (U+1F680) encodes as F0 9F 9A 80 (240 159 154 128) in UTF-8
+    let buf = Buffer_FromString("🚀");
+    let ok1 = Buffer_Len(buf) == 4;
+    let ok2 = Buffer_Read(buf, 0) == 240;
+    let ok3 = Buffer_Read(buf, 1) == 159;
+    let ok4 = Buffer_Read(buf, 2) == 154;
+    let ok5 = Buffer_Read(buf, 3) == 128;
+    Buffer_Dispose(buf);
+    return ok1 && ok2 && ok3 && ok4 && ok5;
+}
+
+function test_buffer_as_string_ascii() {
+    // Write H(72) e(101) l(108) l(108) o(111)
+    let buf = Buffer_New(5);
+    Buffer_Write(buf, 0, 72);
+    Buffer_Write(buf, 1, 101);
+    Buffer_Write(buf, 2, 108);
+    Buffer_Write(buf, 3, 108);
+    Buffer_Write(buf, 4, 111);
+    let str = Buffer_AsString(buf);
+    Buffer_Dispose(buf);
+    return str == "Hello";
+}
+
+function test_buffer_string_roundtrip() {
+    let text = "Olá, mundo! 🚀";
+    let buf = Buffer_FromString(text);
+    let str = Buffer_AsString(buf);
+    Buffer_Dispose(buf);
+    return str == text;
+}
+
+function test_buffer_from_string_empty() {
+    let buf = Buffer_FromString("");
+    let ok1 = buf != null;
+    let ok2 = Buffer_Len(buf) == 0;
+    let str = Buffer_AsString(buf);
+    Buffer_Dispose(buf);
+    return ok1 && ok2 && (str == "");
+}
+
+function test_buffer_as_string_empty() {
+    let buf = Buffer_New(0);
+    let str = Buffer_AsString(buf);
+    Buffer_Dispose(buf);
+    return str == "";
+}
+
+function test_buffer_from_string_null() {
+    let err = Buffer_FromString(null);
+    return err != null;
+}
+
+function test_buffer_as_string_disposed() {
+    let buf = Buffer_New(5);
+    Buffer_Dispose(buf);
+    let err = Buffer_AsString(buf);
+    return err != null;
+}
+
+function test_buffer_string_via_slice() {
+    let buf = Buffer_FromString("Hello World");
+    let slice = Buffer_Slice(buf, 6, 11);
+    let str = Buffer_AsString(slice);
+    Buffer_Dispose(slice);
+    Buffer_Dispose(buf);
+    return str == "World";
+}

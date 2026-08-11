@@ -208,6 +208,34 @@ void IntrinsicsRegistry::register_memory_intrinsics() {
     });
 }
 
+void IntrinsicsRegistry::register_string_intrinsics() {
+    register_intrinsic("syscall.string_length", [](const std::vector<Value>& args) -> Value {
+        if (args.empty() || !args[0].is_string()) {
+            throw DryadException("syscall.string_length requires 1 string argument");
+        }
+        
+        return Value(static_cast<int64_t>(args[0].as_string().size()));
+    });
+    
+    register_intrinsic("syscall.string_to_bytes", [](const std::vector<Value>& args) -> Value {
+        if (args.size() < 3 || !args[0].is_string() || 
+            !args[1].is_integer() || !args[2].is_integer()) {
+            throw DryadException("syscall.string_to_bytes requires 3 arguments (string, handle, offset)");
+        }
+        
+        return MemoryManager::string_to_bytes(args[1].as_integer(), args[2].as_integer(), args[0].as_string());
+    });
+    
+    register_intrinsic("syscall.bytes_to_string", [](const std::vector<Value>& args) -> Value {
+        if (args.size() < 3 || !args[0].is_integer() || 
+            !args[1].is_integer() || !args[2].is_integer()) {
+            throw DryadException("syscall.bytes_to_string requires 3 integer arguments (handle, offset, count)");
+        }
+        
+        return MemoryManager::bytes_to_string(args[0].as_integer(), args[1].as_integer(), args[2].as_integer());
+    });
+}
+
 void IntrinsicsRegistry::register_network_intrinsics() {
 }
 
@@ -273,6 +301,7 @@ void IntrinsicsRegistry::register_all() {
     register_process_intrinsics();
     register_time_intrinsics();
     register_memory_intrinsics();
+    register_string_intrinsics();
     register_misc_intrinsics();
 }
 

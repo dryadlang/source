@@ -38,6 +38,7 @@ void Interpreter::setup_intrinsic_functions() {
         "syscall.unlink", "syscall.stat", "syscall.time", "syscall.clock_gettime",
         "syscall.malloc", "syscall.free", "syscall.realloc", "syscall.memcpy", "syscall.memset",
         "syscall.alloc_bytes", "syscall.free_bytes", "syscall.buffer_get", "syscall.buffer_set",
+        "syscall.string_length", "syscall.string_to_bytes", "syscall.bytes_to_string",
         "syscall.socket", "syscall.connect", "syscall.bind", "syscall.listen",
         "syscall.accept", "syscall.send", "syscall.recv", "syscall.shutdown",
         "syscall.mkdir", "syscall.rmdir", "syscall.lseek", "syscall.rename",

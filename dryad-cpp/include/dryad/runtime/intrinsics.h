@@ -31,6 +31,8 @@ public:
     static Value memset(int64_t handle, int64_t value, int64_t count);
     static Value buffer_get(int64_t handle, int64_t index);
     static Value buffer_set(int64_t handle, int64_t index, int64_t value);
+    static Value string_to_bytes(int64_t handle, int64_t offset, const std::string& data);
+    static Value bytes_to_string(int64_t handle, int64_t offset, int64_t count);
 };
 
 class Intrinsics {

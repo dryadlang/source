@@ -150,6 +150,46 @@ Value MemoryManager::buffer_set(int64_t handle, int64_t index, int64_t value) {
     }
 }
 
+Value MemoryManager::string_to_bytes(int64_t handle, int64_t offset, const std::string& data) {
+    if (data.empty()) {
+        return Value(static_cast<int64_t>(0));
+    }
+    
+    std::lock_guard<std::mutex> lock(allocation_mutex);
+    
+    AllocationMetadata* meta = get_metadata(handle);
+    if (!meta || meta->is_freed) {
+        return Value();
+    }
+    
+    if (offset < 0 || offset + static_cast<int64_t>(data.size()) > static_cast<int64_t>(meta->size)) {
+        return Value();
+    }
+    
+    std::memcpy(meta->data + offset, data.data(), data.size());
+    
+    return Value(static_cast<int64_t>(data.size()));
+}
+
+Value MemoryManager::bytes_to_string(int64_t handle, int64_t offset, int64_t count) {
+    if (count == 0) {
+        return Value(std::string());
+    }
+    
+    std::lock_guard<std::mutex> lock(allocation_mutex);
+    
+    AllocationMetadata* meta = get_metadata(handle);
+    if (!meta || meta->is_freed) {
+        return Value();
+    }
+    
+    if (offset < 0 || count < 0 || offset + count > static_cast<int64_t>(meta->size)) {
+        return Value();
+    }
+    
+    return Value(std::string(reinterpret_cast<const char*>(meta->data + offset), static_cast<size_t>(count)));
+}
+
 void Intrinsics::initialize() {
 }
 

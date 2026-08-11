@@ -157,11 +157,16 @@ if(DRYAD_BUILD_TESTS)
     add_executable(integration_tests
         tests/integration/sample_integration_test.cpp
         tests/integration/intrinsics_integration_test.cpp
+        tests/integration/buffer_workflow_test.cpp
     )
     target_link_libraries(integration_tests PRIVATE
         gtest_main
         dryad_compiler
         dryad_runtime
+    )
+    target_compile_definitions(integration_tests PRIVATE
+        DRYAD_STDLIB_DIR="${PROJECT_SOURCE_DIR}/stdlib"
+        DRYAD_EXAMPLE_DIR="${PROJECT_SOURCE_DIR}/examples"
     )
     gtest_discover_tests(integration_tests)
 endif()

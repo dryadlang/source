@@ -1,0 +1,28 @@
+// examples/buffer_usage.dryad
+// Buffer API demonstration: UTF-8 string <-> buffer conversion, slicing and
+// byte editing. The CLI does not execute scripts yet, so this file is
+// validated by tests/integration/buffer_workflow_test.cpp (ExampleScriptRuns),
+// which asserts the `ok` flag computed below.
+
+let text = "Olá, mundo!";
+let buf = Buffer_FromString(text);
+let ok = Buffer_AsString(buf) == text;
+
+print("len");
+print(Buffer_Len(buf));
+print("as_string");
+print(Buffer_AsString(buf));
+
+let slice = Buffer_Slice(buf, 0, 4);
+print("slice");
+print(Buffer_AsString(slice));
+ok = ok && (Buffer_AsString(slice) == "Olá");
+Buffer_Dispose(slice);
+
+Buffer_Write(buf, 0, 88);
+print("modified");
+print(Buffer_AsString(buf));
+ok = ok && (Buffer_AsString(buf) == "Xlá, mundo!");
+
+Buffer_Dispose(buf);
+print("disposed");

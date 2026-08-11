@@ -1,93 +1,102 @@
-# dryad
+# Dryad
 
+A modern dynamic programming language with a self-hosting standard library and a minimal C++ runtime.
 
+Dryad keeps the runtime small by exposing a tiny set of intrinsic syscalls (~50) that the standard library — written 100% in Dryad — builds on. No manual bindings, no wrapper layers: the language implements itself.
 
-## Getting started
+## Status
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+Early implementation. The C++ interpreter (Phase 0–3) is functional, the standard library is growing, and the test suite is at **171/178 passing**. The CLI does not execute scripts or a REPL yet — scripts are validated through the test suite. See [CHANGELOG](CHANGELOG) and the phase reports under `dryad-cpp/` for details.
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
-
-## Add your files
-
-* [Create](https://docs.gitlab.com/user/project/repository/web_editor/#create-a-file) or [upload](https://docs.gitlab.com/user/project/repository/web_editor/#upload-a-file) files
-* [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+## Architecture
 
 ```
-cd existing_repo
-git remote add origin https://gitlab.com/dryadlang/source.git
-git branch -M main
-git push -uf origin main
+Layer 4: Application Code (user Dryad programs)
+   ↓
+Layer 3: Standard Library (100% Dryad)
+   @std/core, @std/io, @std/buffers
+   ↓
+Layer 2: Intrinsics Layer (~50 syscall primitives)
+   file I/O, memory, strings, process, network
+   ↓
+Layer 1: C++ Micro-Kernel Runtime
+   interpreter, GC, module loader, environment
 ```
 
-## Integrate with your tools
+- **Self-hosting**: the standard library is written in Dryad and only talks to the runtime through intrinsics.
+- **Minimal runtime**: ~50 intrinsic syscalls instead of hundreds of hand-maintained native bindings.
+- **Error model**: stdlib errors are values (strings from `@std/core/exceptions`), never exceptions thrown across the language boundary.
 
-* [Set up project integrations](https://gitlab.com/dryadlang/source/-/settings/integrations)
+## Repository layout
 
-## Collaborate with your team
+| Path | Contents |
+|------|----------|
+| `dryad_theory/` | Language specification (PDF + LaTeX) and architecture design documents |
+| `dryad-cpp/` | C++ interpreter implementation, standard library, tests, examples |
+| `docs/` | Supporting documentation |
+| `archived/` | Superseded material |
+| `CHANGELOG` | Notable changes per release |
 
-* [Invite team members and collaborators](https://docs.gitlab.com/user/project/members/)
-* [Create a new merge request](https://docs.gitlab.com/user/project/merge_requests/creating_merge_requests/)
-* [Automatically close issues from merge requests](https://docs.gitlab.com/user/project/issues/managing_issues/#closing-issues-automatically)
-* [Enable merge request approvals](https://docs.gitlab.com/user/project/merge_requests/approvals/)
-* [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+## Building
 
-## Test and Deploy
+Requirements: C++17 compiler (MSVC or GCC/Clang with MSYS2), CMake 3.15+.
 
-Use the built-in continuous integration in GitLab.
+```bash
+mkdir build && cd build
+cmake -DCMAKE_BUILD_TYPE=Release ..
+cmake --build .
+```
 
-* [Get started with GitLab CI/CD](https://docs.gitlab.com/ci/quick_start/)
-* [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/user/application_security/sast/)
-* [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/topics/autodevops/requirements/)
-* [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/user/clusters/agent/)
-* [Set up protected environments](https://docs.gitlab.com/ci/environments/protected_environments/)
+The `dryad` binary is produced at `build/bin/dryad`.
 
-***
+## Testing
 
-# Editing this README
+```bash
+cd build
+ctest --output-on-failure
+```
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+Or run a single test binary directly:
 
-## Suggestions for a good README
+```bash
+./bin/unit_tests         # unit tests (lexer, parser, interpreter, intrinsics, buffers, ...)
+./bin/integration_tests  # end-to-end workflows (buffer roundtrips, file I/O, example scripts)
+```
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+Known pre-existing failures (7) are documented in [CHANGELOG](CHANGELOG): class `this`-binding, `/tmp` paths on Windows, and stdout capture on MSYS2 consoles. Tests are built with `-Wall -Wextra -Werror`.
 
-## Name
-Choose a self-explaining name for your project.
+## Example
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+`dryad-cpp/examples/buffer_usage.dryad` — UTF-8 string ↔ buffer conversion, slicing, and byte editing:
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+```dryad
+let text = "Olá, mundo!";
+let buf = Buffer_FromString(text);
+let ok = Buffer_AsString(buf) == text;
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+let slice = Buffer_Slice(buf, 0, 4);
+ok = ok && (Buffer_AsString(slice) == "Olá");
+Buffer_Dispose(slice);
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+Buffer_Write(buf, 0, 88);              // 'X'
+ok = ok && (Buffer_AsString(buf) == "Xlá, mundo!");
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+Buffer_Dispose(buf);
+```
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+The CLI does not execute scripts yet; this example is validated by `tests/integration/buffer_workflow_test.cpp`.
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+## Documentation
+
+- **Specification**: `dryad_theory/dryad_theoretical_foundation_v2.pdf` (canonical, v2.0)
+- **Theory index**: `dryad_theory/README.md`
+- **Implementation plans**: `dryad-cpp/STDLIB_ARCHITECTURE.md`, `dryad-cpp/STDLIB_IMPLEMENTATION_PLAN.md`
+- **Phase reports**: `dryad-cpp/PHASE_0_COMPLETE.md` … `dryad-cpp/PHASE_4_PROGRESS_REPORT.md`
 
 ## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
-
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+See [CONTRIBUTING.md](CONTRIBUTING.md). In short: tests come first (TDD), commits are small and focused, and the whole suite must stay green.
 
 ## License
-For open source projects, say how it is licensed.
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+[MIT](LICENSE) — Copyright (c) 2026 Pedro Kaleb.

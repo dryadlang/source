@@ -1,0 +1,117 @@
+// 02-types.dryad — Type system: literals, annotations, and type checking
+// Covers: number formats, strings, booleans, null, type annotations, typeof
+
+#<console_io>
+#<debug>
+
+println("=== 1. Number literals ===");
+
+// Decimal integers and floats
+let integer = 42;
+let float = 3.14159;
+let negative = -17;
+let zero = 0;
+
+println("Integer: " + integer);
+println("Float: " + float);
+println("Negative: " + negative);
+println("Zero: " + zero);
+
+// Binary (0b prefix)
+let binary = 0b1010;
+println("Binary 0b1010: " + binary);
+
+// Octal (0o prefix)
+let octal = 0o777;
+println("Octal 0o777: " + octal);
+
+// Hexadecimal (0x prefix)
+let hex = 0xFF;
+println("Hex 0xFF: " + hex);
+
+let hexLower = 0xab;
+println("Hex 0xab: " + hexLower);
+
+println("\n=== 2. String literals ===");
+
+// Double-quoted strings
+let doubleQuoted = "Hello, World!";
+println("Double: " + doubleQuoted);
+
+// Single-quoted strings
+let singleQuoted = 'Single quotes work too';
+println("Single: " + singleQuoted);
+
+// Escape sequences
+let withNewline = "Line 1\nLine 2";
+println("Newline: " + withNewline);
+
+let withTab = "Col1\tCol2";
+println("Tab: " + withTab);
+
+let withBackslash = "Path: C:\\Users\\dryad";
+println("Backslash: " + withBackslash);
+
+let withQuotes = "She said \"hello\"";
+println("Quotes: " + withQuotes);
+
+// Unicode escape
+let unicode = "\u0048\u0065\u006C\u006C\u006F";
+println("Unicode: " + unicode);
+
+println("\n=== 3. Boolean literals ===");
+
+let isTrue = true;
+let isFalse = false;
+
+println("true: " + isTrue);
+println("false: " + isFalse);
+println("Negated true: " + !isTrue);
+println("Negated false: " + !isFalse);
+
+println("\n=== 4. Null ===");
+
+let nothing = null;
+println("Null value: " + nothing);
+
+// Null comparisons
+println("null == null: " + (nothing == null));
+println("null != 0: " + (nothing != 0));
+
+println("\n=== 5. Type annotations ===");
+
+// Variable type annotations
+let n: number = 100;
+let s: string = "typed string";
+let b: bool = true;
+let arr: number[] = [1, 2, 3];
+let tup: (number, string) = (42, "hello");
+
+println("Typed number: " + n);
+println("Typed string: " + s);
+println("Typed bool: " + b);
+
+// Function parameter type annotations
+function describe(name: string, age: number): string {
+    return name + " is " + age + " years old";
+}
+println(describe("Dryad", 1));
+
+println("\n=== 6. typeof via debug module ===");
+
+println("typeof 42: " + native_typeof(42));
+println("typeof 3.14: " + native_typeof(3.14));
+println("typeof \"hello\": " + native_typeof("hello"));
+println("typeof true: " + native_typeof(true));
+println("typeof null: " + native_typeof(null));
+println("typeof [1,2]: " + native_typeof([1, 2]));
+
+println("\n=== 7. Type coercion ===");
+
+// Number + String = String (concatenation)
+let result = "Value: " + 42;
+println(result);
+
+// Boolean in arithmetic context
+println("true + 1 = " + (true + 1));
+println("false + 1 = " + (false + 1));

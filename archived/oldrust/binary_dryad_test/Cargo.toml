@@ -1,0 +1,10 @@
+[package]
+name = "binary_dryad_test"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+dryad_lexer = { path = "../crates/dryad_lexer" }
+dryad_parser = { path = "../crates/dryad_parser" }
+dryad_bytecode = { path = "../crates/dryad_bytecode" }
+dryad_aot = { path = "../crates/dryad_aot" }

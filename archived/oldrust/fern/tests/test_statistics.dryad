@@ -1,0 +1,30 @@
+
+// Test script for Greenleaf Statistics
+import { Statistics, correlation } from "../src/math/statistics.dryad";
+
+println("Running Statistics Tests...");
+
+let data = [1, 2, 3, 4, 5];
+let stats = new Statistics(data);
+
+let mean = stats.mean();
+println("Mean: " + mean);
+if (mean != 3) println("FAIL: Mean should be 3");
+
+let median = stats.median();
+println("Median: " + median);
+if (median != 3) println("FAIL: Median should be 3");
+
+let data2 = [1, 2, 3, 4, 100]; // outlier
+let stats2 = new Statistics(data2);
+println("Mean (outlier): " + stats2.mean());
+println("Median (outlier): " + stats2.median());
+
+let x = [1, 2, 3];
+let y = [2, 4, 6]; // Perfect correlation
+let corr = correlation(x, y);
+println("Correlation: " + corr);
+// Floating point comparison might be needed, but should be close to 1
+if (corr < 0.99) println("FAIL: Correlation should be 1");
+
+println("Statistics Tests Completed.");

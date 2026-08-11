@@ -1,0 +1,149 @@
+// 05-functions.dryad — Function declarations and features
+// Covers: declaration, parameters, defaults, rest, return, recursion
+
+#<console_io>
+
+println("=== 1. Function declaration ===");
+
+function greet() {
+    println("Hello from a function!");
+}
+greet();
+
+// Function with parameters
+function add(a, b) {
+    return a + b;
+}
+println("add(3, 5) = " + add(3, 5));
+
+// Function with typed parameters and return type
+function multiply(a: number, b: number): number {
+    return a * b;
+}
+println("multiply(4, 7) = " + multiply(4, 7));
+
+// Using fn keyword (synonym for function)
+fn subtract(a, b) {
+    return a - b;
+}
+println("subtract(10, 3) = " + subtract(10, 3));
+
+println("\n=== 2. Default parameters ===");
+
+function greetPerson(name = "World") {
+    println("Hello, " + name + "!");
+}
+greetPerson();
+greetPerson("Alice");
+
+function createPoint(x: number = 0, y: number = 0) {
+    return [x, y];
+}
+println("Default point: " + createPoint());
+println("Custom point: " + createPoint(5, 10));
+
+println("\n=== 3. Rest parameters ===");
+
+function sumAll(...numbers) {
+    let total = 0;
+    for (n in numbers) {
+        total += n;
+    }
+    return total;
+}
+println("sumAll(1,2,3,4,5) = " + sumAll(1, 2, 3, 4, 5));
+
+function firstAndRest(first, ...rest) {
+    println("First: " + first);
+    println("Rest: " + rest);
+}
+firstAndRest("alpha", "beta", "gamma", "delta");
+
+println("\n=== 4. Return values ===");
+
+// Explicit return
+function square(n) {
+    return n * n;
+}
+println("square(7) = " + square(7));
+
+// Early return
+function absoluteValue(n) {
+    if (n < 0) {
+        return -n;
+    }
+    return n;
+}
+println("abs(-5) = " + absoluteValue(-5));
+println("abs(3) = " + absoluteValue(3));
+
+// Functions without explicit return yield null
+function doSomething() {
+    let x = 1 + 2;
+}
+println("No return: " + doSomething());
+
+println("\n=== 5. Recursion ===");
+
+// Fibonacci
+function fibonacci(n) {
+    if (n <= 1) {
+        return n;
+    }
+    return fibonacci(n - 1) + fibonacci(n - 2);
+}
+println("fibonacci(10) = " + fibonacci(10));
+
+// Factorial
+function factorial(n) {
+    if (n <= 1) {
+        return 1;
+    }
+    return n * factorial(n - 1);
+}
+println("factorial(8) = " + factorial(8));
+
+// Power (recursive)
+function power(base, exp) {
+    if (exp == 0) {
+        return 1;
+    }
+    return base * power(base, exp - 1);
+}
+println("power(2, 10) = " + power(2, 10));
+
+println("\n=== 6. Functions as values ===");
+
+// Assign function to variable
+let operation = add;
+println("operation(10, 20) = " + operation(10, 20));
+
+// Pass function as argument
+function applyTwice(func, value) {
+    return func(func(value));
+}
+println("applyTwice(square, 3) = " + applyTwice(square, 3));
+
+// Return function from function
+function makeAdder(n) {
+    function adder(x) {
+        return x + n;
+    }
+    return adder;
+}
+let addTen = makeAdder(10);
+println("addTen(5) = " + addTen(5));
+println("addTen(25) = " + addTen(25));
+
+println("\n=== 7. Nested functions ===");
+
+function outer() {
+    let message = "from outer";
+
+    function inner() {
+        println("Inner says: " + message);
+    }
+
+    inner();
+}
+outer();

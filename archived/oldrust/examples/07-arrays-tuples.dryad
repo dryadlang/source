@@ -1,0 +1,116 @@
+// 07-arrays-tuples.dryad — Arrays and tuples
+// Covers: array literals, indexing, spread, tuples, tuple access, for-in, destructuring
+
+#<console_io>
+
+println("=== 1. Array literals ===");
+
+let empty = [];
+println("Empty array: " + empty);
+
+let numbers = [1, 2, 3, 4, 5];
+println("Numbers: " + numbers);
+
+let mixed = [1, "two", true, null];
+println("Mixed: " + mixed);
+
+// Nested arrays
+let matrix = [[1, 2], [3, 4], [5, 6]];
+println("Matrix: " + matrix);
+
+println("\n=== 2. Index access ===");
+
+let fruits = ["apple", "banana", "cherry", "date"];
+println("fruits[0]: " + fruits[0]);
+println("fruits[1]: " + fruits[1]);
+println("fruits[3]: " + fruits[3]);
+
+// Modify by index
+fruits[1] = "blueberry";
+println("After fruits[1] = 'blueberry': " + fruits);
+
+// Nested access
+println("matrix[0][1]: " + matrix[0][1]);
+println("matrix[2][0]: " + matrix[2][0]);
+
+println("\n=== 3. Spread in arrays ===");
+
+let first = [1, 2, 3];
+let second = [4, 5, 6];
+
+// Spread to combine
+let combined = [...first, ...second];
+println("Combined: " + combined);
+
+// Spread with additional elements
+let extended = [0, ...first, 99];
+println("Extended: " + extended);
+
+// Copy an array
+let copy = [...numbers];
+println("Copy: " + copy);
+
+println("\n=== 4. Tuple literals ===");
+
+let point = (3, 7);
+println("Point: " + point);
+
+let record = (1, "Alice", true);
+println("Record: " + record);
+
+let nested = ((1, 2), (3, 4));
+println("Nested tuples: " + nested);
+
+println("\n=== 5. Tuple access (.N) ===");
+
+let coordinates = (10, 20, 30);
+println("coordinates.0: " + coordinates.0);
+println("coordinates.1: " + coordinates.1);
+println("coordinates.2: " + coordinates.2);
+
+let person = ("Bob", 25);
+println("Name: " + person.0 + ", Age: " + person.1);
+
+println("\n=== 6. for-in with arrays ===");
+
+println("Iterating over colors:");
+let colors = ["red", "green", "blue", "yellow"];
+for (color in colors) {
+    println("  - " + color);
+}
+
+// for-in to build sum
+let vals = [10, 20, 30, 40];
+let total = 0;
+for (v in vals) {
+    total += v;
+}
+println("Sum of vals: " + total);
+
+println("\n=== 7. Destructuring in for-in ===");
+
+// Tuple destructuring in for-in
+let pairs = [(1, "one"), (2, "two"), (3, "three")];
+for ((num, name) in pairs) {
+    println(num + " = " + name);
+}
+
+// Array destructuring in for-in
+let coordinates_list = [[0, 0], [1, 2], [3, 4]];
+for ([x, y] in coordinates_list) {
+    println("x=" + x + ", y=" + y);
+}
+
+println("\n=== 8. Working with arrays ===");
+
+// Building an array in a loop
+let squares = [];
+for (let i = 1; i <= 5; i++) {
+    squares = [...squares, i * i];
+}
+println("Squares: " + squares);
+
+// Checking membership
+let haystack = [10, 20, 30, 40, 50];
+println("30 in haystack: " + (30 in haystack));
+println("99 in haystack: " + (99 in haystack));

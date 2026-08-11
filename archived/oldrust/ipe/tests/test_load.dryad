@@ -1,0 +1,22 @@
+#<console_io>
+#<ffi>
+#<system_env>
+
+function main() {
+    print("Starting... ");
+    print("loading lib... ");
+    
+    let path = "./ipe/native/ipe.so";
+    let result = ffi_load_library(path, "ipe");
+    print("result: ");
+    println(result);
+    
+    if (result) {
+        println("Library loaded!");
+        let init = ffi_call("ipe", "ipe_init", "i32");
+        println("init result: ");
+        println(init);
+    } else {
+        println("Failed to load!");
+    }
+}

@@ -1,0 +1,131 @@
+// 14-modules.dryad — Module system: directives, import, export, use
+// Covers: #<module> directives, import/export, use syntax, module structure
+
+#<console_io>
+
+// ============================================================
+// Native module directives — load built-in modules
+// ============================================================
+
+println("=== 1. Native module directive: #<console_io> ===");
+
+// #<console_io> is loaded at the top of this file.
+// It provides: println, print, input, native_input, etc.
+
+println("println() comes from #<console_io>");
+print("print() outputs without newline");
+println(" <- that was print()");
+
+println("\n=== 2. import { ... } from syntax ===");
+
+// ES6-style named imports bring specific symbols from a module.
+// Example syntax (commented — requires a real module file):
+//
+//   import { add, subtract } from "math_utils";
+//   import { readConfig } from "config_loader";
+//
+// Named imports bind specific exported names into scope.
+
+println("import { func } from 'module' — ES6 named imports");
+
+println("\n=== 3. import * as namespace ===");
+
+// Namespace imports bring all exports under a single name.
+// Example syntax:
+//
+//   import * as utils from "string_utils";
+//   utils.trim("  hello  ");
+//   utils.upper("hello");
+
+println("import * as name from 'module' — namespace imports");
+
+println("\n=== 4. Side-effect import ===");
+
+// Side-effect imports execute a module without binding names.
+// Example syntax:
+//
+//   import "init_globals";
+//
+// This just runs the module's top-level code.
+
+println("import 'module' — side-effect execution only");
+
+println("\n=== 5. export ===");
+
+// export marks declarations as available to other modules.
+// Example syntax:
+//
+//   export function publicAdd(a, b) {
+//       return a + b;
+//   }
+//
+//   export const VERSION = "1.0.0";
+//
+//   export class PublicService {
+//       function run() {
+//           println("Running service");
+//       }
+//   }
+
+println("export function/const/class — make available to importers");
+
+println("\n=== 6. use syntax (legacy import) ===");
+
+// use loads and executes a file, making its exports available.
+// Example syntax:
+//
+//   use "./lib/helpers.dryad";
+//   use "./utils/math.dryad";
+
+println("use './path' — simplified/legacy import");
+
+println("\n=== 7. Multi-file project structure (conceptual) ===");
+
+// A typical Dryad project might look like:
+//
+// project/
+// ├── main.dryad          ← Entry point
+// ├── lib/
+// │   ├── math.dryad      ← export function add(a, b) { ... }
+// │   ├── strings.dryad   ← export function trim(s) { ... }
+// │   └── io.dryad        ← export function readAll(path) { ... }
+// └── oak.toml            ← Project config
+//
+// main.dryad:
+//   #<console_io>
+//   import { add } from "lib/math";
+//   import { trim } from "lib/strings";
+//   println(add(1, 2));
+//   println(trim("  hello  "));
+
+println("\nProject structure explained above (see comments)");
+
+println("\n=== 8. Namespace access (::) ===");
+
+// The :: operator accesses members of imported namespaces.
+// Example syntax:
+//
+//   import ipe;
+//   ipe::init();
+//   let val = ipe::config::debug;
+
+println("namespace::member — C++/Rust-style access");
+
+println("\n=== 9. Combining native modules ===");
+
+// A real program typically loads multiple native modules at the top:
+//
+//   #<console_io>
+//   #<file_io>
+//   #<time>
+//   #<encode_decode>
+//
+//   let data = read_file("config.json");
+//   let config = native_json_decode(data);
+//   let now = native_date();
+//   println("Config loaded at " + now);
+
+println("Multiple #<module> directives can be combined");
+println("Each loads its functions into global scope");
+
+println("\nModule system demo complete!");

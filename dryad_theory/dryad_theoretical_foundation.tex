@@ -1,0 +1,2355 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[english]{babel}
+\usepackage{lmodern}  % Latin Modern fonts with proper accent support
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{geometry}
+\usepackage{fancyhdr}
+\usepackage{tcolorbox}
+\usepackage{enumitem}
+\usepackage{multicol}
+
+\geometry{margin=2.5cm}
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{Dryad Language - Theoretical Foundation}
+\lhead{\thesection}
+\cfoot{\thepage}
+
+\theoremstyle{definition}
+\newtheorem{definition}{Definição}[section]
+\newtheorem{theorem}{Teorema}[section]
+\newtheorem{axiom}{Axioma}[section]
+\newtheorem{property}{Propriedade}[section]
+
+\title{\textbf{Dryad Programming Language} \\ 
+\Large Fundamentos Teóricos e Especificação Formal}
+\author{Theoretical Foundation Document \\ Version 1.0}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+\newpage
+
+\tableofcontents
+\newpage
+
+\begin{abstract}
+Este documento apresenta os fundamentos teóricos completos da linguagem de programação Dryad, uma linguagem multi-paradigma de tipagem dinâmica inspirada em JavaScript/TypeScript, mas com características próprias que a distinguem. A especificação cobre aspectos lexicais, sintáticos, semânticos, sistema de tipos, modelo de execução, sistema de módulos, concorrência, e o modelo de compilação híbrido (interpretador + bytecode + AOT). Este documento é puramente teórico e não contém implementações de código, servindo como referência fundamental para compreensão conceitual da linguagem e base para futuras reimplementações.
+\end{abstract}
+
+\section{Introdução e Filosofia da Linguagem}
+
+\subsection{Visão Geral}
+
+Dryad é uma linguagem de programação multi-paradigma projetada com os seguintes objetivos fundamentais:
+
+\begin{itemize}
+    \item \textbf{Familiaridade Sintática}: Sintaxe inspirada em JavaScript/TypeScript para reduzir curva de aprendizado
+    \item \textbf{Flexibilidade de Paradigma}: Suporte simultâneo para programação procedural, orientada a objetos e funcional
+    \item \textbf{Tipagem Dinâmica Opcional}: Sistema de tipos dinâmico com anotações opcionais para documentação e verificação
+    \item \textbf{Modelo de Execução Híbrido}: Suporte para interpretação direta de AST, compilação para bytecode e compilação AOT para código nativo
+    \item \textbf{Concorrência Nativa}: Primitivas de concorrência integradas (threads, async/await, mutexes)
+    \item \textbf{Sistema de Módulos Robusto}: Import/export moderno com suporte a módulos nativos via FFI
+    \item \textbf{Gerenciamento Automático de Memória}: Garbage collection transparente
+\end{itemize}
+
+\subsection{Características Distintivas}
+
+\begin{definition}[Características Fundamentais]
+Dryad se diferencia por:
+\begin{enumerate}
+    \item \textbf{Arquitetura de Execução Tripla}: Interpretador de AST, VM de bytecode stack-based, e compilador AOT
+    \item \textbf{Sistema de Erros Estruturado}: Todos os erros são categorizados com códigos únicos, localizações e sugestões
+    \item \textbf{Operador de Namespace}: Suporte ao operador \texttt{::} para acesso a namespaces (estilo C++/Rust)
+    \item \textbf{Native Directives}: Carregamento explícito de módulos nativos via diretivas \texttt{\#<module>}
+    \item \textbf{Template Strings}: Interpolação de strings nativa com \texttt{`\$\{expr\}`}
+\end{enumerate}
+\end{definition}
+
+\subsection{Princípios de Design}
+
+\begin{axiom}[Princípios Fundamentais]
+A linguagem Dryad é regida pelos seguintes princípios:
+\begin{itemize}
+    \item \textbf{Clareza sobre Performance}: Prioriza-se legibilidade e clareza do código sobre otimização prematura
+    \item \textbf{Consistência Sintática}: Estruturas sintáticas seguem padrões consistentes
+    \item \textbf{Erros Informativos}: Todo erro deve fornecer localização, contexto e sugestões de correção
+    \item \textbf{Composabilidade}: Primitivas da linguagem devem ser combináveis
+    \item \textbf{Zero Surpresas}: Comportamento da linguagem deve ser previsível e documentado
+\end{itemize}
+\end{axiom}
+
+\section{Estrutura Lexical}
+
+\subsection{Alfabeto e Caracteres}
+
+\begin{definition}[Alfabeto Dryad]
+O alfabeto da linguagem Dryad é composto por:
+\begin{itemize}
+    \item Caracteres Unicode UTF-8
+    \item Letras: \texttt{[a-zA-Z]}
+    \item Dígitos: \texttt{[0-9]}
+    \item Símbolos especiais: \texttt{\{ \} ( ) [ ] ; , . : = + - * / \% \& | \^ \textasciitilde ! < > ? @ \# \$ \textbackslash ' " `}
+    \item Whitespace: espaços, tabulações, quebras de linha
+\end{itemize}
+\end{definition}
+
+\subsection{Tokens e Classificação}
+
+\begin{definition}[Sistema de Tokens]
+A análise lexical de Dryad produz os seguintes tipos de tokens:
+
+\begin{enumerate}
+    \item \textbf{Identificadores}: \texttt{Identifier(String)} \\
+    Padrão: \texttt{[a-zA-Z\_][a-zA-Z0-9\_]*}
+    
+    \item \textbf{Literais Numéricos}: \texttt{Number(f64)} \\
+    Suporta: decimal, hexadecimal (\texttt{0x}), binário (\texttt{0b}), octal (\texttt{0o})
+    
+    \item \textbf{Literais String}: \texttt{String(String)} \\
+    Delimitadores: \texttt{"} ou \texttt{'}
+    
+    \item \textbf{Literais Booleanos}: \texttt{Boolean(bool)} \\
+    Valores: \texttt{true}, \texttt{false}
+    
+    \item \textbf{Literal Null}: \texttt{Literal("null")}
+    
+    \item \textbf{Template Strings}: \\
+    \texttt{TemplateStart}, \texttt{TemplateContent(String)}, \\
+    \texttt{InterpolationStart}, \texttt{InterpolationEnd}, \texttt{TemplateEnd}
+    
+    \item \textbf{Palavras-chave}: \texttt{Keyword(String)}
+    
+    \item \textbf{Operadores}: \texttt{Operator(String)}
+    
+    \item \textbf{Símbolos}: \texttt{Symbol(char)}
+    
+    \item \textbf{Diretivas Nativas}: \texttt{NativeDirective(String)} \\
+    Formato: \texttt{\#<module\_name>}
+    
+    \item \textbf{Fim de Arquivo}: \texttt{Eof}
+\end{enumerate}
+\end{definition}
+
+\subsection{Palavras Reservadas}
+
+\begin{definition}[Conjunto de Keywords]
+As palavras-chave reservadas de Dryad são organizadas por categoria:
+
+\textbf{Declaração de Variáveis:}
+\begin{itemize}[noitemsep]
+    \item \texttt{let} (variável mutável)
+    \item \texttt{const} (variável imutável)
+\end{itemize}
+
+\textbf{Controle de Fluxo:}
+\begin{itemize}[noitemsep]
+    \item \texttt{if}, \texttt{else}
+    \item \texttt{for}, \texttt{while}, \texttt{do}
+    \item \texttt{break}, \texttt{continue}
+    \item \texttt{match}, \texttt{in}
+\end{itemize}
+
+\textbf{Funções:}
+\begin{itemize}[noitemsep]
+    \item \texttt{function}, \texttt{fn}
+    \item \texttt{async}, \texttt{await}
+    \item \texttt{return}
+    \item \texttt{thread}, \texttt{mutex}
+\end{itemize}
+
+\textbf{Orientação a Objetos:}
+\begin{itemize}[noitemsep]
+    \item \texttt{class}, \texttt{new}
+    \item \texttt{extends}, \texttt{this}, \texttt{super}
+    \item \texttt{static}, \texttt{public}, \texttt{private}, \texttt{protected}
+\end{itemize}
+
+\textbf{Módulos:}
+\begin{itemize}[noitemsep]
+    \item \texttt{import}, \texttt{export}
+    \item \texttt{use}, \texttt{as}, \texttt{from}
+\end{itemize}
+
+\textbf{Tratamento de Erros:}
+\begin{itemize}[noitemsep]
+    \item \texttt{try}, \texttt{catch}, \texttt{finally}
+    \item \texttt{throw}
+\end{itemize}
+
+\textbf{Literais:}
+\begin{itemize}[noitemsep]
+    \item \texttt{true}, \texttt{false}, \texttt{null}
+\end{itemize}
+\end{definition}
+
+\subsection{Operadores}
+
+\begin{definition}[Sistema de Operadores]
+Dryad possui os seguintes operadores organizados por categoria:
+
+\textbf{Operadores Aritméticos:}
+\begin{itemize}[noitemsep]
+    \item \texttt{+} (adição/concatenação)
+    \item \texttt{-} (subtração)
+    \item \texttt{*} (multiplicação)
+    \item \texttt{/} (divisão)
+    \item \texttt{\%} (módulo)
+    \item \texttt{**} (exponenciação)
+\end{itemize}
+
+\textbf{Operadores Bitwise:}
+\begin{itemize}[noitemsep]
+    \item \texttt{\&} (AND bitwise)
+    \item \texttt{|} (OR bitwise)
+    \item \texttt{\textasciicircum}, \texttt{\textasciicircum\textasciicircum} (XOR bitwise)
+    \item \texttt{<<} (shift left)
+    \item \texttt{>>} (shift right aritmético)
+    \item \texttt{>>>} (shift right unsigned)
+    \item \texttt{<<<} (rotate left)
+    \item \texttt{\%\%} (módulo bitwise)
+\end{itemize}
+
+\textbf{Operadores de Comparação:}
+\begin{itemize}[noitemsep]
+    \item \texttt{==} (igualdade)
+    \item \texttt{!=} (desigualdade)
+    \item \texttt{<} (menor que)
+    \item \texttt{>} (maior que)
+    \item \texttt{<=} (menor ou igual)
+    \item \texttt{>=} (maior ou igual)
+\end{itemize}
+
+\textbf{Operadores Lógicos:}
+\begin{itemize}[noitemsep]
+    \item \texttt{\&\&} (AND lógico)
+    \item \texttt{||} (OR lógico)
+    \item \texttt{!} (NOT lógico)
+\end{itemize}
+
+\textbf{Operadores de Atribuição:}
+\begin{itemize}[noitemsep]
+    \item \texttt{=} (atribuição)
+    \item \texttt{+=}, \texttt{-=}, \texttt{*=}, \texttt{/=} (atribuições compostas)
+\end{itemize}
+
+\textbf{Operadores de Incremento/Decremento:}
+\begin{itemize}[noitemsep]
+    \item \texttt{++} (incremento, prefix ou postfix)
+    \item \texttt{--} (decremento, prefix ou postfix)
+\end{itemize}
+
+\textbf{Operadores Especiais:}
+\begin{itemize}[noitemsep]
+    \item \texttt{=>} (arrow function)
+    \item \texttt{\#} (native directive prefix)
+    \item \texttt{::} (namespace access)
+\end{itemize}
+\end{definition}
+
+\subsection{Comentários e Whitespace}
+
+\begin{definition}[Comentários]
+Dryad suporta dois tipos de comentários:
+\begin{itemize}
+    \item \textbf{Linha}: \texttt{// comentário até o fim da linha}
+    \item \textbf{Bloco}: \texttt{/* comentário multi-linha */}
+\end{itemize}
+Comentários são descartados durante análise lexical e não fazem parte da AST.
+\end{definition}
+
+\begin{property}[Whitespace]
+Espaços em branco (espaços, tabs, newlines) são geralmente insignificantes, exceto:
+\begin{itemize}
+    \item Como separadores entre tokens
+    \item Em strings literais
+    \item Em template strings
+\end{itemize}
+Não há significado sintático para indentação (diferente de Python).
+\end{property}
+
+\subsection{Diretivas Nativas e Desambiguação Lexical}
+
+\begin{definition}[Diretiva Nativa]
+Uma diretiva nativa tem o formato:
+\[
+\texttt{\#<module\_name>}
+\]
+onde \texttt{module\_name} é um identificador válido delimitado por \texttt{<} e \texttt{>}.
+\end{definition}
+
+\begin{property}[Desambiguação do Símbolo \#]
+O caractere \texttt{\#} em Dryad possui dois contextos de uso:
+\begin{enumerate}
+    \item \textbf{Diretiva Nativa}: Quando seguido imediatamente (sem whitespace) por \texttt{<}, é interpretado como início de diretiva nativa
+    \item \textbf{Operador Futuro}: Reservado para potenciais operadores futuros
+\end{enumerate}
+
+O analisador lexical garante distinção clara através das seguintes regras:
+\begin{itemize}
+    \item Se \texttt{\#} é seguido de \texttt{<} (sem espaços): token \texttt{NativeDirective}
+    \item Caso contrário: erro léxico (caractere inesperado)
+\end{itemize}
+\end{property}
+
+\begin{axiom}[Princípio da Não-Ambiguidade]
+O analisador lexical de Dryad garante que:
+\[
+\forall \text{ sequência de entrada } s, \exists! \text{ interpretação léxica } t \text{ tal que } lex(s) = t
+\]
+Ou seja, para qualquer entrada válida existe uma única interpretação de tokens possível.
+\end{axiom}
+
+\textbf{Exemplos de Análise}:
+\begin{verbatim}
+#<io>          → NativeDirective("io")
+# <io>         → Erro Léxico (espaço após #)
+//#<io>        → Comentário (descartado)
+"#<io>"        → String Literal
+\end{verbatim}
+
+\section{Sistema de Tipos}
+
+\subsection{Fundamentos do Sistema de Tipos}
+
+\begin{definition}[Tipagem Dinâmica]
+Dryad implementa um \textbf{sistema de tipos dinâmico} onde:
+\begin{itemize}
+    \item Tipos são associados a valores, não a variáveis
+    \item Variáveis podem mudar de tipo durante execução
+    \item Verificação de tipo ocorre em tempo de execução
+    \item Anotações de tipo são opcionais e servem para documentação
+\end{itemize}
+\end{definition}
+
+\subsection{Tipos Primitivos}
+
+\begin{definition}[Tipos Primitivos de Dryad]
+Os tipos primitivos fundamentais são:
+
+\begin{enumerate}
+    \item \textbf{number}: Número de ponto flutuante (IEEE 754 f64) \\
+    Literais: \texttt{42}, \texttt{3.14}, \texttt{0xFF}, \texttt{1e10}
+    
+    \item \textbf{string}: Sequência de caracteres UTF-8 \\
+    Literais: \texttt{"hello"}, \texttt{'world'}, \texttt{`template`}
+    
+    \item \textbf{bool}: Valor booleano \\
+    Literais: \texttt{true}, \texttt{false}
+    
+    \item \textbf{null}: Valor nulo/indefinido \\
+    Literal: \texttt{null}
+    
+    \item \textbf{any}: Tipo universal (implícito) \\
+    Pode conter qualquer valor
+\end{enumerate}
+\end{definition}
+
+\subsection{Tipos Compostos}
+
+\begin{definition}[Arrays]
+Arrays são coleções heterogêneas ordenadas de tamanho dinâmico.
+
+\textbf{Sintaxe de Tipo}: \texttt{Type[]}
+
+\textbf{Propriedades}:
+\begin{itemize}
+    \item Indexação baseada em zero
+    \item Tamanho dinâmico
+    \item Podem conter tipos mistos quando declarados como \texttt{any[]}
+    \item Acesso por índice: \texttt{arr[i]}
+\end{itemize}
+\end{definition}
+
+\begin{definition}[Tuples]
+Tuplas são coleções heterogêneas de tamanho fixo.
+
+\textbf{Sintaxe de Tipo}: \texttt{(Type1, Type2, ...)}
+
+\textbf{Propriedades}:
+\begin{itemize}
+    \item Tamanho fixo definido na criação
+    \item Cada posição tem tipo potencialmente diferente
+    \item Acesso por índice numérico: \texttt{tuple.0}, \texttt{tuple.1}
+\end{itemize}
+\end{definition}
+
+\begin{definition}[Functions]
+Funções são valores de primeira classe.
+
+\textbf{Sintaxe de Tipo}: \texttt{fn(ParamType1, ParamType2, ...) -> ReturnType}
+
+\textbf{Propriedades}:
+\begin{itemize}
+    \item Podem ser atribuídas a variáveis
+    \item Podem ser passadas como argumentos
+    \item Podem ser retornadas de outras funções
+    \item Suportam closures (capturam escopo)
+\end{itemize}
+\end{definition}
+
+\begin{definition}[Objects]
+Objetos são coleções de pares chave-valor.
+
+\textbf{Propriedades}:
+\begin{itemize}
+    \item Chaves são strings
+    \item Valores podem ser de qualquer tipo
+    \item Acesso via notação ponto: \texttt{obj.prop}
+    \item Acesso via notação colchetes: \texttt{obj["prop"]}
+\end{itemize}
+\end{definition}
+
+\begin{definition}[Classes]
+Classes são tipos definidos pelo usuário com estado e comportamento.
+
+\textbf{Propriedades}:
+\begin{itemize}
+    \item Suportam herança via \texttt{extends}
+    \item Possuem propriedades de instância e estáticas
+    \item Possuem métodos de instância e estáticos
+    \item Suportam modificadores de acesso: \texttt{public}, \texttt{private}, \texttt{protected}
+\end{itemize}
+\end{definition}
+
+\subsection{Anotações de Tipo}
+
+\begin{definition}[Sintaxe de Anotações]
+Anotações de tipo aparecem após identificadores com sintaxe \texttt{:}
+
+\textbf{Exemplos}:
+\begin{itemize}[noitemsep]
+    \item Variáveis: \texttt{let x: number = 42}
+    \item Parâmetros: \texttt{function add(a: number, b: number)}
+    \item Retorno: \texttt{function add(...): number}
+\end{itemize}
+
+\textbf{Regras}:
+\begin{itemize}
+    \item Se omitida, tipo é inferido ou \texttt{any}
+    \item Anotações são verificadas em parse time mas não enforced em runtime
+    \item Servem primariamente para documentação
+\end{itemize}
+\end{definition}
+
+\subsection{Modo Estrito de Tipos (Futuro)}
+
+\begin{definition}[Strict Type Mode]
+O \textbf{modo estrito} é uma extensão futura planejada onde anotações de tipo são validadas estaticamente pelo compilador AOT para gerar código otimizado.
+\end{definition}
+
+\begin{property}[Benefícios do Modo Estrito]
+Quando habilitado, o modo estrito fornece:
+\begin{itemize}
+    \item \textbf{Otimização AOT}: Compilador gera código de máquina especializado sem overhead de verificação dinâmica de tipos
+    \item \textbf{Eliminação de Verificações Runtime}: Tipos conhecidos em tempo de compilação permitem eliminar type checks
+    \item \textbf{Especialização de Código}: Funções genéricas podem ser monomorfizadas para tipos concretos
+    \item \textbf{Detecção de Erros Antecipada}: Incompatibilidades de tipo detectadas antes da execução
+    \item \textbf{Melhor Performance}: Redução de 30-50\% no overhead de tipo em hot paths
+\end{itemize}
+\end{property}
+
+\begin{axiom}[Compatibilidade de Modo]
+O modo estrito deve ser \textbf{opt-in} e compatível com código dinâmico:
+\begin{itemize}
+    \item Módulos podem especificar \texttt{"use strict types"} no topo do arquivo
+    \item Código estrito pode interoperar com código dinâmico através de fronteiras explícitas
+    \item Funções individuais podem ser marcadas como \texttt{@strict} ou \texttt{@dynamic}
+    \item Conversão implícita na fronteira: tipos dinâmicos são verificados ao entrar em código estrito
+\end{itemize}
+\end{axiom}
+
+\textbf{Exemplo Conceitual (Futuro)}:
+\begin{verbatim}
+"use strict types";
+
+// Função estrita: tipos verificados estaticamente
+function add(a: number, b: number): number {
+    return a + b;  // Compilador garante que a + b é number
+}
+
+// Compilado para código de máquina sem type checks:
+// mov rax, [a]
+// add rax, [b]
+// ret
+
+// Função dinâmica (fallback)
+@dynamic
+function process(x: any): any {
+    return x + 1;  // Runtime type check necessário
+}
+\end{verbatim}
+
+\begin{property}[Otimizações Habilitadas]
+Com tipos estaticamente conhecidos, o compilador AOT pode aplicar:
+\begin{enumerate}
+    \item \textbf{Inline Caching Eliminado}: Sem necessidade de cache polimórfico
+    \item \textbf{Devirtualização}: Chamadas de método resolvidas estaticamente
+    \item \textbf{Escape Analysis}: Alocações de stack substituem heap quando possível
+    \item \textbf{Dead Code Elimination}: Branches impossíveis removidas
+    \item \textbf{SIMD Vectorization}: Loops sobre arrays tipados vetorizados automaticamente
+\end{enumerate}
+\end{property}
+
+\subsection{Coerção e Compatibilidade de Tipos}
+
+\begin{property}[Conversões Implícitas]
+Dryad realiza as seguintes conversões automáticas:
+\begin{itemize}
+    \item \texttt{number + string} $\rightarrow$ \texttt{string} (concatenação)
+    \item \texttt{bool} em contexto aritmético $\rightarrow$ \texttt{1} (true) ou \texttt{0} (false)
+    \item \texttt{null} em comparações tem tratamento especial
+    \item Arrays e objetos são comparados por referência
+\end{itemize}
+\end{property}
+
+\section{Expressões}
+
+\subsection{Hierarquia de Precedência}
+
+\begin{definition}[Tabela de Precedência]
+Expressões em Dryad seguem a seguinte hierarquia de precedência (do maior para o menor):
+
+\begin{enumerate}
+    \item \textbf{Primárias}: \texttt{.}, \texttt{[]}, \texttt{()}, \texttt{new} (left-associative)
+    \item \textbf{Postfix}: \texttt{++}, \texttt{--} (left-associative)
+    \item \textbf{Prefix}: \texttt{++}, \texttt{--}, \texttt{!}, \texttt{-}, \texttt{+}, \texttt{\textasciitilde} (right-associative)
+    \item \textbf{Exponenciação}: \texttt{**} (right-associative)
+    \item \textbf{Multiplicativas}: \texttt{*}, \texttt{/}, \texttt{\%} (left-associative)
+    \item \textbf{Aditivas}: \texttt{+}, \texttt{-} (left-associative)
+    \item \textbf{Bitwise Shift}: \texttt{<<}, \texttt{>>}, \texttt{>>>}, \texttt{<<<} (left-associative)
+    \item \textbf{Relacionais}: \texttt{<}, \texttt{<=}, \texttt{>}, \texttt{>=}, \texttt{in} (left-associative)
+    \item \textbf{Igualdade}: \texttt{==}, \texttt{!=} (left-associative)
+    \item \textbf{Bitwise AND}: \texttt{\&} (left-associative)
+    \item \textbf{Bitwise XOR}: \texttt{\textasciicircum}, \texttt{\textasciicircum\textasciicircum} (left-associative)
+    \item \textbf{Bitwise OR}: \texttt{|} (left-associative)
+    \item \textbf{Logical AND}: \texttt{\&\&} (left-associative)
+    \item \textbf{Logical OR}: \texttt{||} (left-associative)
+    \item \textbf{Atribuição}: \texttt{=}, \texttt{+=}, \texttt{-=}, \texttt{*=}, \texttt{/=} (right-associative)
+\end{enumerate}
+\end{definition}
+
+\subsection{Expressões Primárias}
+
+\begin{definition}[Literais]
+Expressões literais representam valores constantes:
+\begin{itemize}
+    \item Números: \texttt{42}, \texttt{3.14}
+    \item Strings: \texttt{"text"}, \texttt{'text'}
+    \item Booleanos: \texttt{true}, \texttt{false}
+    \item Null: \texttt{null}
+    \item Template strings: \texttt{`text \$\{expr\}`}
+\end{itemize}
+\end{definition}
+
+\begin{definition}[Arrays e Tuplas Literais]
+\textbf{Arrays}: \texttt{[elem1, elem2, ...]}
+\begin{itemize}
+    \item Podem conter elementos de tipos diferentes
+    \item Suportam spread operator: \texttt{[...arr]}
+\end{itemize}
+
+\textbf{Tuplas}: \texttt{(elem1, elem2, ...)}
+\begin{itemize}
+    \item Tamanho fixo
+    \item Tipos heterogêneos
+\end{itemize}
+\end{definition}
+
+\begin{definition}[Objetos Literais]
+Sintaxe: \texttt{\{ key1: value1, key2: value2, ... \}}
+
+\textbf{Variações}:
+\begin{itemize}
+    \item Propriedades: \texttt{\{ x: 1, y: 2 \}}
+    \item Métodos: \texttt{\{ greet() \{ ... \} \}}
+    \item Chaves computadas: \texttt{\{ ["key"]: value \}}
+\end{itemize}
+\end{definition}
+
+\begin{definition}[Funções Lambda (Arrow Functions)]
+Sintaxe: \texttt{(params) => expression} ou \texttt{(params) => \{ statements \}}
+
+\textbf{Formas}:
+\begin{itemize}
+    \item Sem parâmetros: \texttt{() => expr}
+    \item Um parâmetro: \texttt{x => expr}
+    \item Múltiplos: \texttt{(a, b) => expr}
+    \item Com bloco: \texttt{(a, b) => \{ return a + b; \}}
+    \item Rest params: \texttt{(a, ...rest) => expr}
+\end{itemize}
+\end{definition}
+
+\subsection{Expressões Binárias}
+
+\begin{definition}[Operações Aritméticas]
+Semântica das operações aritméticas:
+\begin{itemize}
+    \item \texttt{a + b}: Se ambos números, soma. Se algum é string, concatena.
+    \item \texttt{a - b}: Subtração (requer números)
+    \item \texttt{a * b}: Multiplicação (requer números)
+    \item \texttt{a / b}: Divisão (requer números, erro se b = 0)
+    \item \texttt{a \% b}: Módulo (requer números, erro se b = 0)
+    \item \texttt{a ** b}: Exponenciação (requer números)
+\end{itemize}
+\end{definition}
+
+\begin{definition}[Operações Lógicas]
+Operadores lógicos com short-circuit evaluation:
+\begin{itemize}
+    \item \texttt{a \&\& b}: Retorna \texttt{a} se falsy, senão \texttt{b}
+    \item \texttt{a || b}: Retorna \texttt{a} se truthy, senão \texttt{b}
+    \item \texttt{!a}: Negação booleana
+\end{itemize}
+
+\textbf{Valores Falsy}: \texttt{false}, \texttt{null}, \texttt{0}, \texttt{""}, \texttt{NaN}
+
+\textbf{Valores Truthy}: Todos os demais
+\end{definition}
+
+\subsection{Expressões Unárias}
+
+\begin{definition}[Operadores Unários]
+\begin{itemize}
+    \item \texttt{-x}: Negação numérica
+    \item \texttt{+x}: Plus unário (converte para número)
+    \item \texttt{!x}: NOT lógico
+    \item \texttt{\textasciitilde x}: NOT bitwise
+    \item \texttt{++x}: Pré-incremento
+    \item \texttt{--x}: Pré-decremento
+    \item \texttt{x++}: Pós-incremento
+    \item \texttt{x--}: Pós-decremento
+    \item \texttt{await expr}: Espera resolução de promise
+\end{itemize}
+\end{definition}
+
+\subsection{Acesso a Propriedades e Chamadas}
+
+\begin{definition}[Acesso a Membros]
+\begin{itemize}
+    \item \textbf{Ponto}: \texttt{obj.property}
+    \item \textbf{Colchetes}: \texttt{obj["property"]}, \texttt{arr[index]}
+    \item \textbf{Tupla}: \texttt{tuple.0}, \texttt{tuple.1}
+    \item \textbf{Namespace}: \texttt{module::function}
+\end{itemize}
+\end{definition}
+
+\begin{definition}[Chamadas de Função]
+Sintaxe: \texttt{function(arg1, arg2, ...)}
+
+\textbf{Variações}:
+\begin{itemize}
+    \item Chamada direta: \texttt{fn()}
+    \item Chamada de método: \texttt{obj.method()}
+    \item Chamada com new: \texttt{new Class()}
+\end{itemize}
+\end{definition}
+
+\subsection{Match Expression}
+
+\begin{definition}[Pattern Matching]
+Sintaxe:
+\begin{verbatim}
+match valor {
+    pattern1 => resultado1,
+    pattern2 => resultado2,
+    _ => default
+}
+\end{verbatim}
+
+\textbf{Patterns Suportados}:
+\begin{itemize}
+    \item Literais: \texttt{1}, \texttt{"text"}, \texttt{true}
+    \item Wildcard: \texttt{\_}
+    \item Guards: condições opcionais após \texttt{=>}
+\end{itemize}
+\end{definition}
+
+\section{Statements (Instruções)}
+
+\subsection{Declarações de Variáveis}
+
+\begin{definition}[Let Statement]
+Declara variável mutável com escopo de bloco.
+
+\textbf{Sintaxe}: \texttt{let identifier [: type] [= value];}
+
+\textbf{Propriedades}:
+\begin{itemize}
+    \item Escopo de bloco (limitado ao bloco \texttt{\{\}} mais próximo)
+    \item Pode ser reatribuída
+    \item Se não inicializada, valor é \texttt{undefined}/\texttt{null}
+    \item Múltiplas declarações: \texttt{let a = 1, b = 2;}
+\end{itemize}
+\end{definition}
+
+\begin{definition}[Const Statement]
+Declara variável imutável com escopo de bloco.
+
+\textbf{Sintaxe}: \texttt{const identifier [: type] = value;}
+
+\textbf{Propriedades}:
+\begin{itemize}
+    \item Escopo de bloco
+    \item Deve ser inicializada na declaração
+    \item Não pode ser reatribuída
+    \item Para objetos/arrays, o conteúdo pode ser modificado
+\end{itemize}
+\end{definition}
+
+\subsection{Statements de Controle de Fluxo}
+
+\begin{definition}[If Statement]
+Execução condicional.
+
+\textbf{Sintaxe}:
+\begin{verbatim}
+if (condition) {
+    // then block
+} else if (condition2) {
+    // else-if block
+} else {
+    // else block
+}
+\end{verbatim}
+
+\textbf{Semântica}:
+\begin{itemize}
+    \item Condição é avaliada como truthy/falsy
+    \item Apenas o primeiro bloco verdadeiro é executado
+    \item \texttt{else} e \texttt{else if} são opcionais
+\end{itemize}
+\end{definition}
+
+\begin{definition}[Loops]
+\textbf{While Loop}:
+\begin{verbatim}
+while (condition) {
+    // body
+}
+\end{verbatim}
+Executa enquanto condição for truthy.
+
+\textbf{Do-While Loop}:
+\begin{verbatim}
+do {
+    // body
+} while (condition);
+\end{verbatim}
+Executa pelo menos uma vez, depois verifica condição.
+
+\textbf{For Loop (C-style)}:
+\begin{verbatim}
+for (init; condition; update) {
+    // body
+}
+\end{verbatim}
+Estrutura clássica de iteração.
+
+\textbf{For-Each Loop}:
+\begin{verbatim}
+for (element in iterable) {
+    // body
+}
+\end{verbatim}
+Itera sobre elementos de coleção.
+\end{definition}
+
+\begin{definition}[Break e Continue]
+\begin{itemize}
+    \item \texttt{break}: Sai imediatamente do loop atual
+    \item \texttt{continue}: Pula para próxima iteração do loop
+\end{itemize}
+Ambos afetam apenas o loop mais interno.
+\end{definition}
+
+\subsection{Tratamento de Exceções}
+
+\begin{definition}[Try-Catch-Finally]
+Sintaxe:
+\begin{verbatim}
+try {
+    // código que pode lançar exceção
+} catch (error) {
+    // tratamento de erro
+} finally {
+    // sempre executado
+}
+\end{verbatim}
+
+\textbf{Semântica}:
+\begin{itemize}
+    \item \texttt{try}: bloco monitorado
+    \item \texttt{catch}: captura exceção, bind variável \texttt{error}
+    \item \texttt{finally}: executa sempre (sucesso ou erro)
+    \item Pelo menos \texttt{catch} ou \texttt{finally} deve estar presente
+\end{itemize}
+\end{definition}
+
+\begin{definition}[Throw Statement]
+Sintaxe: \texttt{throw expression;}
+
+Lança uma exceção que propaga pela call stack até ser capturada por \texttt{catch}.
+\end{definition}
+
+\subsection{Return Statement}
+
+\begin{definition}[Return]
+Sintaxe: \texttt{return [expression];}
+
+\textbf{Comportamento}:
+\begin{itemize}
+    \item Sai imediatamente da função
+    \item Retorna valor especificado (ou \texttt{null} se omitido)
+    \item Válido apenas dentro de funções ou threads
+\end{itemize}
+\end{definition}
+
+\section{Declarações}
+
+\subsection{Funções}
+
+\begin{definition}[Function Declaration]
+\textbf{Sintaxe Padrão}:
+\begin{verbatim}
+function name(param1 [: type1], param2 [: type2], ...)
+    [: returnType] {
+    // body
+    return value;
+}
+\end{verbatim}
+
+\textbf{Propriedades}:
+\begin{itemize}
+    \item Hoisted (pode ser chamada antes da declaração)
+    \item Cria closure sobre escopo circundante
+    \item Parâmetros podem ter valores default: \texttt{param = defaultValue}
+    \item Suporta rest parameters: \texttt{...rest}
+\end{itemize}
+\end{definition}
+
+\begin{definition}[Arrow Functions]
+\textbf{Sintaxe}:
+\begin{verbatim}
+const name = (params) => expression;
+const name = (params) => { statements };
+\end{verbatim}
+
+\textbf{Diferenças de \texttt{function}}:
+\begin{itemize}
+    \item Não são hoisted
+    \item Sintaxe mais concisa
+    \item Return implícito se corpo é expressão única
+\end{itemize}
+\end{definition}
+
+\begin{definition}[Async Functions]
+\textbf{Sintaxe}:
+\begin{verbatim}
+async function name(params) {
+    let result = await asyncOperation();
+    return result;
+}
+\end{verbatim}
+
+\textbf{Comportamento}:
+\begin{itemize}
+    \item Pode usar \texttt{await} para esperar promises
+    \item Retorna implicitamente uma promise
+    \item Execução pode ser pausada em \texttt{await}
+\end{itemize}
+\end{definition}
+
+\begin{definition}[Thread Functions]
+\textbf{Sintaxe}:
+\begin{verbatim}
+thread function name(params) {
+    // executa em thread separada
+    return result;
+}
+\end{verbatim}
+
+\textbf{Invocação}:
+\begin{verbatim}
+let future = thread name(args);
+\end{verbatim}
+
+\textbf{Comportamento}:
+\begin{itemize}
+    \item Executa em thread de OS separada
+    \item Retorna handle para recuperar resultado
+    \item Isolamento de contexto
+\end{itemize}
+\end{definition}
+
+\subsection{Classes}
+
+\begin{definition}[Class Declaration]
+\textbf{Sintaxe Básica}:
+\begin{verbatim}
+class ClassName {
+    // Propriedades de instância
+    property = defaultValue;
+    
+    // Construtor
+    constructor(params) {
+        this.property = value;
+    }
+    
+    // Métodos de instância
+    method() {
+        return this.property;
+    }
+    
+    // Métodos estáticos
+    static staticMethod() {
+        return value;
+    }
+}
+\end{verbatim}
+\end{definition}
+
+\begin{definition}[Herança]
+\textbf{Sintaxe}:
+\begin{verbatim}
+class Child extends Parent {
+    constructor(params) {
+        super(parentParams);
+        // inicialização adicional
+    }
+    
+    method() {
+        super.method(); // chama método do pai
+        // implementação adicional
+    }
+}
+\end{verbatim}
+
+\textbf{Propriedades}:
+\begin{itemize}
+    \item Suporta herança simples (um único pai)
+    \item \texttt{super} referencia a classe pai
+    \item \texttt{this} referencia a instância atual
+\end{itemize}
+\end{definition}
+
+\begin{definition}[Modificadores de Acesso]
+\begin{itemize}
+    \item \textbf{public}: Acessível de qualquer lugar (default)
+    \item \textbf{private}: Acessível apenas dentro da classe
+    \item \textbf{protected}: Acessível na classe e subclasses
+\end{itemize}
+
+\textbf{Aplicação}:
+\begin{verbatim}
+class Example {
+    public x = 1;      // acessível externamente
+    private y = 2;     // apenas interno
+    protected z = 3;   // classe e filhas
+}
+\end{verbatim}
+\end{definition}
+
+\begin{definition}[Membros Estáticos]
+Membros declarados com \texttt{static} pertencem à classe, não às instâncias.
+
+\textbf{Exemplo}:
+\begin{verbatim}
+class Counter {
+    static count = 0;
+    
+    static increment() {
+        Counter.count++;
+    }
+}
+
+// Uso
+Counter.increment();
+console.log(Counter.count); // 1
+\end{verbatim}
+\end{definition}
+
+\section{Sistema de Módulos}
+
+\subsection{Import Statement}
+
+\begin{definition}[Importações Nomeadas]
+Sintaxe: \texttt{import \{ name1, name2, ... \} from "module";}
+
+Importa exports nomeados de um módulo.
+\end{definition}
+
+\begin{definition}[Importação Namespace]
+Sintaxe: \texttt{import * as namespace from "module";}
+
+Importa todos os exports sob um namespace.
+
+\textbf{Uso}: \texttt{namespace.function()}
+\end{definition}
+
+\begin{definition}[Importação Side-Effect]
+Sintaxe: \texttt{import "module";}
+
+Executa o módulo por efeitos colaterais, sem importar valores.
+\end{definition}
+
+\begin{definition}[Importação por Identificador]
+Sintaxe: \texttt{import moduleName;}
+
+Importa módulo sem quotes (syntax moderna).
+
+\textbf{Acesso com namespace operator}:
+\begin{verbatim}
+import ipe;
+ipe::init();
+ipe::config::value;
+\end{verbatim}
+\end{definition}
+
+\subsection{Export Statement}
+
+\begin{definition}[Exports]
+\textbf{Export Direto}:
+\begin{verbatim}
+export function name() { }
+export const VALUE = 42;
+export class ClassName { }
+\end{verbatim}
+
+\textbf{Re-export}:
+\begin{verbatim}
+export { name1, name2 } from "other_module";
+export * from "other_module";
+\end{verbatim}
+\end{definition}
+
+\subsection{Native Directives}
+
+\begin{definition}[Carregamento de Módulos Nativos]
+Sintaxe: \texttt{\#<module\_name>}
+
+Carrega módulo nativo (implementado em C/Rust) no escopo global.
+
+\textbf{Módulos Disponíveis}:
+\begin{itemize}[noitemsep]
+    \item \texttt{\#io} - Operações de I/O
+    \item \texttt{\#crypto} - Criptografia
+    \item \texttt{\#http} - Cliente/servidor HTTP
+    \item \texttt{\#math} - Funções matemáticas
+    \item \texttt{\#tcp}, \texttt{\#udp} - Networking
+    \item \texttt{\#time} - Data e hora
+    \item Outros módulos nativos
+\end{itemize}
+
+\textbf{Exemplo}:
+\begin{verbatim}
+#io
+
+let content = io_read_file("data.txt");
+io_write_file("output.txt", content);
+\end{verbatim}
+\end{definition}
+
+\section{Modelo de Execução}
+
+\subsection{Arquitetura de Execução Híbrida}
+
+\begin{definition}[Três Modos de Execução]
+Dryad suporta três estratégias de execução:
+
+\begin{enumerate}
+    \item \textbf{Tree-Walking Interpreter}:
+    \begin{itemize}
+        \item Executa AST diretamente
+        \item Modo padrão
+        \item Otimizado para desenvolvimento e debugging
+        \item Mais lento, mas mais flexível
+    \end{itemize}
+    
+    \item \textbf{Bytecode VM}:
+    \begin{itemize}
+        \item Compila AST para bytecode stack-based
+        \item Habilitado com \texttt{set\_compile\_mode(true)}
+        \item VM executa OpCodes sequencialmente
+        \item Performance intermediária
+    \end{itemize}
+    
+    \item \textbf{AOT Compiler} (Experimental):
+    \begin{itemize}
+        \item Compila bytecode/IR para código nativo
+        \item Gera executáveis nativos (ARM64, x86\_64)
+        \item Suporta formatos ELF e PE
+        \item Máxima performance
+    \end{itemize}
+\end{enumerate}
+\end{definition}
+
+\subsection{Pipeline de Compilação}
+
+\begin{definition}[Fluxo de Compilação]
+O processo de compilação segue:
+
+\[
+\text{Source Code} \xrightarrow{\text{Lexer}} \text{Tokens} \xrightarrow{\text{Parser}} \text{AST}
+\]
+
+\[
+\text{AST} \xrightarrow{\text{Interpreter}} \text{Result}
+\]
+
+ou
+
+\[
+\text{AST} \xrightarrow{\text{Bytecode Compiler}} \text{OpCodes} \xrightarrow{\text{VM}} \text{Result}
+\]
+
+ou
+
+\[
+\text{OpCodes} \xrightarrow{\text{IR Converter}} \text{IR} \xrightarrow{\text{Backend}} \text{Assembly} \xrightarrow{\text{Generator}} \text{Native Binary}
+\]
+\end{definition}
+
+\subsection{Escopo e Resolução de Variáveis}
+
+\begin{definition}[Cadeia de Escopos]
+A hierarquia de escopos em Dryad:
+
+\begin{verbatim}
+Global Scope
+  ├─ Module Scope
+  │   ├─ Function Scope
+  │   │   ├─ Block Scope
+  │   │   ├─ Block Scope
+  │   │   └─ ...
+  │   └─ ...
+  ├─ Class Scope
+  │   └─ Method Scope
+  └─ ...
+\end{verbatim}
+
+\textbf{Algoritmo de Lookup}:
+\begin{enumerate}
+    \item Verifica escopo atual
+    \item Se não encontrado, verifica escopo pai
+    \item Continua até escopo global
+    \item Se não encontrado em nenhum escopo, lança \texttt{ReferenceError}
+\end{enumerate}
+\end{definition}
+
+\begin{property}[Regras de Binding]
+\begin{itemize}
+    \item \texttt{let} e \texttt{const}: block-scoped
+    \item \texttt{function}: hoisted para escopo de função/módulo
+    \item Variáveis globais: acessíveis de qualquer lugar
+    \item Closures: funções capturam variáveis do escopo de definição
+\end{itemize}
+\end{property}
+
+\subsection{Execução de Funções}
+
+\begin{definition}[Chamada de Função]
+Ao chamar uma função:
+
+\begin{enumerate}
+    \item Cria novo escopo de função
+    \item Faz binding de parâmetros com argumentos
+    \item Inicializa variáveis declaradas no corpo
+    \item Executa statements em ordem
+    \item Retorna valor (explícito via \texttt{return} ou \texttt{null} implícito)
+    \item Destrói escopo de função
+\end{enumerate}
+\end{definition}
+
+\begin{definition}[Closures]
+Funções capturam variáveis do escopo de definição.
+
+\textbf{Propriedades}:
+\begin{itemize}
+    \item Variáveis capturadas permanecem vivas enquanto função existir
+    \item Modificações em variáveis capturadas são visíveis
+    \item Múltiplas closures podem compartilhar mesmas variáveis
+\end{itemize}
+
+\textbf{Exemplo Conceitual}:
+\begin{verbatim}
+function makeCounter() {
+    let count = 0;  // capturada por closure
+    return function() {
+        return ++count;  // modifica variável capturada
+    };
+}
+\end{verbatim}
+\end{definition}
+
+\subsection{Instanciação de Classes}
+
+\begin{definition}[Processo new ClassName()]
+Ao executar \texttt{new ClassName(args)}:
+
+\begin{enumerate}
+    \item Cria nova instância de objeto
+    \item Se \texttt{constructor} existe:
+    \begin{enumerate}
+        \item Chama constructor com \texttt{this} bound à instância
+        \item Executa corpo do constructor
+    \end{enumerate}
+    \item Retorna a instância
+\end{enumerate}
+\end{definition}
+
+\begin{definition}[Execução de Métodos]
+Ao chamar \texttt{obj.method(args)}:
+
+\begin{enumerate}
+    \item Cria escopo de função
+    \item Faz binding de \texttt{this} ao objeto
+    \item Faz binding de parâmetros com argumentos
+    \item Executa corpo do método
+    \item Retorna resultado
+\end{enumerate}
+\end{definition}
+
+\subsection{Representação Interna de Valores}
+
+\begin{definition}[Value Enum (Conceitual)]
+Valores em runtime são representados por variante enum:
+
+\begin{itemize}
+    \item \texttt{Number(f64)} - IEEE 754 floating-point
+    \item \texttt{String(String)} - UTF-8 string
+    \item \texttt{Bool(bool)} - booleano
+    \item \texttt{Null} - valor nulo
+    \item \texttt{Array(Vec<Value>)} - array dinâmico
+    \item \texttt{Object(HashMap<String, Value>)} - mapa chave-valor
+    \item \texttt{Function(...)} - referência a função
+    \item \texttt{Class(...)} - definição ou instância de classe
+    \item \texttt{Thread(...)} - handle de thread
+\end{itemize}
+\end{definition}
+
+\subsection{Gerenciamento de Memória}
+
+\begin{property}[Garbage Collection]
+\begin{itemize}
+    \item \textbf{Estratégia}: Reference counting (via Rust)
+    \item \textbf{Automático}: Sem intervenção do programador
+    \item \textbf{Stack}: Valores primitivos permanecem na pilha
+    \item \textbf{Heap}: Tipos complexos alocados no heap
+    \item \textbf{Cleanup}: Valores liberados quando sem referências
+    \item \textbf{Transparência}: Usuário não gerencia memória manualmente
+\end{itemize}
+\end{property}
+
+\section{Sistema de Erros}
+
+\subsection{Categorias de Erros}
+
+\begin{definition}[DryadError]
+Todos os erros em Dryad são instâncias de \texttt{DryadError} com:
+
+\begin{itemize}
+    \item \textbf{Código}: Identificador numérico único
+    \item \textbf{Categoria}: Tipo de erro
+    \item \textbf{Mensagem}: Descrição legível
+    \item \textbf{Localização}: Arquivo, linha, coluna
+    \item \textbf{Stack Trace}: Pilha de chamadas
+    \item \textbf{Contexto de Debug}: Sugestões, variáveis locais, documentação
+\end{itemize}
+\end{definition}
+
+\begin{definition}[Categorias de Erro]
+\begin{enumerate}
+    \item \textbf{Lexer} (1000-1999):
+    \begin{itemize}[noitemsep]
+        \item Caractere inesperado
+        \item String não fechada
+        \item Número inválido
+        \item Escape sequence inválida
+    \end{itemize}
+    
+    \item \textbf{Parser} (2000-2999):
+    \begin{itemize}[noitemsep]
+        \item Token inesperado
+        \item Estrutura sintática inválida
+        \item Parênteses não balanceados
+        \item Statement esperado
+    \end{itemize}
+    
+    \item \textbf{Runtime} (3000-3999):
+    \begin{itemize}[noitemsep]
+        \item Variável indefinida
+        \item Tipo incompatível
+        \item Divisão por zero
+        \item Stack overflow
+        \item Propriedade não encontrada
+    \end{itemize}
+    
+    \item \textbf{Type} (4000-4999):
+    \begin{itemize}[noitemsep]
+        \item Incompatibilidade de tipos
+        \item Número incorreto de argumentos
+    \end{itemize}
+    
+    \item \textbf{I/O} (5000-5999):
+    \begin{itemize}[noitemsep]
+        \item Arquivo não encontrado
+        \item Permissão negada
+        \item Operação de I/O falhou
+    \end{itemize}
+    
+    \item \textbf{Module} (6000-6999):
+    \begin{itemize}[noitemsep]
+        \item Módulo não encontrado
+        \item Módulo nativo desconhecido
+        \item Erro de resolução
+    \end{itemize}
+    
+    \item \textbf{Syntax} (7000-7999):
+    \begin{itemize}[noitemsep]
+        \item Erro de sintaxe geral
+    \end{itemize}
+    
+    \item \textbf{Warning} (8000-8999):
+    \begin{itemize}[noitemsep]
+        \item Avisos não-fatais
+        \item Severidade: Low, Medium, High
+    \end{itemize}
+    
+    \item \textbf{System} (9000+):
+    \begin{itemize}[noitemsep]
+        \item Erros de sistema
+    \end{itemize}
+\end{enumerate}
+\end{definition}
+
+\subsection{Propagação de Exceções}
+
+\begin{property}[Propagação]
+Exceções não capturadas propagam pela call stack:
+
+\begin{enumerate}
+    \item Exceção lançada em função profunda
+    \item Se não há \texttt{try-catch} local, propaga para chamador
+    \item Continua até encontrar \texttt{catch} ou chegar ao topo
+    \item Se não capturada, termina programa com erro
+\end{enumerate}
+\end{property}
+
+\begin{definition}[Stack Trace]
+Cada exceção carrega stack trace com:
+\begin{itemize}
+    \item Nome da função
+    \item Localização (arquivo:linha:coluna)
+    \item Contexto adicional
+\end{itemize}
+
+Ordenado do mais profundo ao mais superficial.
+\end{definition}
+
+\section{Modelo de Concorrência}
+
+\subsection{Async/Await}
+
+\begin{definition}[Funções Assíncronas]
+Funções declaradas com \texttt{async} podem usar \texttt{await}.
+
+\textbf{Comportamento}:
+\begin{itemize}
+    \item \texttt{async function} retorna promise implicitamente
+    \item \texttt{await expr} suspende execução até promise resolver
+    \item Permite código assíncrono com sintaxe síncrona
+\end{itemize}
+
+\textbf{Modelo Conceitual}:
+\begin{verbatim}
+async function process() {
+    let data = await fetchData();  // pausa aqui
+    return processData(data);      // continua quando resolve
+}
+\end{verbatim}
+\end{definition}
+
+\subsection{Threads Nativos}
+
+\begin{definition}[Thread Functions]
+Funções declaradas com \texttt{thread function} podem executar em threads de OS.
+
+\textbf{Propriedades}:
+\begin{itemize}
+    \item Executa em thread separada do SO
+    \item Isolamento de contexto
+    \item Comunicação via mutexes ou retorno
+    \item Handle retornado permite recuperar resultado
+\end{itemize}
+
+\textbf{Exemplo Conceitual}:
+\begin{verbatim}
+thread function backgroundTask(id) {
+    // executa em paralelo
+    return result;
+}
+
+let handle1 = thread backgroundTask(1);
+let handle2 = thread backgroundTask(2);
+// ambos executam simultaneamente
+\end{verbatim}
+\end{definition}
+
+\subsection{Sincronização com Mutex}
+
+\begin{definition}[Mutex]
+Primitiva de sincronização para proteger recursos compartilhados.
+
+\textbf{API}:
+\begin{itemize}
+    \item \texttt{mutex()}: cria novo mutex
+    \item \texttt{mu.lock()}: adquire lock (bloqueia se ocupado)
+    \item \texttt{mu.unlock()}: libera lock
+\end{itemize}
+
+\textbf{Uso}:
+\begin{verbatim}
+let mu = mutex();
+let sharedData = 0;
+
+thread function increment() {
+    mu.lock();
+    sharedData++;  // seção crítica
+    mu.unlock();
+}
+\end{verbatim}
+\end{definition}
+
+\section{Foreign Function Interface (FFI)}
+
+\subsection{Sistema de Módulos Nativos}
+
+\begin{definition}[Native Modules]
+Módulos implementados em C/Rust e expostos para Dryad.
+
+\textbf{Características}:
+\begin{itemize}
+    \item Carregados via native directives (\texttt{\#<module>})
+    \item Funções tornam-se disponíveis no escopo global
+    \item Tipagem dinâmica na interface
+    \item Convenção de chamada C
+\end{itemize}
+\end{definition}
+
+\subsection{Mapeamento de Tipos}
+
+\begin{definition}[Type Mapping Dryad ↔ C]
+\begin{center}
+\begin{tabular}{|l|l|l|}
+\hline
+\textbf{Dryad Type} & \textbf{C Type} & \textbf{Notas} \\
+\hline
+\texttt{number} & \texttt{double} (f64) & IEEE 754 \\
+\texttt{string} & \texttt{const char*} & UTF-8 null-terminated \\
+\texttt{bool} & \texttt{bool} / \texttt{uint8\_t} & Booleano C \\
+\texttt{null} & \texttt{NULL} / \texttt{nullptr} & Ponteiro nulo \\
+\texttt{array} & \texttt{void*} & Ponteiro opaco \\
+\texttt{object} & \texttt{void*} & Ponteiro opaco \\
+\hline
+\end{tabular}
+\end{center}
+
+\textbf{Limitações}:
+\begin{itemize}
+    \item Tipos complexos passados como ponteiros opacos
+    \item Apenas primitivos têm conversão direta
+    \item Responsabilidade de conversão é da implementação nativa
+\end{itemize}
+\end{definition}
+
+\subsection{Convenção de Chamada}
+
+\begin{property}[FFI Call Convention]
+Chamadas FFI seguem convenção C:
+\begin{itemize}
+    \item Parâmetros passados left-to-right
+    \item Stack-based (x86/x64)
+    \item Valores de retorno em registrador \texttt{rax} (x86-64)
+    \item Caller limpa stack (cdecl)
+\end{itemize}
+\end{property}
+
+\section{Arquitetura de Runtime Mínimo com Intrinsics}
+
+\subsection{Filosofia do Self-Hosting}
+
+\begin{definition}[Runtime Mínimo]
+Dryad adota uma filosofia de \textbf{self-hosting} onde:
+\begin{itemize}
+    \item Runtime C++ fornece apenas \textbf{syscalls primitivas} ($\sim$50 intrinsics)
+    \item Standard library implementada \textbf{100\% em Dryad}
+    \item Zero necessidade de escrever bindings manualmente
+    \item Bibliotecas de alto nível (HTTP, JSON, crypto) escritas em Dryad puro
+\end{itemize}
+\end{definition}
+
+\begin{property}[Vantagens Arquiteturais]
+Esta abordagem, utilizada por linguagens modernas como Go, Zig e Rust, oferece:
+\begin{itemize}
+    \item \textbf{Manutenção Única}: Não duplicar código em C++ e Dryad
+    \item \textbf{Extensibilidade}: Usuários implementam bibliotecas em Dryad
+    \item \textbf{Testabilidade}: Mock implementations sem tocar código nativo
+    \item \textbf{Debuggability}: Todo código visível e inspecionável
+    \item \textbf{Portabilidade}: Apenas syscalls precisam ser adaptadas por OS
+\end{itemize}
+\end{property}
+
+\subsection{Sistema de Intrinsics}
+
+\begin{definition}[Intrinsic Function]
+Uma \textbf{intrinsic} é uma função especial reconhecida pelo compilador que:
+\begin{enumerate}
+    \item Não gera instrução normal de chamada (\texttt{CALL})
+    \item Compila diretamente para instrução assembly/opcode especializado
+    \item Tem custo de execução próximo a zero
+    \item Mapeia diretamente para código C++ do runtime
+\end{enumerate}
+\end{definition}
+
+\begin{definition}[Sintaxe de Declaração]
+Intrinsics são declaradas com decorator \texttt{@intrinsic}:
+
+\begin{verbatim}
+// Declaração de syscall intrinsic
+@intrinsic("syscall.open")
+extern function __open(path: string, flags: i32): i32;
+
+@intrinsic("syscall.read")
+extern function __read(fd: i32, buf: ptr<u8>, len: usize): isize;
+
+@intrinsic("syscall.write")
+extern function __write(fd: i32, buf: ptr<u8>, len: usize): isize;
+
+@intrinsic("syscall.close")
+extern function __close(fd: i32): void;
+\end{verbatim}
+\end{definition}
+
+\subsection{Pipeline de Compilação com Intrinsics}
+
+\begin{definition}[Processo de Compilação]
+Durante compilação, ao encontrar chamada de função com \texttt{@intrinsic}:
+
+\begin{enumerate}
+    \item \textbf{Parser}: Reconhece decorator e marca função como intrinsic
+    \item \textbf{Type Checker}: Valida assinatura contra definição do runtime
+    \item \textbf{Code Generator}: Emite opcode especial ao invés de \texttt{CALL}
+    \item \textbf{VM/AOT}: Executa código C++ diretamente
+\end{enumerate}
+
+\textbf{Exemplo de bytecode gerado}:
+\begin{verbatim}
+// Dryad source
+let fd = __open("file.txt", O_RDONLY);
+
+// Bytecode emitido
+LOAD_CONST "file.txt"
+LOAD_CONST 0              // O_RDONLY
+INTRINSIC_SYSCALL 1       // ID 1 = syscall.open
+STORE_LOCAL fd
+\end{verbatim}
+\end{definition}
+
+\subsection{Implementação no Runtime C++}
+
+\begin{definition}[Tabela de Syscalls]
+Runtime mantém tabela de IDs de syscalls:
+
+\begin{verbatim}
+// C++ implementation
+enum class SyscallID : uint16_t {
+    OPEN = 1,
+    READ = 2,
+    WRITE = 3,
+    CLOSE = 4,
+    SOCKET = 5,
+    CONNECT = 6,
+    // ... ~50 syscalls total
+};
+\end{verbatim}
+\end{definition}
+
+\begin{definition}[Dispatcher de Intrinsics]
+VM executa intrinsics via dispatch table:
+
+\begin{verbatim}
+void VM::execute_intrinsic(SyscallID id) {
+    switch (id) {
+        case SyscallID::OPEN: {
+            auto flags = pop_stack().as_int();
+            auto path = pop_stack().as_string();
+            int fd = ::open(path.c_str(), flags);
+            push_stack(Value::from_int(fd));
+            break;
+        }
+        case SyscallID::READ: {
+            auto len = pop_stack().as_int();
+            auto buf = pop_stack().as_buffer();
+            auto fd = pop_stack().as_int();
+            ssize_t n = ::read(fd, buf.data(), len);
+            push_stack(Value::from_int(n));
+            break;
+        }
+        // ... outros syscalls
+    }
+}
+\end{verbatim}
+\end{definition}
+
+\subsection{Standard Library em Dryad Puro}
+
+\begin{definition}[Camadas de Abstração]
+Standard library organizada em camadas:
+
+\begin{verbatim}
+┌────────────────────────────────────────┐
+│  High-Level APIs (100% Dryad)          │
+│  - http.dryad (HTTP client/server)     │
+│  - json.dryad (parser/serializer)      │
+│  - crypto.dryad (algorithms)           │
+└────────────────────────────────────────┘
+              ↓ usa
+┌────────────────────────────────────────┐
+│  Core I/O (Dryad + Intrinsics)         │
+│  - io.dryad (FileSystem, Buffer)       │
+│  - net.dryad (Socket, TCP/UDP)         │
+└────────────────────────────────────────┘
+              ↓ chama
+┌────────────────────────────────────────┐
+│  Runtime Intrinsics (~50 syscalls)     │
+│  - syscall.open/read/write/close       │
+│  - syscall.socket/connect/send/recv    │
+│  - memory.alloc/free                   │
+└────────────────────────────────────────┘
+\end{verbatim}
+\end{definition}
+
+\begin{definition}[Exemplo: FileSystem em Dryad]
+Implementação completa de I/O em Dryad puro:
+
+\begin{verbatim}
+// @std/io.dryad
+@intrinsic("syscall.open")
+extern function __open(path: string, flags: i32): i32;
+
+@intrinsic("syscall.read")
+extern function __read(fd: i32, buf: ptr<u8>, len: usize): isize;
+
+@intrinsic("syscall.close")
+extern function __close(fd: i32): void;
+
+const O_RDONLY = 0;
+const O_WRONLY = 1;
+const O_CREAT = 64;
+
+export class File {
+    private fd: number;
+    
+    constructor(path: string, mode: string = "r") {
+        let flags = mode == "r" ? O_RDONLY : (O_WRONLY | O_CREAT);
+        this.fd = __open(path, flags);
+        if (this.fd < 0) {
+            throw new Error("Failed to open: " + path);
+        }
+    }
+    
+    read(): string {
+        let buffer = Buffer.allocate(4096);
+        let n = __read(this.fd, buffer.ptr, 4096);
+        if (n < 0) throw new Error("Read failed");
+        return buffer.slice(0, n).toString();
+    }
+    
+    close(): void {
+        __close(this.fd);
+    }
+}
+
+export function readFile(path: string): string {
+    let f = new File(path, "r");
+    let content = f.read();
+    f.close();
+    return content;
+}
+\end{verbatim}
+\end{definition}
+
+\subsection{Virtual File System (VFS)}
+
+\begin{definition}[Arquitetura VFS]
+Sistema de arquivos virtual com backends plugáveis:
+
+\begin{verbatim}
+interface FileSystemBackend {
+    open(path: string, mode: string): FileHandle;
+    read(handle: FileHandle, size: number): Buffer;
+    write(handle: FileHandle, data: Buffer): number;
+    close(handle: FileHandle): void;
+}
+
+// Backend nativo (usa syscalls)
+class NativeBackend implements FileSystemBackend {
+    open(path: string, mode: string): FileHandle {
+        let flags = this.parseMode(mode);
+        let fd = __open(path, flags);
+        return new NativeFileHandle(fd);
+    }
+    // ... implementação com syscalls
+}
+
+// Backend in-memory (100% Dryad, zero syscalls!)
+class MemoryBackend implements FileSystemBackend {
+    private storage: Map<string, Buffer> = new Map();
+    
+    open(path: string, mode: string): FileHandle {
+        if (!this.storage.has(path) && mode == "w") {
+            this.storage.set(path, Buffer.allocate(0));
+        }
+        return new MemoryFileHandle(path, this.storage);
+    }
+    // ... sem syscalls, apenas Map em memória
+}
+\end{verbatim}
+\end{definition}
+
+\begin{property}[Benefícios do VFS]
+\begin{itemize}
+    \item \textbf{Testabilidade}: Testes usam \texttt{MemoryBackend} sem tocar disco
+    \item \textbf{Extensibilidade}: Usuários criam backends customizados (HTTP, S3, etc)
+    \item \textbf{Segurança}: Backends podem implementar sandboxing
+    \item \textbf{Composabilidade}: Backends podem ser combinados (cache, logging)
+\end{itemize}
+\end{property}
+
+\subsection{Networking e Async I/O}
+
+\begin{definition}[Event Loop em Dryad]
+Para suportar operações assíncronas, event loop implementado em Dryad:
+
+\begin{verbatim}
+// @std/async/event_loop.dryad
+@intrinsic("syscall.epoll_create")
+extern function __epoll_create(): i32;
+
+@intrinsic("syscall.epoll_wait")
+extern function __epoll_wait(epfd: i32, timeout: i32): Array<i32>;
+
+@intrinsic("syscall.epoll_ctl")
+extern function __epoll_ctl(epfd: i32, op: i32, fd: i32): void;
+
+class EventLoop {
+    private epoll_fd: number;
+    private tasks: Map<number, Task> = new Map();
+    
+    constructor() {
+        this.epoll_fd = __epoll_create();
+    }
+    
+    run(): void {
+        while (this.tasks.size > 0) {
+            // Multiplexação de I/O não-bloqueante
+            let ready_fds = __epoll_wait(this.epoll_fd, 100);
+            
+            for (let fd of ready_fds) {
+                let task = this.tasks.get(fd);
+                if (task) {
+                    task.resume(); // Acorda coroutine
+                }
+            }
+        }
+    }
+    
+    register(fd: number, task: Task): void {
+        __epoll_ctl(this.epoll_fd, EPOLL_CTL_ADD, fd);
+        this.tasks.set(fd, task);
+    }
+}
+\end{verbatim}
+\end{definition}
+
+\begin{definition}[HTTP Client em Dryad Puro]
+Cliente HTTP implementado sem código C++:
+
+\begin{verbatim}
+// @std/http.dryad
+import { Socket } from "@std/net";
+import { EventLoop } from "@std/async";
+
+export class HttpClient {
+    async get(url: string): Response {
+        // Parse URL (puro Dryad)
+        let parsed = this.parseUrl(url);
+        
+        // Socket connection (syscall socket/connect)
+        let socket = new Socket(parsed.host, parsed.port);
+        await socket.connect();
+        
+        // Build HTTP request (puro Dryad)
+        let request = this.buildRequest("GET", parsed.path);
+        
+        // Send (syscall write)
+        await socket.write(request);
+        
+        // Receive (syscall read via event loop)
+        let response = await socket.readAll();
+        
+        // Parse response (puro Dryad)
+        return this.parseResponse(response);
+    }
+    
+    private parseUrl(url: string): UrlInfo { ... }
+    private buildRequest(method: string, path: string): string { ... }
+    private parseResponse(data: string): Response { ... }
+}
+\end{verbatim}
+\end{definition}
+
+\subsection{Gerenciamento de Memória com Buffer}
+
+\begin{definition}[Classe Buffer]
+Abstração type-safe para manipulação de bytes:
+
+\begin{verbatim}
+// @std/buffer.dryad
+@intrinsic("memory.allocate")
+extern function __alloc(size: usize): ptr<u8>;
+
+@intrinsic("memory.free")
+extern function __free(ptr: ptr<u8>): void;
+
+export class Buffer {
+    private data: ptr<u8>;
+    private _size: number;
+    
+    static allocate(size: number): Buffer {
+        let ptr = __alloc(size);
+        return new Buffer(ptr, size);
+    }
+    
+    static fromString(s: string): Buffer {
+        let size = s.length;
+        let buf = Buffer.allocate(size);
+        // Copia bytes de string para buffer
+        for (let i = 0; i < size; i++) {
+            buf.set(i, s.charCodeAt(i));
+        }
+        return buf;
+    }
+    
+    toString(): string {
+        // Converte bytes para string
+        let chars = [];
+        for (let i = 0; i < this._size; i++) {
+            chars.push(String.fromCharCode(this.get(i)));
+        }
+        return chars.join("");
+    }
+    
+    get ptr(): ptr<u8> { return this.data; }
+    get size(): number { return this._size; }
+}
+\end{verbatim}
+\end{definition}
+
+\begin{property}[Segurança de Memória]
+Buffer encapsula ponteiros brutos e fornece:
+\begin{itemize}
+    \item \textbf{Bounds checking}: Verificação de limites em runtime
+    \item \textbf{Automatic cleanup}: GC libera memória automaticamente
+    \item \textbf{Type safety}: Conversões explícitas entre Buffer e tipos primitivos
+    \item \textbf{Zero-copy}: Passa ponteiro direto para syscalls
+\end{itemize}
+\end{property}
+
+\subsection{Conjunto Mínimo de Syscalls}
+
+\begin{definition}[Syscalls Essenciais]
+Runtime C++ implementa aproximadamente 50 syscalls:
+
+\textbf{File I/O}:
+\begin{itemize}[noitemsep]
+    \item \texttt{open}, \texttt{read}, \texttt{write}, \texttt{close}
+    \item \texttt{lseek}, \texttt{stat}, \texttt{unlink}, \texttt{mkdir}
+\end{itemize}
+
+\textbf{Network}:
+\begin{itemize}[noitemsep]
+    \item \texttt{socket}, \texttt{connect}, \texttt{bind}, \texttt{listen}
+    \item \texttt{accept}, \texttt{send}, \texttt{recv}, \texttt{shutdown}
+\end{itemize}
+
+\textbf{Memory}:
+\begin{itemize}[noitemsep]
+    \item \texttt{malloc}, \texttt{free}, \texttt{realloc}
+    \item \texttt{memcpy}, \texttt{memset}
+\end{itemize}
+
+\textbf{Async I/O}:
+\begin{itemize}[noitemsep]
+    \item \texttt{epoll\_create}, \texttt{epoll\_ctl}, \texttt{epoll\_wait} (Linux)
+    \item \texttt{kqueue}, \texttt{kevent} (macOS/BSD)
+    \item \texttt{select} (fallback portável)
+\end{itemize}
+
+\textbf{Process/Thread}:
+\begin{itemize}[noitemsep]
+    \item \texttt{fork}, \texttt{exec}, \texttt{wait}
+    \item \texttt{pthread\_create}, \texttt{pthread\_join}
+\end{itemize}
+
+\textbf{Time}:
+\begin{itemize}[noitemsep]
+    \item \texttt{gettimeofday}, \texttt{clock\_gettime}
+    \item \texttt{sleep}, \texttt{nanosleep}
+\end{itemize}
+\end{definition}
+
+\subsection{Comparação com Sistema Anterior}
+
+\begin{center}
+\begin{tabular}{|l|p{5cm}|p{5cm}|}
+\hline
+\textbf{Aspecto} & \textbf{Sistema Antigo} & \textbf{Sistema Novo} \\
+\hline
+Stdlib & Wrappers C++ manuais & 100\% Dryad \\
+\hline
+Manutenção & Duplicada (C++ + Dryad) & Única (apenas Dryad) \\
+\hline
+Extensibilidade & Requer código C++ & Bibliotecas em Dryad \\
+\hline
+Testabilidade & Difícil (syscalls reais) & Backends mock \\
+\hline
+Runtime Size & Grande (muitos bindings) & Mínimo (~50 syscalls) \\
+\hline
+Performance & Overhead de wrapper & Intrinsics diretas \\
+\hline
+Portabilidade & Adaptar cada binding & Adaptar syscalls \\
+\hline
+Debuggability & Parte em C++ opaco & Tudo visível em Dryad \\
+\hline
+\end{tabular}
+\end{center}
+
+\section{Bytecode e IR}
+
+\subsection{Bytecode VM}
+
+\begin{definition}[OpCodes]
+O bytecode de Dryad consiste em OpCodes stack-based.
+
+\textbf{Categorias de OpCodes}:
+\begin{itemize}
+    \item \textbf{Stack}: Push, Pop, Dup
+    \item \textbf{Aritméticos}: Add, Sub, Mul, Div, Mod, Pow
+    \item \textbf{Lógicos}: And, Or, Not
+    \item \textbf{Bitwise}: BitwiseAnd, BitwiseOr, BitwiseXor, Shift
+    \item \textbf{Comparação}: Equal, NotEqual, Less, Greater, LessEqual, GreaterEqual
+    \item \textbf{Controle}: Jump, JumpIfFalse, JumpIfTrue, Call, Return
+    \item \textbf{Variáveis}: GetLocal, SetLocal, GetGlobal, SetGlobal
+    \item \textbf{Funções}: DefineFunction, CallFunction
+    \item \textbf{Objetos}: GetProperty, SetProperty, NewObject, NewArray
+    \item \textbf{Classes}: DefineClass, NewInstance, CallMethod
+\end{itemize}
+\end{definition}
+
+\begin{definition}[Stack-Based Execution]
+A VM mantém:
+\begin{itemize}
+    \item \textbf{Stack}: Pilha de valores para operandos e resultados
+    \item \textbf{Instruction Pointer (IP)}: Posição atual no bytecode
+    \item \textbf{Call Stack}: Pilha de frames de função
+    \item \textbf{Globals}: Ambiente de variáveis globais
+\end{itemize}
+
+\textbf{Ciclo de Execução}:
+\begin{enumerate}
+    \item Fetch: Lê OpCode no IP
+    \item Decode: Identifica operação e operandos
+    \item Execute: Realiza operação (manipula stack)
+    \item Advance: Incrementa IP
+    \item Repeat até \texttt{Return} ou fim
+\end{enumerate}
+\end{definition}
+
+\subsection{Intermediate Representation (IR)}
+
+\begin{definition}[IR Dryad]
+Representação intermediária usada pelo compilador AOT.
+
+\textbf{Características}:
+\begin{itemize}
+    \item Mais abstrata que assembly, mais concreta que AST
+    \item Register-based (ao contrário do bytecode stack-based)
+    \item Independente de arquitetura
+    \item Permite otimizações antes de geração de código
+\end{itemize}
+
+\textbf{Estrutura}:
+\begin{itemize}
+    \item \texttt{IrModule}: Unidade de compilação completa
+    \item \texttt{IrFunction}: Definição de função com parâmetros e corpo
+    \item \texttt{IrInstruction}: Instruções IR (Load, Store, Add, Call, etc.)
+    \item \texttt{IrValue}: Valores (constantes, variáveis, registradores)
+\end{itemize}
+\end{definition}
+
+\section{Compilação AOT (Ahead-of-Time)}
+
+\subsection{Pipeline AOT}
+
+\begin{definition}[Fases do Compilador AOT]
+\begin{enumerate}
+    \item \textbf{Bytecode → IR Conversion}:
+    \begin{itemize}
+        \item Converte OpCodes stack-based para IR register-based
+        \item Análise de fluxo de controle
+        \item Construção de CFG (Control Flow Graph)
+    \end{itemize}
+    
+    \item \textbf{IR Optimization}:
+    \begin{itemize}
+        \item Constant folding
+        \item Dead code elimination
+        \item Register allocation
+    \end{itemize}
+    
+    \item \textbf{Backend Code Generation}:
+    \begin{itemize}
+        \item Seleção de instruções para arquitetura alvo
+        \item Alocação de registradores físicos
+        \item Geração de assembly (ARM64 ou x86\_64)
+    \end{itemize}
+    
+    \item \textbf{Object File Generation}:
+    \begin{itemize}
+        \item Geração de formato executável (ELF ou PE)
+        \item Linking com runtime libraries
+        \item Produção de binário nativo
+    \end{itemize}
+\end{enumerate}
+\end{definition}
+
+\subsection{Backends Suportados}
+
+\begin{definition}[Arquiteturas]
+\begin{itemize}
+    \item \textbf{ARM64}:
+    \begin{itemize}
+        \item Arquitetura RISC de 64 bits
+        \item Registradores: x0-x30, sp, pc
+        \item Instrução fixa de 32 bits
+    \end{itemize}
+    
+    \item \textbf{x86\_64}:
+    \begin{itemize}
+        \item Arquitetura CISC de 64 bits
+        \item Registradores: rax, rbx, rcx, rdx, rsi, rdi, rsp, rbp, r8-r15
+        \item Comprimento de instrução variável
+    \end{itemize}
+\end{itemize}
+\end{definition}
+
+\subsection{Formatos de Objeto}
+
+\begin{definition}[Geradores de Formato]
+\begin{itemize}
+    \item \textbf{ELF Generator}:
+    \begin{itemize}
+        \item Executable and Linkable Format
+        \item Usado em Linux/Unix
+        \item Seções: .text, .data, .bss, .rodata
+    \end{itemize}
+    
+    \item \textbf{PE Generator}:
+    \begin{itemize}
+        \item Portable Executable
+        \item Usado em Windows
+        \item Seções: .text, .data, .rdata
+    \end{itemize}
+\end{itemize}
+\end{definition}
+
+\section{Padrões de Programação}
+
+\subsection{Paradigma Orientado a Objetos}
+
+\begin{definition}[OOP em Dryad]
+Dryad suporta OOP completo:
+\begin{itemize}
+    \item \textbf{Encapsulamento}: Modificadores de acesso
+    \item \textbf{Herança}: Via \texttt{extends}
+    \item \textbf{Polimorfismo}: Métodos podem ser sobrescritos
+    \item \textbf{Abstração}: Classes e interfaces
+\end{itemize}
+\end{definition}
+
+\subsection{Paradigma Funcional}
+
+\begin{definition}[Functional Programming em Dryad]
+Características funcionais:
+\begin{itemize}
+    \item \textbf{First-class functions}: Funções como valores
+    \item \textbf{Higher-order functions}: Funções que recebem/retornam funções
+    \item \textbf{Closures}: Captura de escopo
+    \item \textbf{Arrow functions}: Sintaxe concisa
+    \item \textbf{Imutabilidade parcial}: \texttt{const} para variáveis
+\end{itemize}
+\end{definition}
+
+\subsection{Paradigma Procedural}
+
+\begin{definition}[Procedural em Dryad]
+Suporte a programação procedural tradicional:
+\begin{itemize}
+    \item Funções top-level
+    \item Variáveis globais e locais
+    \item Controle de fluxo estruturado
+    \item Sem necessidade de classes
+\end{itemize}
+\end{definition}
+
+\section{Especificações Formais}
+
+\subsection{Gramática Formal (BNF Simplificada)}
+
+\begin{definition}[Gramática de Dryad (Subset)]
+\begin{verbatim}
+<program> ::= <statement>*
+
+<statement> ::= <var-decl>
+              | <const-decl>
+              | <function-decl>
+              | <class-decl>
+              | <if-stmt>
+              | <while-stmt>
+              | <for-stmt>
+              | <return-stmt>
+              | <throw-stmt>
+              | <try-catch-stmt>
+              | <expression-stmt>
+              | <import-stmt>
+              | <export-stmt>
+              | <block-stmt>
+
+<var-decl> ::= "let" <identifier> [":" <type>] ["=" <expression>] ";"
+
+<const-decl> ::= "const" <identifier> [":" <type>] "=" <expression> ";"
+
+<function-decl> ::= ["async"] "function" <identifier>
+                    "(" <parameter-list> ")" [":" <type>]
+                    "{" <statement>* "}"
+
+<class-decl> ::= "class" <identifier> ["extends" <identifier>]
+                 "{" <class-member>* "}"
+
+<expression> ::= <literal>
+               | <identifier>
+               | <binary-expr>
+               | <unary-expr>
+               | <call-expr>
+               | <member-expr>
+               | <lambda-expr>
+               | <array-literal>
+               | <object-literal>
+               | <match-expr>
+
+<binary-expr> ::= <expression> <binary-op> <expression>
+
+<unary-expr> ::= <unary-op> <expression>
+
+<call-expr> ::= <expression> "(" <argument-list> ")"
+
+<member-expr> ::= <expression> "." <identifier>
+                | <expression> "[" <expression> "]"
+                | <expression> "::" <identifier>
+
+<lambda-expr> ::= "(" <parameter-list> ")" "=>" <expression>
+                | "(" <parameter-list> ")" "=>" "{" <statement>* "}"
+
+<type> ::= "number" | "string" | "bool" | "any"
+         | <type> "[]"
+         | "(" <type-list> ")"
+         | "fn" "(" <type-list> ")" "->" <type>
+\end{verbatim}
+\end{definition}
+
+\subsection{Semântica Operacional (Informal)}
+
+\begin{definition}[Regras de Avaliação]
+\textbf{Expressões Aritméticas}:
+\begin{itemize}
+    \item $\llbracket n_1 + n_2 \rrbracket = n_1 + n_2$ (se ambos números)
+    \item $\llbracket s_1 + s_2 \rrbracket = concat(s_1, s_2)$ (se algum é string)
+    \item $\llbracket n_1 / n_2 \rrbracket = n_1 / n_2$ se $n_2 \neq 0$, senão erro
+\end{itemize}
+
+\textbf{Expressões Lógicas}:
+\begin{itemize}
+    \item $\llbracket a \&\& b \rrbracket = \begin{cases}
+        a & \text{if } isFalsy(a) \\
+        b & \text{otherwise}
+    \end{cases}$
+    
+    \item $\llbracket a || b \rrbracket = \begin{cases}
+        a & \text{if } isTruthy(a) \\
+        b & \text{otherwise}
+    \end{cases}$
+\end{itemize}
+
+\textbf{Resolução de Variáveis}:
+\begin{itemize}
+    \item $\llbracket x \rrbracket_{\rho} = \rho(x)$ se $x \in dom(\rho)$
+    \item $\llbracket x \rrbracket_{\rho} = \llbracket x \rrbracket_{\rho'}$ se $x \notin dom(\rho)$ e $\rho'$ é escopo pai
+    \item Erro se $x$ não encontrado em nenhum escopo
+\end{itemize}
+\end{definition}
+
+\section{Limitações e Considerações}
+
+\subsection{Limitações Conhecidas}
+
+\begin{itemize}
+    \item \textbf{Performance}: Interpretador é mais lento que linguagens compiladas
+    \item \textbf{Type Safety}: Sistema de tipos dinâmico não previne erros de tipo em compile-time
+    \item \textbf{FFI}: Limitações ao passar tipos complexos para C
+    \item \textbf{Concorrência}: Interpreter base é single-threaded (threads são isoladas)
+    \item \textbf{Módulos}: Sistema de módulos sem versionamento
+    \item \textbf{AOT}: Suporte experimental, nem todas features suportadas
+\end{itemize}
+
+\subsection{Características de Performance}
+
+\begin{property}[Trade-offs]
+\begin{itemize}
+    \item \textbf{Adequado para}: Scripting, automação, prototipagem, aplicações pequenas/médias
+    \item \textbf{Inadequado para}: Computação intensiva, sistemas real-time, aplicações críticas de performance
+    \item \textbf{Bottlenecks}: Call stacks profundas, operações em arrays grandes, GC frequente
+\end{itemize}
+\end{property}
+
+\section{Conclusão}
+
+\subsection{Resumo}
+
+Dryad é uma linguagem de programação multi-paradigma moderna que combina:
+\begin{itemize}
+    \item Sintaxe familiar (JavaScript/TypeScript-like)
+    \item Tipagem dinâmica com anotações opcionais
+    \item Modelo de execução híbrido (interpreter/bytecode/AOT)
+    \item Sistema de módulos robusto com FFI
+    \item Concorrência nativa (async/await e threads)
+    \item Sistema de erros estruturado e informativo
+\end{itemize}
+
+\subsection{Filosofia de Design}
+
+A linguagem prioriza:
+\begin{enumerate}
+    \item \textbf{Clareza e Legibilidade}: Código deve ser auto-explicativo
+    \item \textbf{Flexibilidade}: Suporte a múltiplos paradigmas
+    \item \textbf{Developer Experience}: Erros informativos, sintaxe consistente
+    \item \textbf{Gradualidade}: Pode começar simples e adicionar complexidade quando necessário
+\end{enumerate}
+
+\subsection{Direções Futuras}
+
+Possíveis evoluções da linguagem:
+\begin{itemize}
+    \item Maturação do compilador AOT
+    \item Otimizações de performance no bytecode VM
+    \item Expansão de módulos nativos padrão
+    \item Sistema de tipos gradual mais robusto
+    \item Ferramentas de análise estática
+    \item Package manager integrado
+\end{itemize}
+
+\section*{Apêndice A: Tabela de Códigos de Erro}
+
+\begin{center}
+\begin{tabular}{|l|l|}
+\hline
+\textbf{Faixa} & \textbf{Categoria} \\
+\hline
+1000-1999 & Lexer Errors \\
+2000-2999 & Parser Errors \\
+3000-3999 & Runtime Errors \\
+4000-4999 & Type Errors \\
+5000-5999 & I/O Errors \\
+6000-6999 & Module Errors \\
+7000-7999 & Syntax Errors \\
+8000-8999 & Warnings \\
+9000+ & System Errors \\
+\hline
+\end{tabular}
+\end{center}
+
+\section*{Apêndice B: Palavras Reservadas (Completo)}
+
+\begin{multicols}{3}
+\begin{itemize}[noitemsep]
+    \item async
+    \item await
+    \item break
+    \item catch
+    \item class
+    \item const
+    \item continue
+    \item do
+    \item else
+    \item export
+    \item extends
+    \item false
+    \item finally
+    \item fn
+    \item for
+    \item from
+    \item function
+    \item if
+    \item import
+    \item in
+    \item let
+    \item match
+    \item mutex
+    \item new
+    \item null
+    \item private
+    \item protected
+    \item public
+    \item return
+    \item static
+    \item super
+    \item this
+    \item thread
+    \item throw
+    \item true
+    \item try
+    \item use
+    \item while
+\end{itemize}
+\end{multicols}
+
+\section*{Referências}
+
+\begin{enumerate}
+    \item STANDARDIZATION\_MANIFEST.md - Dryad Project Standardization
+    \item DRYAD\_LANGUAGE\_SPECIFICATION\_FOR\_LLM.md - Complete Language Specification
+    \item Dryad Error Catalog - Centralized Error Definitions
+    \item Dryad Source Code - Implementation Reference (Rust)
+\end{enumerate}
+
+\end{document}

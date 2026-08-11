@@ -1,0 +1,217 @@
+#<ffi>
+
+// IPE Draw Module
+// Provides drawing functions: shapes, text, images
+
+let lib = "ipe";
+let loaded = false;
+
+function load() {
+    if loaded {
+        return true;
+    }
+    
+    let path = "./ipe/native/ipe.so";
+    if ffi_load_library(path, lib) {
+        loaded = true;
+        return true;
+    }
+    return false;
+}
+
+// ========== Basic Shapes ==========
+
+function rect(x, y, w, h, color) {
+    if !loaded { return; }
+    ffi_call(lib, "ipe_draw_rect", "void", x, y, w, h, color);
+}
+
+function circle(x, y, radius, color) {
+    if !loaded { return; }
+    ffi_call(lib, "ipe_draw_circle", "void", x, y, radius, color);
+}
+
+function line(x1, y1, x2, y2, color, thickness) {
+    if !loaded { return; }
+    ffi_call(lib, "ipe_draw_line", "void", x1, y1, x2, y2, color, thickness);
+}
+
+function triangle(x1, y1, x2, y2, x3, y3, color) {
+    if !loaded { return; }
+    ffi_call(lib, "ipe_draw_triangle", "void", x1, y1, x2, y2, x3, y3, color);
+}
+
+function rounded_rect(x, y, w, h, radius, color) {
+    if !loaded { return; }
+    ffi_call(lib, "ipe_draw_rounded_rect", "void", x, y, w, h, radius, color);
+}
+
+function polygon(points, color) {
+    if !loaded { return; }
+    // points is array of {x, y}
+    let len = points.length;
+    let i = 0;
+    while i < len - 1 {
+        let p1 = points[i];
+        let p2 = points[i + 1];
+        line(p1["x"], p1["y"], p2["x"], p2["y"], color, 1);
+        i = i + 1;
+    }
+    // Close polygon
+    let first = points[0];
+    let last = points[len - 1];
+    line(last["x"], last["y"], first["x"], first["y"], color, 1);
+}
+
+// ========== Text ==========
+
+function text(message, x, y, color) {
+    if !loaded { return; }
+    ffi_call(lib, "ipe_draw_text", "void", message, x, y, color);
+}
+
+function text_size(message) {
+    // Would need font metrics - return default for now
+    return { "width": message.length * 10, "height": 20 };
+}
+
+// ========== Colors ==========
+
+// Color helpers (ARGB format: 0xAARRGGBB)
+let Colors = {
+    "black": 0xFF000000,
+    "white": 0xFFFFFFFF,
+    "red": 0xFF0000FF,
+    "green": 0xFF00FF00,
+    "blue": 0xFFFF0000,
+    "yellow": 0xFF00FFFF,
+    "cyan": 0xFFFFFF00,
+    "magenta": 0xFFFF00FF,
+    "transparent": 0x00000000,
+    "gray": 0xFF808080,
+    "dark_gray": 0xFF404040,
+    "light_gray": 0xFFC0C0C0,
+    
+    // Make color from RGB
+    "rgb": function(r, g, b) {
+        return 0xFF000000 | (b << 16) | (g << 8) | r;
+    },
+    
+    // Make color from RGBA
+    "rgba": function(r, g, b, a) {
+        return (a << 24) | (b << 16) | (g << 8) | r;
+    },
+    
+    // Make color from hex string
+    "hex": function(hex_str) {
+        // Parse #RRGGBB or RRGGBB
+        let s = hex_str;
+        if s[0] == "#" {
+            s = s.substring(1, s.length);
+        }
+        let val = 0;
+        let i = 0;
+        while i < s.length {
+            let c = s[i];
+            let v = 0;
+            if c >= "0" && c <= "9" {
+                v = c - "0";
+            } else if c >= "a" && c <= "f" {
+                v = 10 + (c - "a");
+            } else if c >= "A" && c <= "F" {
+                v = 10 + (c - "A");
+            }
+            val = val * 16 + v;
+            i = i + 1;
+        }
+        return 0xFF000000 | val;
+    },
+    
+    // Lighten a color
+    "lighten": function(color, amount) {
+        let r = (color >> 16) & 0xFF;
+        let g = (color >> 8) & 0xFF;
+        let b = color & 0xFF;
+        r = r + amount;
+        g = g + amount;
+        b = b + amount;
+        if r > 255 { r = 255; }
+        if g > 255 { g = 255; }
+        if b > 255 { b = 255; }
+        return 0xFF000000 | (b << 16) | (g << 8) | r;
+    },
+    
+    // Darken a color
+    "darken": function(color, amount) {
+        let r = (color >> 16) & 0xFF;
+        let g = (color >> 8) & 0xFF;
+        let b = color & 0xFF;
+        r = r - amount;
+        g = g - amount;
+        b = b - amount;
+        if r < 0 { r = 0; }
+        if g < 0 { g = 0; }
+        if b < 0 { b = 0; }
+        return 0xFF000000 | (b << 16) | (g << 8) | r;
+    },
+    
+    // Blend two colors
+    "blend": function(color1, color2, t) {
+        let r1 = (color1 >> 16) & 0xFF;
+        let g1 = (color1 >> 8) & 0xFF;
+        let b1 = color1 & 0xFF;
+        let r2 = (color2 >> 16) & 0xFF;
+        let g2 = (color2 >> 8) & 0xFF;
+        let b2 = color2 & 0xFF;
+        
+        let r = r1 + (r2 - r1) * t;
+        let g = g1 + (g2 - g1) * t;
+        let b = b1 + (b2 - b1) * t;
+        
+        return 0xFF000000 | (b << 16) | (g << 8) | r;
+    }
+};
+
+// ========== Fill & Clear ==========
+
+function clear(color) {
+    if !loaded { return; }
+    ffi_call(lib, "ipe_clear_background", "void", color);
+}
+
+function present() {
+    if !loaded { return; }
+    ffi_call(lib, "ipe_present", "void");
+}
+
+// ========== Transform ==========
+
+function push() {
+    if !loaded { return; }
+    ffi_call(lib, "ipe_transform_push", "void");
+}
+
+function pop() {
+    if !loaded { return; }
+    ffi_call(lib, "ipe_transform_pop", "void");
+}
+
+function translate(x, y) {
+    if !loaded { return; }
+    ffi_call(lib, "ipe_transform_translate", "void", x, y);
+}
+
+function rotate(degrees) {
+    if !loaded { return; }
+    ffi_call(lib, "ipe_transform_rotate", "void", degrees);
+}
+
+function scale(x, y) {
+    if !loaded { return; }
+    ffi_call(lib, "ipe_transform_scale", "void", x, y);
+}
+
+function reset() {
+    if !loaded { return; }
+    ffi_call(lib, "ipe_transform_reset", "void");
+}

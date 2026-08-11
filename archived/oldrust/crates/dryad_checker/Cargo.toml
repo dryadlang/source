@@ -1,0 +1,9 @@
+[package]
+name = "dryad_checker"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+dryad_parser = { path = "../dryad_parser" }
+dryad_lexer = { path = "../dryad_lexer" }
+dryad_errors = { path = "../dryad_errors" }

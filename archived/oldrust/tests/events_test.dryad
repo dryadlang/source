@@ -1,0 +1,44 @@
+#<events>
+#<console_io>
+
+function main() {
+    println("Testing Native Events Module...");
+
+    // 1. Create emitter
+    let emitter = events_new();
+    println("Emitter created: " + emitter);
+
+    // 2. Define callback
+    function callback(data) {
+        println("Callback executed with data: " + data);
+    }
+
+    // 3. Subscribe
+    println("Subscribing callback to 'test_event'...");
+    events_on(emitter, "test_event", callback);
+
+    // 4. Emit
+    println("Emitting 'test_event'...");
+    let callbacks = events_emit(emitter, "test_event");
+    
+    // Check if callbacks is an array and has length
+    // Note: We don't have .len() method on array in standard dryad yet?
+    // Let's assume printing it works or iterate.
+    println("Callbacks returned: " + callbacks);
+
+    // 5. Execute callbacks
+    for (cb in callbacks) {
+        cb("Hello from Event!");
+    }
+
+    // 6. Test Unsubscribe
+    println("Unsubscribing...");
+    events_off(emitter, "test_event", callback);
+    
+    let callbacks_empty = events_emit(emitter, "test_event");
+    println("Callbacks after unsubscribe (should be empty): " + callbacks_empty);
+    
+    println("SUCCESS: Test finished (verify output manually).");
+}
+
+main();

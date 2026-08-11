@@ -1,0 +1,63 @@
+#<ffi>
+#<console_io>
+#<system_env>
+
+println("╔════════════════════════════════════════════════════════╗");
+println("║  IPE FFI Integration Test Suite                       ║");
+println("╚════════════════════════════════════════════════════════╝");
+println("");
+
+// Test 1: Detectar plataforma
+println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+println("TEST: Detectando plataforma...");
+println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+
+let platform = native_platform();
+let arch = native_arch();
+
+println("  Plataforma: " + platform);
+println("  Arquitetura: " + arch);
+
+let expected_ext = "";
+if (platform == "windows") {
+    expected_ext = ".dll";
+}
+if (platform == "linux") {
+    expected_ext = ".so";
+}
+if (platform == "macos") {
+    expected_ext = ".dylib";
+}
+
+println("  Extensão esperada: " + expected_ext);
+println("[✓] Detecção de plataforma OK");
+println("");
+
+// Test 2: Carregar biblioteca
+println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+println("TEST: Carregando biblioteca...");
+println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+
+let ext = ".so";
+let lib_name = "libipe";
+
+if (platform == "windows") {
+    ext = ".dll";
+    lib_name = "ipe";
+}
+
+let path = "./ipe/native/" + lib_name + ext;
+println("  Tentando carregar: " + path);
+
+let success = ffi_load_library(path, "ipe_test");
+if (success) {
+    println("[✓] Biblioteca carregada com sucesso");
+    ffi_unload_library("ipe_test");
+} else {
+    println("[✗] Falha ao carregar biblioteca");
+}
+
+println("");
+println("╔════════════════════════════════════════════════════════╗");
+println("║  Testes Concluídos                                     ║");
+println("╚════════════════════════════════════════════════════════╝");

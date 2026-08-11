@@ -1,0 +1,180 @@
+#<ffi>
+
+// IPE UI Module
+// Provides UI controls: button, label, window, etc.
+
+let lib = "ipe";
+let loaded = false;
+
+function load() {
+    if loaded {
+        return true;
+    }
+    
+    let path = "./ipe/native/ipe.so";
+    if ffi_load_library(path, lib) {
+        loaded = true;
+        return true;
+    }
+    return false;
+}
+
+// ========== Control Base ==========
+
+function create(x, y, w, h) {
+    if !loaded { return 0; }
+    return ffi_call(lib, "ipe_control_create", "pointer", x, y, w, h);
+}
+
+function destroy(ctrl) {
+    if !loaded || ctrl == 0 { return; }
+    ffi_call(lib, "ipe_control_destroy", "void", ctrl);
+}
+
+function set_position(ctrl, x, y) {
+    if !loaded || ctrl == 0 { return; }
+    ffi_call(lib, "ipe_control_set_position", "void", ctrl, x, y);
+}
+
+function set_size(ctrl, w, h) {
+    if !loaded || ctrl == 0 { return; }
+    ffi_call(lib, "ipe_control_set_size", "void", ctrl, w, h);
+}
+
+function set_visible(ctrl, visible) {
+    if !loaded || ctrl == 0 { return; }
+    ffi_call(lib, "ipe_control_set_visible", "void", ctrl, visible);
+}
+
+function set_enabled(ctrl, enabled) {
+    if !loaded || ctrl == 0 { return; }
+    ffi_call(lib, "ipe_control_set_enabled", "void", ctrl, enabled);
+}
+
+function set_color(ctrl, bg_color, border_color) {
+    if !loaded || ctrl == 0 { return; }
+    ffi_call(lib, "ipe_control_set_color", "void", ctrl, bg_color, border_color);
+}
+
+// ========== Button ==========
+
+function button(x, y, w, h, text) {
+    let ctrl = create(x, y, w, h);
+    if ctrl == 0 {
+        return 0;
+    }
+    // Store text for later rendering
+    // In full implementation, would register click handler
+    return ctrl;
+}
+
+function button_clicked(ctrl) {
+    if !loaded || ctrl == 0 { return false; }
+    // Check if button was clicked using input system
+    let mouse_x = ffi_call(lib, "ipe_input_mouse_x", "i32");
+    let mouse_y = ffi_call(lib, "ipe_input_mouse_y", "i32");
+    let clicked = ffi_call(lib, "ipe_input_mouse_button_clicked", "i32", 0);
+    
+    // Would need to check if mouse is over button and clicked
+    // For now, return false - needs proper hit testing
+    return false;
+}
+
+// ========== Label ==========
+
+function label(x, y, text, color) {
+    let ctrl = create(x, y, 100, 30);
+    if ctrl == 0 {
+        return 0;
+    }
+    // Labels in IPE are drawn with draw_text
+    // This just creates a control for positioning
+    return ctrl;
+}
+
+function set_text(ctrl, text) {
+    // Would need to store text and render it
+    // For now, use draw.text directly
+}
+
+// ========== Container/Hierarchy ==========
+
+function add_child(parent, child) {
+    if !loaded || parent == 0 || child == 0 { return; }
+    ffi_call(lib, "ipe_control_add_child", "void", parent, child);
+}
+
+function remove_child(parent, child) {
+    if !loaded || parent == 0 || child == 0 { return; }
+    ffi_call(lib, "ipe_control_remove_child", "void", parent, child);
+}
+
+function set_root(ctrl) {
+    if !loaded || ctrl == 0 { return; }
+    ffi_call(lib, "ipe_control_set_root", "void", ctrl);
+}
+
+function get_root() {
+    if !loaded { return 0; }
+    return ffi_call(lib, "ipe_control_get_root", "pointer");
+}
+
+// ========== Focus ==========
+
+function set_focus(ctrl) {
+    if !loaded || ctrl == 0 { return; }
+    ffi_call(lib, "ipe_control_set_focus", "void", ctrl);
+}
+
+function get_focus() {
+    if !loaded { return 0; }
+    return ffi_call(lib, "ipe_control_get_focus", "pointer");
+}
+
+// ========== Draw ==========
+
+function draw(ctrl, window) {
+    if !loaded || ctrl == 0 { return; }
+    ffi_call(lib, "ipe_control_draw_recursive", "void", ctrl, window);
+}
+
+function draw_at(ctrl, x, y, window) {
+    if !loaded || ctrl == 0 { return; }
+    // Would need to temporarily reposition
+    draw(ctrl, window);
+}
+
+// ========== Event Handling ==========
+
+function handle_click(ctrl, x, y) {
+    if !loaded || ctrl == 0 { return false; }
+    ffi_call(lib, "ipe_control_handle_mouse_click", "void", x, y);
+}
+
+function handle_move(ctrl, x, y) {
+    if !loaded || ctrl == 0 { return; }
+    ffi_call(lib, "ipe_control_handle_mouse_move", "void", x, y);
+}
+
+function handle_key(ctrl, key_code) {
+    if !loaded || ctrl == 0 { return; }
+    ffi_call(lib, "ipe_control_handle_key_press", "void", key_code);
+}
+
+// ========== Helper: Create simple button with label ==========
+
+function labeled_button(x, y, w, h, label_text) {
+    let btn = button(x, y, w, h, label_text);
+    if btn != 0 {
+        set_color(btn, 0xFF404040, 0xFF808080);
+    }
+    return btn;
+}
+
+// ========== Helper: Simple hit test ==========
+
+function hit_test(ctrl, mouse_x, mouse_y) {
+    // Would need to store control bounds
+    // For now, return false
+    return false;
+}

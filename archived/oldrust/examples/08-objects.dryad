@@ -1,0 +1,134 @@
+// 08-objects.dryad — Object literals, properties, methods, nesting
+// Covers: creation, dot access, bracket access, assignment, methods, nesting
+
+#<console_io>
+
+println("=== 1. Object literals ===");
+
+// Simple object
+let person = {
+    name: "Alice",
+    age: 30,
+    city: "Lisbon"
+};
+println("Person: " + person);
+
+// Empty object
+let empty = {};
+println("Empty: " + empty);
+
+// Object with mixed value types
+let config = {
+    host: "localhost",
+    port: 8080,
+    debug: true,
+    timeout: null
+};
+println("Config: " + config);
+
+println("\n=== 2. Property access (dot notation) ===");
+
+println("Name: " + person.name);
+println("Age: " + person.age);
+println("City: " + person.city);
+
+println("\n=== 3. Property access (bracket notation) ===");
+
+println("Name: " + person["name"]);
+
+// Dynamic key access
+let key = "age";
+println("Dynamic access [" + key + "]: " + person[key]);
+
+println("\n=== 4. Property assignment ===");
+
+// Modify existing property
+person.age = 31;
+println("Updated age: " + person.age);
+
+// Add new property
+person.email = "alice@example.com";
+println("New email: " + person.email);
+
+// Bracket assignment
+person["phone"] = "+351 123 456";
+println("Phone: " + person.phone);
+
+println("\n=== 5. Methods in objects ===");
+
+let calculator = {
+    value: 0,
+    add(n) {
+        this.value += n;
+        return this;
+    },
+    subtract(n) {
+        this.value -= n;
+        return this;
+    },
+    getResult() {
+        return this.value;
+    }
+};
+
+calculator.add(10);
+calculator.add(5);
+calculator.subtract(3);
+println("Calculator result: " + calculator.getResult());
+
+// Object with greeting method
+let greeter = {
+    name: "Dryad",
+    greet() {
+        return "Hello from " + this.name + "!";
+    }
+};
+println(greeter.greet());
+
+println("\n=== 6. Nested objects ===");
+
+let company = {
+    name: "TechCorp",
+    address: {
+        street: "Main St 42",
+        city: "Porto",
+        country: "Portugal"
+    },
+    employees: {
+        count: 50,
+        departments: ["Engineering", "Marketing", "Sales"]
+    }
+};
+
+println("Company: " + company.name);
+println("City: " + company.address.city);
+println("Employees: " + company.employees.count);
+println("Departments: " + company.employees.departments);
+
+// Modify nested property
+company.address.city = "Braga";
+println("Updated city: " + company.address.city);
+
+println("\n=== 7. Iterating over object keys ===");
+
+let settings = {
+    theme: "dark",
+    language: "en",
+    fontSize: 14
+};
+
+println("Settings:");
+for (key in settings) {
+    println("  " + key);
+}
+
+println("\n=== 8. Objects as key-value stores ===");
+
+let scores = {};
+scores["Alice"] = 95;
+scores["Bob"] = 87;
+scores["Charlie"] = 92;
+
+println("Alice: " + scores["Alice"]);
+println("Bob: " + scores["Bob"]);
+println("Charlie: " + scores["Charlie"]);

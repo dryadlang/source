@@ -1,0 +1,41 @@
+
+#<console_io>
+export class Matrix {
+    data = [];
+    shape = [];
+    
+    function init(data) {
+        if (data == null) {
+            return;
+        }
+        this.data = data;
+        this.shape = [1, 2];
+        let d = this.data;
+        d[0] = 99;
+    }
+    
+    function _internal() {
+        println("internal called");
+        return 10;
+    }
+
+    function test_float(x) {
+        return 1.0 / x + this._internal();
+    }
+    
+    static function test_static() {
+        return "static works";
+    }
+}
+
+export function debug_export() {
+    return "export works";
+}
+
+function main() {
+    println("Matrix class parsed");
+    let m = new Matrix([[1]]);
+    println(m.test_float(2));
+    println(debug_export());
+}
+main();

@@ -1,0 +1,126 @@
+# Configuração padrão para benchmarks Dryad
+# Este arquivo pode ser usado para personalizar o comportamento dos benchmarks
+
+[benchmark]
+# Configurações gerais
+default_iterations = 100
+default_warmup = 10
+default_format = "console"
+measure_memory = true
+
+# Configurações de timeout (em segundos)
+max_execution_time = 30
+max_single_test_time = 5
+
+# Configurações de profiling
+enable_profiling = false
+profile_memory = false
+profile_cpu = true
+
+[output]
+# Configurações de saída
+save_raw_data = false
+include_metadata = true
+timestamp_format = "%Y-%m-%d %H:%M:%S"
+
+# Diretórios de saída
+reports_dir = "benchmark_reports"
+data_dir = "benchmark_data"
+
+[criterion]
+# Configurações específicas do Criterion
+confidence_level = 0.95
+significance_level = 0.05
+measurement_time = 5
+warm_up_time = 3
+sample_size = 100
+
+[categories]
+# Configurações por categoria de teste
+
+[categories.lexer]
+enabled = true
+max_code_size = 100000  # bytes
+test_scaling = true
+scaling_factors = [10, 100, 1000, 5000]
+
+[categories.parser]
+enabled = true
+max_ast_depth = 100
+test_recursion = true
+max_recursion_depth = 50
+
+[categories.runtime]
+enabled = true
+max_execution_steps = 1000000
+test_memory_usage = true
+test_performance_regression = true
+
+[categories.end_to_end]
+enabled = true
+include_real_world_examples = true
+test_large_programs = true
+
+[thresholds]
+# Limites para classificação de performance
+
+[thresholds.excellent]
+max_duration_ms = 10
+min_throughput = 1000
+
+[thresholds.good]
+max_duration_ms = 50
+min_throughput = 200
+
+[thresholds.acceptable]
+max_duration_ms = 200
+min_throughput = 50
+
+[thresholds.slow]
+max_duration_ms = 1000
+min_throughput = 10
+
+[alerts]
+# Configurações de alertas
+enable_performance_alerts = true
+regression_threshold_percent = 20
+memory_increase_threshold_percent = 50
+
+[comparison]
+# Configurações para análise comparativa
+baseline_dir = "benchmark_baseline"
+auto_save_baseline = false
+compare_with_previous = true
+
+[stress_test]
+# Configurações para testes de stress
+default_duration_seconds = 60
+default_thread_count = 4
+max_memory_mb = 1024
+monitor_system_resources = true
+
+[reporting]
+# Configurações de relatórios
+include_system_info = true
+include_git_info = true
+include_recommendations = true
+generate_charts = true
+
+[system_info]
+# Informações do sistema a incluir nos relatórios
+include_cpu_info = true
+include_memory_info = true
+include_os_info = true
+include_rust_version = true
+
+[custom_tests]
+# Configurações para testes personalizados
+test_files_dir = "test_files"
+auto_discover_tests = true
+file_extensions = [".dryad"]
+
+[optimization]
+# Configurações de otimização de benchmark
+parallel_execution = false
+cache_compiled_tests = true
+reuse_interpreters = false

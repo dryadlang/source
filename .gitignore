@@ -1,0 +1,6 @@
+target/
+**/*.DS_Store
+*.log
+.worktrees/
+build/
+dryad-cpp/build/

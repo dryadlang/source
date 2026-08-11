@@ -1,0 +1,32 @@
+#<console_io>
+#<ffi>
+#<system_env>
+
+// Simple test for new features
+
+let lib = "ipe";
+
+function main() {
+    println("Testing new features...");
+    
+    // Test integer division
+    let x = 10 / 3;
+    println("10 / 3 = " + x);
+    
+    // Test while without parens
+    let i = 0;
+    while i < 3 {
+        println(i);
+        i = i + 1;
+    }
+    
+    // Test array length
+    let arr = [];
+    arr.push(1);
+    arr.push(2);
+    println("Array length: " + arr.length);
+    
+    println("All tests passed!");
+}
+
+main();

@@ -1,0 +1,67 @@
+\babel@toc {english}{}\relax 
+\contentsline {section}{\numberline {1}Introduction and Language Philosophy}{3}{section.1}%
+\contentsline {subsection}{\numberline {1.1}Vision and Motivations}{3}{subsection.1.1}%
+\contentsline {subsection}{\numberline {1.2}Distinctive Characteristics}{3}{subsection.1.2}%
+\contentsline {subsection}{\numberline {1.3}Design Principles}{3}{subsection.1.3}%
+\contentsline {subsection}{\numberline {1.4}The Paradigm Shift: From Rust Runtime to C++ Micro-Kernel}{4}{subsection.1.4}%
+\contentsline {section}{\numberline {2}Lexical Structure}{5}{section.2}%
+\contentsline {subsection}{\numberline {2.1}Alphabet and Character Set}{5}{subsection.2.1}%
+\contentsline {subsection}{\numberline {2.2}Token Classification}{5}{subsection.2.2}%
+\contentsline {subsection}{\numberline {2.3}Reserved Keywords}{5}{subsection.2.3}%
+\contentsline {subsection}{\numberline {2.4}Operators}{6}{subsection.2.4}%
+\contentsline {subsection}{\numberline {2.5}Comments and Whitespace}{6}{subsection.2.5}%
+\contentsline {section}{\numberline {3}The Modern Module System}{8}{section.3}%
+\contentsline {subsection}{\numberline {3.1}ES6-Style Imports}{8}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}Module Exports}{8}{subsection.3.2}%
+\contentsline {subsection}{\numberline {3.3}Namespace Access Operator}{9}{subsection.3.3}%
+\contentsline {subsection}{\numberline {3.4}Standard Library Organization}{9}{subsection.3.4}%
+\contentsline {section}{\numberline {4}Type System and Gradual Typing}{10}{section.4}%
+\contentsline {subsection}{\numberline {4.1}Dynamic Typing Foundations}{10}{subsection.4.1}%
+\contentsline {subsection}{\numberline {4.2}Primitive Types}{10}{subsection.4.2}%
+\contentsline {subsection}{\numberline {4.3}Native Types for Low-Level Programming}{10}{subsection.4.3}%
+\contentsline {subsection}{\numberline {4.4}Type Annotations and Gradual Typing}{11}{subsection.4.4}%
+\contentsline {subsection}{\numberline {4.5}Future: Strict Type Mode for AOT Optimization}{11}{subsection.4.5}%
+\contentsline {section}{\numberline {5}Runtime Architecture: C++ Micro-Kernel with Intrinsics}{13}{section.5}%
+\contentsline {subsection}{\numberline {5.1}Architectural Overview}{13}{subsection.5.1}%
+\contentsline {subsection}{\numberline {5.2}The Intrinsics System}{13}{subsection.5.2}%
+\contentsline {subsection}{\numberline {5.3}C++ Runtime Implementation}{14}{subsection.5.3}%
+\contentsline {subsection}{\numberline {5.4}The Complete Syscall Catalog}{14}{subsection.5.4}%
+\contentsline {subsection}{\numberline {5.5}Memory Management Strategy}{15}{subsection.5.5}%
+\contentsline {section}{\numberline {6}The Self-Hosting Standard Library}{16}{section.6}%
+\contentsline {subsection}{\numberline {6.1}Virtual File System Architecture}{16}{subsection.6.1}%
+\contentsline {subsection}{\numberline {6.2}HTTP Implementation in Pure Dryad}{17}{subsection.6.2}%
+\contentsline {subsection}{\numberline {6.3}Event Loop and Async I/O}{18}{subsection.6.3}%
+\contentsline {section}{\numberline {7}FFI and External Function Interface}{20}{section.7}%
+\contentsline {subsection}{\numberline {7.1}The @ffi Decorator for Bindings}{20}{subsection.7.1}%
+\contentsline {subsection}{\numberline {7.2}The dryad-bindgen Tool}{20}{subsection.7.2}%
+\contentsline {subsection}{\numberline {7.3}Extern "C" Blocks}{21}{subsection.7.3}%
+\contentsline {section}{\numberline {8}Concurrency and Parallelism}{22}{section.8}%
+\contentsline {subsection}{\numberline {8.1}Concurrency Model Overview}{22}{subsection.8.1}%
+\contentsline {subsection}{\numberline {8.2}Thread-Based Parallelism}{22}{subsection.8.2}%
+\contentsline {subsection}{\numberline {8.3}Mutex for Thread Synchronization}{22}{subsection.8.3}%
+\contentsline {subsection}{\numberline {8.4}Async/Await for Non-Blocking I/O}{23}{subsection.8.4}%
+\contentsline {subsection}{\numberline {8.5}Future: Actor Model and Message Passing}{23}{subsection.8.5}%
+\contentsline {section}{\numberline {9}Compilation Pipeline and Execution Modes}{25}{section.9}%
+\contentsline {subsection}{\numberline {9.1}Three-Stage Execution Architecture}{25}{subsection.9.1}%
+\contentsline {subsection}{\numberline {9.2}Compilation Pipeline}{25}{subsection.9.2}%
+\contentsline {subsection}{\numberline {9.3}Bytecode VM Specification}{25}{subsection.9.3}%
+\contentsline {subsection}{\numberline {9.4}AOT Compilation with LLVM}{26}{subsection.9.4}%
+\contentsline {section}{\numberline {10}Error Handling and Diagnostics}{27}{section.10}%
+\contentsline {subsection}{\numberline {10.1}Structured Error System}{27}{subsection.10.1}%
+\contentsline {subsection}{\numberline {10.2}Error Reporting Format}{27}{subsection.10.2}%
+\contentsline {subsection}{\numberline {10.3}Try/Catch/Finally Semantics}{27}{subsection.10.3}%
+\contentsline {section}{\numberline {11}Future Roadmap and Planned Features}{29}{section.11}%
+\contentsline {subsection}{\numberline {11.1}Short-Term Goals (6-12 months)}{29}{subsection.11.1}%
+\contentsline {subsection}{\numberline {11.2}Medium-Term Goals (1-2 years)}{29}{subsection.11.2}%
+\contentsline {subsection}{\numberline {11.3}Long-Term Vision (2+ years)}{29}{subsection.11.3}%
+\contentsline {section}{\numberline {12}Conclusion}{30}{section.12}%
+\contentsline {subsection}{\numberline {12.1}Key Achievements}{30}{subsection.12.1}%
+\contentsline {subsection}{\numberline {12.2}Theoretical Contributions}{30}{subsection.12.2}%
+\contentsline {subsection}{\numberline {12.3}Future Directions}{30}{subsection.12.3}%
+\contentsline {section}{\numberline {A}Complete BNF Grammar}{31}{appendix.A}%
+\contentsline {subsection}{\numberline {A.1}Program Structure}{31}{subsection.A.1}%
+\contentsline {subsection}{\numberline {A.2}Declarations}{31}{subsection.A.2}%
+\contentsline {subsection}{\numberline {A.3}Expressions}{31}{subsection.A.3}%
+\contentsline {section}{\numberline {B}Syscall Reference}{32}{appendix.B}%
+\contentsline {subsection}{\numberline {B.1}File I/O Syscalls}{32}{subsection.B.1}%
+\contentsline {subsection}{\numberline {B.2}Network Syscalls}{32}{subsection.B.2}%

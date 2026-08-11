@@ -1,0 +1,152 @@
+// 09-classes-basics.dryad — Class declarations, constructors, properties, methods
+// Covers: class, constructor, this, new, methods, properties
+
+#<console_io>
+
+println("=== 1. Basic class declaration ===");
+
+class Animal {
+    // Default property values
+    name = "Unknown";
+    sound = "...";
+
+    // Constructor
+    constructor(name, sound) {
+        this.name = name;
+        this.sound = sound;
+    }
+
+    // Instance method
+    function speak() {
+        println(this.name + " says " + this.sound);
+    }
+
+    // Method with return value
+    function describe(): string {
+        return this.name + " (makes '" + this.sound + "' sound)";
+    }
+}
+
+println("\n=== 2. Creating instances with new ===");
+
+let cat = new Animal("Cat", "Meow");
+let dog = new Animal("Dog", "Woof");
+let bird = new Animal("Bird", "Tweet");
+
+cat.speak();
+dog.speak();
+bird.speak();
+
+println("\n=== 3. Accessing properties ===");
+
+println("Cat name: " + cat.name);
+println("Dog sound: " + dog.sound);
+
+// Modify instance property
+cat.name = "Kitten";
+println("Updated cat: " + cat.name);
+
+println("\n=== 4. Using methods ===");
+
+println(cat.describe());
+println(dog.describe());
+println(bird.describe());
+
+println("\n=== 5. A more complete class ===");
+
+class BankAccount {
+    holder = "";
+    balance = 0;
+    transactions = 0;
+
+    constructor(holder, initialBalance) {
+        this.holder = holder;
+        this.balance = initialBalance;
+    }
+
+    function deposit(amount) {
+        if (amount > 0) {
+            this.balance += amount;
+            this.transactions++;
+            println("Deposited " + amount + ". Balance: " + this.balance);
+        } else {
+            println("Invalid deposit amount");
+        }
+    }
+
+    function withdraw(amount) {
+        if (amount > 0 && amount <= this.balance) {
+            this.balance -= amount;
+            this.transactions++;
+            println("Withdrew " + amount + ". Balance: " + this.balance);
+        } else if (amount > this.balance) {
+            println("Insufficient funds! Balance: " + this.balance);
+        } else {
+            println("Invalid withdrawal amount");
+        }
+    }
+
+    function getBalance() {
+        return this.balance;
+    }
+
+    function summary() {
+        println("--- Account Summary ---");
+        println("Holder: " + this.holder);
+        println("Balance: " + this.balance);
+        println("Transactions: " + this.transactions);
+    }
+}
+
+let account = new BankAccount("Alice", 1000);
+account.deposit(500);
+account.withdraw(200);
+account.withdraw(2000);
+account.deposit(100);
+account.summary();
+
+println("\n=== 6. Class with computed behavior ===");
+
+class Rectangle {
+    width = 0;
+    height = 0;
+
+    constructor(w, h) {
+        this.width = w;
+        this.height = h;
+    }
+
+    function area() {
+        return this.width * this.height;
+    }
+
+    function perimeter() {
+        return 2 * (this.width + this.height);
+    }
+
+    function isSquare() {
+        return this.width == this.height;
+    }
+
+    function toString() {
+        return "Rectangle(" + this.width + "x" + this.height + ")";
+    }
+}
+
+let r1 = new Rectangle(5, 10);
+let r2 = new Rectangle(7, 7);
+
+println(r1.toString() + " area=" + r1.area() + " perimeter=" + r1.perimeter());
+println(r2.toString() + " area=" + r2.area() + " isSquare=" + r2.isSquare());
+
+println("\n=== 7. Multiple instances ===");
+
+let rectangles = [
+    new Rectangle(3, 4),
+    new Rectangle(5, 5),
+    new Rectangle(10, 2)
+];
+
+for (rect in rectangles) {
+    println(rect.toString() + " → area=" + rect.area());
+}

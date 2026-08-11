@@ -1,0 +1,201 @@
+// 04-control-flow.dryad — Control flow statements
+// Covers: if/else, while, do-while, for, for-in, break, continue, match
+
+#<console_io>
+
+println("=== 1. if / else if / else ===");
+
+let score = 85;
+
+if (score >= 90) {
+    println("Grade: A");
+} else if (score >= 80) {
+    println("Grade: B");
+} else if (score >= 70) {
+    println("Grade: C");
+} else {
+    println("Grade: F");
+}
+
+// Simple if
+let isRaining = true;
+if (isRaining) {
+    println("Bring an umbrella!");
+}
+
+// Truthy/falsy
+if (1) {
+    println("1 is truthy");
+}
+if ("hello") {
+    println("Non-empty string is truthy");
+}
+if (!0) {
+    println("0 is falsy");
+}
+if (!null) {
+    println("null is falsy");
+}
+
+println("\n=== 2. while loop ===");
+
+let count = 0;
+while (count < 5) {
+    print(count + " ");
+    count++;
+}
+println("");
+
+// While with condition variable
+let found = false;
+let searchIndex = 0;
+let data = [3, 7, 1, 9, 4];
+while (!found && searchIndex < 5) {
+    if (data[searchIndex] == 9) {
+        found = true;
+        println("Found 9 at index " + searchIndex);
+    }
+    searchIndex++;
+}
+
+println("\n=== 3. do-while loop ===");
+
+let attempts = 0;
+do {
+    attempts++;
+    println("Attempt #" + attempts);
+} while (attempts < 3);
+
+// do-while always runs at least once
+let runOnce = false;
+do {
+    println("This runs even when condition is false");
+    runOnce = true;
+} while (false);
+
+println("\n=== 4. for loop (C-style) ===");
+
+// Standard counting loop
+for (let i = 0; i < 5; i++) {
+    print(i + " ");
+}
+println("");
+
+// Counting down
+for (let i = 10; i > 0; i -= 2) {
+    print(i + " ");
+}
+println("");
+
+// Nested for loops
+println("Multiplication table (1-3):");
+for (let row = 1; row <= 3; row++) {
+    let line = "";
+    for (let col = 1; col <= 3; col++) {
+        line += (row * col) + "\t";
+    }
+    println(line);
+}
+
+println("\n=== 5. for-in (iteration) ===");
+
+// Iterate over array
+let colors = ["red", "green", "blue"];
+for (color in colors) {
+    println("Color: " + color);
+}
+
+// Iterate over object keys
+let person = { name: "Alice", age: 30, city: "Lisbon" };
+for (key in person) {
+    println("Key: " + key);
+}
+
+// for-in with let
+for (let item in [10, 20, 30]) {
+    print(item + " ");
+}
+println("");
+
+println("\n=== 6. break and continue ===");
+
+// break — exit loop early
+println("Break at 5:");
+for (let i = 0; i < 10; i++) {
+    if (i == 5) {
+        break;
+    }
+    print(i + " ");
+}
+println("");
+
+// continue — skip to next iteration
+println("Skip even numbers:");
+for (let i = 0; i < 10; i++) {
+    if (i % 2 == 0) {
+        continue;
+    }
+    print(i + " ");
+}
+println("");
+
+// break in while
+let n = 0;
+while (true) {
+    if (n >= 3) {
+        break;
+    }
+    println("n = " + n);
+    n++;
+}
+
+println("\n=== 7. match expression ===");
+
+// Match with literal patterns
+let day = 3;
+match (day) {
+    1 => println("Monday"),
+    2 => println("Tuesday"),
+    3 => println("Wednesday"),
+    4 => println("Thursday"),
+    5 => println("Friday"),
+    _ => println("Weekend"),
+}
+
+// Match with wildcard
+let status = "error";
+match (status) {
+    "ok" => println("All good"),
+    "error" => println("Something went wrong"),
+    _ => println("Unknown status"),
+}
+
+// Match as expression (assign result to variable)
+let code = 404;
+let message = match (code) {
+    200 => "OK",
+    404 => "Not Found",
+    500 => "Internal Server Error",
+    _ => "Unknown",
+};
+println("HTTP " + code + ": " + message);
+
+// Match with guards
+let temp = 28;
+match (temp) {
+    t if t < 0 => println("Freezing!"),
+    t if t < 15 => println("Cold"),
+    t if t < 25 => println("Comfortable"),
+    t if t < 35 => println("Warm"),
+    _ => println("Hot!"),
+}
+
+// Match with array destructuring
+let point = [3, 4];
+match (point) {
+    [0, 0] => println("Origin"),
+    [x, 0] => println("On X-axis at " + x),
+    [0, y] => println("On Y-axis at " + y),
+    [x, y] => println("Point at (" + x + ", " + y + ")"),
+    _ => println("Unknown point"),
+}

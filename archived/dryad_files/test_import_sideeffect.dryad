@@ -1,0 +1,9 @@
+// test_import_sideeffect.dryad - Teste de importação side-effect
+
+print("=== Teste 3: Import Side Effect ===");
+
+// Importar apenas para executar o módulo
+import "./math_utils.dryad";
+
+print("✅ Módulo importado com side-effect!");
+print("Nota: Este tipo de import executa o módulo mas não importa símbolos");

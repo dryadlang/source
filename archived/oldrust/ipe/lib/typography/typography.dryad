@@ -1,0 +1,390 @@
+#<ffi>
+
+// IPE Typography Module
+// Font loading, text rendering, typography styles
+
+let lib = "ipe";
+let loaded = false;
+
+// Loaded fonts cache
+let fonts = {};
+let default_font = null;
+
+function load() {
+    if loaded {
+        return true;
+    }
+    let path = "./ipe/native/ipe.so";
+    if ffi_load_library(path, lib) {
+        loaded = true;
+        return true;
+    }
+    return false;
+}
+
+// ========== Font Loading ==========
+
+function load_font(name, path, size) {
+    if !loaded { return null; }
+    
+    let font_ptr = ffi_call(lib, "ipe_font_load", "pointer", path, size);
+    if font_ptr != 0 {
+        fonts[name] = {
+            "pointer": font_ptr,
+            "path": path,
+            "size": size
+        };
+        return font_ptr;
+    }
+    return null;
+}
+
+function load_default(path, size) {
+    default_font = load_font("default", path, size);
+    return default_font;
+}
+
+function get_font(name) {
+    if name == "default" {
+        return default_font;
+    }
+    let f = fonts[name];
+    if f != null {
+        return f["pointer"];
+    }
+    return null;
+}
+
+function has_font(name) {
+    if name == "default" {
+        return default_font != null;
+    }
+    return fonts[name] != null;
+}
+
+// ========== Font Properties ==========
+
+function font_size(font_ptr) {
+    // Would need to store font size in wrapper
+    return 16; // Default
+}
+
+function set_font_size(font_ptr, size) {
+    // Would need to reload font with new size
+}
+
+// ========== Text Drawing ==========
+
+function draw(text, x, y, color) {
+    if !loaded { return; }
+    ffi_call(lib, "ipe_draw_text", "void", text, x, y, color);
+}
+
+function draw_with_font(text, x, y, color, font_ptr) {
+    if !loaded || font_ptr == 0 { 
+        draw(text, x, y, color);
+        return;
+    }
+    ffi_call(lib, "ipe_draw_text_ex", "void", text, x, y, font_ptr);
+}
+
+function draw_centered(text, x, y, color, width) {
+    let tw = text_width(text);
+    let start_x = x + (width - tw) / 2;
+    draw(text, start_x, y, color);
+}
+
+function draw_right(text, x, y, color, width) {
+    let tw = text_width(text);
+    let start_x = x + width - tw;
+    draw(text, start_x, y, color);
+}
+
+// ========== Text Measurement ==========
+
+function text_width(text) {
+    if !loaded { return 0; }
+    // Use default char width approximation
+    return text.length * 10;
+}
+
+function text_width_with_font(text, font_ptr) {
+    if !loaded || font_ptr == 0 {
+        return text_width(text);
+    }
+    // Would call ipe_text_width
+    return text.length * 10;
+}
+
+function text_height() {
+    // Approximate height
+    return 20;
+}
+
+// ========== Typography Styles ==========
+
+let Typography = {
+    // Font weights
+    "WEIGHT_THIN": 100,
+    "WEIGHT_LIGHT": 300,
+    "WEIGHT_REGULAR": 400,
+    "WEIGHT_MEDIUM": 500,
+    "WEIGHT_BOLD": 700,
+    "WEIGHT_BLACK": 900,
+    
+    // Font styles
+    "STYLE_NORMAL": "normal",
+    "STYLE_ITALIC": "italic",
+    "STYLE_OBLIQUE": "oblique",
+    
+    // Text alignments
+    "ALIGN_LEFT": "left",
+    "ALIGN_CENTER": "center",
+    "ALIGN_RIGHT": "right",
+    "ALIGN_JUSTIFY": "justify",
+    
+    // Vertical alignments
+    "VALIGN_TOP": "top",
+    "VALIGN_MIDDLE": "middle",
+    "VALIGN_BOTTOM": "bottom",
+    
+    // Create text style
+    "style": function(color, font_name, size, weight, align) {
+        return {
+            "color": color,
+            "font": font_name,
+            "size": size,
+            "weight": weight,
+            "align": align
+        };
+    },
+    
+    // Default styles
+    "h1": {
+        "color": 0xFFFFFFFF,
+        "size": 32,
+        "weight": 700,
+        "align": "left"
+    },
+    
+    "h2": {
+        "color": 0xFFFFFFFF,
+        "size": 24,
+        "weight": 700,
+        "align": "left"
+    },
+    
+    "h3": {
+        "color": 0xFFFFFFFF,
+        "size": 20,
+        "weight": 600,
+        "align": "left"
+    },
+    
+    "body": {
+        "color": 0xFFFFFFFF,
+        "size": 16,
+        "weight": 400,
+        "align": "left"
+    },
+    
+    "caption": {
+        "color": 0xFFAAAAAA,
+        "size": 12,
+        "weight": 400,
+        "align": "left"
+    },
+    
+    "button": {
+        "color": 0xFFFFFFFF,
+        "size": 16,
+        "weight": 600,
+        "align": "center"
+    }
+};
+
+// ========== Text Styles ==========
+
+function create_style(color, size, weight, align) {
+    return Typography.style(color, "default", size, weight, align);
+}
+
+function apply_style(text, x, y, style) {
+    draw(text, x, y, style["color"]);
+}
+
+// ========== Multiline Text ==========
+
+function draw_multiline(text, x, y, width, line_height, style) {
+    let words = text.split(" ");
+    let line = "";
+    let current_x = x;
+    let current_y = y;
+    
+    let i = 0;
+    while i < words.length {
+        let test_line = line + words[i] + " ";
+        let test_width = test_line.length * 10;
+        
+        if test_width > width && line != "" {
+            // Draw current line
+            draw(line, current_x, current_y, style["color"]);
+            current_y = current_y + line_height;
+            line = words[i] + " ";
+        } else {
+            line = test_line;
+        }
+        
+        i = i + 1;
+    }
+    
+    // Draw last line
+    if line != "" {
+        draw(line, current_x, current_y, style["color"]);
+    }
+}
+
+function wrap_text(text, width) {
+    let words = text.split(" ");
+    let lines = [];
+    let current_line = "";
+    
+    let i = 0;
+    while i < words.length {
+        let test_line = current_line + words[i] + " ";
+        
+        if test_line.length * 10 > width && current_line != "" {
+            lines.push(current_line);
+            current_line = words[i] + " ";
+        } else {
+            current_line = test_line;
+        }
+        
+        i = i + 1;
+    }
+    
+    if current_line != "" {
+        lines.push(current_line);
+    }
+    
+    return lines;
+}
+
+// ========== Rich Text (basic) ==========
+
+// Parse simple markdown-like formatting
+// **bold** and *italic* supported
+function parse_rich_text(text) {
+    let result = [];
+    let current = "";
+    let i = 0;
+    let bold = false;
+    let italic = false;
+    
+    while i < text.length {
+        let c = text[i];
+        
+        if c == "*" {
+            // Save current segment
+            if current != "" {
+                result.push({
+                    "text": current,
+                    "bold": bold,
+                    "italic": italic
+                });
+            }
+            // Check for double asterisk
+            if i + 1 < text.length && text[i + 1] == "*" {
+                bold = !bold;
+                i = i + 1;
+            } else {
+                italic = !italic;
+            }
+            current = "";
+        } else {
+            current = current + c;
+        }
+        
+        i = i + 1;
+    }
+    
+    // Add remaining
+    if current != "" {
+        result.push({
+            "text": current,
+            "bold": bold,
+            "italic": italic
+        });
+    }
+    
+    return result;
+}
+
+function draw_rich(text, x, y, base_color) {
+    let segments = parse_rich_text(text);
+    let current_x = x;
+    
+    let i = 0;
+    while i < segments.length {
+        let seg = segments[i];
+        
+        // For now, just draw - would need bold/italic fonts
+        draw(seg["text"], current_x, y, base_color);
+        current_x = current_x + seg["text"].length * 10;
+        
+        i = i + 1;
+    }
+}
+
+// ========== Text Effects ==========
+
+function draw_shadow(text, x, y, color, offset_x, offset_y) {
+    draw(text, x + offset_x, y + offset_y, color);
+}
+
+function draw_outline(text, x, y, outline_color, thickness) {
+    let dx = 0;
+    let dy = 0;
+    let i = 0;
+    while i < thickness {
+        dx = 0;
+        dy = 0;
+        while dx <= thickness {
+            draw(text, x + dx, y + dy, outline_color);
+            draw(text, x - dx, y + dy, outline_color);
+            draw(text, x + dx, y - dy, outline_color);
+            draw(text, x - dx, y - dy, outline_color);
+            dx = dx + 1;
+        }
+        dy = dy + 1;
+        i = i + 1;
+    }
+    draw(text, x, y, 0xFFFFFFFF); // Main text
+}
+
+// ========== Common Fonts ==========
+
+let SystemFonts = {
+    "sans": "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+    "serif": "/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf",
+    "mono": "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",
+    "arial": "C:/Windows/Fonts/arial.ttf",
+    "comic": "C:/Windows/Fonts/comic.ttf"
+};
+
+function load_system_font(name, size) {
+    let path = SystemFonts[name];
+    if path != null {
+        return load_font(name, path, size);
+    }
+    return null;
+}
+
+// ========== Emoji Support (placeholder) ==========
+
+// Would need emoji font or bitmap
+function has_emoji(text) {
+    // Check for common emoji patterns
+    // Simplified - just returns false
+    return false;
+}

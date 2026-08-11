@@ -1,0 +1,17 @@
+#<console_io>
+
+// Test integer division
+let x = 10 / 3;
+print("10 / 3 = ");
+println(x);
+
+// Test modulo
+let z = 10 % 3;
+print("10 % 3 = ");
+println(z);
+
+// Test array indexing with division result
+let arr = [1, 2, 3, 4, 5];
+let idx = 15 / 5;
+print("arr[15 / 5] = ");
+println(arr[idx]);

@@ -1,0 +1,169 @@
+// Exemplo de programa Dryad para teste de benchmark
+// Programa: Cálculos Matemáticos Intensivos
+
+funcao calcularFatorial(n) {
+    se (n <= 1) {
+        retorna 1;
+    }
+    retorna n * calcularFatorial(n - 1);
+}
+
+funcao calcularFibonacci(n) {
+    se (n <= 1) {
+        retorna n;
+    }
+    retorna calcularFibonacci(n - 1) + calcularFibonacci(n - 2);
+}
+
+funcao ehPrimo(numero) {
+    se (numero < 2) {
+        retorna falso;
+    }
+    
+    para (var i = 2; i * i <= numero; i++) {
+        se (numero % i == 0) {
+            retorna falso;
+        }
+    }
+    
+    retorna verdadeiro;
+}
+
+funcao encontrarPrimos(limite) {
+    var primos = [];
+    
+    para (var num = 2; num <= limite; num++) {
+        se (ehPrimo(num)) {
+            primos.adicionar(num);
+        }
+    }
+    
+    retorna primos;
+}
+
+funcao calcularMDC(a, b) {
+    enquanto (b != 0) {
+        var temp = b;
+        b = a % b;
+        a = temp;
+    }
+    retorna a;
+}
+
+funcao calcularMMC(a, b) {
+    retorna (a * b) / calcularMDC(a, b);
+}
+
+classe CalculadoraAvancada {
+    construtor() {
+        este.historico = [];
+    }
+    
+    adicionarHistorico(operacao, resultado) {
+        este.historico.adicionar({
+            operacao: operacao,
+            resultado: resultado,
+            timestamp: "agora" // Simulação de timestamp
+        });
+    }
+    
+    potencia(base, expoente) {
+        var resultado = 1;
+        para (var i = 0; i < expoente; i++) {
+            resultado = resultado * base;
+        }
+        este.adicionarHistorico("potencia(" + base + ", " + expoente + ")", resultado);
+        retorna resultado;
+    }
+    
+    raizQuadrada(numero) {
+        // Método de aproximação de Newton
+        var x = numero;
+        var epsilon = 0.000001;
+        
+        enquanto (verdadeiro) {
+            var raiz = 0.5 * (x + (numero / x));
+            se (Math.abs(x - raiz) < epsilon) {
+                este.adicionarHistorico("raizQuadrada(" + numero + ")", raiz);
+                retorna raiz;
+            }
+            x = raiz;
+        }
+    }
+    
+    calcularPi(iteracoes) {
+        var pi = 0;
+        para (var i = 0; i < iteracoes; i++) {
+            var termo = 1.0 / (2 * i + 1);
+            se (i % 2 == 0) {
+                pi = pi + termo;
+            } senao {
+                pi = pi - termo;
+            }
+        }
+        var resultado = pi * 4;
+        este.adicionarHistorico("calcularPi(" + iteracoes + ")", resultado);
+        retorna resultado;
+    }
+    
+    obterHistorico() {
+        retorna este.historico;
+    }
+}
+
+// Execução dos testes matemáticos
+imprimir("=== TESTE DE PERFORMANCE MATEMÁTICA ===");
+
+// Teste de fatoriais
+imprimir("Calculando fatoriais...");
+para (var i = 1; i <= 10; i++) {
+    var fat = calcularFatorial(i);
+    imprimir("Fatorial de " + i + " = " + fat);
+}
+
+// Teste de Fibonacci
+imprimir("\nCalculando sequência de Fibonacci...");
+para (var i = 0; i < 15; i++) {
+    var fib = calcularFibonacci(i);
+    imprimir("Fibonacci(" + i + ") = " + fib);
+}
+
+// Teste de números primos
+imprimir("\nEncontrando números primos até 100...");
+var primos = encontrarPrimos(100);
+imprimir("Encontrados " + primos.tamanho + " números primos");
+
+// Teste de MDC e MMC
+imprimir("\nCalculando MDC e MMC...");
+para (var a = 12; a <= 20; a++) {
+    para (var b = 8; b <= 15; b++) {
+        var mdc = calcularMDC(a, b);
+        var mmc = calcularMMC(a, b);
+        imprimir("MDC(" + a + ", " + b + ") = " + mdc + ", MMC = " + mmc);
+    }
+}
+
+// Teste da calculadora avançada
+imprimir("\nTestando calculadora avançada...");
+var calc = novo CalculadoraAvancada();
+
+// Calcular potências
+para (var base = 2; base <= 5; base++) {
+    para (var exp = 1; exp <= 8; exp++) {
+        calc.potencia(base, exp);
+    }
+}
+
+// Calcular raízes quadradas
+para (var num = 1; num <= 25; num++) {
+    calc.raizQuadrada(num);
+}
+
+// Calcular Pi com diferentes precisões
+calc.calcularPi(1000);
+calc.calcularPi(10000);
+
+var historico = calc.obterHistorico();
+imprimir("Operações realizadas: " + historico.tamanho);
+
+imprimir("=== TESTE CONCLUÍDO ===");

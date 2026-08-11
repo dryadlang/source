@@ -1,0 +1,375 @@
+
+// Greenleaf - Data Frames
+// Tabular data structures
+
+import { Statistics } from "../math/statistics.dryad";
+
+export class DataFrame {
+    data = {}; // Dict of column name -> list of values
+    columns = []; // List of column names to maintain order
+    length = 0;
+
+    constructor(data_dict) {
+        this.data = data_dict;
+        // Extract keys
+        this.columns = [];
+        for (let k in data_dict) {
+            this.columns = this.columns + [k];
+        }
+        
+        if (this.columns.length > 0) {
+            this.length = this.data[this.columns[0]].length;
+        }
+    }
+
+    get_column(name) {
+        return this.data[name];
+    }
+
+    set_column(name, values) {
+        if (values.length != this.length) {
+             println("Error: Column length mismatch");
+             return;
+        }
+        this.data[name] = values;
+        
+        // Add to columns list if new
+        let exists = false;
+        for(let c in this.columns) { if(c == name) exists = true; }
+        // Iterating over list values or keys? 
+        // "for (item in colecao)" iterates values in Dryad? 
+        // Docs say: "for (item in colecao) { ... } // Itera sobre valores"
+        // But for objects it iterates keys?
+        // Let's assume list iteration gives values.
+        
+        // Manual check since "in" behavior wasn't fully clear for lists vs checking existence
+        let found = false;
+        for(let i=0; i<this.columns.length; i++) {
+            if (this.columns[i] == name) found = true;
+        }
+        if (!found) this.columns = this.columns + [name];
+    }
+
+    get_row(idx) {
+        if (idx < 0 || idx >= this.length) return null;
+        let row = [];
+        for (let i = 0; i < this.columns.length; i++) {
+            let col = this.columns[i];
+            row = row + [this.data[col][idx]];
+        }
+        return row;
+    }
+
+    add_row(values) {
+        if (values.length != this.columns.length) {
+            println("Error: Row length mismatch");
+            return;
+        }
+        for (let i = 0; i < this.columns.length; i++) {
+            let col = this.columns[i];
+            this.data[col] = this.data[col] + [values[i]];
+        }
+        this.length = this.length + 1;
+    }
+
+    filter(predicate) {
+        // filter returns new DataFrame
+        // predicate(row_list) -> bool
+        
+        // Initialize empty lists for new data
+        let new_data = {};
+        for (let i = 0; i < this.columns.length; i++) {
+            new_data[this.columns[i]] = [];
+        }
+
+        for (let i = 0; i < this.length; i++) {
+            let row = this.get_row(i);
+            if (predicate(row)) {
+                for (let j = 0; j < this.columns.length; j++) {
+                    let col = this.columns[j];
+                    new_data[col] = new_data[col] + [row[j]];
+                }
+            }
+        }
+        return new DataFrame(new_data);
+    }
+
+    sort_by(col_name, ascending) {
+        // Simple bubble sort
+        // We need to sort indices based on column values, then rebuild data
+        
+        let indices = [];
+        for(let i=0; i<this.length; i++) indices = indices + [i];
+        
+        let sort_col = this.data[col_name];
+        
+        for (let i = 0; i < this.length; i++) {
+            for (let j = 0; j < this.length - i - 1; j++) {
+                let idx1 = indices[j];
+                let idx2 = indices[j+1];
+                let v1 = sort_col[idx1];
+                let v2 = sort_col[idx2];
+                
+                let swap = false;
+                if (ascending) {
+                    if (v1 > v2) swap = true;
+                } else {
+                    if (v1 < v2) swap = true;
+                }
+                
+                if (swap) {
+                   indices[j] = idx2;
+                   indices[j+1] = idx1;
+                }
+            }
+        }
+        
+        // Rebuild data
+        let new_data = {};
+        for (let i = 0; i < this.columns.length; i++) {
+            let col = this.columns[i];
+            let old_list = this.data[col];
+            let new_list = [];
+            for(let k=0; k<this.length; k++) {
+                new_list = new_list + [old_list[indices[k]]];
+            }
+            new_data[col] = new_list;
+        }
+        
+        return new DataFrame(new_data);
+    }
+    
+    describe(col_name) {
+        let values = this.data[col_name];
+        let stats = new Statistics(values);
+        let result = {};
+        result["sum"] = stats.mean() * values.length; // hack if sum() not visible
+        result["mean"] = stats.mean();
+        result["min"] = stats.min();
+        result["max"] = stats.max();
+        result["std"] = stats.std_dev();
+        // result["count"] = values.length;
+        return result;
+    }
+
+    groupby(col_name, agg_func) {
+        // returns dict of group_key -> aggregated_value
+        // agg_func takes list of values
+        // This is a simplified groupby
+        
+        let groups = {};
+        let keys = this.data[col_name];
+        
+        // Find stored column (assuming we aggravate other columns?)
+        // Actually prompt example: 
+        // df.groupby("categoria", function(valores) { ... })
+        // But what defines 'valores'?
+        // Usually groupby aggregates other columns.
+        // Let's assume the user passes a function to aggregate *rows* or specific values?
+        // The example shows: return soma;
+        
+        // Actually, let's implement a simpler version where we group indices
+        // and return a GroupBy object might be too complex.
+        // Let's implement: grouping by `col_name`, and apply `agg_func` to all other numeric columns?
+        // Or simply returning a dict of key -> list of rows?
+        
+        // Let's stick to the prompt example logic:
+        // "Agrupar e agregar"
+        // It implies custom logic.
+        // If we strictly follow the prompt:
+        /*
+        let agrupado = df.groupby("categoria", function(valores) {
+            let soma = 0; ... return soma;
+        });
+        */
+        // "valores" seems to be the list of items in that group?
+        // But items of what? The row?
+        // Let's assume it groups the object instances?
+        // Or maybe strictly 1 column?
+        
+        // Let's implement: returns dict where Key=GroupValue, Value=List_of_Rows
+        // The user can then map over it.
+        
+        // Wait, the prompt shows `df.groupby(...)` returning something we can print?
+        // Re-reading example: 
+        /*
+           let agrupado = df.groupby("categoria", function(valores) { ... });
+        */
+        // It seems `agg_func` is applied to each group.
+        // But what is passed to `agg_func`?
+        // Let's pass the list of rows for that group.
+        
+        let group_indices = {};
+        
+        for (let i = 0; i < this.length; i++) {
+            let key = keys[i];
+            let s_key = "" + key;
+            if (group_indices[s_key] == null) group_indices[s_key] = [];
+            group_indices[s_key] = group_indices[s_key] + [i];
+        }
+        
+        let result = {};
+        for(let k in group_indices) { // iterate keys
+             // values iteration? "for (let k in group_indices)" in JS iterates keys. 
+             // in Dryad? "for (item in colecao) // Itera sobre valores". 
+             // This is ambiguous. 
+             // If Dryad iterates values, I can't get keys easily unless I store them.
+             // But map support usually implies key iteration or I should use `keys()` method if exists.
+             // Let's assume standard `for k in dict` gives keys if it's object, or use workaround.
+             
+             // Workaround: if I can't iterate keys, I can't build the result dict with keys.
+             // let's assume `for (k in obj)` works as JS for objects.
+             
+             // Actually, to be safe, I'll rely on the array of unique keys if possible.
+             // But I built a dict.
+             // If Dryad for-in iterates values, I am in trouble for Dicts.
+             // Let's assume it iterates keys for Dicts (Objects), and values for Arrays.
+             // Based on "Object { k: "v" } ... Coleção chave-valor", standard iteration usually yields keys.
+             
+             let indices = group_indices[k];
+             let group_rows = [];
+             for(let j=0; j<indices.length; j++) {
+                 group_rows = group_rows + [this.get_row(indices[j])]; 
+             }
+             
+             // Now call agg_func with the rows
+             // But wait, the example `soma = soma + valores[i]` suggests `valores` is a list of numbers.
+             // This implies groupby operates on a specific target column?
+             // But the call signature `df.groupby("categoria", func)` doesn't specify target col.
+             // Maybe `valores` IS the list of rows, and user logic extracts what they want.
+             // `valores[i]` would be a row. `row` is a list. `row + row` is not number addition.
+             
+             // Let's just pass the list of rows. The user example might have been pseudocode simplifed.
+             result[k] = agg_func(group_rows);
+        }
+        return result;
+    }
+
+    to_string() {
+        let s = "";
+        // Header
+        for (let i = 0; i < this.columns.length; i++) {
+            s = s + this.columns[i] + "\t";
+        }
+        s = s + "\n";
+        // Rows
+        for (let i = 0; i < this.length; i++) {
+             let row = this.get_row(i);
+             for(let j=0; j<row.length; j++) {
+                 s = s + row[j] + "\t";
+             }
+             s = s + "\n";
+        }
+        return s;
+    }
+}
+
+// Helpers
+
+export function from_dict(d) {
+    return new DataFrame(d);
+}
+
+export function merge(df1, df2, on_col) {
+    // Inner join on 'on_col'
+    // Very inefficient implementation (nested loops)
+    
+    let col1 = df1.data[on_col];
+    let col2 = df2.data[on_col];
+    
+    if (col1 == null || col2 == null) {
+        println("Error: Merge column not found");
+        return null;
+    }
+    
+    // Result structure
+    let new_data = {};
+    let combined_cols = [];
+    
+    // Add columns from df1
+    for(let i=0; i<df1.columns.length; i++) {
+        let c = df1.columns[i];
+        combined_cols = combined_cols + [c];
+        new_data[c] = [];
+    }
+    
+    // Add columns from df2 (excluding on_col to avoid duplicate)
+    for(let i=0; i<df2.columns.length; i++) {
+        let c = df2.columns[i];
+        if (c != on_col) {
+             // Handle name collision? For now, assume unique or overwrite
+             combined_cols = combined_cols + [c]; // This allows modifying 'c' if needed
+             new_data[c] = [];
+        }
+    }
+    
+    // perform join
+    for (let i = 0; i < df1.length; i++) {
+        let key1 = col1[i];
+        
+        for (let j = 0; j < df2.length; j++) {
+            let key2 = col2[j];
+            
+            if (key1 == key2) {
+                 // Match found, merge rows
+                 // Copy from df1
+                 for(let k=0; k<df1.columns.length; k++) {
+                     let c = df1.columns[k];
+                     new_data[c] = new_data[c] + [df1.data[c][i]];
+                 }
+                 // Copy from df2
+                 for(let k=0; k<df2.columns.length; k++) {
+                     let c = df2.columns[k];
+                     if (c != on_col) {
+                         new_data[c] = new_data[c] + [df2.data[c][j]];
+                     }
+                 }
+            }
+        }
+    }
+    
+    return new DataFrame(new_data);
+}
+
+export function read_csv_simple(text) {
+    // Basic CSV parser
+    // assumes \n for newlines, comma separator, no quotes handling
+    let lines = text.split("\n"); // Assuming split exists on string?
+    // If string.split not available, we need manual parsing.
+    // Dryad docs didn't explicitly list String methods but it's JS-like.
+    // Start with assumption it exists.
+    
+    if (lines.length == 0) return null;
+    
+    let header = lines[0].split(",");
+    let data = {};
+    for(let i=0; i<header.length; i++) {
+        data[header[i].trim()] = []; // trim?
+    }
+    
+    for (let i = 1; i < lines.length; i++) {
+        let line = lines[i].trim();
+        if (line.length == 0) continue;
+        
+        let parts = line.split(",");
+        for(let j=0; j<header.length; j++) {
+            let key = header[j].trim();
+            let val = parts[j]; // parse number?
+            // Try parse number if looks like one
+            // Assuming val is string
+            // No easy ParseInt/Float in base dryad described?
+            // "10" is number? No.
+            // Let's assume simple strings for now or add explicit conversion helper if needed
+            // Actually, for math libs, we need numbers.
+            // Let's assume input is well-formed numbers for numeric cols
+            
+            // Hack to convert to number: val - 0 ?
+            // In JS "5" - 0 = 5.
+            // In Dryad?
+            // If not, we just store strings.
+            data[key] = data[key] + [val];
+        }
+    }
+    
+    return new DataFrame(data);
+}

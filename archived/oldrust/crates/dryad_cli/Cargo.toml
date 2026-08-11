@@ -1,0 +1,19 @@
+[package]
+name = "dryad_cli"
+version = "0.1.0"
+edition = "2021"
+description = "Interface de linha de comando para a linguagem Dryad"
+
+[[bin]]
+name = "dryad"
+path = "src/main.rs"
+
+[dependencies]
+dryad_errors = { workspace = true }
+dryad_lexer = { workspace = true }
+dryad_parser = { workspace = true }
+dryad_runtime = { workspace = true }
+dryad_checker = { workspace = true }
+clap = { version = "4.0", features = ["derive"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"

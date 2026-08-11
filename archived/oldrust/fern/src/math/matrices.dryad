@@ -1,0 +1,224 @@
+
+// Greenleaf - Matrices
+// Linear Algebra Operations
+
+import { Array } from "./arrays.dryad";
+import { pow } from "../scientific/functions.dryad";
+
+export class Matrix {
+    data = []; 
+    rows = 0;
+    cols = 0;
+
+    function init(data) {
+        if (data.length > 0) {
+            this.rows = data.length;
+            this.cols = data[0].length;
+            this.data = data;
+        } else {
+            this.rows = 0;
+            this.cols = 0;
+            this.data = [];
+        }
+    }
+
+    static function zeros(r, c) {
+        let d = [];
+        let i = 0;
+        let j = 0;
+        for(i = 0; i < r; i++) {
+            let row = [];
+            for(j = 0; j < c; j++) { 
+                row = row + [0]; 
+            }
+            d = d + [row];
+        }
+        return new Matrix(d);
+    }
+
+    static function identity(n) {
+        let d = [];
+        let i = 0;
+        let j = 0;
+        for(i = 0; i < n; i++) {
+            let row = [];
+            for(j = 0; j < n; j++) {
+                if (i == j) {
+                    row = row + [1];
+                } else {
+                    row = row + [0];
+                }
+            }
+            d = d + [row];
+        }
+        return new Matrix(d);
+    }
+
+    function get(i, j) {
+        if (i < 0 || i >= this.rows || j < 0 || j >= this.cols) { return null; }
+        return this.data[i][j];
+    }
+
+    function set(i, j, val) {
+        if (i < 0 || i >= this.rows || j < 0 || j >= this.cols) { return; }
+        let row = this.data[i];
+        row[j] = val; 
+    }
+
+    function add(other) {
+        if (this.rows != other.rows || this.cols != other.cols) {
+            println("Error: Dimension mismatch for Matrix addition");
+            return null;
+        }
+        let res = [];
+        let i = 0; 
+        let j = 0;
+        for(i = 0; i < this.rows; i++) {
+            let row = [];
+            for(j = 0; j < this.cols; j++) {
+                row = row + [this.data[i][j] + other.data[i][j]];
+            }
+            res = res + [row];
+        }
+        return new Matrix(res);
+    }
+
+    function multiply_scalar(scalar) {
+        let res = [];
+        let i = 0;
+        let j = 0;
+        for(i = 0; i < this.rows; i++) {
+            let row = [];
+            for(j = 0; j < this.cols; j++) {
+                row = row + [this.data[i][j] * scalar];
+            }
+            res = res + [row];
+        }
+        return new Matrix(res);
+    }
+
+    function multiply(other) {
+        if (this.cols != other.rows) {
+            println("Error: Dimension mismatch for Matrix multiplication");
+            return null;
+        }
+        
+        let m = this.rows;
+        let p = other.cols;
+        let n = this.cols;
+        
+        let res = [];
+        // Init result with zeros
+        let i = 0;
+        let j = 0;
+        
+        for(i = 0; i < m; i++) {
+            let row = [];
+            for(j = 0; j < p; j++) { row = row + [0]; }
+            res = res + [row];
+        }
+
+        // Matmul
+        let k = 0;
+        for(i = 0; i < m; i++) {
+            for(j = 0; j < p; j++) {
+                let sum = 0;
+                for(k = 0; k < n; k++) {
+                    sum = sum + this.data[i][k] * other.data[k][j];
+                }
+                res[i][j] = sum;
+            }
+        }
+        return new Matrix(res);
+    }
+
+    function transpose() {
+        let res = [];
+        // New dims: cols x rows
+        let i = 0;
+        let j = 0;
+        for(i = 0; i < this.cols; i++) {
+            let row = [];
+            for(j = 0; j < this.rows; j++) {
+                row = row + [this.data[j][i]];
+            }
+            res = res + [row];
+        }
+        return new Matrix(res);
+    }
+
+    function determinant() {
+        if (this.rows != this.cols) {
+             println("Error: Determinant requires square matrix");
+             return null;
+        }
+        let n = this.rows;
+        if (n == 1) { return this.data[0][0]; }
+        if (n == 2) { return this.data[0][0]*this.data[1][1] - this.data[0][1]*this.data[1][0]; }
+        
+        // Recursive expansion (inefficient for large N, but ok for demo)
+        let det = 0;
+        let j = 0;
+        for(j = 0; j < n; j++) {
+            det = det + pow(-1, j) * this.data[0][j] * this._submatrix(0, j).determinant();
+        }
+        return det;
+    }
+    
+    function _submatrix(remove_r, remove_c) {
+        let res = [];
+        let i = 0;
+        let j = 0;
+        for(i = 0; i < this.rows; i++) {
+            if (i == remove_r) { continue; }
+            let row = [];
+            for(j = 0; j < this.cols; j++) {
+                if (j == remove_c) { continue; }
+                row = row + [this.data[i][j]];
+            }
+            res = res + [row];
+        }
+        return new Matrix(res);
+    }
+
+    function inverse() {
+         let det = this.determinant();
+         if (det == 0) {
+             println("Error: Matrix is singular (determinant is 0)");
+             return null;
+         }
+         
+         // Adjugate matrix / determinant
+         let n = this.rows;
+         let cofactors = [];
+         
+         let i = 0;
+         let j = 0;
+         for(i = 0; i < n; i++) {
+             let row = [];
+             for(j = 0; j < n; j++) {
+                 let minor = this._submatrix(i, j).determinant();
+                 let factor = pow(-1, i+j) * minor;
+                 row = row + [factor];
+             }
+             cofactors = cofactors + [row];
+         }
+         
+         let adjugate = new Matrix(cofactors).transpose();
+         return adjugate.multiply_scalar(1.0/det);
+    }
+
+    function to_string() {
+        let s = "Matrix(" + this.rows + "x" + this.cols + ")\n";
+        let i = 0;
+        let j = 0;
+        for(i = 0; i < this.rows; i++) {
+            s = s + "[ ";
+            for(j = 0; j < this.cols; j++) {
+                s = s + this.data[i][j] + " ";
+            }
+            s = s + "]\n";
+        }
+        return s;
+    }
+}

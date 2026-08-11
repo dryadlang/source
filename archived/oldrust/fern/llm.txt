@@ -1,0 +1,44 @@
+# Fern Library - LLM Reference
+# Purpose: Advanced Mathematics and Data Analysis for Dryad
+
+## Project Structure
+- `src/math/arrays.dryad`: Multi-dimensional arrays (Numpy-like)
+- `src/math/statistics.dryad`: Statistical tools (Mean, Median, Dist, T-Test)
+- `src/scientific/functions.dryad`: Scientific constants and trascendental functions
+- `src/symbolic/algebra.dryad`: Symbolic manipulation (Derivatives, Integrals, Simplifiers)
+- `src/data/frames.dryad`: Tabular data (Pandas-like)
+- `src/lib.dryad`: Library entry point
+
+## Core API
+
+### Arrays (`math/arrays`)
+- `Array(data, shape)`: Constructor.
+- `zeros(shape)`, `ones(shape)`, `arange(start, stop, step)`, `eye(n)`: Creation.
+- `dot(a, b)`: Scalar or Matrix multiplication.
+- `Array.transpose()`: 2D transposition.
+
+### Statistics (`math/statistics`)
+- `Statistics(list)`: Class for mean, median, mode, variance, std_dev, quartile, iqr.
+- `correlation(x, y)`, `covariance(x, y)`: Bivariate stats.
+- `normal_pdf(x, m, s)`, `normal_cdf(x, m, s)`: Normal distribution.
+
+### Scientific Functions (`scientific/functions`)
+- `sin`, `cos`, `tan`, `asin`, `acos`, `atan`: Trigonometry.
+- `sinh`, `cosh`, `tanh`: Hyperbolic.
+- `exp`, `ln`, `log10`: Exponential/Log.
+- `gamma(x)`, `erf(x)`, `bessel_j0(x)`, `zeta(s)`: Advanced functions.
+- `integrate_numerical(f, a, b, n)`: Simpson/Trapezoidal.
+
+### Symbolic Algebra (`symbolic/algebra`)
+- `symbol(name)`, `number(val)`: Converters.
+- `Add`, `Subtract`, `Multiply`, `Divide`, `Power`: Expression classes.
+- `Expr.derivative(var)`: Symbolic differentiation.
+- `Expr.integrate(var)`: Basic symbolic integration (polynomials).
+- `simplify(expr)`: Constant folding and identity reduction.
+
+### Data Frames (`data/frames`)
+- `DataFrame(dict)`: Core class.
+- `read_csv_simple(text)`: basic CSV parsing with numeric detection.
+- `DataFrame.filter(predicate)`: Filter rows by function.
+- `DataFrame.groupby(col, agg_col, func)`: Group and aggregate.
+- `merge(df1, df2, on)`: Inner join.

@@ -1,0 +1,126 @@
+// Exemplo de programa Dryad para teste de benchmark
+// Programa: Sistema de Biblioteca Simples
+
+classe Livro {
+    construtor(titulo, autor, ano) {
+        este.titulo = titulo;
+        este.autor = autor;
+        este.ano = ano;
+        este.emprestado = falso;
+    }
+    
+    emprestar() {
+        se (!este.emprestado) {
+            este.emprestado = verdadeiro;
+            retorna verdadeiro;
+        }
+        retorna falso;
+    }
+    
+    devolver() {
+        este.emprestado = falso;
+    }
+    
+    informacoes() {
+        retorna este.titulo + " por " + este.autor + " (" + este.ano + ")";
+    }
+}
+
+classe Biblioteca {
+    construtor() {
+        este.livros = [];
+        este.totalEmprestimos = 0;
+    }
+    
+    adicionarLivro(livro) {
+        este.livros.adicionar(livro);
+    }
+    
+    buscarPorAutor(autor) {
+        var encontrados = [];
+        paracada (livro em este.livros) {
+            se (livro.autor == autor) {
+                encontrados.adicionar(livro);
+            }
+        }
+        retorna encontrados;
+    }
+    
+    buscarPorTitulo(titulo) {
+        paracada (livro em este.livros) {
+            se (livro.titulo == titulo) {
+                retorna livro;
+            }
+        }
+        retorna nulo;
+    }
+    
+    emprestarLivro(titulo) {
+        var livro = este.buscarPorTitulo(titulo);
+        se (livro != nulo && livro.emprestar()) {
+            este.totalEmprestimos = este.totalEmprestimos + 1;
+            retorna verdadeiro;
+        }
+        retorna falso;
+    }
+    
+    devolverLivro(titulo) {
+        var livro = este.buscarPorTitulo(titulo);
+        se (livro != nulo && livro.emprestado) {
+            livro.devolver();
+            retorna verdadeiro;
+        }
+        retorna falso;
+    }
+    
+    relatorio() {
+        var totalLivros = este.livros.tamanho;
+        var emprestados = 0;
+        
+        paracada (livro em este.livros) {
+            se (livro.emprestado) {
+                emprestados = emprestados + 1;
+            }
+        }
+        
+        var disponiveis = totalLivros - emprestados;
+        
+        imprimir("=== RELATÓRIO DA BIBLIOTECA ===");
+        imprimir("Total de livros: " + totalLivros);
+        imprimir("Livros emprestados: " + emprestados);
+        imprimir("Livros disponíveis: " + disponiveis);
+        imprimir("Total de empréstimos realizados: " + este.totalEmprestimos);
+        imprimir("===============================");
+    }
+}
+
+// Uso do sistema
+var biblioteca = novo Biblioteca();
+
+// Adicionar livros
+var livros = [
+    novo Livro("1984", "George Orwell", 1949),
+    novo Livro("Dom Casmurro", "Machado de Assis", 1899),
+    novo Livro("O Cortiço", "Aluísio Azevedo", 1890),
+    novo Livro("Capitães da Areia", "Jorge Amado", 1937),
+    novo Livro("O Alquimista", "Paulo Coelho", 1988)
+];
+
+paracada (livro em livros) {
+    biblioteca.adicionarLivro(livro);
+}
+
+// Simular empréstimos
+biblioteca.emprestarLivro("1984");
+biblioteca.emprestarLivro("Dom Casmurro");
+biblioteca.emprestarLivro("O Alquimista");
+
+// Simular devoluções
+biblioteca.devolverLivro("1984");
+
+// Buscar livros
+var livrosMachado = biblioteca.buscarPorAutor("Machado de Assis");
+imprimir("Livros de Machado de Assis encontrados: " + livrosMachado.tamanho);
+
+// Gerar relatório final
+biblioteca.relatorio();

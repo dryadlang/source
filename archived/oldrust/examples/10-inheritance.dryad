@@ -1,0 +1,208 @@
+// 10-inheritance.dryad — Class inheritance with extends and super
+// Covers: extends, super in constructor, super.method(), method overriding
+
+#<console_io>
+
+println("=== 1. Basic inheritance ===");
+
+class Shape {
+    name = "Shape";
+
+    constructor(name) {
+        this.name = name;
+    }
+
+    function area() {
+        return 0;
+    }
+
+    function describe() {
+        return this.name + " with area " + this.area();
+    }
+}
+
+class Circle extends Shape {
+    radius = 0;
+
+    constructor(radius) {
+        super("Circle");
+        this.radius = radius;
+    }
+
+    // Override parent method
+    function area() {
+        return 3.14159 * this.radius ** 2;
+    }
+}
+
+class Rectangle extends Shape {
+    width = 0;
+    height = 0;
+
+    constructor(width, height) {
+        super("Rectangle");
+        this.width = width;
+        this.height = height;
+    }
+
+    function area() {
+        return this.width * this.height;
+    }
+}
+
+let circle = new Circle(5);
+let rect = new Rectangle(4, 6);
+
+println(circle.describe());
+println(rect.describe());
+
+println("\n=== 2. Calling super methods ===");
+
+class Animal {
+    name = "";
+    species = "";
+
+    constructor(name, species) {
+        this.name = name;
+        this.species = species;
+    }
+
+    function introduce() {
+        return "I am " + this.name + ", a " + this.species;
+    }
+
+    function speak() {
+        println(this.name + " makes a generic sound");
+    }
+}
+
+class Dog extends Animal {
+    breed = "";
+
+    constructor(name, breed) {
+        super(name, "Dog");
+        this.breed = breed;
+    }
+
+    // Override and extend with super call
+    function speak() {
+        super.speak();
+        println(this.name + " barks! Woof!");
+    }
+
+    function introduce() {
+        let base = super.introduce();
+        return base + " (" + this.breed + ")";
+    }
+}
+
+class GuideDog extends Dog {
+    owner = "";
+
+    constructor(name, breed, owner) {
+        super(name, breed);
+        this.owner = owner;
+    }
+
+    function introduce() {
+        let base = super.introduce();
+        return base + ", guide dog for " + this.owner;
+    }
+
+    function speak() {
+        super.speak();
+        println(this.name + " is very well-behaved");
+    }
+}
+
+println("\n=== 3. Multi-level inheritance ===");
+
+let rex = new Dog("Rex", "German Shepherd");
+println(rex.introduce());
+rex.speak();
+
+println("");
+let buddy = new GuideDog("Buddy", "Labrador", "John");
+println(buddy.introduce());
+buddy.speak();
+
+println("\n=== 4. Inherited methods ===");
+
+class Vehicle {
+    make = "";
+    year = 0;
+    speed = 0;
+
+    constructor(make, year) {
+        this.make = make;
+        this.year = year;
+        this.speed = 0;
+    }
+
+    function accelerate(amount) {
+        this.speed += amount;
+        println(this.make + " accelerates to " + this.speed + " km/h");
+    }
+
+    function brake(amount) {
+        this.speed -= amount;
+        if (this.speed < 0) {
+            this.speed = 0;
+        }
+        println(this.make + " slows to " + this.speed + " km/h");
+    }
+
+    function info() {
+        return this.make + " (" + this.year + ")";
+    }
+}
+
+class ElectricCar extends Vehicle {
+    battery = 100;
+
+    constructor(make, year) {
+        super(make, year);
+        this.battery = 100;
+    }
+
+    // Override accelerate to also drain battery
+    function accelerate(amount) {
+        this.battery -= amount / 10;
+        if (this.battery < 0) {
+            this.battery = 0;
+        }
+        super.accelerate(amount);
+        println("  Battery: " + this.battery + "%");
+    }
+
+    function charge() {
+        this.battery = 100;
+        println(this.make + " fully charged!");
+    }
+
+    function info() {
+        return super.info() + " [EV, battery: " + this.battery + "%]";
+    }
+}
+
+let tesla = new ElectricCar("Tesla Model 3", 2024);
+println(tesla.info());
+tesla.accelerate(60);
+tesla.accelerate(40);
+tesla.brake(30);
+println("Final: " + tesla.info());
+
+println("\n=== 5. Polymorphism ===");
+
+// Different shapes, same interface
+let shapes = [
+    new Circle(3),
+    new Rectangle(4, 5),
+    new Circle(7),
+    new Rectangle(2, 8)
+];
+
+println("All shapes:");
+for (shape in shapes) {
+    println("  " + shape.describe());
+}

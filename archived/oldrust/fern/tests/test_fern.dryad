@@ -1,0 +1,9 @@
+
+// Fern Master Test Runner
+import "./test_arrays.dryad";
+import "./test_statistics.dryad";
+import "./test_scientific.dryad";
+import "./test_algebra.dryad";
+import "./test_frames.dryad";
+
+println("All Fern tests completed.");

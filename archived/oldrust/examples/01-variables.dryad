@@ -1,0 +1,108 @@
+// 01-variables.dryad — Variable declarations, assignment, and scoping
+// Covers: let, const, type annotations, shadowing, compound assignment
+
+#<console_io>
+
+println("=== 1. let — mutable variables ===");
+
+// Declare without initialization (defaults to null)
+let uninitialized;
+println("Uninitialized: " + uninitialized);
+
+// Declare with initialization
+let name = "Dryad";
+println("Name: " + name);
+
+// Declare with type annotation
+let age: number = 1;
+println("Age: " + age);
+
+let greeting: string = "Hello";
+println("Greeting: " + greeting);
+
+println("\n=== 2. const — immutable constants ===");
+
+const PI = 3.14159;
+println("PI: " + PI);
+
+const LANGUAGE: string = "Dryad";
+println("Language: " + LANGUAGE);
+
+const MAX_SIZE: number = 1024;
+println("Max size: " + MAX_SIZE);
+
+// const must have an initializer — the following would error:
+// const BAD;  // Error 2013: Constante sem valor inicial
+
+println("\n=== 3. Reassignment ===");
+
+let counter = 0;
+println("Counter initial: " + counter);
+
+counter = 10;
+println("Counter after assignment: " + counter);
+
+counter = counter + 5;
+println("Counter after addition: " + counter);
+
+// const cannot be reassigned — the following would error:
+// PI = 3.0;  // Error: Cannot reassign const
+
+println("\n=== 4. Compound assignment operators ===");
+
+let x = 100;
+println("x initial: " + x);
+
+x += 25;
+println("x += 25: " + x);
+
+x -= 10;
+println("x -= 10: " + x);
+
+x *= 2;
+println("x *= 2: " + x);
+
+x /= 5;
+println("x /= 5: " + x);
+
+println("\n=== 5. Shadowing ===");
+
+let value = 42;
+println("Outer value: " + value);
+
+{
+    // Shadowing: re-declare 'value' in inner scope
+    let value = "now a string";
+    println("Inner value (shadowed): " + value);
+}
+
+// Outer value is unchanged
+println("Outer value after block: " + value);
+
+// Shadowing in same scope (re-declare)
+let color = "red";
+println("Color 1: " + color);
+let color = "blue";
+println("Color 2 (shadowed): " + color);
+
+println("\n=== 6. Multiple variables ===");
+
+let a = 1;
+let b = 2;
+let c = 3;
+println("a=" + a + " b=" + b + " c=" + c);
+
+// Swap values
+let temp = a;
+a = b;
+b = temp;
+println("After swap: a=" + a + " b=" + b);
+
+println("\n=== 7. Type annotation examples ===");
+
+let count: number = 0;
+let label: string = "items";
+let active: bool = true;
+
+println("count: " + count + " (" + active + ")");
+println("label: " + label);

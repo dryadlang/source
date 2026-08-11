@@ -1,0 +1,25 @@
+
+// Test script for Greenleaf Scientific Functions
+import { PI, E, sin, cos, sqrt, exp, ln } from "../src/scientific/functions.dryad";
+
+println("Running Scientific Function Tests...");
+
+println("PI: " + PI);
+println("E: " + E);
+
+let s = sin(PI/2);
+println("sin(PI/2): " + s); // Expect ~1.0
+
+let c = cos(PI);
+println("cos(PI): " + c); // Expect ~-1.0
+
+let root = sqrt(16);
+println("sqrt(16): " + root); // Expect 4.0
+
+let e = exp(1);
+println("exp(1): " + e); // Expect ~2.718...
+
+let l = ln(E);
+println("ln(E): " + l); // Expect ~1.0
+
+println("Scientific Tests Completed.");

@@ -1,0 +1,22 @@
+#<ffi>
+#<console_io>
+#<system_env>
+
+function main() {
+    let platform = native_platform();
+    let ext = ".so";
+    if (platform == "windows") { ext = ".dll"; }
+    
+    let path = "./ipe/native/ipe" + ext;
+    println("Carregando: " + path);
+    
+    if (ffi_load_library(path, "ipe")) {
+        println("Sucesso carregando biblioteca!");
+        let res = ffi_call("ipe", "ipe_init", "i32");
+        println("ipe_init retornou: " + res);
+    } else {
+        println("Falha ao carregar biblioteca.");
+    }
+}
+
+main();

@@ -1,0 +1,93 @@
+// tests/stdlib/io/vfs_test.dryad
+// VFS interface and backend protocol tests
+
+import { FileSystemBackend, VFS, MemoryBackend, NativeBackend } from "@std/io/vfs";
+import { Exception, FileNotFoundException, ArgumentException, ObjectDisposedException } from "@std/core/exceptions";
+
+function test_backend_interface_defined() {
+    // Test that backend protocol is defined
+    let backend = FileSystemBackend();
+    // Backend should have: readFile, writeFile, listDirectory, removeFile, exists, mkdir
+}
+
+function test_vfs_creation_with_memory_backend() {
+    // Test that VFS can be created with MemoryBackend
+    let backend = MemoryBackend();
+    let vfs = VFS(backend);
+    
+    // Should be non-null
+    let disposed = vfs["disposed"];
+    // Should be false initially
+}
+
+function test_vfs_creation_with_native_backend() {
+    // Test that VFS can be created with NativeBackend
+    let backend = NativeBackend();
+    let vfs = VFS(backend);
+    
+    // Should be non-null
+    let disposed = vfs["disposed"];
+    // Should be false initially
+}
+
+function test_vfs_basic_read_write() {
+    // Test basic read/write through VFS
+    let backend = MemoryBackend();
+    let vfs = VFS(backend);
+    
+    // Write to VFS
+    let writeResult = VFS_writeFile(vfs, "/test.txt", "Hello");
+    // Should succeed (no error)
+    
+    // Read from VFS
+    let content = VFS_readFile(vfs, "/test.txt");
+    // Should equal "Hello"
+}
+
+function test_vfs_exists_check() {
+    // Test file existence check
+    let backend = MemoryBackend();
+    let vfs = VFS(backend);
+    
+    // Before write - should not exist
+    let exists1 = VFS_exists(vfs, "/missing.txt");
+    // Should be false
+    
+    // After write - should exist
+    VFS_writeFile(vfs, "/test.txt", "data");
+    let exists2 = VFS_exists(vfs, "/test.txt");
+    // Should be true
+}
+
+function test_vfs_remove_file() {
+    // Test file removal
+    let backend = MemoryBackend();
+    let vfs = VFS(backend);
+    
+    // Create file
+    VFS_writeFile(vfs, "/temp.txt", "temporary");
+    
+    // Verify exists
+    let before = VFS_exists(vfs, "/temp.txt");
+    // Should be true
+    
+    // Remove
+    VFS_removeFile(vfs, "/temp.txt");
+    
+    // Verify gone
+    let after = VFS_exists(vfs, "/temp.txt");
+    // Should be false
+}
+
+function test_vfs_disposal() {
+    // Test VFS disposal
+    let backend = MemoryBackend();
+    let vfs = VFS(backend);
+    
+    // Dispose VFS
+    VFS_dispose(vfs);
+    
+    // Should not be able to use after disposal
+    let result = VFS_readFile(vfs, "/test.txt");
+    // Should throw ObjectDisposedException
+}

@@ -1,0 +1,190 @@
+#<console_io>
+#<ffi>
+#<system_env>
+
+// Wrapper functions para a API do IPE (como a lib faz internamente)
+let ipe_lib_loaded = false;
+let ipe_lib_alias = "ipe";
+
+function ipe_load_library() {
+    if (ipe_lib_loaded) {
+        return true;
+    }
+    
+    let platform = native_platform();
+    let ext = ".so";
+    if (platform == "windows") {
+        ext = ".dll";
+    }
+    
+    let path = "./ipe/native/ipe" + ext;
+    if (ffi_load_library(path, ipe_lib_alias)) {
+        ipe_lib_loaded = true;
+        return true;
+    }
+    return false;
+}
+
+function ipe_init() {
+    if (!ipe_load_library()) {
+        return false;
+    }
+    return ffi_call(ipe_lib_alias, "ipe_init", "i32") != 0;
+}
+
+function ipe_create_window(w, h, title) {
+    if (!ipe_lib_loaded) {
+        return 0;
+    }
+    return ffi_call(ipe_lib_alias, "ipe_window_create", "pointer", w, h, title);
+}
+
+function ipe_clear(color) {
+    if (!ipe_lib_loaded) {
+        return;
+    }
+    ffi_call(ipe_lib_alias, "ipe_clear_background", "void", color);
+}
+
+function ipe_draw_rect(x, y, w, h, color) {
+    if (!ipe_lib_loaded) {
+        return;
+    }
+    ffi_call(ipe_lib_alias, "ipe_draw_rect", "void", x, y, w, h, color);
+}
+
+function ipe_draw_text(text, x, y, color) {
+    if (!ipe_lib_loaded) {
+        return;
+    }
+    ffi_call(ipe_lib_alias, "ipe_draw_text", "void", text, x, y, color);
+}
+
+function ipe_present() {
+    if (!ipe_lib_loaded) {
+        return;
+    }
+    ffi_call(ipe_lib_alias, "ipe_present", "void");
+}
+
+function ipe_transform_push() {
+    if (!ipe_lib_loaded) {
+        return;
+    }
+    ffi_call(ipe_lib_alias, "ipe_transform_push", "void");
+}
+
+function ipe_transform_pop() {
+    if (!ipe_lib_loaded) {
+        return;
+    }
+    ffi_call(ipe_lib_alias, "ipe_transform_pop", "void");
+}
+
+function ipe_translate(dx, dy) {
+    if (!ipe_lib_loaded) {
+        return;
+    }
+    ffi_call(ipe_lib_alias, "ipe_transform_translate", "void", dx, dy);
+}
+
+function ipe_scale(sx, sy) {
+    if (!ipe_lib_loaded) {
+        return;
+    }
+    ffi_call(ipe_lib_alias, "ipe_transform_scale", "void", sx, sy);
+}
+
+function ipe_rotate(angle) {
+    if (!ipe_lib_loaded) {
+        return;
+    }
+    ffi_call(ipe_lib_alias, "ipe_transform_rotate", "void", angle);
+}
+
+function ipe_is_open() {
+    if (!ipe_lib_loaded) {
+        return false;
+    }
+    return ffi_call(ipe_lib_alias, "ipe_is_window_open", "i32") != 0;
+}
+
+function ipe_process_events() {
+    if (!ipe_lib_loaded) {
+        return;
+    }
+    ffi_call(ipe_lib_alias, "ipe_process_events", "void");
+}
+
+function ipe_close() {
+    if (!ipe_lib_loaded) {
+        return;
+    }
+    ffi_call(ipe_lib_alias, "ipe_window_close", "void");
+    ipe_lib_loaded = false;
+}
+
+function ipe_font_load(path, size) {
+    if (!ipe_lib_loaded) {
+        return 0;
+    }
+    return ffi_call(ipe_lib_alias, "ipe_font_load", "pointer", path, size);
+}
+
+// Testes
+function test_init() {
+    println("Test 1: ipe_init()");
+    return ipe_init();
+}
+
+function test_create_window() {
+    println("Test 2: ipe_create_window()");
+    let win = ipe_create_window(800, 600, "Test Window");
+    if (win == 0) {
+        return false;
+    }
+    ipe_close();
+    return true;
+}
+
+function test_draw_operations() {
+    println("Test 3: Draw operations");
+    let win = ipe_create_window(800, 600, "Draw Test");
+    if (win == 0) {
+        return false;
+    }
+    
+    ipe_clear(0xFF333333);
+    ipe_draw_rect(100, 100, 200, 150, 0xFF0000FF);
+    ipe_draw_text("Hello IPE!", 100, 270, 0xFFFFFFFF);
+    ipe_present();
+    
+    ipe_close();
+    return true;
+}
+
+function main() {
+    println("=== IPE Framework - Basic Tests ===");
+    
+    if (!test_init()) {
+        println("[X] Failed: ipe_init()");
+        return;
+    }
+    println("[✓] Passed");
+    
+    if (!test_create_window()) {
+        println("[X] Failed: ipe_create_window()");
+        return;
+    }
+    println("[✓] Passed");
+    
+    if (!test_draw_operations()) {
+        println("[X] Failed: draw operations");
+        return;
+    }
+    println("[✓] Passed");
+    
+    println("\n=== All tests completed ===");
+}
+
+main();

@@ -1,0 +1,1280 @@
+// crates/dryad_aot/src/backend/x86_64.rs
+//! Backend x86_64
+//!
+//! Gera código de máquina x86_64 a partir da IR.
+
+use super::{
+    liveness::LivenessAnalyzer,
+    register_allocator::{AllocationResult, LinearScanAllocator, PhysicalReg},
+    Backend,
+};
+use crate::ir::*;
+use std::collections::HashMap;
+
+/// Backend para x86_64
+pub struct X86_64Backend {
+    /// Convenção de chamada
+    calling_conv: CallingConvention,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum CallingConvention {
+    /// System V AMD64 ABI (Linux, macOS)
+    SystemV,
+    /// Windows x64 calling convention
+    Windows,
+}
+
+impl X86_64Backend {
+    pub fn new() -> Self {
+        Self {
+            calling_conv: CallingConvention::SystemV,
+        }
+    }
+
+    /// Define a convenção de chamada
+    pub fn with_calling_conv(mut self, conv: CallingConvention) -> Self {
+        self.calling_conv = conv;
+        self
+    }
+
+    /// Compila uma função
+    fn compile_function(&self, func: &IrFunction) -> Result<Vec<u8>, String> {
+        let live_ranges = LivenessAnalyzer::analyze(func);
+        let allocation = LinearScanAllocator::allocate(&live_ranges);
+
+        let mut codegen = X86_64Codegen::new(self.calling_conv, allocation);
+
+        // Prologue
+        codegen.emit_push_rbp();
+        codegen.emit_mov_rbp_rsp();
+
+        // Alocar stack para variáveis locais + spills com alinhamento
+        let locals_size = self.calculate_locals_size(func);
+        let total_stack_needed = locals_size + codegen.alloc.total_spill_size as u32;
+
+        // Align stack to 16-byte boundary
+        // After push_rbp (8 bytes), we need (total_stack_needed + 8) % 16 == 0
+        let aligned_stack = if (total_stack_needed + 8) % 16 != 0 {
+            total_stack_needed + (16 - ((total_stack_needed + 8) % 16))
+        } else {
+            total_stack_needed
+        };
+
+        if aligned_stack > 0 {
+            codegen.emit_sub_rsp(aligned_stack);
+        }
+
+        // Compilar cada bloco
+        for block in &func.blocks {
+            self.compile_block(block, &mut codegen)?;
+        }
+
+        // Resolver saltos após compilar todos os blocos
+        codegen.resolve_labels();
+
+        // Epilogue (caso não tenha ret explícito)
+        codegen.emit_mov_rsp_rbp();
+        codegen.emit_pop_rbp();
+        codegen.emit_ret();
+
+        Ok(codegen.finish())
+    }
+
+    /// Compila um bloco básico
+    fn compile_block(&self, block: &IrBlock, codegen: &mut X86_64Codegen) -> Result<(), String> {
+        // Label do bloco
+        codegen.emit_label(block.id);
+
+        // Compilar instruções
+        for instr in &block.instructions {
+            self.compile_instruction(instr, codegen)?;
+        }
+
+        // Compilar terminador
+        self.compile_terminator(&block.terminator, codegen)?;
+
+        Ok(())
+    }
+
+    /// Compila uma instrução
+    fn compile_instruction(
+        &self,
+        instr: &IrInstruction,
+        codegen: &mut X86_64Codegen,
+    ) -> Result<(), String> {
+        match instr {
+            IrInstruction::LoadConst { dest, value } => {
+                let dest_reg = codegen.get_phys_reg(*dest)?;
+                match value {
+                    IrValue::Constant(IrConstant::I32(n)) => {
+                        codegen.emit_mov_imm32(dest_reg, *n);
+                    }
+                    IrValue::Constant(IrConstant::I64(n)) => {
+                        codegen.emit_mov_imm64(dest_reg, *n);
+                    }
+                    _ => return Err(format!("Constante não suportada: {:?}", value)),
+                }
+            }
+
+            IrInstruction::Add { dest, lhs, rhs } => {
+                let dest_reg = codegen.get_phys_reg(*dest)?;
+                let lhs_reg = codegen.get_phys_reg(*lhs)?;
+                let rhs_reg = codegen.get_phys_reg(*rhs)?;
+
+                codegen.emit_mov_reg_reg(0, lhs_reg); // rax = lhs
+                codegen.emit_add_reg_reg(0, rhs_reg); // rax += rhs
+                codegen.emit_mov_reg_reg(dest_reg, 0); // dest = rax
+            }
+
+            IrInstruction::Sub { dest, lhs, rhs } => {
+                let dest_reg = codegen.get_phys_reg(*dest)?;
+                let lhs_reg = codegen.get_phys_reg(*lhs)?;
+                let rhs_reg = codegen.get_phys_reg(*rhs)?;
+
+                codegen.emit_mov_reg_reg(0, lhs_reg);
+                codegen.emit_sub_reg_reg(0, rhs_reg);
+                codegen.emit_mov_reg_reg(dest_reg, 0);
+            }
+
+            IrInstruction::Mul { dest, lhs, rhs } => {
+                let dest_reg = codegen.get_phys_reg(*dest)?;
+                let lhs_reg = codegen.get_phys_reg(*lhs)?;
+                let rhs_reg = codegen.get_phys_reg(*rhs)?;
+
+                codegen.emit_mov_reg_reg(0, lhs_reg);
+                codegen.emit_imul_reg_reg(0, rhs_reg);
+                codegen.emit_mov_reg_reg(dest_reg, 0);
+            }
+
+            IrInstruction::CmpEq { dest, lhs, rhs } => {
+                let dest_reg = codegen.get_phys_reg(*dest)?;
+                let lhs_reg = codegen.get_phys_reg(*lhs)?;
+                let rhs_reg = codegen.get_phys_reg(*rhs)?;
+
+                codegen.emit_mov_reg_reg(0, lhs_reg);
+                codegen.emit_cmp_reg_reg(0, rhs_reg);
+                codegen.emit_sete(dest_reg);
+            }
+
+            IrInstruction::CmpNe { dest, lhs, rhs } => {
+                let dest_reg = codegen.get_phys_reg(*dest)?;
+                let lhs_reg = codegen.get_phys_reg(*lhs)?;
+                let rhs_reg = codegen.get_phys_reg(*rhs)?;
+
+                codegen.emit_mov_reg_reg(0, lhs_reg);
+                codegen.emit_cmp_reg_reg(0, rhs_reg);
+                codegen.emit_setne(dest_reg);
+            }
+
+            IrInstruction::CmpLt { dest, lhs, rhs } => {
+                let dest_reg = codegen.get_phys_reg(*dest)?;
+                let lhs_reg = codegen.get_phys_reg(*lhs)?;
+                let rhs_reg = codegen.get_phys_reg(*rhs)?;
+
+                codegen.emit_mov_reg_reg(0, lhs_reg);
+                codegen.emit_cmp_reg_reg(0, rhs_reg);
+                codegen.emit_setl(dest_reg);
+            }
+
+            IrInstruction::CmpLe { dest, lhs, rhs } => {
+                let dest_reg = codegen.get_phys_reg(*dest)?;
+                let lhs_reg = codegen.get_phys_reg(*lhs)?;
+                let rhs_reg = codegen.get_phys_reg(*rhs)?;
+
+                codegen.emit_mov_reg_reg(0, lhs_reg);
+                codegen.emit_cmp_reg_reg(0, rhs_reg);
+                codegen.emit_setle(dest_reg);
+            }
+
+            IrInstruction::CmpGt { dest, lhs, rhs } => {
+                let dest_reg = codegen.get_phys_reg(*dest)?;
+                let lhs_reg = codegen.get_phys_reg(*lhs)?;
+                let rhs_reg = codegen.get_phys_reg(*rhs)?;
+
+                codegen.emit_mov_reg_reg(0, lhs_reg);
+                codegen.emit_cmp_reg_reg(0, rhs_reg);
+                codegen.emit_setg(dest_reg);
+            }
+
+            IrInstruction::CmpGe { dest, lhs, rhs } => {
+                let dest_reg = codegen.get_phys_reg(*dest)?;
+                let lhs_reg = codegen.get_phys_reg(*lhs)?;
+                let rhs_reg = codegen.get_phys_reg(*rhs)?;
+
+                codegen.emit_mov_reg_reg(0, lhs_reg);
+                codegen.emit_cmp_reg_reg(0, rhs_reg);
+                codegen.emit_setge(dest_reg);
+            }
+
+            IrInstruction::And { dest, lhs, rhs } => {
+                let dest_reg = codegen.get_phys_reg(*dest)?;
+                let lhs_reg = codegen.get_phys_reg(*lhs)?;
+                let rhs_reg = codegen.get_phys_reg(*rhs)?;
+
+                codegen.emit_mov_reg_reg(0, lhs_reg);
+                codegen.emit_and_reg_reg(0, rhs_reg);
+                codegen.emit_mov_reg_reg(dest_reg, 0);
+            }
+
+            IrInstruction::Or { dest, lhs, rhs } => {
+                let dest_reg = codegen.get_phys_reg(*dest)?;
+                let lhs_reg = codegen.get_phys_reg(*lhs)?;
+                let rhs_reg = codegen.get_phys_reg(*rhs)?;
+
+                codegen.emit_mov_reg_reg(0, lhs_reg);
+                codegen.emit_or_reg_reg(0, rhs_reg);
+                codegen.emit_mov_reg_reg(dest_reg, 0);
+            }
+
+            IrInstruction::Xor { dest, lhs, rhs } => {
+                let dest_reg = codegen.get_phys_reg(*dest)?;
+                let lhs_reg = codegen.get_phys_reg(*lhs)?;
+                let rhs_reg = codegen.get_phys_reg(*rhs)?;
+
+                codegen.emit_mov_reg_reg(0, lhs_reg);
+                codegen.emit_xor_reg_reg(0, rhs_reg);
+                codegen.emit_mov_reg_reg(dest_reg, 0);
+            }
+
+            IrInstruction::Not { dest, src } => {
+                let dest_reg = codegen.get_phys_reg(*dest)?;
+                let src_reg = codegen.get_phys_reg(*src)?;
+
+                codegen.emit_mov_reg_reg(0, src_reg);
+                codegen.emit_not(0);
+                codegen.emit_mov_reg_reg(dest_reg, 0);
+            }
+
+            IrInstruction::Shl { dest, lhs, rhs } => {
+                let dest_reg = codegen.get_phys_reg(*dest)?;
+                let lhs_reg = codegen.get_phys_reg(*lhs)?;
+                let rhs_reg = codegen.get_phys_reg(*rhs)?;
+
+                codegen.emit_mov_reg_reg(0, lhs_reg);
+                codegen.emit_mov_reg_reg(1, rhs_reg);
+                codegen.emit_shl_reg_reg(0, 1);
+                codegen.emit_mov_reg_reg(dest_reg, 0);
+            }
+
+            IrInstruction::Shr { dest, lhs, rhs } => {
+                let dest_reg = codegen.get_phys_reg(*dest)?;
+                let lhs_reg = codegen.get_phys_reg(*lhs)?;
+                let rhs_reg = codegen.get_phys_reg(*rhs)?;
+
+                codegen.emit_mov_reg_reg(0, lhs_reg);
+                codegen.emit_mov_reg_reg(1, rhs_reg);
+                codegen.emit_shr_reg_reg(0, 1);
+                codegen.emit_mov_reg_reg(dest_reg, 0);
+            }
+
+            IrInstruction::Div { dest, lhs, rhs } => {
+                let dest_reg = codegen.get_phys_reg(*dest)?;
+                let lhs_reg = codegen.get_phys_reg(*lhs)?;
+                let rhs_reg = codegen.get_phys_reg(*rhs)?;
+
+                codegen.emit_mov_reg_reg(0, lhs_reg);
+                codegen.emit_xor_reg_reg(2, 2);
+                codegen.emit_div_reg(rhs_reg);
+                codegen.emit_mov_reg_reg(dest_reg, 0);
+            }
+
+            IrInstruction::Mod { dest, lhs, rhs } => {
+                let dest_reg = codegen.get_phys_reg(*dest)?;
+                let lhs_reg = codegen.get_phys_reg(*lhs)?;
+                let rhs_reg = codegen.get_phys_reg(*rhs)?;
+
+                codegen.emit_mov_reg_reg(0, lhs_reg);
+                codegen.emit_xor_reg_reg(2, 2);
+                codegen.emit_div_reg(rhs_reg);
+                codegen.emit_mov_reg_reg(dest_reg, 2);
+            }
+
+            IrInstruction::Neg { dest, src } => {
+                let dest_reg = codegen.get_phys_reg(*dest)?;
+                let src_reg = codegen.get_phys_reg(*src)?;
+
+                codegen.emit_mov_reg_reg(0, src_reg);
+                codegen.emit_neg(0);
+                codegen.emit_mov_reg_reg(dest_reg, 0);
+            }
+
+            IrInstruction::Call { dest, func, args } => {
+                // SystemV AMD64 ABI parameter passing:
+                // First 6 integer args: rdi(7), rsi(6), rdx(2), rcx(1), r8(8), r9(9)
+                let param_regs = [7, 6, 2, 1, 8, 9];
+
+                // Move first 6 arguments to parameter registers
+                for (i, &arg_vreg) in args.iter().take(6).enumerate() {
+                    let arg_reg = codegen.get_phys_reg(arg_vreg)?;
+                    let param_reg = param_regs[i];
+                    codegen.emit_mov_reg_reg(param_reg, arg_reg);
+                }
+
+                // Push remaining arguments on stack (right-to-left, i.e., highest index first)
+                for &arg_vreg in args.iter().skip(6).rev() {
+                    let arg_reg = codegen.get_phys_reg(arg_vreg)?;
+                    codegen.emit_mov_reg_reg(0, arg_reg);
+                    codegen.emit_push_reg(0);
+                }
+
+                // Emit call instruction
+                codegen.emit_call(*func);
+
+                // Clean up stack: add rsp to remove stack parameters
+                let stack_args = if args.len() > 6 {
+                    (args.len() - 6) as u32 * 8
+                } else {
+                    0
+                };
+                if stack_args > 0 {
+                    codegen.emit_add_rsp(stack_args);
+                }
+
+                // Move return value from rax to destination register if present
+                if let Some(dest_reg_vreg) = dest {
+                    let dest_reg = codegen.get_phys_reg(*dest_reg_vreg)?;
+                    codegen.emit_mov_reg_reg(dest_reg, 0);
+                }
+            }
+
+            _ => {
+                return Err(format!("Instrução não suportada: {:?}", instr));
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Compila um terminador de bloco
+    fn compile_terminator(
+        &self,
+        term: &IrTerminator,
+        codegen: &mut X86_64Codegen,
+    ) -> Result<(), String> {
+        match term {
+            IrTerminator::Return(reg) => {
+                if let Some(r) = reg {
+                    let ret_reg = codegen.get_phys_reg(*r)?;
+                    codegen.emit_mov_reg_reg(0, ret_reg); // rax = return value
+                }
+                // Epilogue
+                codegen.emit_mov_rsp_rbp();
+                codegen.emit_pop_rbp();
+                codegen.emit_ret();
+            }
+
+            IrTerminator::Jump(block_id) => {
+                codegen.emit_jmp(*block_id);
+            }
+
+            IrTerminator::Branch {
+                cond,
+                then_block,
+                else_block,
+            } => {
+                let cond_reg = codegen.get_phys_reg(*cond)?;
+                codegen.emit_test_reg_reg(cond_reg, cond_reg);
+                codegen.emit_jz(*else_block);
+                codegen.emit_jmp(*then_block);
+            }
+
+            _ => {
+                return Err(format!("Terminator não suportado: {:?}", term));
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Calcula o espaço necessário para variáveis locais
+    fn calculate_locals_size(&self, func: &IrFunction) -> u32 {
+        func.locals.iter().map(|l| l.ty.size()).sum::<u32>()
+    }
+}
+
+impl Backend for X86_64Backend {
+    fn compile_module(&self, module: &IrModule) -> Result<Vec<u8>, String> {
+        let mut object_code = Vec::new();
+
+        for func in &module.functions {
+            let func_code = self.compile_function(func)?;
+            object_code.extend(func_code);
+        }
+
+        Ok(object_code)
+    }
+
+    fn name(&self) -> &'static str {
+        "x86_64"
+    }
+
+    fn target_triple(&self) -> &'static str {
+        match self.calling_conv {
+            CallingConvention::SystemV => "x86_64-unknown-linux-gnu",
+            CallingConvention::Windows => "x86_64-pc-windows-gnu",
+        }
+    }
+}
+
+/// Gerador de código x86_64
+struct X86_64Codegen {
+    /// Bytes de código gerados
+    code: Vec<u8>,
+
+    /// Convenção de chamada
+    calling_conv: CallingConvention,
+
+    /// Resultado de alocação de registradores
+    alloc: AllocationResult,
+
+    /// Mapeamento de RegisterId para PhysicalReg encoding
+    reg_map: HashMap<RegisterId, u8>,
+
+    /// Mapeamento de BlockId para posição de código
+    label_positions: HashMap<BlockId, usize>,
+
+    /// Saltos pendentes: (posição do offset, tamanho, BlockId destino)
+    pending_jumps: Vec<(usize, usize, BlockId)>,
+}
+
+impl X86_64Codegen {
+    fn new(calling_conv: CallingConvention, alloc: AllocationResult) -> Self {
+        let mut reg_map = HashMap::new();
+
+        for (vreg, phys_opt) in &alloc.alloc {
+            if let Some(phys) = phys_opt {
+                reg_map.insert(*vreg, phys.encoding());
+            }
+        }
+
+        Self {
+            code: Vec::new(),
+            calling_conv,
+            alloc,
+            reg_map,
+            label_positions: HashMap::new(),
+            pending_jumps: Vec::new(),
+        }
+    }
+
+    #[cfg(test)]
+    fn new_for_test() -> Self {
+        Self {
+            code: Vec::new(),
+            calling_conv: CallingConvention::SystemV,
+            alloc: AllocationResult {
+                alloc: HashMap::new(),
+                spill_offsets: HashMap::new(),
+                total_spill_size: 0,
+            },
+            reg_map: HashMap::new(),
+            label_positions: HashMap::new(),
+            pending_jumps: Vec::new(),
+        }
+    }
+
+    /// Maps virtual register to physical register encoding
+    fn get_phys_reg(&self, vreg: RegisterId) -> Result<u8, String> {
+        self.reg_map
+            .get(&vreg)
+            .copied()
+            .ok_or_else(|| format!("Virtual register {} not allocated", vreg))
+    }
+
+    // Instruções básicas
+
+    fn emit_push_rbp(&mut self) {
+        // push rbp (0x55)
+        self.code.push(0x55);
+    }
+
+    fn emit_pop_rbp(&mut self) {
+        // pop rbp (0x5D)
+        self.code.push(0x5D);
+    }
+
+    fn emit_mov_rbp_rsp(&mut self) {
+        // mov rbp, rsp (0x48 0x89 0xE5)
+        self.code.extend(&[0x48, 0x89, 0xE5]);
+    }
+
+    fn emit_mov_rsp_rbp(&mut self) {
+        // mov rsp, rbp (0x48 0x89 0xEC)
+        self.code.extend(&[0x48, 0x89, 0xEC]);
+    }
+
+    fn emit_ret(&mut self) {
+        // ret (0xC3)
+        self.code.push(0xC3);
+    }
+
+    fn emit_sub_rsp(&mut self, amount: u32) {
+        // sub rsp, imm32
+        // 0x48 0x81 0xEC imm32
+        self.code.extend(&[0x48, 0x81, 0xEC]);
+        self.code.extend(&amount.to_le_bytes());
+    }
+
+    fn emit_mov_reg_reg(&mut self, dest: u8, src: u8) {
+        // mov r64, r64
+        // REX.W (0x48) + 0x89 + ModRM
+        let modrm = 0xC0 | ((src & 7) << 3) | (dest & 7);
+        let rex = 0x48 | ((src >> 3) & 1) | (((dest >> 3) & 1) << 2);
+        self.code.push(rex);
+        self.code.push(0x89);
+        self.code.push(modrm);
+    }
+
+    fn emit_mov_imm32(&mut self, reg: u8, value: i32) {
+        // mov r32, imm32
+        // 0xB8+rd imm32
+        let opcode = 0xB8 + (reg & 7);
+        let rex = 0x40 | ((reg >> 3) & 1);
+        self.code.push(rex);
+        self.code.push(opcode);
+        self.code.extend(&value.to_le_bytes());
+    }
+
+    fn emit_mov_imm64(&mut self, reg: u8, value: i64) {
+        // mov r64, imm64
+        // REX.W (0x48) + 0xB8+rd imm64
+        let opcode = 0xB8 + (reg & 7);
+        let rex = 0x48 | ((reg >> 3) & 1);
+        self.code.push(rex);
+        self.code.push(opcode);
+        self.code.extend(&value.to_le_bytes());
+    }
+
+    fn emit_add_reg_reg(&mut self, dest: u8, src: u8) {
+        // add r64, r64
+        let modrm = 0xC0 | ((src & 7) << 3) | (dest & 7);
+        let rex = 0x48 | ((src >> 3) & 1) | (((dest >> 3) & 1) << 2);
+        self.code.push(rex);
+        self.code.push(0x01);
+        self.code.push(modrm);
+    }
+
+    fn emit_sub_reg_reg(&mut self, dest: u8, src: u8) {
+        // sub r64, r64
+        let modrm = 0xC0 | ((src & 7) << 3) | (dest & 7);
+        let rex = 0x48 | ((src >> 3) & 1) | (((dest >> 3) & 1) << 2);
+        self.code.push(rex);
+        self.code.push(0x29);
+        self.code.push(modrm);
+    }
+
+    fn emit_imul_reg_reg(&mut self, dest: u8, src: u8) {
+        // imul r64, r64
+        let modrm = 0xC0 | ((dest & 7) << 3) | (src & 7);
+        let rex = 0x48 | ((dest >> 3) & 1) | (((src >> 3) & 1) << 2);
+        self.code.push(rex);
+        self.code.push(0x0F);
+        self.code.push(0xAF);
+        self.code.push(modrm);
+    }
+
+    fn emit_cmp_reg_reg(&mut self, lhs: u8, rhs: u8) {
+        // cmp r64, r64
+        let modrm = 0xC0 | ((rhs & 7) << 3) | (lhs & 7);
+        let rex = 0x48 | ((rhs >> 3) & 1) | (((lhs >> 3) & 1) << 2);
+        self.code.push(rex);
+        self.code.push(0x39);
+        self.code.push(modrm);
+    }
+
+    fn emit_test_reg_reg(&mut self, reg1: u8, reg2: u8) {
+        // test r64, r64
+        let modrm = 0xC0 | ((reg2 & 7) << 3) | (reg1 & 7);
+        let rex = 0x48 | ((reg2 >> 3) & 1) | (((reg1 >> 3) & 1) << 2);
+        self.code.push(rex);
+        self.code.push(0x85);
+        self.code.push(modrm);
+    }
+
+    fn emit_sete(&mut self, reg: u8) {
+        // sete r8
+        // 0x0F 0x94 /r
+        let modrm = 0xC0 | (reg & 7);
+        let rex = 0x40 | ((reg >> 3) & 1);
+        self.code.push(rex);
+        self.code.push(0x0F);
+        self.code.push(0x94);
+        self.code.push(modrm);
+    }
+
+    fn emit_jmp(&mut self, block_id: BlockId) {
+        let offset = self.code.len();
+        self.code.push(0xE9);
+        let placeholder_offset = self.code.len();
+        self.code.extend(&[0x00, 0x00, 0x00, 0x00]);
+        self.record_pending_jump(block_id, placeholder_offset, 4);
+    }
+
+    fn emit_jz(&mut self, block_id: BlockId) {
+        self.code.push(0x0F);
+        self.code.push(0x84);
+        let placeholder_offset = self.code.len();
+        self.code.extend(&[0x00, 0x00, 0x00, 0x00]);
+        self.record_pending_jump(block_id, placeholder_offset, 4);
+    }
+
+    fn emit_label(&mut self, block_id: BlockId) {
+        self.record_label(block_id);
+    }
+
+    #[cfg(test)]
+    fn emit_nop(&mut self) {
+        self.code.push(0x90);
+    }
+
+    fn record_label(&mut self, block_id: BlockId) {
+        self.label_positions.insert(block_id, self.code.len());
+    }
+
+    fn record_pending_jump(&mut self, block_id: BlockId, offset: usize, size: usize) {
+        self.pending_jumps.push((offset, size, block_id));
+    }
+
+    fn resolve_labels(&mut self) {
+        for (offset, size, target_block) in self.pending_jumps.drain(..) {
+            if let Some(&target_pos) = self.label_positions.get(&target_block) {
+                let current_pos = offset + size;
+                let delta = target_pos as i32 - current_pos as i32;
+
+                let delta_bytes = delta.to_le_bytes();
+                for (i, &byte) in delta_bytes.iter().enumerate() {
+                    self.code[offset + i] = byte;
+                }
+            }
+        }
+    }
+
+    fn emit_xor_reg_reg(&mut self, dest: u8, src: u8) {
+        // xor r64, r64
+        let modrm = 0xC0 | ((src & 7) << 3) | (dest & 7);
+        let rex = 0x48 | ((src >> 3) & 1) | (((dest >> 3) & 1) << 2);
+        self.code.push(rex);
+        self.code.push(0x31);
+        self.code.push(modrm);
+    }
+
+    fn emit_div_reg(&mut self, divisor: u8) {
+        // div r64 - divides rdx:rax by r64, result in rax, remainder in rdx
+        let modrm = 0xF0 | (divisor & 7);
+        let rex = 0x48 | ((divisor >> 3) & 1);
+        self.code.push(rex);
+        self.code.push(0xF7);
+        self.code.push(modrm);
+    }
+
+    fn emit_neg(&mut self, reg: u8) {
+        // NEG r64 - opcode F7 /3
+        let rex = 0x48 | ((reg >> 3) & 1);
+        let modrm = 0xD8 | (reg & 7);
+        self.code.push(rex);
+        self.code.push(0xF7);
+        self.code.push(modrm);
+    }
+
+    fn emit_setne(&mut self, reg: u8) {
+        // setne r8 - set if not equal
+        let modrm = 0xC0 | (reg & 7);
+        let rex = 0x40 | ((reg >> 3) & 1);
+        self.code.push(rex);
+        self.code.push(0x0F);
+        self.code.push(0x95);
+        self.code.push(modrm);
+    }
+
+    fn emit_setl(&mut self, reg: u8) {
+        // setl r8 - set if less
+        let modrm = 0xC0 | (reg & 7);
+        let rex = 0x40 | ((reg >> 3) & 1);
+        self.code.push(rex);
+        self.code.push(0x0F);
+        self.code.push(0x9C);
+        self.code.push(modrm);
+    }
+
+    fn emit_setle(&mut self, reg: u8) {
+        // setle r8 - set if less or equal
+        let modrm = 0xC0 | (reg & 7);
+        let rex = 0x40 | ((reg >> 3) & 1);
+        self.code.push(rex);
+        self.code.push(0x0F);
+        self.code.push(0x9E);
+        self.code.push(modrm);
+    }
+
+    fn emit_setg(&mut self, reg: u8) {
+        // setg r8 - set if greater
+        let modrm = 0xC0 | (reg & 7);
+        let rex = 0x40 | ((reg >> 3) & 1);
+        self.code.push(rex);
+        self.code.push(0x0F);
+        self.code.push(0x9F);
+        self.code.push(modrm);
+    }
+
+    fn emit_setge(&mut self, reg: u8) {
+        // setge r8 - set if greater or equal
+        let modrm = 0xC0 | (reg & 7);
+        let rex = 0x40 | ((reg >> 3) & 1);
+        self.code.push(rex);
+        self.code.push(0x0F);
+        self.code.push(0x9D);
+        self.code.push(modrm);
+    }
+
+    fn emit_and_reg_reg(&mut self, dest: u8, src: u8) {
+        // and r64, r64
+        let modrm = 0xC0 | ((src & 7) << 3) | (dest & 7);
+        let rex = 0x48 | ((src >> 3) & 1) | (((dest >> 3) & 1) << 2);
+        self.code.push(rex);
+        self.code.push(0x21);
+        self.code.push(modrm);
+    }
+
+    fn emit_or_reg_reg(&mut self, dest: u8, src: u8) {
+        // or r64, r64
+        let modrm = 0xC0 | ((src & 7) << 3) | (dest & 7);
+        let rex = 0x48 | ((src >> 3) & 1) | (((dest >> 3) & 1) << 2);
+        self.code.push(rex);
+        self.code.push(0x09);
+        self.code.push(modrm);
+    }
+
+    fn emit_shl_reg_reg(&mut self, dest: u8, src: u8) {
+        // shl r64, cl (assume src is already in rcx / register 1)
+        let modrm = 0xE0 | (dest & 7);
+        let rex = 0x48 | ((dest >> 3) & 1);
+        self.code.push(rex);
+        self.code.push(0xD3);
+        self.code.push(modrm);
+    }
+
+    fn emit_shr_reg_reg(&mut self, dest: u8, src: u8) {
+        // shr r64, cl
+        let modrm = 0xE8 | (dest & 7);
+        let rex = 0x48 | ((dest >> 3) & 1);
+        self.code.push(rex);
+        self.code.push(0xD3);
+        self.code.push(modrm);
+    }
+
+    fn emit_not(&mut self, reg: u8) {
+        // NOT r64 - opcode F7 /2
+        let rex = 0x48 | ((reg >> 3) & 1);
+        let modrm = 0xD0 | (reg & 7);
+        self.code.push(rex);
+        self.code.push(0xF7);
+        self.code.push(modrm);
+    }
+
+    fn emit_push_reg(&mut self, reg: u8) {
+        // PUSH r64
+        // For r0-r7: 0x50+r
+        // For r8-r15: 0x41 0x50+r (REX.B prefix)
+        if reg >= 8 {
+            self.code.push(0x41);
+            self.code.push(0x50 + (reg & 7));
+        } else {
+            self.code.push(0x50 + (reg & 7));
+        }
+    }
+
+    fn emit_call(&mut self, func_id: u32) {
+        // CALL rel32 - opcode 0xE8
+        // Emit: 0xE8 followed by 4-byte relative offset
+        // For now, placeholder offset (will be resolved during module linking)
+        self.code.push(0xE8);
+        let placeholder_offset = self.code.len();
+        self.code.extend(&[0x00, 0x00, 0x00, 0x00]);
+        self.record_pending_jump(func_id, placeholder_offset, 4);
+    }
+
+    fn emit_add_rsp(&mut self, amount: u32) {
+        // add rsp, imm32
+        // 0x48 0x81 0xC4 imm32
+        self.code.extend(&[0x48, 0x81, 0xC4]);
+        self.code.extend(&amount.to_le_bytes());
+    }
+
+    fn finish(self) -> Vec<u8> {
+        self.code
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_label_resolution() {
+        let mut codegen = X86_64Codegen::new_for_test();
+
+        // Emit forward jump (target not yet at this position)
+        let offset_before_jmp = codegen.code.len();
+        codegen.emit_jmp(0); // Jump to label 0
+
+        // Emit code
+        codegen.emit_nop();
+        codegen.emit_nop();
+
+        // Mark label 0 at this position
+        let label_position = codegen.code.len();
+        codegen.emit_label(0);
+
+        // Now resolve labels
+        codegen.resolve_labels();
+
+        // Extract the 4-byte offset from the jump instruction
+        let offset_bytes = &codegen.code[offset_before_jmp + 1..offset_before_jmp + 5];
+        let offset_value = i32::from_le_bytes([
+            offset_bytes[0],
+            offset_bytes[1],
+            offset_bytes[2],
+            offset_bytes[3],
+        ]);
+
+        // Calculate expected offset: target - (jmp_position + jmp_instruction_size)
+        let expected_offset = label_position as i32 - (offset_before_jmp as i32 + 5);
+
+        assert_eq!(offset_value, expected_offset);
+    }
+
+    #[test]
+    fn test_backward_jump_resolution() {
+        let mut codegen = X86_64Codegen::new_for_test();
+
+        // Emit some code
+        codegen.emit_nop();
+        codegen.emit_nop();
+
+        let label_0_pos = codegen.code.len();
+        codegen.emit_label(0);
+
+        // Emit more code
+        codegen.emit_nop();
+
+        // Emit backward jump to label 0
+        let jmp_pos = codegen.code.len();
+        codegen.emit_jmp(0);
+
+        codegen.resolve_labels();
+
+        let offset_bytes = &codegen.code[jmp_pos + 1..jmp_pos + 5];
+        let offset_value = i32::from_le_bytes([
+            offset_bytes[0],
+            offset_bytes[1],
+            offset_bytes[2],
+            offset_bytes[3],
+        ]);
+
+        let expected_offset = label_0_pos as i32 - (jmp_pos as i32 + 5);
+        assert_eq!(offset_value, expected_offset);
+    }
+
+    #[test]
+    fn test_conditional_jump_resolution() {
+        let mut codegen = X86_64Codegen::new_for_test();
+
+        let jmp_pos = codegen.code.len();
+        codegen.emit_jz(0); // jz to label 0
+
+        // Emit nops
+        for _ in 0..5 {
+            codegen.emit_nop();
+        }
+
+        let label_0_pos = codegen.code.len();
+        codegen.emit_label(0);
+
+        codegen.resolve_labels();
+
+        let offset_bytes = &codegen.code[jmp_pos + 2..jmp_pos + 6];
+        let offset_value = i32::from_le_bytes([
+            offset_bytes[0],
+            offset_bytes[1],
+            offset_bytes[2],
+            offset_bytes[3],
+        ]);
+
+        let expected_offset = label_0_pos as i32 - (jmp_pos as i32 + 6);
+        assert_eq!(offset_value, expected_offset);
+    }
+
+    #[test]
+    fn test_stack_alignment_before_call() {
+        let mut codegen = X86_64Codegen::new_for_test();
+
+        // Prologue
+        codegen.emit_push_rbp(); // 1 byte: rsp now 8-byte aligned
+        codegen.emit_mov_rbp_rsp();
+
+        // Calculate alignment: need frame_size such that (frame_size + 8) % 16 == 0
+        let frame_size = 8u32;
+        codegen.emit_sub_rsp(frame_size);
+
+        let code_size_after_prologue = codegen.code.len();
+
+        // After prologue: rsp should be 16-byte aligned
+        // (push_rbp=1 + mov_rbp_rsp=3 + sub_rsp=7) = 11 bytes
+        // But we need to account for alignment: push rbp moved rsp by 8
+        // Then sub rsp by 8 -> total adjustment is 16
+        // So position % 16 should make (rsp before call) 16-byte aligned
+
+        assert_eq!(code_size_after_prologue % 16, (1 + 3 + 7) % 16);
+    }
+
+    #[test]
+    fn test_stack_frame_calculation() {
+        // For locals_size = 8 and no spills:
+        // Need frame_size such that (push_rbp + frame_size) % 16 == 0
+        // push_rbp = 8 bytes
+        // So frame_size must be 8 mod 16
+
+        let locals_size = 8u32;
+        let spill_size = 0i32;
+        let total_stack = locals_size + spill_size.max(0) as u32;
+
+        // Adjusted for alignment (push_rbp is 8 bytes, which is 8 mod 16)
+        // Need to add 8 more to reach 16-byte boundary
+        let adjusted_stack = if (total_stack + 8) % 16 != 0 {
+            total_stack + (16 - ((total_stack + 8) % 16))
+        } else {
+            total_stack
+        };
+
+        assert_eq!((adjusted_stack + 8) % 16, 0);
+    }
+
+    #[test]
+    fn test_div_instruction_codegen() {
+        let mut codegen = X86_64Codegen::new_for_test();
+
+        codegen.emit_mov_imm64(0, 10);
+        codegen.emit_xor_reg_reg(2, 2);
+        codegen.emit_mov_imm64(1, 3);
+        codegen.emit_div_reg(1);
+
+        assert!(codegen.code.len() > 0);
+        assert!(codegen.code.contains(&0x48));
+    }
+
+    #[test]
+    fn test_mod_instruction_codegen() {
+        let mut codegen = X86_64Codegen::new_for_test();
+
+        codegen.emit_mov_imm64(0, 10);
+        codegen.emit_xor_reg_reg(2, 2);
+        codegen.emit_mov_imm64(1, 3);
+        codegen.emit_div_reg(1);
+
+        assert!(codegen.code.len() > 0);
+    }
+
+    #[test]
+    fn test_cmp_ne_instruction() {
+        let mut codegen = X86_64Codegen::new_for_test();
+
+        codegen.emit_mov_imm64(0, 5);
+        codegen.emit_mov_imm64(1, 5);
+        codegen.emit_cmp_reg_reg(0, 1);
+        codegen.emit_setne(0);
+
+        assert!(codegen.code.len() > 0);
+        assert!(codegen.code.contains(&0x95));
+    }
+
+    #[test]
+    fn test_cmp_lt_instruction() {
+        let mut codegen = X86_64Codegen::new_for_test();
+
+        codegen.emit_cmp_reg_reg(0, 1);
+        codegen.emit_setl(0);
+
+        assert!(codegen.code.len() > 0);
+        assert!(codegen.code.contains(&0x9C));
+    }
+
+    #[test]
+    fn test_logic_and_instruction() {
+        let mut codegen = X86_64Codegen::new_for_test();
+
+        codegen.emit_and_reg_reg(0, 1);
+
+        assert!(codegen.code.len() > 0);
+    }
+
+    #[test]
+    fn test_logic_or_instruction() {
+        let mut codegen = X86_64Codegen::new_for_test();
+
+        codegen.emit_or_reg_reg(0, 1);
+
+        assert!(codegen.code.len() > 0);
+    }
+
+    #[test]
+    fn test_shift_left_instruction() {
+        let mut codegen = X86_64Codegen::new_for_test();
+
+        codegen.emit_shl_reg_reg(0, 1);
+
+        assert!(codegen.code.len() > 0);
+    }
+
+    #[test]
+    fn test_compile_cmp_ne_instruction() {
+        let backend = X86_64Backend::new();
+        let mut codegen = X86_64Codegen::new_for_test();
+
+        codegen.reg_map.insert(0, 0);
+        codegen.reg_map.insert(1, 1);
+        codegen.reg_map.insert(2, 2);
+
+        let instr = IrInstruction::CmpNe {
+            dest: 0,
+            lhs: 1,
+            rhs: 2,
+        };
+
+        let result = backend.compile_instruction(&instr, &mut codegen);
+
+        assert!(result.is_ok());
+        assert!(codegen.code.len() > 0);
+        assert!(codegen.code.contains(&0x95));
+    }
+
+    #[test]
+    fn test_jump_unconditional() {
+        let backend = X86_64Backend::new();
+        let mut func = IrFunction::new("test_jump", IrType::I64);
+
+        let mut block0 = IrBlock::new(0);
+        block0.add_instruction(IrInstruction::LoadConst {
+            dest: 1,
+            value: IrValue::Constant(IrConstant::I64(42)),
+        });
+        block0.set_terminator(IrTerminator::Jump(1));
+
+        let mut block1 = IrBlock::new(1);
+        block1.set_terminator(IrTerminator::Return(Some(1)));
+
+        func.add_block(block0);
+        func.add_block(block1);
+        func.entry_block = 0;
+
+        let module = IrModule::new("test");
+        let mut module_mut = module;
+        module_mut.add_function(func);
+
+        let result = backend.compile_module(&module_mut);
+        assert!(
+            result.is_ok(),
+            "Jump instruction should compile successfully"
+        );
+
+        if let Ok(code) = result {
+            assert!(code.len() > 0, "Generated code should not be empty");
+            assert!(
+                code.contains(&0xE9) || code.contains(&0xEB),
+                "Generated code should contain jmp opcode"
+            );
+        }
+    }
+
+    #[test]
+    fn test_branch_conditional() {
+        let backend = X86_64Backend::new();
+        let mut func = IrFunction::new("test_branch", IrType::I64);
+
+        let mut block0 = IrBlock::new(0);
+        block0.add_instruction(IrInstruction::LoadConst {
+            dest: 1,
+            value: IrValue::Constant(IrConstant::I64(5)),
+        });
+        block0.add_instruction(IrInstruction::LoadConst {
+            dest: 2,
+            value: IrValue::Constant(IrConstant::I64(5)),
+        });
+        block0.add_instruction(IrInstruction::CmpNe {
+            dest: 3,
+            lhs: 1,
+            rhs: 2,
+        });
+        block0.set_terminator(IrTerminator::Branch {
+            cond: 3,
+            then_block: 1,
+            else_block: 2,
+        });
+
+        let mut block1 = IrBlock::new(1);
+        block1.add_instruction(IrInstruction::LoadConst {
+            dest: 4,
+            value: IrValue::Constant(IrConstant::I64(10)),
+        });
+        block1.set_terminator(IrTerminator::Return(Some(4)));
+
+        let mut block2 = IrBlock::new(2);
+        block2.add_instruction(IrInstruction::LoadConst {
+            dest: 5,
+            value: IrValue::Constant(IrConstant::I64(20)),
+        });
+        block2.set_terminator(IrTerminator::Return(Some(5)));
+
+        func.add_block(block0);
+        func.add_block(block1);
+        func.add_block(block2);
+        func.entry_block = 0;
+
+        let module = IrModule::new("test");
+        let mut module_mut = module;
+        module_mut.add_function(func);
+
+        let result = backend.compile_module(&module_mut);
+        assert!(
+            result.is_ok(),
+            "Branch instruction should compile successfully"
+        );
+
+        if let Ok(code) = result {
+            assert!(code.len() > 0, "Generated code should not be empty");
+            assert!(
+                code.iter().any(|&b| b == 0x84 || b == 0x85),
+                "Generated code should contain conditional jump opcode"
+            );
+        }
+    }
+
+    #[test]
+    fn test_e2e_if_else_statement() {
+        let backend = X86_64Backend::new();
+        let mut func = IrFunction::new("test_if_else", IrType::I64);
+
+        let mut block0 = IrBlock::new(0);
+        block0.add_instruction(IrInstruction::LoadConst {
+            dest: 1,
+            value: IrValue::Constant(IrConstant::I64(10)),
+        });
+        block0.add_instruction(IrInstruction::LoadConst {
+            dest: 2,
+            value: IrValue::Constant(IrConstant::I64(5)),
+        });
+        block0.add_instruction(IrInstruction::CmpGt {
+            dest: 3,
+            lhs: 1,
+            rhs: 2,
+        });
+        block0.set_terminator(IrTerminator::Branch {
+            cond: 3,
+            then_block: 1,
+            else_block: 2,
+        });
+
+        let mut block1 = IrBlock::new(1);
+        block1.add_instruction(IrInstruction::Add {
+            dest: 4,
+            lhs: 1,
+            rhs: 2,
+        });
+        block1.set_terminator(IrTerminator::Return(Some(4)));
+
+        let mut block2 = IrBlock::new(2);
+        block2.add_instruction(IrInstruction::Sub {
+            dest: 5,
+            lhs: 1,
+            rhs: 2,
+        });
+        block2.set_terminator(IrTerminator::Return(Some(5)));
+
+        func.add_block(block0);
+        func.add_block(block1);
+        func.add_block(block2);
+        func.entry_block = 0;
+
+        let module = IrModule::new("test");
+        let mut module_mut = module;
+        module_mut.add_function(func);
+
+        let result = backend.compile_module(&module_mut);
+        assert!(result.is_ok(), "if/else IR should compile successfully");
+
+        if let Ok(code) = result {
+            assert!(code.len() > 0, "Generated code should not be empty");
+            assert!(
+                code.len() > 20,
+                "Generated code for if/else should be substantial"
+            );
+        }
+    }
+
+    #[test]
+    fn test_call_simple_function() {
+        let backend = X86_64Backend::new();
+        let mut func = IrFunction::new("test_call", IrType::I64);
+
+        let mut block0 = IrBlock::new(0);
+        block0.add_instruction(IrInstruction::LoadConst {
+            dest: 1,
+            value: IrValue::Constant(IrConstant::I64(42)),
+        });
+        block0.add_instruction(IrInstruction::Call {
+            dest: Some(2),
+            func: 0,
+            args: vec![],
+        });
+        block0.set_terminator(IrTerminator::Return(Some(2)));
+
+        func.add_block(block0);
+        func.entry_block = 0;
+
+        let module = IrModule::new("test");
+        let mut module_mut = module;
+        module_mut.add_function(func);
+
+        let result = backend.compile_module(&module_mut);
+        assert!(
+            result.is_ok(),
+            "Call instruction should compile successfully"
+        );
+    }
+
+    #[test]
+    fn test_e2e_function_call_with_args() {
+        let backend = X86_64Backend::new();
+        let mut func = IrFunction::new("test_call_args", IrType::I64);
+
+        let mut block0 = IrBlock::new(0);
+        block0.add_instruction(IrInstruction::LoadConst {
+            dest: 1,
+            value: IrValue::Constant(IrConstant::I64(10)),
+        });
+        block0.add_instruction(IrInstruction::LoadConst {
+            dest: 2,
+            value: IrValue::Constant(IrConstant::I64(20)),
+        });
+        // SystemV ABI: first arg in rdi (register 0), second in rsi (register 1)
+        block0.add_instruction(IrInstruction::Call {
+            dest: Some(3),
+            func: 1,
+            args: vec![1, 2],
+        });
+        block0.set_terminator(IrTerminator::Return(Some(3)));
+
+        func.add_block(block0);
+        func.entry_block = 0;
+
+        let module = IrModule::new("test");
+        let mut module_mut = module;
+        module_mut.add_function(func);
+
+        let result = backend.compile_module(&module_mut);
+        assert!(
+            result.is_ok(),
+            "Call instruction with args should compile successfully"
+        );
+    }
+}

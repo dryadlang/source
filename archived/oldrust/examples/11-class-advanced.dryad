@@ -1,0 +1,240 @@
+// 11-class-advanced.dryad — Advanced class features
+// Covers: static, public/private/protected, getters/setters, async methods
+
+#<console_io>
+
+println("=== 1. Static properties and methods ===");
+
+class MathUtils {
+    static PI = 3.14159265;
+    static E = 2.71828182;
+
+    static function circleArea(radius) {
+        return MathUtils.PI * radius ** 2;
+    }
+
+    static function factorial(n) {
+        if (n <= 1) {
+            return 1;
+        }
+        return n * MathUtils.factorial(n - 1);
+    }
+
+    static function max(a, b) {
+        if (a > b) {
+            return a;
+        }
+        return b;
+    }
+}
+
+// Access static members on the class itself
+println("PI: " + MathUtils.PI);
+println("E: " + MathUtils.E);
+println("Circle area (r=5): " + MathUtils.circleArea(5));
+println("Factorial(6): " + MathUtils.factorial(6));
+println("Max(10, 20): " + MathUtils.max(10, 20));
+
+println("\n=== 2. Static counter pattern ===");
+
+class IDGenerator {
+    static nextId = 0;
+
+    static function generate() {
+        IDGenerator.nextId++;
+        return IDGenerator.nextId;
+    }
+
+    static function reset() {
+        IDGenerator.nextId = 0;
+    }
+}
+
+println("ID: " + IDGenerator.generate());
+println("ID: " + IDGenerator.generate());
+println("ID: " + IDGenerator.generate());
+println("Next will be: " + (IDGenerator.nextId + 1));
+
+println("\n=== 3. Visibility modifiers ===");
+
+class User {
+    public username = "";
+    private password = "";
+    protected email = "";
+
+    constructor(username, password, email) {
+        this.username = username;
+        this.password = password;
+        this.email = email;
+    }
+
+    // Public method (default)
+    function getUsername() {
+        return this.username;
+    }
+
+    // Private method — only accessible within this class
+    private function hashPassword() {
+        return "hashed_" + this.password;
+    }
+
+    // Public method that uses private internals
+    function authenticate(attempt) {
+        return this.hashPassword() == "hashed_" + attempt;
+    }
+
+    // Protected — accessible in subclasses
+    protected function getEmail() {
+        return this.email;
+    }
+}
+
+let user = new User("alice", "secret123", "alice@test.com");
+println("Username: " + user.getUsername());
+println("Auth correct: " + user.authenticate("secret123"));
+println("Auth wrong: " + user.authenticate("wrong"));
+
+class AdminUser extends User {
+    role = "admin";
+
+    constructor(username, password, email) {
+        super(username, password, email);
+        this.role = "admin";
+    }
+
+    // Can access protected parent method
+    function getAdminEmail() {
+        return "Admin email: " + this.getEmail();
+    }
+}
+
+let admin = new AdminUser("bob", "admin456", "bob@test.com");
+println(admin.getAdminEmail());
+
+println("\n=== 4. Getters and setters ===");
+
+// NOTE: Getters/setters require 'get'/'set' as keywords.
+// This syntax is defined in the parser but 'get'/'set' may not be
+// registered as keywords in all builds. If so, use regular methods.
+
+class Temperature {
+    _celsius = 0;
+
+    constructor(celsius) {
+        this._celsius = celsius;
+    }
+
+    // Getter-style method
+    function getCelsius() {
+        return this._celsius;
+    }
+
+    // Setter-style method
+    function setCelsius(value) {
+        if (value < -273.15) {
+            println("Temperature below absolute zero!");
+            return;
+        }
+        this._celsius = value;
+    }
+
+    function getFahrenheit() {
+        return this._celsius * 9 / 5 + 32;
+    }
+
+    function setFahrenheit(f) {
+        this._celsius = (f - 32) * 5 / 9;
+    }
+
+    function toString() {
+        return this._celsius + "°C / " + this.getFahrenheit() + "°F";
+    }
+}
+
+let temp = new Temperature(100);
+println("Boiling: " + temp.toString());
+
+temp.setCelsius(0);
+println("Freezing: " + temp.toString());
+
+temp.setFahrenheit(72);
+println("Room temp: " + temp.toString());
+
+println("\n=== 5. Async methods in classes ===");
+
+class DataService {
+    url = "";
+    loaded = false;
+
+    constructor(url) {
+        this.url = url;
+    }
+
+    async function fetchData() {
+        println("Fetching data from " + this.url + "...");
+        // Simulate async work
+        this.loaded = true;
+        return "data from " + this.url;
+    }
+
+    function isLoaded() {
+        return this.loaded;
+    }
+}
+
+let service = new DataService("https://api.example.com");
+println("Loaded before fetch: " + service.isLoaded());
+
+// Call async method
+let promise = service.fetchData();
+println("Fetch initiated");
+
+println("\n=== 6. Multiple class interactions ===");
+
+class Product {
+    name = "";
+    price = 0;
+
+    constructor(name, price) {
+        this.name = name;
+        this.price = price;
+    }
+
+    function toString() {
+        return this.name + " ($" + this.price + ")";
+    }
+}
+
+class ShoppingCart {
+    items = [];
+    count = 0;
+
+    function addItem(product) {
+        this.items = [...this.items, product];
+        this.count++;
+        println("Added: " + product.toString());
+    }
+
+    function getTotal() {
+        let total = 0;
+        for (item in this.items) {
+            total += item.price;
+        }
+        return total;
+    }
+
+    function summary() {
+        println("--- Cart Summary ---");
+        println("Items: " + this.count);
+        for (item in this.items) {
+            println("  " + item.toString());
+        }
+        println("Total: $" + this.getTotal());
+    }
+}
+
+let cart = new ShoppingCart();
+cart.addItem(new Product("Keyboard", 75));
+cart.addItem(new Product("Mouse", 40));
+cart.addItem(new Product("Monitor", 350));
+cart.summary();

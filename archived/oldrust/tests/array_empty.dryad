@@ -1,0 +1,15 @@
+#<console_io>
+
+// Test empty array literal
+let arr = [];
+print("Empty array length: ");
+println(arr.length);
+
+// Test direct index assignment without push
+let arr2 = [];
+arr2[0] = "first";
+arr2[1] = "second";
+print("arr2[0] = ");
+println(arr2[0]);
+print("arr2[1] = ");
+println(arr2[1]);

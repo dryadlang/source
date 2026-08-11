@@ -1,15 +1,35 @@
 #include "dryad/runtime/intrinsics_registry.h"
 #include "dryad/common/utils.h"
+#ifdef _WIN32
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#else
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#endif
 #include <cerrno>
 #include <cstring>
 
 namespace dryad {
 
+#ifdef _WIN32
+namespace {
+struct WinsockInitializer {
+    WinsockInitializer() {
+        WSADATA wsa_data;
+        WSAStartup(MAKEWORD(2, 2), &wsa_data);
+    }
+};
+}  // namespace
+#endif
+
 void IntrinsicsRegistry::register_network_intrinsics() {
+#ifdef _WIN32
+    static WinsockInitializer winsock_init;
+#endif
+
     register_intrinsic("syscall.socket", [](const std::vector<Value>& args) -> Value {
         if (args.size() < 3) {
             throw DryadException("syscall.socket requires 3 arguments");
@@ -103,7 +123,7 @@ void IntrinsicsRegistry::register_network_intrinsics() {
         int64_t fd = args[0].as_integer();
         const std::string& data = args[1].as_string();
         
-        ssize_t n = ::send(static_cast<int>(fd), data.c_str(), data.size(), 0);
+        int n = ::send(static_cast<int>(fd), data.c_str(), static_cast<int>(data.size()), 0);
         return Value(static_cast<int64_t>(n));
     });
     
@@ -116,7 +136,7 @@ void IntrinsicsRegistry::register_network_intrinsics() {
         int64_t size = args[1].as_integer();
         
         std::string buffer(size, '\0');
-        ssize_t n = ::recv(static_cast<int>(fd), &buffer[0], size, 0);
+        int n = ::recv(static_cast<int>(fd), &buffer[0], static_cast<int>(size), 0);
         
         if (n < 0) {
             return Value(static_cast<int64_t>(n));

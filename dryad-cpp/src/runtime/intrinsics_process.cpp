@@ -1,8 +1,6 @@
 #include "dryad/runtime/intrinsics_registry.h"
 #include "dryad/common/utils.h"
 #include <unistd.h>
-#include <sys/wait.h>
-#include <pthread.h>
 #include <cstdlib>
 
 namespace dryad {
@@ -36,7 +34,11 @@ void IntrinsicsRegistry::register_process_intrinsics() {
         const std::string& name = args[0].as_string();
         const std::string& value = args[1].as_string();
         
+#ifdef _WIN32
+        int result = ::_putenv_s(name.c_str(), value.c_str());
+#else
         int result = ::setenv(name.c_str(), value.c_str(), 1);
+#endif
         return Value(static_cast<int64_t>(result));
     });
     

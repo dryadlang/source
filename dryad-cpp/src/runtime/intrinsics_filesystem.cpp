@@ -3,6 +3,9 @@
 #include <sys/stat.h>
 #include <dirent.h>
 #include <unistd.h>
+#ifdef _WIN32
+#include <direct.h>
+#endif
 #include <cstdio>
 
 namespace dryad {
@@ -14,7 +17,11 @@ void IntrinsicsRegistry::register_filesystem_intrinsics() {
         }
         
         const std::string& path = args[0].as_string();
+#ifdef _WIN32
+        int result = ::_mkdir(path.c_str());
+#else
         int result = ::mkdir(path.c_str(), 0755);
+#endif
         return Value(static_cast<int64_t>(result));
     });
     

@@ -35,6 +35,8 @@ public:
 
 class Intrinsics {
 public:
+    Intrinsics() = default;
+    
     static void initialize();
     
     static Value syscall_read(int fd, size_t count);
@@ -48,9 +50,6 @@ public:
     Value memset(int64_t handle, int64_t value, int64_t count);
     Value buffer_get(int64_t handle, int64_t index);
     Value buffer_set(int64_t handle, int64_t index, int64_t value);
-    
-private:
-    Intrinsics() = delete;
 };
 
 } // namespace dryad

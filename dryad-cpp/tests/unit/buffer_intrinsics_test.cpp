@@ -69,7 +69,7 @@ TEST(MemoryIntrinsicsTest, Realloc) {
     Intrinsics intr;
     
     Value buf = intr.alloc_bytes(10);
-    int handle = buf.as_integer();
+    int64_t handle = buf.as_integer();
     
     // Write data
     intr.buffer_set(handle, 0, 42);
@@ -77,7 +77,7 @@ TEST(MemoryIntrinsicsTest, Realloc) {
     
     // Resize to 20 bytes
     Value resized = intr.realloc(handle, 20);
-    int new_handle = resized.as_integer();
+    int64_t new_handle = resized.as_integer();
     
     // Old data preserved
     EXPECT_EQ(intr.buffer_get(new_handle, 0).as_integer(), 42);
@@ -93,7 +93,7 @@ TEST(MemoryIntrinsicsTest, Realloc) {
 TEST(MemoryIntrinsicsTest, BoundsCheckingOnGet) {
     Intrinsics intr;
     Value buf = intr.alloc_bytes(10);
-    int handle = buf.as_integer();
+    int64_t handle = buf.as_integer();
     
     // Valid access
     Value valid = intr.buffer_get(handle, 5);
@@ -110,7 +110,7 @@ TEST(MemoryIntrinsicsTest, BoundsCheckingOnGet) {
 TEST(MemoryIntrinsicsTest, BoundsCheckingOnSet) {
     Intrinsics intr;
     Value buf = intr.alloc_bytes(10);
-    int handle = buf.as_integer();
+    int64_t handle = buf.as_integer();
     
     // Valid write
     Value valid = intr.buffer_set(handle, 5, 42);
@@ -127,7 +127,7 @@ TEST(MemoryIntrinsicsTest, BoundsCheckingOnSet) {
 TEST(MemoryIntrinsicsTest, DoubleFreeDetection) {
     Intrinsics intr;
     Value buf = intr.alloc_bytes(10);
-    int handle = buf.as_integer();
+    int64_t handle = buf.as_integer();
     
     Value first_free = intr.free_bytes(handle);
     EXPECT_TRUE(first_free.is_null());

@@ -138,11 +138,16 @@ if(DRYAD_BUILD_TESTS)
         tests/unit/array_test.cpp
         tests/unit/object_test.cpp
         tests/unit/class_test.cpp
+        tests/unit/buffer_intrinsics_test.cpp
     )
     target_link_libraries(unit_tests PRIVATE 
         gtest_main
         dryad_runtime
         dryad_compiler
+    )
+    # Allow tests to locate stdlib source files (loaded at runtime by interpreter)
+    target_compile_definitions(unit_tests PRIVATE
+        DRYAD_STDLIB_DIR="${PROJECT_SOURCE_DIR}/stdlib"
     )
     gtest_discover_tests(unit_tests)
     

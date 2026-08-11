@@ -1,0 +1,20 @@
+# Changelog
+
+All notable changes to this project are documented in this file.
+
+## [Unreleased]
+
+### Added
+- Managed byte buffer standard library (`@std/buffers/buffer.dryad`): bounds-checked allocation, byte read/write/fill, zero-copy slicing over parent buffers, resize, copy, and UTF-8 string conversion via `Buffer_FromString`/`Buffer_AsString`.
+- Memory intrinsics (`syscall.alloc_bytes`, `syscall.free_bytes`, `syscall.buffer_get`, `syscall.buffer_set`, `syscall.memcpy`, `syscall.memset`) backed by a bounds-checked `MemoryManager`.
+- String intrinsics (`syscall.string_length`, `syscall.string_to_bytes`, `syscall.bytes_to_string`) for UTF-8 bytes <-> string roundtrips.
+- Buffer workflow integration tests: file roundtrip, byte manipulation, slice extraction, and example script execution.
+- Usage example: `examples/buffer_usage.dryad` (UTF-8 roundtrip, slicing, byte editing).
+
+### Fixed
+- POSIX compatibility for MSYS2/Windows builds (intrinsic handle width and file open flags).
+- Byte-accurate slice semantics in the usage example (UTF-8 multi-byte characters).
+
+### Tests
+- 31 BufferTest unit cases and 4 BufferWorkflow integration tests added.
+- Suite status: 171/178 passing. 7 pre-existing failures documented (class `this` binding, `/tmp` paths, stdout capture on MSYS2 consoles) and tracked as separate issues.

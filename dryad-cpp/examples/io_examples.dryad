@@ -1,0 +1,32 @@
+// I/O examples using the stdlib module system.
+// Run with: dryad examples/io_examples.dryad
+
+import { MemoryBackend, VFS, VFS_writeFile, VFS_readFile, VFS_exists, VFS_removeFile } from "@std/io/vfs";
+import { readFile, writeFile, exists, removeFile, setVFSBackend } from "@std/io/file";
+import { FileHandle, FileHandle_write, FileHandle_read, FileHandle_close } from "@std/io/filehandle";
+
+// VFS in-memory workflow
+let vfs = VFS(MemoryBackend());
+VFS_writeFile(vfs, "/demo.txt", "Hello from VFS");
+let vfsContent = VFS_readFile(vfs, "/demo.txt");
+VFS_removeFile(vfs, "/demo.txt");
+
+// High-level file API (in-memory backend for the example)
+setVFSBackend(MemoryBackend());
+writeFile("/api.txt", "Hello from file API");
+let apiContent = readFile("/api.txt");
+removeFile("/api.txt");
+
+// FileHandle lifecycle
+let writer = FileHandle("/handle.txt", "write");
+FileHandle_write(writer, "Handle payload");
+FileHandle_close(writer);
+let reader = FileHandle("/handle.txt", "read");
+let handleContent = FileHandle_read(reader);
+FileHandle_close(reader);
+removeFile("/handle.txt");
+
+let ok = vfsContent == "Hello from VFS"
+    && apiContent == "Hello from file API"
+    && handleContent == "Handle payload"
+    && !exists("/handle.txt");

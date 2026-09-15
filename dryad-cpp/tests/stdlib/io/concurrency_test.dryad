@@ -1,0 +1,28 @@
+// Concurrency wrapper tests (single-threaded cooperative locks).
+
+import {
+    ThreadSafeVFS,
+    ThreadSafeVFS_readFile,
+    ThreadSafeVFS_writeFile
+} from "@std/io/io_concurrency";
+
+import { MemoryBackend } from "@std/io/vfs";
+
+function test_concurrent_read_same_file() {
+    let vfs = ThreadSafeVFS(MemoryBackend());
+    ThreadSafeVFS_writeFile(vfs, "/shared.txt", "shared data");
+    let c1 = ThreadSafeVFS_readFile(vfs, "/shared.txt");
+    let c2 = ThreadSafeVFS_readFile(vfs, "/shared.txt");
+    return c1 == "shared data" && c2 == "shared data";
+}
+
+function test_concurrent_write_different_files() {
+    let vfs = ThreadSafeVFS(MemoryBackend());
+    ThreadSafeVFS_writeFile(vfs, "/file1.txt", "content1");
+    ThreadSafeVFS_writeFile(vfs, "/file2.txt", "content2");
+    ThreadSafeVFS_writeFile(vfs, "/file3.txt", "content3");
+    let c1 = ThreadSafeVFS_readFile(vfs, "/file1.txt");
+    let c2 = ThreadSafeVFS_readFile(vfs, "/file2.txt");
+    let c3 = ThreadSafeVFS_readFile(vfs, "/file3.txt");
+    return c1 == "content1" && c2 == "content2" && c3 == "content3";
+}

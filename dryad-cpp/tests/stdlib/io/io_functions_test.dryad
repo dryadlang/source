@@ -1,0 +1,75 @@
+// High-level I/O function tests loaded via import system.
+
+import {
+    readFile,
+    writeFile,
+    exists,
+    removeFile,
+    listDirectory,
+    mkdir,
+    setVFSBackend
+} from "@std/io/file";
+
+import { MemoryBackend, NativeBackend } from "@std/io/vfs";
+
+function test_read_write_file() {
+    setVFSBackend(MemoryBackend());
+    writeFile("/test.txt", "test content");
+    return readFile("/test.txt") == "test content";
+}
+
+function test_exists_function() {
+    setVFSBackend(MemoryBackend());
+    let missing = exists("/missing.txt");
+    writeFile("/existing.txt", "data");
+    return !missing && exists("/existing.txt");
+}
+
+function test_remove_file_function() {
+    setVFSBackend(MemoryBackend());
+    writeFile("/temp.txt", "temporary");
+    let before = exists("/temp.txt");
+    removeFile("/temp.txt");
+    return before && !exists("/temp.txt");
+}
+
+function test_set_vfs_backend_isolation() {
+    setVFSBackend(MemoryBackend());
+    writeFile("/file1.txt", "backend1");
+    setVFSBackend(MemoryBackend());
+    writeFile("/file2.txt", "backend2");
+    let content2 = readFile("/file2.txt");
+    let missing = readFile("/file1.txt");
+    return content2 == "backend2" && missing != "backend1";
+}
+
+function test_mkdir_function() {
+    setVFSBackend(MemoryBackend());
+    return mkdir("/testdir") == null;
+}
+
+function test_list_directory_function() {
+    setVFSBackend(MemoryBackend());
+    writeFile("/listed.txt", "x");
+    let files = listDirectory("/");
+    let n = __runtime_array_length(files);
+    let found = false;
+    let i = 0;
+    while (i < n) {
+        if (files[i] == "/listed.txt") {
+            found = true;
+        }
+        i = i + 1;
+    }
+    return found;
+}
+
+function test_native_read_write_via_file_api() {
+    setVFSBackend(NativeBackend());
+    let path = "dryad_io_native.txt";
+    writeFile(path, "from file api");
+    let content = readFile(path);
+    let ok = exists(path);
+    removeFile(path);
+    return content == "from file api" && ok && !exists(path);
+}

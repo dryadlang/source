@@ -19,11 +19,8 @@ mkdir build && cd build
 cmake -DCMAKE_BUILD_TYPE=Release ..
 cmake --build .
 
-# Run REPL
-./bin/dryad
-
 # Run a script
-./bin/dryad script.dry
+./bin/dryad script.dryad
 
 # Run tests
 ctest --output-on-failure
@@ -60,7 +57,7 @@ Layer 1: C++ Micro-Kernel Runtime
 
 ## Project Status
 
-🚧 **Phase 0: Foundation (Week 1)** - In Progress
+🚧 **Phase 4.1: Core Foundation** — Buffer, VFS I/O, imports, CLI script execution
 
 See task tracking in `/home/pedro/repo/source/dryad_theory/TASK_CHECKLIST.md`
 

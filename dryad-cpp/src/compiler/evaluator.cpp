@@ -44,6 +44,12 @@ Value ExpressionEvaluator::evaluate(Expression* expr) {
         
         case ASTNodeType::ThisExpression:
             return evaluate_this(static_cast<ThisExpression*>(expr));
+
+        case ASTNodeType::SuperExpression:
+            throw DryadException("'super' must be used in super() or super.method()");
+
+        case ASTNodeType::ErrorExpression:
+            throw DryadException(static_cast<ErrorExpression*>(expr)->message);
         
         default:
             throw DryadException("Unknown expression type");
@@ -204,19 +210,50 @@ Value ExpressionEvaluator::evaluate_unary(UnaryExpression* expr) {
 }
 
 Value ExpressionEvaluator::evaluate_call(CallExpression* expr) {
-    Value callee = evaluate(expr->callee.get());
-    
-    if (!callee.is_function()) {
-        throw DryadException("Cannot call non-function value");
-    }
-    
     std::vector<Value> arguments;
     for (auto& arg : expr->arguments) {
         arguments.push_back(evaluate(arg.get()));
     }
-    
-    auto func = callee.as_function();
-    return func->call(interpreter_, arguments);
+
+    if (expr->callee->type == ASTNodeType::SuperExpression) {
+        return evaluate_super_call(expr, arguments);
+    }
+
+    if (expr->callee->type == ASTNodeType::MemberExpression) {
+        auto* member = static_cast<MemberExpression*>(expr->callee.get());
+        if (member->object->type == ASTNodeType::SuperExpression) {
+            return evaluate_super_method_call(member, arguments);
+        }
+
+        Value obj = evaluate(member->object.get());
+
+        if (obj.is_instance() && !member->computed) {
+            auto* prop = dynamic_cast<Identifier*>(member->property.get());
+            if (!prop) {
+                throw DryadException("Property must be an identifier");
+            }
+
+            Value method_val = obj.as_instance()->get(prop->name);
+            if (!method_val.is_function()) {
+                throw DryadException("Cannot call non-function value");
+            }
+
+            auto dryad_func = std::dynamic_pointer_cast<DryadFunction>(method_val.as_function());
+            if (dryad_func) {
+                return dryad_func->call_with_receiver(interpreter_, arguments, obj.as_instance());
+            }
+
+            return method_val.as_function()->call(interpreter_, arguments);
+        }
+    }
+
+    Value callee = evaluate(expr->callee.get());
+
+    if (!callee.is_function()) {
+        throw DryadException("Cannot call non-function value");
+    }
+
+    return callee.as_function()->call(interpreter_, arguments);
 }
 
 Value ExpressionEvaluator::evaluate_assignment(AssignmentExpression* expr) {
@@ -249,7 +286,20 @@ Value ExpressionEvaluator::evaluate_assignment(AssignmentExpression* expr) {
             if (obj.is_object()) {
                 obj.object_set(prop_ident->name, value);
             } else if (obj.is_instance()) {
-                obj.as_instance()->set(prop_ident->name, value);
+                auto instance = obj.as_instance();
+                auto setter = instance->klass->find_setter(prop_ident->name);
+                if (setter) {
+                    auto dryad_func = std::dynamic_pointer_cast<DryadFunction>(setter);
+                    if (dryad_func) {
+                        dryad_func->call_with_receiver(interpreter_, {value}, instance);
+                        return value;
+                    }
+                }
+                if (instance->klass->is_readonly_property(prop_ident->name) &&
+                    !interpreter_->in_constructor()) {
+                    throw DryadException("Cannot assign to readonly property '" + prop_ident->name + "'");
+                }
+                instance->set(prop_ident->name, value);
             }
         }
         return value;
@@ -259,6 +309,10 @@ Value ExpressionEvaluator::evaluate_assignment(AssignmentExpression* expr) {
 }
 
 Value ExpressionEvaluator::evaluate_member(MemberExpression* expr) {
+    if (expr->object->type == ASTNodeType::SuperExpression) {
+        throw DryadException("'super' must be used in a method call (super.method())");
+    }
+
     Value obj = evaluate(expr->object.get());
     
     if (expr->computed) {
@@ -288,7 +342,15 @@ Value ExpressionEvaluator::evaluate_member(MemberExpression* expr) {
         }
         
         if (obj.is_instance()) {
-            return obj.as_instance()->get(id_expr->name);
+            auto instance = obj.as_instance();
+            auto getter = instance->klass->find_getter(id_expr->name);
+            if (getter) {
+                auto dryad_func = std::dynamic_pointer_cast<DryadFunction>(getter);
+                if (dryad_func) {
+                    return dryad_func->call_with_receiver(interpreter_, {}, instance);
+                }
+            }
+            return instance->get(id_expr->name);
         } else {
             return obj.object_get(id_expr->name);
         }
@@ -315,6 +377,9 @@ Value ExpressionEvaluator::evaluate_new(NewExpression* expr) {
     }
     
     auto klass = class_value.as_class();
+    if (klass->is_interface) {
+        throw DryadException("Cannot instantiate interface: " + expr->class_name);
+    }
     
     std::vector<Value> args;
     for (const auto& arg_expr : expr->arguments) {
@@ -328,6 +393,57 @@ Value ExpressionEvaluator::evaluate_new(NewExpression* expr) {
 Value ExpressionEvaluator::evaluate_this(ThisExpression* expr) {
     (void)expr;
     return interpreter_->current_env()->get("this");
+}
+
+Value ExpressionEvaluator::evaluate_super_call(CallExpression* expr, const std::vector<Value>& arguments) {
+    (void)expr;
+
+    if (!interpreter_->in_constructor()) {
+        throw DryadException("'super()' can only be used inside a constructor");
+    }
+
+    auto executing = interpreter_->executing_class();
+    if (!executing || !executing->super_class) {
+        throw DryadException("Class has no superclass");
+    }
+
+    Value this_value = interpreter_->current_env()->get("this");
+    if (!this_value.is_instance()) {
+        throw DryadException("'super()' requires a class instance");
+    }
+
+    executing->super_class->run_constructor(this_value.as_instance(), arguments, interpreter_);
+    return Value();
+}
+
+Value ExpressionEvaluator::evaluate_super_method_call(MemberExpression* member,
+                                                      const std::vector<Value>& arguments) {
+    auto executing = interpreter_->executing_class();
+    if (!executing || !executing->super_class) {
+        throw DryadException("Class has no superclass");
+    }
+
+    auto* prop = dynamic_cast<Identifier*>(member->property.get());
+    if (!prop) {
+        throw DryadException("Property must be an identifier");
+    }
+
+    auto method = executing->super_class->find_method(prop->name);
+    if (!method) {
+        throw DryadException("Superclass has no method '" + prop->name + "'");
+    }
+
+    Value this_value = interpreter_->current_env()->get("this");
+    if (!this_value.is_instance()) {
+        throw DryadException("'super' method calls require a class instance");
+    }
+
+    auto dryad_func = std::dynamic_pointer_cast<DryadFunction>(method);
+    if (dryad_func) {
+        return dryad_func->call_with_receiver(interpreter_, arguments, this_value.as_instance());
+    }
+
+    return method->call(interpreter_, arguments);
 }
 
 } // namespace dryad

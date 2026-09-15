@@ -10,11 +10,29 @@ All notable changes to this project are documented in this file.
 - String intrinsics (`syscall.string_length`, `syscall.string_to_bytes`, `syscall.bytes_to_string`) for UTF-8 bytes <-> string roundtrips.
 - Buffer workflow integration tests: file roundtrip, byte manipulation, slice extraction, and example script execution.
 - Usage example: `examples/buffer_usage.dryad` (UTF-8 roundtrip, slicing, byte editing).
+- Virtual filesystem (`@std/io/vfs.dryad`): MemoryBackend listing and a NativeBackend that reads, writes, removes, lists, and creates directories through filesystem syscalls.
+- High-level I/O (`@std/io/file.dryad`) and FileHandle lifecycle (`@std/io/filehandle.dryad`), including append mode.
+- Filesystem helpers: `syscall.exists`, `syscall.filesize`, `syscall.readdir`, `syscall.open_read` / `open_write` / `open_append`, `syscall.string_starts_with`, `runtime.object_keys`, `runtime.array_push`.
+- Usage example: `examples/file_io_usage.dryad` (native file roundtrip).
+- I/O error helpers (`@std/io/io_errors.dryad`), path normalization (`syscall.normalize_path`), and cooperative locks (`@std/io/io_concurrency.dryad`).
+- `import { ... } from "@std/..."` module loading with transitive stdlib resolution.
+- CLI script execution: `dryad script.dryad`, plus `--help` and `--version`.
+- Examples: `examples/io_examples.dryad`; `examples/buffer_usage.dryad` updated for imports.
+- Phase 4.1 integration test (`core_foundation_test`).
+- POO: `abstract class`, `super`, properties (`readonly`, `abstract readonly`), `interface`/`implements`, semantic validator (`dryad check`).
+- LSP foundation: explicit `get`/`set` accessors, multiple diagnostics, parser error recovery, basic type validation (`let x: number = 1`).
+- LSP phase 2: inline property accessors (`prop: type { get; set; }` and bodies), `ErrorExpression` AST nodes for resilient parsing, `Diagnostic` with `file:line:col` formatting in `dryad check`, unused-variable warnings, call argument validation, and binary expression type checking.
+- `@std/io/stream.dryad` abstract Stream API; `@std/core/disposable.dryad` as real interface.
+- `@std/io/README.md` module documentation.
 
 ### Fixed
 - POSIX compatibility for MSYS2/Windows builds (intrinsic handle width and file open flags).
 - Byte-accurate slice semantics in the usage example (UTF-8 multi-byte characters).
+- Class method calls now bind `this` when invoking instance methods (`obj.method()`).
+- Buffer/file workflow tests use portable `__open_read` / `__open_write` instead of raw POSIX flags.
 
 ### Tests
 - 31 BufferTest unit cases and 4 BufferWorkflow integration tests added.
-- Suite status: 171/178 passing. 7 pre-existing failures documented (class `this` binding, `/tmp` paths, stdout capture on MSYS2 consoles) and tracked as separate issues.
+- VFS, I/O, and FileHandle tests added (28 unit cases, 2 integration cases).
+- Portable `__open_read` / `__open_write` used in buffer/file workflow tests so Linux and Windows share the same flags.
+- Suite status: 267/267 passing on Linux (255 unit + 12 integration).

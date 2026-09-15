@@ -7,11 +7,11 @@ using namespace dryad;
 
 TEST(IntrinsicsIntegration, FileIOWorkflow) {
     std::string source = R"(
-        let fd = __open("/tmp/dryad_integration.txt", 577);
+        let fd = __open_write("/tmp/dryad_integration.txt");
         __write(fd, "Dryad intrinsics work!");
         __close(fd);
         
-        let fd_read = __open("/tmp/dryad_integration.txt", 0);
+        let fd_read = __open_read("/tmp/dryad_integration.txt");
         let content = __read(fd_read, 1024);
         __close(fd_read);
         

@@ -1,9 +1,20 @@
-// tests/stdlib/buffers/buffer_test.dryad
-// Buffer API integration tests.
-// Loaded together with exceptions.dryad and buffer.dryad by
-// tests/unit/buffer_test.cpp (the parser has no import support yet).
-// Each test_* function returns true on success. Errors are returned as
-// values (strings), so tests check `err != null` instead of try/catch.
+// Buffer API integration tests loaded via import system.
+
+import {
+    Buffer_New,
+    Buffer_Len,
+    Buffer_Capacity,
+    Buffer_Dispose,
+    Buffer_Read,
+    Buffer_Write,
+    Buffer_Fill,
+    Buffer_Slice,
+    Buffer_Resize,
+    Buffer_CopyTo,
+    Buffer_FromPtr,
+    Buffer_FromString,
+    Buffer_AsString
+} from "@std/buffers/buffer";
 
 function test_buffer_new_creation() {
     let buf = Buffer_New(10);

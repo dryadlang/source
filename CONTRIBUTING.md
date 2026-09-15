@@ -37,7 +37,7 @@ cmake --build .
 ctest --output-on-failure
 ```
 
-The suite currently has 7 documented pre-existing failures (see `CHANGELOG`). Do not add new failures on top of them; if your change is affected by one, mention it in the commit message.
+The full suite must stay green before merging. Run `ctest --output-on-failure` and fix any regressions you introduce.
 
 ## Code conventions
 

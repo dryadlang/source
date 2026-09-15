@@ -85,6 +85,9 @@ add_library(dryad_compiler STATIC
     src/compiler/interpreter.cpp
     src/compiler/evaluator.cpp
     src/compiler/statement_executor.cpp
+    src/compiler/validator.cpp
+    src/compiler/semantic_analyzer.cpp
+    src/compiler/diagnostic.cpp
 )
 target_include_directories(dryad_compiler PUBLIC include)
 target_link_libraries(dryad_compiler PUBLIC dryad_runtime)
@@ -99,6 +102,9 @@ add_executable(dryad
     src/tools/repl.cpp
 )
 target_link_libraries(dryad PRIVATE dryad_compiler dryad_runtime)
+target_compile_definitions(dryad PRIVATE
+    DRYAD_STDLIB_DIR="${PROJECT_SOURCE_DIR}/stdlib"
+)
 
 # Set output directory
 set_target_properties(dryad PROPERTIES
@@ -138,8 +144,18 @@ if(DRYAD_BUILD_TESTS)
         tests/unit/array_test.cpp
         tests/unit/object_test.cpp
         tests/unit/class_test.cpp
+        tests/unit/validator_test.cpp
+        tests/unit/poo_foundation_test.cpp
+        tests/unit/lsp_foundation_test.cpp
         tests/unit/buffer_intrinsics_test.cpp
         tests/unit/buffer_test.cpp
+        tests/unit/vfs_test.cpp
+        tests/unit/io_functions_test.cpp
+        tests/unit/filehandle_test.cpp
+        tests/unit/io_errors_test.cpp
+        tests/unit/io_concurrency_test.cpp
+        tests/unit/io_integration_test.cpp
+        tests/unit/import_test.cpp
     )
     target_link_libraries(unit_tests PRIVATE 
         gtest_main
@@ -158,6 +174,8 @@ if(DRYAD_BUILD_TESTS)
         tests/integration/sample_integration_test.cpp
         tests/integration/intrinsics_integration_test.cpp
         tests/integration/buffer_workflow_test.cpp
+        tests/integration/vfs_workflow_test.cpp
+        tests/integration/core_foundation_test.cpp
     )
     target_link_libraries(integration_tests PRIVATE
         gtest_main

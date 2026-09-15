@@ -1,0 +1,48 @@
+// @std/io/io_errors.dryad
+// Standardized I/O error helpers and path normalization
+
+import {
+    IOException,
+    FileNotFoundException,
+    DirectoryNotFoundException,
+    InvalidOperationException,
+    ArgumentException
+} from "@std/core/exceptions";
+
+function InvalidPathError(path) {
+    return IOException("Invalid path: " + path);
+}
+
+function FileNotFoundError(path) {
+    return FileNotFoundException("File not found: " + path);
+}
+
+function DirectoryNotFoundError(path) {
+    return DirectoryNotFoundException("Directory not found: " + path);
+}
+
+function AccessDeniedError(path) {
+    return IOException("Access denied: " + path);
+}
+
+function FileAlreadyExistsError(path) {
+    return IOException("File already exists: " + path);
+}
+
+function InvalidOperationError(operation, reason) {
+    return InvalidOperationException(operation + " failed: " + reason);
+}
+
+function NormalizePath(path) {
+    if (path == null || path == "") {
+        return path;
+    }
+    return __normalize_path(path);
+}
+
+function ValidatePath(path) {
+    if (path == null || path == "") {
+        return ArgumentException("Path cannot be null or empty");
+    }
+    return null;
+}

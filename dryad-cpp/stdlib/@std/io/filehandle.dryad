@@ -4,11 +4,22 @@
 // FileHandle provides a managed way to work with files with proper
 // lifecycle management (open/close/dispose). Supports read and write modes.
 
-import { 
-    VFS_readFile, 
-    VFS_writeFile, 
-    _getGlobalVFS 
+import {
+    VFS_readFile,
+    VFS_writeFile,
+    VFS_exists
+} from "@std/io/vfs";
+
+import {
+    _getGlobalVFS
 } from "@std/io/file";
+
+import {
+    ArgumentException,
+    ArgumentNullException,
+    InvalidOperationException,
+    ObjectDisposedException
+} from "@std/core/exceptions";
 
 // ============================================================================
 // FileHandle Class
@@ -102,6 +113,13 @@ function FileHandle_write(handle, content) {
     
     let path = __runtime_object_get(handle, "path");
     let vfs = __runtime_object_get(handle, "vfs");
+    
+    if (mode == "append") {
+        if (VFS_exists(vfs, path)) {
+            let previous = VFS_readFile(vfs, path);
+            content = previous + content;
+        }
+    }
     
     return VFS_writeFile(vfs, path, content);
 }

@@ -1,8 +1,14 @@
-// examples/buffer_usage.dryad
-// Buffer API demonstration: UTF-8 string <-> buffer conversion, slicing and
-// byte editing. The CLI does not execute scripts yet, so this file is
-// validated by tests/integration/buffer_workflow_test.cpp (ExampleScriptRuns),
-// which asserts the `ok` flag computed below.
+// Buffer API demonstration: UTF-8 string <-> buffer conversion, slicing and byte editing.
+// Run with: dryad examples/buffer_usage.dryad
+
+import {
+    Buffer_FromString,
+    Buffer_AsString,
+    Buffer_Len,
+    Buffer_Slice,
+    Buffer_Write,
+    Buffer_Dispose
+} from "@std/buffers/buffer";
 
 let text = "Olá, mundo!";
 let buf = Buffer_FromString(text);

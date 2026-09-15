@@ -1,171 +1,103 @@
-// tests/unit/vfs_test.cpp
-// Virtual File System tests
-
 #include <gtest/gtest.h>
-#include "runtime/interpreter.hpp"
-#include <memory>
-#include <string>
+#include "dryad/compiler/lexer.h"
+#include "dryad/compiler/parser.h"
+#include "dryad/compiler/interpreter.h"
+#include <fstream>
+#include <sstream>
+#include <stdexcept>
 
-class VFSTest : public ::testing::Test {
-protected:
-    std::unique_ptr<Dryad::Interpreter> interpreter;
-    
-    void SetUp() override {
-        interpreter = std::make_unique<Dryad::Interpreter>();
+using namespace dryad;
+
+namespace {
+
+std::string read_file(const std::string& path) {
+    std::ifstream f(path);
+    if (!f) {
+        throw std::runtime_error("Cannot open file: " + path);
     }
-};
-
-// Test VFS interface definition
-TEST_F(VFSTest, BackendInterfaceDefined) {
-    // Test that FileSystemBackend protocol is defined
-    auto result = interpreter->Execute(R"(
-        import { FileSystemBackend } from "@std/io/vfs";
-        FileSystemBackend()
-    )");
-    
-    EXPECT_TRUE(result.IsString());
-    EXPECT_EQ(result.AsString(), "FileSystemBackend protocol");
+    std::ostringstream ss;
+    ss << f.rdbuf();
+    return ss.str();
 }
 
-// Test VFS creation with MemoryBackend
-TEST_F(VFSTest, VFSCreationWithMemoryBackend) {
-    auto result = interpreter->Execute(R"(
-        import { VFS, MemoryBackend } from "@std/io/vfs";
-        let backend = MemoryBackend();
-        let vfs = VFS(backend);
-        vfs != null
-    )");
-    
-    EXPECT_TRUE(result.IsBoolean());
-    EXPECT_TRUE(result.AsBoolean());
+Value run_vfs_test(const std::string& test_fn) {
+    static const std::string tests = read_file(
+        std::string(DRYAD_TEST_DIR) + "/stdlib/io/vfs_test.dryad");
+
+    std::string source = tests + "\nlet __ok = " + test_fn + "();";
+
+    Lexer lexer(source);
+    auto tokens = lexer.tokenize();
+    Parser parser(std::move(tokens));
+    auto program = parser.parse();
+    if (parser.has_error()) {
+        throw std::runtime_error("Parser error: " + parser.error_message());
+    }
+
+    Interpreter interpreter;
+    interpreter.set_stdlib_root(DRYAD_STDLIB_DIR);
+    interpreter.execute(program.get());
+    return interpreter.global_env()->get("__ok");
 }
 
-// Test basic write/read through VFS
-TEST_F(VFSTest, VFSBasicWriteRead) {
-    auto result = interpreter->Execute(R"(
-        import { VFS, MemoryBackend, VFS_writeFile, VFS_readFile } from "@std/io/vfs";
-        let backend = MemoryBackend();
-        let vfs = VFS(backend);
-        
-        VFS_writeFile(vfs, "/test.txt", "Hello");
-        let content = VFS_readFile(vfs, "/test.txt");
-        content == "Hello"
-    )");
-    
-    EXPECT_TRUE(result.IsBoolean());
-    EXPECT_TRUE(result.AsBoolean());
+} // namespace
+
+TEST(VFSTest, BackendInterfaceDefined) {
+    EXPECT_TRUE(run_vfs_test("test_backend_interface_defined").is_truthy());
 }
 
-// Test file existence check
-TEST_F(VFSTest, VFSExistsCheck) {
-    auto result = interpreter->Execute(R"(
-        import { VFS, MemoryBackend, VFS_writeFile, VFS_exists } from "@std/io/vfs";
-        let backend = MemoryBackend();
-        let vfs = VFS(backend);
-        
-        let exists1 = VFS_exists(vfs, "/missing.txt");
-        VFS_writeFile(vfs, "/test.txt", "data");
-        let exists2 = VFS_exists(vfs, "/test.txt");
-        
-        !exists1 && exists2
-    )");
-    
-    EXPECT_TRUE(result.IsBoolean());
-    EXPECT_TRUE(result.AsBoolean());
+TEST(VFSTest, CreationWithMemoryBackend) {
+    EXPECT_TRUE(run_vfs_test("test_vfs_creation_with_memory_backend").is_truthy());
 }
 
-// Test file removal
-TEST_F(VFSTest, VFSRemoveFile) {
-    auto result = interpreter->Execute(R"(
-        import { VFS, MemoryBackend, VFS_writeFile, VFS_removeFile, VFS_exists } from "@std/io/vfs";
-        let backend = MemoryBackend();
-        let vfs = VFS(backend);
-        
-        VFS_writeFile(vfs, "/temp.txt", "temporary");
-        let before = VFS_exists(vfs, "/temp.txt");
-        VFS_removeFile(vfs, "/temp.txt");
-        let after = VFS_exists(vfs, "/temp.txt");
-        
-        before && !after
-    )");
-    
-    EXPECT_TRUE(result.IsBoolean());
-    EXPECT_TRUE(result.AsBoolean());
+TEST(VFSTest, CreationWithNativeBackend) {
+    EXPECT_TRUE(run_vfs_test("test_vfs_creation_with_native_backend").is_truthy());
 }
 
-// Test VFS disposal
-TEST_F(VFSTest, VFSDisposal) {
-    auto result = interpreter->Execute(R"(
-        import { VFS, MemoryBackend, VFS_dispose } from "@std/io/vfs";
-        let backend = MemoryBackend();
-        let vfs = VFS(backend);
-        
-        VFS_dispose(vfs);
-        
-        // After disposal, vfs["disposed"] should be true
-        vfs["disposed"] == true
-    )");
-    
-    EXPECT_TRUE(result.IsBoolean());
-    EXPECT_TRUE(result.AsBoolean());
+TEST(VFSTest, BasicWriteRead) {
+    EXPECT_TRUE(run_vfs_test("test_vfs_basic_read_write").is_truthy());
 }
 
-// Test multiple operations
-TEST_F(VFSTest, MultipleFileOperations) {
-    auto result = interpreter->Execute(R"(
-        import { VFS, MemoryBackend, VFS_writeFile, VFS_readFile } from "@std/io/vfs";
-        let backend = MemoryBackend();
-        let vfs = VFS(backend);
-        
-        VFS_writeFile(vfs, "/file1.txt", "content1");
-        VFS_writeFile(vfs, "/file2.txt", "content2");
-        VFS_writeFile(vfs, "/file3.txt", "content3");
-        
-        let c1 = VFS_readFile(vfs, "/file1.txt");
-        let c2 = VFS_readFile(vfs, "/file2.txt");
-        let c3 = VFS_readFile(vfs, "/file3.txt");
-        
-        c1 == "content1" && c2 == "content2" && c3 == "content3"
-    )");
-    
-    EXPECT_TRUE(result.IsBoolean());
-    EXPECT_TRUE(result.AsBoolean());
+TEST(VFSTest, ExistsCheck) {
+    EXPECT_TRUE(run_vfs_test("test_vfs_exists_check").is_truthy());
 }
 
-// Test MemoryBackend independence
-TEST_F(VFSTest, MemoryBackendIndependence) {
-    auto result = interpreter->Execute(R"(
-        import { VFS, MemoryBackend, VFS_writeFile, VFS_readFile, VFS_exists } from "@std/io/vfs";
-        
-        // Create two separate backends
-        let backend1 = MemoryBackend();
-        let vfs1 = VFS(backend1);
-        
-        let backend2 = MemoryBackend();
-        let vfs2 = VFS(backend2);
-        
-        // Write different data to each
-        VFS_writeFile(vfs1, "/data.txt", "vfs1");
-        VFS_writeFile(vfs2, "/data.txt", "vfs2");
-        
-        let data1 = VFS_readFile(vfs1, "/data.txt");
-        let data2 = VFS_readFile(vfs2, "/data.txt");
-        
-        data1 == "vfs1" && data2 == "vfs2"
-    )");
-    
-    EXPECT_TRUE(result.IsBoolean());
-    EXPECT_TRUE(result.AsBoolean());
+TEST(VFSTest, RemoveFile) {
+    EXPECT_TRUE(run_vfs_test("test_vfs_remove_file").is_truthy());
 }
 
-// Test NativeBackend creation
-TEST_F(VFSTest, NativeBackendCreation) {
-    auto result = interpreter->Execute(R"(
-        import { NativeBackend } from "@std/io/vfs";
-        let backend = NativeBackend();
-        backend != null
-    )");
-    
-    EXPECT_TRUE(result.IsBoolean());
-    EXPECT_TRUE(result.AsBoolean());
+TEST(VFSTest, Disposal) {
+    EXPECT_TRUE(run_vfs_test("test_vfs_disposal").is_truthy());
+}
+
+TEST(VFSTest, MultipleFileOperations) {
+    EXPECT_TRUE(run_vfs_test("test_multiple_file_operations").is_truthy());
+}
+
+TEST(VFSTest, MemoryBackendIndependence) {
+    EXPECT_TRUE(run_vfs_test("test_memory_backend_independence").is_truthy());
+}
+
+TEST(VFSTest, MemoryBackendListDirectory) {
+    EXPECT_TRUE(run_vfs_test("test_memory_backend_list_directory").is_truthy());
+}
+
+TEST(VFSTest, MemoryBackendMissingFile) {
+    EXPECT_TRUE(run_vfs_test("test_memory_backend_missing_file").is_truthy());
+}
+
+TEST(VFSTest, NativeBackendWriteRead) {
+    EXPECT_TRUE(run_vfs_test("test_native_backend_write_read").is_truthy());
+}
+
+TEST(VFSTest, NativeBackendEmptyFile) {
+    EXPECT_TRUE(run_vfs_test("test_native_backend_empty_file").is_truthy());
+}
+
+TEST(VFSTest, NativeBackendMkdirAndList) {
+    EXPECT_TRUE(run_vfs_test("test_native_backend_mkdir_and_list").is_truthy());
+}
+
+TEST(VFSTest, NativeBackendMissingFile) {
+    EXPECT_TRUE(run_vfs_test("test_native_backend_missing_file").is_truthy());
 }

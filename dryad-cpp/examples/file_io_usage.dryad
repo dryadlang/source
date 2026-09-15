@@ -1,0 +1,21 @@
+// Native filesystem roundtrip through the VFS NativeBackend.
+// Run with: dryad examples/file_io_usage.dryad
+
+import {
+    VFS,
+    NativeBackend,
+    VFS_writeFile,
+    VFS_readFile,
+    VFS_exists,
+    VFS_removeFile,
+    VFS_dispose
+} from "@std/io/vfs";
+
+let vfs = VFS(NativeBackend());
+let path = "dryad_file_io_example.txt";
+VFS_writeFile(vfs, path, "Olá, ficheiro!");
+let content = VFS_readFile(vfs, path);
+let ok = content == "Olá, ficheiro!";
+VFS_removeFile(vfs, path);
+ok = ok && !VFS_exists(vfs, path);
+VFS_dispose(vfs);

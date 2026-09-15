@@ -5,18 +5,20 @@
 // the VFS backend. Supports switching between native filesystem and
 // in-memory storage for testing.
 
-import { 
-    VFS, 
-    MemoryBackend, 
+import {
+    VFS,
+    MemoryBackend,
     NativeBackend,
-    VFS_readFile, 
-    VFS_writeFile, 
-    VFS_exists, 
-    VFS_removeFile, 
-    VFS_listDirectory, 
+    VFS_readFile,
+    VFS_writeFile,
+    VFS_exists,
+    VFS_removeFile,
+    VFS_listDirectory,
     VFS_mkdir,
     VFS_dispose
 } from "@std/io/vfs";
+
+import { ArgumentException, IOException } from "@std/core/exceptions";
 
 // Global default VFS instance (uses NativeBackend by default)
 let _globalVFS = null;

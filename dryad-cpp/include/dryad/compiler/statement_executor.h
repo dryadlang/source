@@ -24,10 +24,12 @@ private:
     void execute_variable_declaration(VariableDeclaration* stmt);
     void execute_function_declaration(FunctionDeclaration* stmt);
     void execute_class_declaration(ClassDeclaration* stmt);
+    void execute_interface_declaration(InterfaceDeclaration* stmt);
     void execute_block_statement(BlockStatement* stmt);
     void execute_if(IfStatement* stmt);
     void execute_while(WhileStatement* stmt);
     void execute_return(ReturnStatement* stmt);
+    void execute_import(ImportDeclaration* stmt);
 };
 
 } // namespace dryad

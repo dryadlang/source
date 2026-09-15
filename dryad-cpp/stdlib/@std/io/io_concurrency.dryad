@@ -1,0 +1,77 @@
+// @std/io/io_concurrency.dryad
+// Cooperative lock wrapper for shared VFS access (single-threaded runtime today)
+
+import { VFS, VFS_readFile, VFS_writeFile, VFS_exists, VFS_removeFile, VFS_listDirectory, VFS_mkdir } from "@std/io/vfs";
+
+function FileLock() {
+    let lock = __runtime_create_object();
+    __runtime_object_set(lock, "locked", false);
+    return lock;
+}
+
+function FileLock_acquire(lock) {
+    while (__runtime_object_get(lock, "locked")) {
+        // Busy wait until the runtime provides real mutex support.
+    }
+    __runtime_object_set(lock, "locked", true);
+    return null;
+}
+
+function FileLock_release(lock) {
+    __runtime_object_set(lock, "locked", false);
+    return null;
+}
+
+function ThreadSafeVFS(backend) {
+    let vfs = VFS(backend);
+    __runtime_object_set(vfs, "lock", FileLock());
+    return vfs;
+}
+
+function ThreadSafeVFS_readFile(vfs, path) {
+    let lock = __runtime_object_get(vfs, "lock");
+    FileLock_acquire(lock);
+    let result = VFS_readFile(vfs, path);
+    FileLock_release(lock);
+    return result;
+}
+
+function ThreadSafeVFS_writeFile(vfs, path, content) {
+    let lock = __runtime_object_get(vfs, "lock");
+    FileLock_acquire(lock);
+    let result = VFS_writeFile(vfs, path, content);
+    FileLock_release(lock);
+    return result;
+}
+
+function ThreadSafeVFS_exists(vfs, path) {
+    let lock = __runtime_object_get(vfs, "lock");
+    FileLock_acquire(lock);
+    let result = VFS_exists(vfs, path);
+    FileLock_release(lock);
+    return result;
+}
+
+function ThreadSafeVFS_removeFile(vfs, path) {
+    let lock = __runtime_object_get(vfs, "lock");
+    FileLock_acquire(lock);
+    let result = VFS_removeFile(vfs, path);
+    FileLock_release(lock);
+    return result;
+}
+
+function ThreadSafeVFS_listDirectory(vfs, path) {
+    let lock = __runtime_object_get(vfs, "lock");
+    FileLock_acquire(lock);
+    let result = VFS_listDirectory(vfs, path);
+    FileLock_release(lock);
+    return result;
+}
+
+function ThreadSafeVFS_mkdir(vfs, path) {
+    let lock = __runtime_object_get(vfs, "lock");
+    FileLock_acquire(lock);
+    let result = VFS_mkdir(vfs, path);
+    FileLock_release(lock);
+    return result;
+}

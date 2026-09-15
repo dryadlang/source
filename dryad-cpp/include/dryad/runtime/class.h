@@ -4,6 +4,7 @@
 #include <string>
 #include <memory>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 namespace dryad {
@@ -18,13 +19,30 @@ public:
     std::string name;
     std::shared_ptr<DryadClass> super_class;
     std::unordered_map<std::string, std::shared_ptr<Function>> methods;
+    std::unordered_map<std::string, std::shared_ptr<Function>> getters;
+    std::unordered_map<std::string, std::shared_ptr<Function>> setters;
+    std::unordered_map<std::string, std::string> property_types;
+    std::unordered_set<std::string> properties;
+    std::unordered_set<std::string> readonly_properties;
+    std::unordered_set<std::string> abstract_methods;
+    std::unordered_set<std::string> abstract_properties;
     std::shared_ptr<Function> constructor;
     std::vector<std::unique_ptr<class FunctionDeclaration>> owned_declarations;
+    bool is_abstract;
+    bool is_interface;
     
     DryadClass(std::string name, std::shared_ptr<DryadClass> super = nullptr)
-        : name(std::move(name)), super_class(super), constructor(nullptr) {}
+        : name(std::move(name)), super_class(super), constructor(nullptr), is_abstract(false), is_interface(false) {}
     
     std::shared_ptr<Function> find_method(const std::string& method_name);
+    std::shared_ptr<Function> find_getter(const std::string& property_name);
+    std::shared_ptr<Function> find_setter(const std::string& property_name);
+    bool is_readonly_property(const std::string& property_name) const;
+    bool has_member(const std::string& member_name) const;
+    std::string find_property_type(const std::string& property_name) const;
+    void run_constructor(const std::shared_ptr<ClassInstance>& instance,
+                         const std::vector<Value>& args,
+                         class Interpreter* interpreter);
     std::shared_ptr<ClassInstance> instantiate(const std::vector<Value>& args, class Interpreter* interpreter);
 };
 

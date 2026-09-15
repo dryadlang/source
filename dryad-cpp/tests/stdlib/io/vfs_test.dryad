@@ -1,93 +1,157 @@
-// tests/stdlib/io/vfs_test.dryad
-// VFS interface and backend protocol tests
+// VFS tests loaded via import system by tests/unit/vfs_test.cpp.
 
-import { FileSystemBackend, VFS, MemoryBackend, NativeBackend } from "@std/io/vfs";
-import { Exception, FileNotFoundException, ArgumentException, ObjectDisposedException } from "@std/core/exceptions";
+import {
+    FileSystemBackend,
+    VFS,
+    MemoryBackend,
+    NativeBackend,
+    VFS_writeFile,
+    VFS_readFile,
+    VFS_exists,
+    VFS_removeFile,
+    VFS_dispose,
+    VFS_listDirectory,
+    VFS_mkdir
+} from "@std/io/vfs";
 
 function test_backend_interface_defined() {
-    // Test that backend protocol is defined
-    let backend = FileSystemBackend();
-    // Backend should have: readFile, writeFile, listDirectory, removeFile, exists, mkdir
+    return FileSystemBackend() == "FileSystemBackend protocol";
 }
 
 function test_vfs_creation_with_memory_backend() {
-    // Test that VFS can be created with MemoryBackend
-    let backend = MemoryBackend();
-    let vfs = VFS(backend);
-    
-    // Should be non-null
-    let disposed = vfs["disposed"];
-    // Should be false initially
+    let vfs = VFS(MemoryBackend());
+    return vfs != null && vfs["disposed"] == false;
 }
 
 function test_vfs_creation_with_native_backend() {
-    // Test that VFS can be created with NativeBackend
-    let backend = NativeBackend();
-    let vfs = VFS(backend);
-    
-    // Should be non-null
-    let disposed = vfs["disposed"];
-    // Should be false initially
+    let vfs = VFS(NativeBackend());
+    return vfs != null && vfs["disposed"] == false;
 }
 
 function test_vfs_basic_read_write() {
-    // Test basic read/write through VFS
-    let backend = MemoryBackend();
-    let vfs = VFS(backend);
-    
-    // Write to VFS
-    let writeResult = VFS_writeFile(vfs, "/test.txt", "Hello");
-    // Should succeed (no error)
-    
-    // Read from VFS
-    let content = VFS_readFile(vfs, "/test.txt");
-    // Should equal "Hello"
+    let vfs = VFS(MemoryBackend());
+    VFS_writeFile(vfs, "/test.txt", "Hello");
+    return VFS_readFile(vfs, "/test.txt") == "Hello";
 }
 
 function test_vfs_exists_check() {
-    // Test file existence check
-    let backend = MemoryBackend();
-    let vfs = VFS(backend);
-    
-    // Before write - should not exist
-    let exists1 = VFS_exists(vfs, "/missing.txt");
-    // Should be false
-    
-    // After write - should exist
+    let vfs = VFS(MemoryBackend());
+    let missing = VFS_exists(vfs, "/missing.txt");
     VFS_writeFile(vfs, "/test.txt", "data");
-    let exists2 = VFS_exists(vfs, "/test.txt");
-    // Should be true
+    return !missing && VFS_exists(vfs, "/test.txt");
 }
 
 function test_vfs_remove_file() {
-    // Test file removal
-    let backend = MemoryBackend();
-    let vfs = VFS(backend);
-    
-    // Create file
+    let vfs = VFS(MemoryBackend());
     VFS_writeFile(vfs, "/temp.txt", "temporary");
-    
-    // Verify exists
     let before = VFS_exists(vfs, "/temp.txt");
-    // Should be true
-    
-    // Remove
     VFS_removeFile(vfs, "/temp.txt");
-    
-    // Verify gone
-    let after = VFS_exists(vfs, "/temp.txt");
-    // Should be false
+    return before && !VFS_exists(vfs, "/temp.txt");
 }
 
 function test_vfs_disposal() {
-    // Test VFS disposal
-    let backend = MemoryBackend();
-    let vfs = VFS(backend);
-    
-    // Dispose VFS
+    let vfs = VFS(MemoryBackend());
     VFS_dispose(vfs);
-    
-    // Should not be able to use after disposal
-    let result = VFS_readFile(vfs, "/test.txt");
-    // Should throw ObjectDisposedException
+    let err = VFS_readFile(vfs, "/test.txt");
+    return vfs["disposed"] == true && err != null;
+}
+
+function test_multiple_file_operations() {
+    let vfs = VFS(MemoryBackend());
+    VFS_writeFile(vfs, "/file1.txt", "content1");
+    VFS_writeFile(vfs, "/file2.txt", "content2");
+    VFS_writeFile(vfs, "/file3.txt", "content3");
+    let c1 = VFS_readFile(vfs, "/file1.txt");
+    let c2 = VFS_readFile(vfs, "/file2.txt");
+    let c3 = VFS_readFile(vfs, "/file3.txt");
+    return c1 == "content1" && c2 == "content2" && c3 == "content3";
+}
+
+function test_memory_backend_independence() {
+    let vfs1 = VFS(MemoryBackend());
+    let vfs2 = VFS(MemoryBackend());
+    VFS_writeFile(vfs1, "/data.txt", "vfs1");
+    VFS_writeFile(vfs2, "/data.txt", "vfs2");
+    return VFS_readFile(vfs1, "/data.txt") == "vfs1" && VFS_readFile(vfs2, "/data.txt") == "vfs2";
+}
+
+function test_memory_backend_list_directory() {
+    let vfs = VFS(MemoryBackend());
+    VFS_writeFile(vfs, "/dir/a.txt", "a");
+    VFS_writeFile(vfs, "/dir/b.txt", "b");
+    VFS_writeFile(vfs, "/other.txt", "o");
+    let files = VFS_listDirectory(vfs, "/dir");
+    let n = __runtime_array_length(files);
+    let hasA = false;
+    let hasB = false;
+    let hasOther = false;
+    let i = 0;
+    while (i < n) {
+        let name = files[i];
+        if (name == "/dir/a.txt") {
+            hasA = true;
+        }
+        if (name == "/dir/b.txt") {
+            hasB = true;
+        }
+        if (name == "/other.txt") {
+            hasOther = true;
+        }
+        i = i + 1;
+    }
+    return n == 2 && hasA && hasB && !hasOther;
+}
+
+function test_memory_backend_missing_file() {
+    let vfs = VFS(MemoryBackend());
+    let err = VFS_readFile(vfs, "/nope.txt");
+    return err != null;
+}
+
+function test_native_backend_write_read() {
+    let vfs = VFS(NativeBackend());
+    let path = "dryad_vfs_native.txt";
+    if (VFS_exists(vfs, path)) {
+        VFS_removeFile(vfs, path);
+    }
+    let wrote = VFS_writeFile(vfs, path, "native hello");
+    let content = VFS_readFile(vfs, path);
+    let existed = VFS_exists(vfs, path);
+    VFS_removeFile(vfs, path);
+    return wrote == null && existed && content == "native hello" && !VFS_exists(vfs, path);
+}
+
+function test_native_backend_empty_file() {
+    let vfs = VFS(NativeBackend());
+    let path = "dryad_vfs_native_empty.txt";
+    VFS_writeFile(vfs, path, "");
+    let content = VFS_readFile(vfs, path);
+    VFS_removeFile(vfs, path);
+    return content == "";
+}
+
+function test_native_backend_mkdir_and_list() {
+    let vfs = VFS(NativeBackend());
+    let dir = "dryad_vfs_native_dir";
+    VFS_mkdir(vfs, dir);
+    let path = "dryad_vfs_native_dir/item.txt";
+    VFS_writeFile(vfs, path, "listed");
+    let files = VFS_listDirectory(vfs, dir);
+    let n = __runtime_array_length(files);
+    let found = false;
+    let i = 0;
+    while (i < n) {
+        if (files[i] == "item.txt") {
+            found = true;
+        }
+        i = i + 1;
+    }
+    VFS_removeFile(vfs, path);
+    return found;
+}
+
+function test_native_backend_missing_file() {
+    let vfs = VFS(NativeBackend());
+    let err = VFS_readFile(vfs, "dryad_vfs_does_not_exist.txt");
+    return err != null;
 }

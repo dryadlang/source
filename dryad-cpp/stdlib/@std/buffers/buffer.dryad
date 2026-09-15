@@ -1,5 +1,14 @@
 // @std/buffers/buffer.dryad
 // Managed byte buffer with bounds checking and zero-copy slicing.
+
+import {
+    Exception,
+    ArgumentNullException,
+    ArgumentOutOfRangeException,
+    IndexOutOfRangeException,
+    InvalidOperationException,
+    ObjectDisposedException
+} from "@std/core/exceptions";
 //
 // Three modes:
 // 1. Managed (owned) - allocates and owns memory, frees on dispose

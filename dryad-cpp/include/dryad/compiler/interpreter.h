@@ -4,8 +4,10 @@
 #include "dryad/compiler/ast.h"
 #include "dryad/runtime/value.h"
 #include "dryad/runtime/environment.h"
+#include "dryad/runtime/module_loader.h"
 #include <memory>
 #include <functional>
+#include <string>
 
 namespace dryad {
 
@@ -29,12 +31,17 @@ public:
 class ExpressionEvaluator;
 class StatementExecutor;
 
+class DryadClass;
+
 class Interpreter {
 public:
+    static constexpr size_t kMaxCallDepth = 256;
+
     Interpreter();
     ~Interpreter();
     
     void execute(Program* program);
+    void run_file(const std::string& path);
     Value evaluate(Expression* expr);
     void execute_statement(Statement* stmt);
     void execute_block(const std::vector<std::unique_ptr<Statement>>& statements,
@@ -42,17 +49,34 @@ public:
     
     void define_native(const std::string& name, 
                       std::function<Value(const std::vector<Value>&)> func);
+    void set_stdlib_root(const std::string& path);
     
     std::shared_ptr<Environment> global_env() { return global_; }
     std::shared_ptr<Environment> current_env() { return current_; }
     void set_current_env(std::shared_ptr<Environment> env) { current_ = env; }
+    ModuleLoader& module_loader() { return *module_loader_; }
+
+    std::shared_ptr<DryadClass> executing_class() const { return executing_class_; }
+    void set_executing_class(std::shared_ptr<DryadClass> klass) { executing_class_ = std::move(klass); }
+
+    size_t call_depth() const { return call_depth_; }
+    void increment_call_depth();
+    void decrement_call_depth();
+
+    bool in_constructor() const { return in_constructor_; }
+    void set_in_constructor(bool value) { in_constructor_ = value; }
     
 private:
     std::shared_ptr<Environment> global_;
     std::shared_ptr<Environment> current_;
+    std::string stdlib_root_;
+    std::shared_ptr<DryadClass> executing_class_;
+    size_t call_depth_;
+    bool in_constructor_;
     
     std::unique_ptr<ExpressionEvaluator> evaluator_;
     std::unique_ptr<StatementExecutor> executor_;
+    std::unique_ptr<ModuleLoader> module_loader_;
     
     void setup_native_functions();
     void setup_intrinsic_functions();

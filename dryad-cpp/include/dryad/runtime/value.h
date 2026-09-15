@@ -74,6 +74,7 @@ public:
     void object_set(const std::string& key, const Value& value);
     Value object_get(const std::string& key) const;
     bool object_has(const std::string& key) const;
+    std::vector<std::string> object_keys() const;
     
     bool is_truthy() const;
     std::string to_string() const;

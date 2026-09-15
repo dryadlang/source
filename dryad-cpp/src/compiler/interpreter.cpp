@@ -1,18 +1,25 @@
 #include "dryad/compiler/interpreter.h"
 #include "dryad/compiler/evaluator.h"
 #include "dryad/compiler/statement_executor.h"
+#include "dryad/compiler/lexer.h"
+#include "dryad/compiler/parser.h"
 #include "dryad/runtime/function.h"
 #include "dryad/runtime/intrinsics_registry.h"
+#include "dryad/common/utils.h"
+#include <fstream>
 #include <iostream>
+#include <sstream>
 
 namespace dryad {
 
-Interpreter::Interpreter() {
+Interpreter::Interpreter()
+    : call_depth_(0), in_constructor_(false) {
     global_ = std::make_shared<Environment>();
     current_ = global_;
     
     evaluator_ = std::make_unique<ExpressionEvaluator>(this);
     executor_ = std::make_unique<StatementExecutor>(this);
+    module_loader_ = std::make_unique<ModuleLoader>(stdlib_root_);
     
     IntrinsicsRegistry::instance().register_all();
     setup_native_functions();
@@ -43,10 +50,14 @@ void Interpreter::setup_intrinsic_functions() {
         "syscall.accept", "syscall.send", "syscall.recv", "syscall.shutdown",
         "syscall.mkdir", "syscall.rmdir", "syscall.lseek", "syscall.rename",
         "syscall.getcwd", "syscall.chdir",
+        "syscall.exists", "syscall.filesize", "syscall.readdir",
+        "syscall.open_read", "syscall.open_write", "syscall.open_append",
         "syscall.getpid", "syscall.getenv", "syscall.setenv", "syscall.sleep",
         "syscall.exit",
+        "syscall.string_starts_with", "syscall.normalize_path",
         "runtime.get_stack_trace", "runtime.create_object", "runtime.object_set",
-        "runtime.object_get", "runtime.array_length"
+        "runtime.object_get", "runtime.object_keys", "runtime.array_length",
+        "runtime.array_push"
     };
     
     for (const auto& name : intrinsic_names) {
@@ -68,6 +79,42 @@ void Interpreter::define_native(const std::string& name,
                                 std::function<Value(const std::vector<Value>&)> func) {
     auto native_fn = std::make_shared<NativeFunction>(std::move(func));
     global_->define(name, Value(native_fn));
+}
+
+void Interpreter::increment_call_depth() {
+    if (++call_depth_ > kMaxCallDepth) {
+        throw DryadException("Maximum call stack depth exceeded");
+    }
+}
+
+void Interpreter::decrement_call_depth() {
+    if (call_depth_ > 0) {
+        --call_depth_;
+    }
+}
+
+void Interpreter::set_stdlib_root(const std::string& path) {
+    stdlib_root_ = path;
+    module_loader_->set_stdlib_root(path);
+}
+
+void Interpreter::run_file(const std::string& path) {
+    std::ifstream file(path);
+    if (!file) {
+        throw DryadException("Cannot open file: " + path);
+    }
+    std::ostringstream buffer;
+    buffer << file.rdbuf();
+
+    Lexer lexer(buffer.str());
+    auto tokens = lexer.tokenize();
+    Parser parser(std::move(tokens));
+    auto program = parser.parse();
+    if (parser.has_error()) {
+        throw DryadException("Parser error: " + parser.error_message());
+    }
+
+    execute(program.get());
 }
 
 void Interpreter::execute(Program* program) {

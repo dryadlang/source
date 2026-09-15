@@ -234,6 +234,18 @@ void IntrinsicsRegistry::register_string_intrinsics() {
         
         return MemoryManager::bytes_to_string(args[0].as_integer(), args[1].as_integer(), args[2].as_integer());
     });
+
+    register_intrinsic("syscall.string_starts_with", [](const std::vector<Value>& args) -> Value {
+        if (args.size() < 2 || !args[0].is_string() || !args[1].is_string()) {
+            throw DryadException("syscall.string_starts_with requires 2 string arguments");
+        }
+        const std::string& value = args[0].as_string();
+        const std::string& prefix = args[1].as_string();
+        if (prefix.size() > value.size()) {
+            return Value(false);
+        }
+        return Value(value.compare(0, prefix.size(), prefix) == 0);
+    });
 }
 
 void IntrinsicsRegistry::register_network_intrinsics() {
@@ -291,6 +303,25 @@ void IntrinsicsRegistry::register_misc_intrinsics() {
         }
         
         return Value(static_cast<int64_t>(args[0].array_length()));
+    });
+
+    register_intrinsic("runtime.object_keys", [](const std::vector<Value>& args) -> Value {
+        if (args.empty() || !args[0].is_object()) {
+            throw DryadException("runtime.object_keys requires 1 object argument");
+        }
+        Value result = Value::create_array();
+        for (const auto& key : args[0].object_keys()) {
+            result.array_push(Value(key));
+        }
+        return result;
+    });
+
+    register_intrinsic("runtime.array_push", [](const std::vector<Value>& args) -> Value {
+        if (args.size() < 2 || !args[0].is_array()) {
+            throw DryadException("runtime.array_push requires (array, value)");
+        }
+        const_cast<Value&>(args[0]).array_push(args[1]);
+        return args[0];
     });
 }
 

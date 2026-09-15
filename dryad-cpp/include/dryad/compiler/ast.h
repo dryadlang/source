@@ -29,10 +29,13 @@ enum class ASTNodeType {
     ObjectExpression,
     NewExpression,
     ThisExpression,
+    SuperExpression,
+    ErrorExpression,
     
     VariableDeclaration,
     FunctionDeclaration,
     ClassDeclaration,
+    InterfaceDeclaration,
     IntrinsicDeclaration,
     
     BlockStatement,
@@ -191,11 +194,12 @@ public:
 class VariableDeclaration : public Statement {
 public:
     std::string name;
+    std::string type_annotation;
     std::unique_ptr<Expression> initializer;
     bool is_const;
     
-    VariableDeclaration(std::string name, std::unique_ptr<Expression> initializer, bool is_const, SourceLocation location = SourceLocation())
-        : Statement(ASTNodeType::VariableDeclaration, location), name(std::move(name)), initializer(std::move(initializer)), is_const(is_const) {}
+    VariableDeclaration(std::string name, std::string type_annotation, std::unique_ptr<Expression> initializer, bool is_const, SourceLocation location = SourceLocation())
+        : Statement(ASTNodeType::VariableDeclaration, location), name(std::move(name)), type_annotation(std::move(type_annotation)), initializer(std::move(initializer)), is_const(is_const) {}
 };
 
 struct Parameter {
@@ -236,19 +240,62 @@ public:
     std::vector<Parameter> parameters;
     std::unique_ptr<BlockStatement> body;
     bool is_constructor;
+    bool is_abstract;
+    bool is_getter;
+    bool is_setter;
     
-    MethodDeclaration(std::string name, std::vector<Parameter> parameters, std::unique_ptr<BlockStatement> body, bool is_constructor = false)
-        : name(std::move(name)), parameters(std::move(parameters)), body(std::move(body)), is_constructor(is_constructor) {}
+    MethodDeclaration(std::string name, std::vector<Parameter> parameters, std::unique_ptr<BlockStatement> body, bool is_constructor = false, bool is_abstract = false, bool is_getter = false, bool is_setter = false)
+        : name(std::move(name)), parameters(std::move(parameters)), body(std::move(body)), is_constructor(is_constructor), is_abstract(is_abstract), is_getter(is_getter), is_setter(is_setter) {}
+};
+
+class PropertyDeclaration {
+public:
+    std::string name;
+    std::string type_annotation;
+    bool is_readonly;
+    bool is_abstract;
+    bool has_getter;
+    bool has_setter;
+    bool getter_is_auto;
+    bool setter_is_auto;
+    std::string setter_parameter;
+    std::unique_ptr<BlockStatement> getter_body;
+    std::unique_ptr<BlockStatement> setter_body;
+    
+    PropertyDeclaration(std::string name, std::string type_annotation, bool is_readonly = false, bool is_abstract = false)
+        : name(std::move(name)), type_annotation(std::move(type_annotation)), is_readonly(is_readonly), is_abstract(is_abstract),
+          has_getter(false), has_setter(false), getter_is_auto(false), setter_is_auto(false), setter_parameter("value") {}
 };
 
 class ClassDeclaration : public Statement {
 public:
     std::string name;
     std::string super_class;
+    std::vector<std::string> interfaces;
+    std::vector<std::unique_ptr<PropertyDeclaration>> properties;
     std::vector<std::unique_ptr<MethodDeclaration>> methods;
+    bool is_abstract;
     
-    ClassDeclaration(std::string name, std::string super_class, std::vector<std::unique_ptr<MethodDeclaration>> methods, SourceLocation location = SourceLocation())
-        : Statement(ASTNodeType::ClassDeclaration, location), name(std::move(name)), super_class(std::move(super_class)), methods(std::move(methods)) {}
+    ClassDeclaration(std::string name, std::string super_class, std::vector<std::string> interfaces,
+                     std::vector<std::unique_ptr<PropertyDeclaration>> properties,
+                     std::vector<std::unique_ptr<MethodDeclaration>> methods, bool is_abstract = false,
+                     SourceLocation location = SourceLocation())
+        : Statement(ASTNodeType::ClassDeclaration, location), name(std::move(name)), super_class(std::move(super_class)),
+          interfaces(std::move(interfaces)), properties(std::move(properties)), methods(std::move(methods)),
+          is_abstract(is_abstract) {}
+};
+
+class InterfaceDeclaration : public Statement {
+public:
+    std::string name;
+    std::vector<std::unique_ptr<MethodDeclaration>> methods;
+    std::vector<std::unique_ptr<PropertyDeclaration>> properties;
+    
+    InterfaceDeclaration(std::string name, std::vector<std::unique_ptr<MethodDeclaration>> methods,
+                         std::vector<std::unique_ptr<PropertyDeclaration>> properties,
+                         SourceLocation location = SourceLocation())
+        : Statement(ASTNodeType::InterfaceDeclaration, location), name(std::move(name)), methods(std::move(methods)),
+          properties(std::move(properties)) {}
 };
 
 class NewExpression : public Expression {
@@ -264,6 +311,20 @@ class ThisExpression : public Expression {
 public:
     ThisExpression(SourceLocation location = SourceLocation())
         : Expression(ASTNodeType::ThisExpression, location) {}
+};
+
+class SuperExpression : public Expression {
+public:
+    SuperExpression(SourceLocation location = SourceLocation())
+        : Expression(ASTNodeType::SuperExpression, location) {}
+};
+
+class ErrorExpression : public Expression {
+public:
+    std::string message;
+
+    ErrorExpression(std::string message, SourceLocation location = SourceLocation())
+        : Expression(ASTNodeType::ErrorExpression, location), message(std::move(message)) {}
 };
 
 class ReturnStatement : public Statement {
@@ -291,6 +352,17 @@ public:
     
     WhileStatement(std::unique_ptr<Expression> condition, std::unique_ptr<Statement> body, SourceLocation location = SourceLocation())
         : Statement(ASTNodeType::WhileStatement, location), condition(std::move(condition)), body(std::move(body)) {}
+};
+
+class ImportDeclaration : public Statement {
+public:
+    std::vector<std::string> names;
+    std::string module_path;
+    
+    ImportDeclaration(std::vector<std::string> names, std::string module_path, SourceLocation location = SourceLocation())
+        : Statement(ASTNodeType::ImportDeclaration, location),
+          names(std::move(names)),
+          module_path(std::move(module_path)) {}
 };
 
 class Program : public ASTNode {

@@ -10,6 +10,8 @@
 
 namespace dryad {
 
+class ClassInstance;
+
 class Function {
 public:
     virtual ~Function() = default;
@@ -30,19 +32,29 @@ private:
     NativeFn fn_;
 };
 
+class DryadClass;
+
 class DryadFunction : public Function {
 public:
-    DryadFunction(FunctionDeclaration* decl, std::shared_ptr<Environment> closure)
-        : declaration_(decl), closure_(std::move(closure)) {}
+    DryadFunction(FunctionDeclaration* decl, std::shared_ptr<Environment> closure,
+                  std::shared_ptr<DryadClass> home_class = nullptr)
+        : declaration_(decl), closure_(std::move(closure)), home_class_(std::move(home_class)) {}
     
     Value call(Interpreter* interp, const std::vector<Value>& args) override;
+    Value call_with_receiver(Interpreter* interp, const std::vector<Value>& args,
+                             std::shared_ptr<ClassInstance> receiver);
     
     FunctionDeclaration* declaration() { return declaration_; }
     std::shared_ptr<Environment> closure() { return closure_; }
+    std::shared_ptr<DryadClass> home_class() const { return home_class_; }
     
 private:
     FunctionDeclaration* declaration_;
     std::shared_ptr<Environment> closure_;
+    std::shared_ptr<DryadClass> home_class_;
+
+    Value call_impl(Interpreter* interp, const std::vector<Value>& args,
+                    std::shared_ptr<ClassInstance> receiver);
 };
 
 } // namespace dryad

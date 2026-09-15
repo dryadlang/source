@@ -263,6 +263,18 @@ bool Value::object_has(const std::string& key) const {
     return object_->find(key) != object_->end();
 }
 
+std::vector<std::string> Value::object_keys() const {
+    if (type_ != ValueType::Object) {
+        throw DryadException("Value is not an object");
+    }
+    std::vector<std::string> keys;
+    keys.reserve(object_->size());
+    for (const auto& entry : *object_) {
+        keys.push_back(entry.first);
+    }
+    return keys;
+}
+
 bool Value::is_truthy() const {
     switch (type_) {
         case ValueType::Null:

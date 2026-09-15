@@ -6,7 +6,7 @@ Dryad keeps the runtime small by exposing a tiny set of intrinsic syscalls (~50)
 
 ## Status
 
-Early implementation. The C++ interpreter (Phase 0–3) is functional, the standard library is growing, and the test suite is at **171/178 passing**. The CLI does not execute scripts or a REPL yet — scripts are validated through the test suite. See [CHANGELOG](CHANGELOG) and the phase reports under `dryad-cpp/` for details.
+Early implementation. The C++ interpreter (Phase 0–3) is functional, the standard library is growing (Buffer plus VFS I/O), and the test suite is **223/223 passing** on Linux. The CLI runs `.dryad` scripts with `import` support (`dryad script.dryad`); REPL is not implemented yet. See [CHANGELOG](CHANGELOG) and the phase reports under `dryad-cpp/` for details.
 
 ## Architecture
 
@@ -63,7 +63,7 @@ Or run a single test binary directly:
 ./bin/integration_tests  # end-to-end workflows (buffer roundtrips, file I/O, example scripts)
 ```
 
-Known pre-existing failures (7) are documented in [CHANGELOG](CHANGELOG): class `this`-binding, `/tmp` paths on Windows, and stdout capture on MSYS2 consoles. Tests are built with `-Wall -Wextra -Werror`.
+Tests are built with `-Wall -Wextra -Werror`.
 
 ## Example
 
@@ -84,7 +84,16 @@ ok = ok && (Buffer_AsString(buf) == "Xlá, mundo!");
 Buffer_Dispose(buf);
 ```
 
-The CLI does not execute scripts yet; this example is validated by `tests/integration/buffer_workflow_test.cpp`.
+Run examples with the CLI:
+
+```bash
+cd build
+./bin/dryad ../dryad-cpp/examples/buffer_usage.dryad
+./bin/dryad ../dryad-cpp/examples/file_io_usage.dryad
+./bin/dryad ../dryad-cpp/examples/io_examples.dryad
+```
+
+Set `DRYAD_STDLIB_DIR` if the stdlib is not at the default install path.
 
 ## Documentation
 

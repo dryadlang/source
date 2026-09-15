@@ -20,18 +20,12 @@ std::string read_file(const std::string& path) {
     return ss.str();
 }
 
-// Loads exceptions.dryad, buffer.dryad and buffer_test.dryad as one source unit
-// (the parser has no import support), then runs the named test_* function.
+// Loads buffer_test.dryad via the import system, then runs the named test_* function.
 Value run_buffer_test(const std::string& test_fn) {
-    static const std::string exceptions = read_file(
-        std::string(DRYAD_STDLIB_DIR) + "/@std/core/exceptions.dryad");
-    static const std::string buffer = read_file(
-        std::string(DRYAD_STDLIB_DIR) + "/@std/buffers/buffer.dryad");
     static const std::string tests = read_file(
         std::string(DRYAD_TEST_DIR) + "/stdlib/buffers/buffer_test.dryad");
     
-    std::string source = exceptions + "\n" + buffer + "\n" + tests +
-        "\nlet __ok = " + test_fn + "();";
+    std::string source = tests + "\nlet __ok = " + test_fn + "();";
     
     Lexer lexer(source);
     auto tokens = lexer.tokenize();
@@ -42,6 +36,7 @@ Value run_buffer_test(const std::string& test_fn) {
     }
     
     Interpreter interpreter;
+    interpreter.set_stdlib_root(DRYAD_STDLIB_DIR);
     interpreter.execute(program.get());
     
     return interpreter.global_env()->get("__ok");

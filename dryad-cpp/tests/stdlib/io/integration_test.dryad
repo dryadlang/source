@@ -1,0 +1,61 @@
+// End-to-end I/O workflow tests.
+
+import {
+    VFS,
+    MemoryBackend,
+    VFS_writeFile,
+    VFS_readFile,
+    VFS_exists,
+    VFS_removeFile
+} from "@std/io/vfs";
+
+import { setVFSBackend } from "@std/io/file";
+
+import {
+    FileHandle,
+    FileHandle_write,
+    FileHandle_read,
+    FileHandle_close
+} from "@std/io/filehandle";
+
+function test_complete_file_workflow() {
+    let vfs = VFS(MemoryBackend());
+    let path = "/workflow_test.txt";
+    let content = "Integration Test Data";
+    VFS_writeFile(vfs, path, content);
+    let exists1 = VFS_exists(vfs, path);
+    let read = VFS_readFile(vfs, path);
+    VFS_removeFile(vfs, path);
+    let exists2 = VFS_exists(vfs, path);
+    return exists1 && read == content && !exists2;
+}
+
+function test_multiple_file_operations() {
+    let vfs = VFS(MemoryBackend());
+    VFS_writeFile(vfs, "/file1.txt", "Content of file 1");
+    VFS_writeFile(vfs, "/file2.txt", "Content of file 2");
+    VFS_writeFile(vfs, "/file3.txt", "Content of file 3");
+    let c1 = VFS_readFile(vfs, "/file1.txt");
+    let c2 = VFS_readFile(vfs, "/file2.txt");
+    let c3 = VFS_readFile(vfs, "/file3.txt");
+    return c1 == "Content of file 1" && c2 == "Content of file 2" && c3 == "Content of file 3";
+}
+
+function test_filehandle_workflow() {
+    setVFSBackend(MemoryBackend());
+    let handle = FileHandle("/handle_test.txt", "write");
+    FileHandle_write(handle, "Handle test data");
+    FileHandle_close(handle);
+    let handle2 = FileHandle("/handle_test.txt", "read");
+    let content = FileHandle_read(handle2);
+    FileHandle_close(handle2);
+    return content == "Handle test data";
+}
+
+function test_error_recovery() {
+    let vfs = VFS(MemoryBackend());
+    let err1 = VFS_readFile(vfs, "/missing.txt");
+    VFS_writeFile(vfs, "/test.txt", "data");
+    let result = VFS_readFile(vfs, "/test.txt");
+    return err1 != null && result == "data";
+}

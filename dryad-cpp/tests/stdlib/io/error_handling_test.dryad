@@ -1,0 +1,41 @@
+// Error handling tests for VFS and path normalization.
+
+import {
+    VFS,
+    MemoryBackend,
+    VFS_readFile,
+    VFS_writeFile,
+    VFS_dispose
+} from "@std/io/vfs";
+
+import { NormalizePath } from "@std/io/io_errors";
+
+function test_error_on_missing_file() {
+    let vfs = VFS(MemoryBackend());
+    let result = VFS_readFile(vfs, "/nonexistent.txt");
+    return result != null;
+}
+
+function test_error_on_invalid_path() {
+    let vfs = VFS(MemoryBackend());
+    let result = VFS_writeFile(vfs, "", "content");
+    return result != null;
+}
+
+function test_error_on_disposed_vfs() {
+    let vfs = VFS(MemoryBackend());
+    VFS_dispose(vfs);
+    let result = VFS_readFile(vfs, "/test.txt");
+    return result != null;
+}
+
+function test_cross_platform_path_separators() {
+    let vfs = VFS(MemoryBackend());
+    VFS_writeFile(vfs, "data\\file.txt", "test");
+    let result = VFS_readFile(vfs, "data/file.txt");
+    return result == "test";
+}
+
+function test_normalize_path_helper() {
+    return NormalizePath("a\\b\\c") == "a/b/c";
+}

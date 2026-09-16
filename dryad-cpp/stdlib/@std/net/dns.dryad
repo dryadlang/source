@@ -1,0 +1,91 @@
+// @std/net/dns.dryad
+// Hostname resolution (IPv4)
+
+import { SocketException } from "@std/core/exceptions";
+
+function Net_isIpv4Literal(host) {
+    if (host == null || host == "") {
+        return false;
+    }
+    let parts = Net_splitHost(host, ".");
+    if (__runtime_array_length(parts) != 4) {
+        return false;
+    }
+    let i = 0;
+    while (i < 4) {
+        let part = parts[i];
+        if (part == null || part == "") {
+            return false;
+        }
+        let n = Net_parseInt(part);
+        if (n < 0 || n > 255) {
+            return false;
+        }
+        i = i + 1;
+    }
+    return true;
+}
+
+function Net_splitHost(text, sep) {
+    let parts = [];
+    let current = "";
+    let i = 0;
+    let len = __string_length(text);
+    let textHandle = __alloc_bytes(len);
+    __string_to_bytes(text, textHandle, 0);
+    while (i < len) {
+        let ch = __bytes_to_string(textHandle, i, 1);
+        if (ch == sep) {
+            __runtime_array_push(parts, current);
+            current = "";
+        } else {
+            current = current + ch;
+        }
+        i = i + 1;
+    }
+    __runtime_array_push(parts, current);
+    __free_bytes(textHandle);
+    return parts;
+}
+
+function Net_charByte(text, index) {
+    let len = __string_length(text);
+    let handle = __alloc_bytes(len);
+    __string_to_bytes(text, handle, 0);
+    let byte = __buffer_get(handle, index);
+    __free_bytes(handle);
+    return byte;
+}
+
+function Net_parseInt(text) {
+    let value = 0;
+    let i = 0;
+    let len = __string_length(text);
+    while (i < len) {
+        let byte = Net_charByte(text, i);
+        if (byte < 48 || byte > 57) {
+            return -1;
+        }
+        value = value * 10 + (byte - 48);
+        i = i + 1;
+    }
+    return value;
+}
+
+function Net_resolveHost(host) {
+    if (host == null || host == "") {
+        return null;
+    }
+    if (Net_isIpv4Literal(host)) {
+        return host;
+    }
+    return __resolve_host(host);
+}
+
+function Net_resolveHostOrError(host, operation) {
+    let ip = Net_resolveHost(host);
+    if (ip == null) {
+        return [null, SocketException(operation + ": failed to resolve host")];
+    }
+    return [ip, null];
+}

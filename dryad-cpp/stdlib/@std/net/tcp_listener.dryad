@@ -1,0 +1,92 @@
+// @std/net/tcp_listener.dryad
+// TCP listener facade
+
+import { SocketDomain_IPv4, SocketType_Stream } from "@std/net/constants";
+import { Socket } from "@std/net/socket";
+import { TcpClient_wrap } from "@std/net/tcp_client";
+import {
+    InvalidOperationException,
+    SocketException
+} from "@std/core/exceptions";
+import { IDisposable } from "@std/core/disposable";
+
+class TcpListener implements IDisposable {
+    constructor(host, port, backlog = 128) {
+        this._host = host;
+        this._port = port;
+        this._backlog = backlog;
+        this._socket = null;
+        this._listening = false;
+    }
+
+    port: number {
+        get {
+            return this._port;
+        }
+    }
+
+    isListening: boolean {
+        get {
+            return this._listening;
+        }
+    }
+
+    start() {
+        if (this._listening) {
+            return null;
+        }
+
+        let socket = new Socket(SocketDomain_IPv4, SocketType_Stream);
+        if (socket._fd < 0) {
+            return SocketException("Cannot create socket");
+        }
+
+        let err = socket.bind(this._host, this._port);
+        if (err != null) {
+            socket.close();
+            return err;
+        }
+
+        if (this._port == 0) {
+            let assigned = __getsockname(socket._fd);
+            if (assigned > 0) {
+                this._port = assigned;
+            }
+        }
+
+        err = socket.listen(this._backlog);
+        if (err != null) {
+            socket.close();
+            return err;
+        }
+
+        this._socket = socket;
+        this._listening = true;
+        return null;
+    }
+
+    accept() {
+        if (!this._listening || this._socket == null) {
+            return InvalidOperationException("Listener is not started");
+        }
+
+        let clientSocket = this._socket.accept();
+        if (clientSocket == null) {
+            return SocketException("Accept failed");
+        }
+        return TcpClient_wrap(clientSocket);
+    }
+
+    stop() {
+        if (this._socket != null) {
+            this._socket.close();
+            this._socket = null;
+        }
+        this._listening = false;
+        return null;
+    }
+
+    dispose() {
+        return this.stop();
+    }
+}

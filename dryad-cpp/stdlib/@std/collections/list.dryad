@@ -1,0 +1,185 @@
+// @std/collections/list.dryad
+// Dynamic array with bounds checking
+
+import { IEnumerable } from "@std/core/enumerable";
+import { IndexOutOfRangeException } from "@std/core/exceptions";
+
+function List_ensureIndex(list, index) {
+    if (index < 0 || index >= list._count) {
+        return IndexOutOfRangeException("List index out of range");
+    }
+    return null;
+}
+
+function List_ensureInsertIndex(list, index) {
+    if (index < 0 || index > list._count) {
+        return IndexOutOfRangeException("List insert index out of range");
+    }
+    return null;
+}
+
+class List implements IEnumerable {
+    constructor(capacity = 16) {
+        this._items = [];
+        this._count = 0;
+        this._capacity = capacity;
+    }
+
+    count: number {
+        get {
+            return this._count;
+        }
+    }
+
+    capacity: number {
+        get {
+            return this._capacity;
+        }
+    }
+
+    get(index) {
+        let err = List_ensureIndex(this, index);
+        if (err != null) {
+            return err;
+        }
+        return this._items[index];
+    }
+
+    set(index, value) {
+        let err = List_ensureIndex(this, index);
+        if (err != null) {
+            return err;
+        }
+        this._items[index] = value;
+        return null;
+    }
+
+    add(item) {
+        if (this._count >= this._capacity) {
+            if (this._capacity == 0) {
+                this._capacity = 4;
+            } else {
+                this._capacity = this._capacity * 2;
+            }
+        }
+        __runtime_array_push(this._items, item);
+        this._count = this._count + 1;
+        return null;
+    }
+
+    insert(index, item) {
+        let err = List_ensureInsertIndex(this, index);
+        if (err != null) {
+            return err;
+        }
+        if (this._count >= this._capacity) {
+            if (this._capacity == 0) {
+                this._capacity = 4;
+            } else {
+                this._capacity = this._capacity * 2;
+            }
+        }
+
+        if (index == this._count) {
+            return this.add(item);
+        }
+
+        __runtime_array_push(this._items, this._items[this._count - 1]);
+        let i = this._count - 1;
+        while (i > index) {
+            this._items[i] = this._items[i - 1];
+            i = i - 1;
+        }
+        this._items[index] = item;
+        this._count = this._count + 1;
+        return null;
+    }
+
+    remove(item) {
+        let index = this.indexOf(item);
+        if (index < 0) {
+            return false;
+        }
+        let err = this.removeAt(index);
+        if (err != null) {
+            return err;
+        }
+        return true;
+    }
+
+    removeAt(index) {
+        let err = List_ensureIndex(this, index);
+        if (err != null) {
+            return err;
+        }
+        let i = index;
+        while (i < this._count - 1) {
+            this._items[i] = this._items[i + 1];
+            i = i + 1;
+        }
+        this._count = this._count - 1;
+        return null;
+    }
+
+    clear() {
+        this._items = [];
+        this._count = 0;
+        return null;
+    }
+
+    contains(item) {
+        return this.indexOf(item) >= 0;
+    }
+
+    indexOf(item) {
+        let i = 0;
+        while (i < this._count) {
+            if (this._items[i] == item) {
+                return i;
+            }
+            i = i + 1;
+        }
+        return -1;
+    }
+
+    forEach(callback) {
+        let i = 0;
+        while (i < this._count) {
+            callback(this._items[i]);
+            i = i + 1;
+        }
+        return null;
+    }
+
+    map(callback) {
+        let result = new List();
+        let i = 0;
+        while (i < this._count) {
+            result.add(callback(this._items[i]));
+            i = i + 1;
+        }
+        return result;
+    }
+
+    filter(callback) {
+        let result = new List();
+        let i = 0;
+        while (i < this._count) {
+            if (callback(this._items[i])) {
+                result.add(this._items[i]);
+            }
+            i = i + 1;
+        }
+        return result;
+    }
+
+    reduce(callback, initial) {
+        let acc = initial;
+        let i = 0;
+        while (i < this._count) {
+            acc = callback(acc, this._items[i]);
+            i = i + 1;
+        }
+        return acc;
+    }
+}

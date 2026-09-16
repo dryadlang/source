@@ -1,0 +1,20 @@
+// @std/async/async.dryad
+// Barrel module for async primitives
+
+import {
+    Promise,
+    Promise_resolve,
+    Promise_reject,
+    Promise_wrap,
+    Promise_all,
+    Promise_race
+} from "@std/async/promise";
+
+import {
+    Thread,
+    Thread_parallel,
+    Thread_sleepMs,
+    Thread_hardwareConcurrency,
+    ThreadPool,
+    ThreadPool_map
+} from "@std/async/threading/threading";

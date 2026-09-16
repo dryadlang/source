@@ -1,0 +1,116 @@
+// @std/collections/map.dryad
+// Key-value map with linear probing over entries
+
+import { List } from "@std/collections/list";
+
+function Map_findEntryIndex(map, key) {
+    let i = 0;
+    while (i < map._size) {
+        let entry = map._entries[i];
+        let entryKey = __runtime_object_get(entry, "key");
+        if (entryKey == key) {
+            return i;
+        }
+        i = i + 1;
+    }
+    return -1;
+}
+
+function Map_createEntry(key, value) {
+    let entry = __runtime_create_object();
+    __runtime_object_set(entry, "key", key);
+    __runtime_object_set(entry, "value", value);
+    return entry;
+}
+
+class Map {
+    constructor() {
+        this._entries = [];
+        this._size = 0;
+    }
+
+    size: number {
+        get {
+            return this._size;
+        }
+    }
+
+    put(key, value) {
+        let index = Map_findEntryIndex(this, key);
+        if (index >= 0) {
+            let entry = this._entries[index];
+            __runtime_object_set(entry, "value", value);
+            return null;
+        }
+
+        __runtime_array_push(this._entries, Map_createEntry(key, value));
+        this._size = this._size + 1;
+        return null;
+    }
+
+    get(key) {
+        let index = Map_findEntryIndex(this, key);
+        if (index < 0) {
+            return null;
+        }
+        let entry = this._entries[index];
+        return __runtime_object_get(entry, "value");
+    }
+
+    has(key) {
+        return Map_findEntryIndex(this, key) >= 0;
+    }
+
+    delete(key) {
+        let index = Map_findEntryIndex(this, key);
+        if (index < 0) {
+            return false;
+        }
+
+        let i = index;
+        while (i < this._size - 1) {
+            this._entries[i] = this._entries[i + 1];
+            i = i + 1;
+        }
+        this._size = this._size - 1;
+        return true;
+    }
+
+    clear() {
+        this._entries = [];
+        this._size = 0;
+        return null;
+    }
+
+    forEach(callback) {
+        let i = 0;
+        while (i < this._size) {
+            let entry = this._entries[i];
+            callback(__runtime_object_get(entry, "key"), __runtime_object_get(entry, "value"));
+            i = i + 1;
+        }
+        return null;
+    }
+
+    keys() {
+        let result = new List();
+        let i = 0;
+        while (i < this._size) {
+            let entry = this._entries[i];
+            result.add(__runtime_object_get(entry, "key"));
+            i = i + 1;
+        }
+        return result;
+    }
+
+    values() {
+        let result = new List();
+        let i = 0;
+        while (i < this._size) {
+            let entry = this._entries[i];
+            result.add(__runtime_object_get(entry, "value"));
+            i = i + 1;
+        }
+        return result;
+    }
+}

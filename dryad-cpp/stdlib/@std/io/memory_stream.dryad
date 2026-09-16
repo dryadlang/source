@@ -1,0 +1,262 @@
+// @std/io/memory_stream.dryad
+// In-memory Stream backed by a Buffer
+
+import {
+    Stream,
+    SeekOrigin_Begin,
+    SeekOrigin_Current,
+    SeekOrigin_End
+} from "@std/io/stream";
+import {
+    Buffer_New,
+    Buffer_FromString,
+    Buffer_Len,
+    Buffer_Read,
+    Buffer_Write,
+    Buffer_Resize,
+    Buffer_Slice,
+    Buffer_CopyTo,
+    Buffer_AsString,
+    Buffer_Dispose
+} from "@std/buffers/buffer";
+import {
+    ArgumentNullException,
+    ArgumentOutOfRangeException,
+    InvalidOperationException,
+    ObjectDisposedException
+} from "@std/core/exceptions";
+
+function MemoryStream_ensureOpen(stream) {
+    if (stream._closed) {
+        return ObjectDisposedException("MemoryStream");
+    }
+    return null;
+}
+
+function MemoryStream_ensureCanRead(stream) {
+    let err = MemoryStream_ensureOpen(stream);
+    if (err != null) {
+        return err;
+    }
+    if (!stream.canRead) {
+        return InvalidOperationException("Stream not readable");
+    }
+    return null;
+}
+
+function MemoryStream_ensureCanWrite(stream) {
+    let err = MemoryStream_ensureOpen(stream);
+    if (err != null) {
+        return err;
+    }
+    if (!stream.canWrite) {
+        return InvalidOperationException("Stream not writable");
+    }
+    return null;
+}
+
+function MemoryStream_validateBufferArgs(buffer, offset, count) {
+    if (buffer == null) {
+        return ArgumentNullException("buffer");
+    }
+    let disposed = __runtime_object_get(buffer, "_disposed");
+    if (disposed) {
+        return ObjectDisposedException("Buffer");
+    }
+    if (offset < 0 || count < 0) {
+        return ArgumentOutOfRangeException("Offset and count must be non-negative");
+    }
+    let length = Buffer_Len(buffer);
+    if (offset + count > length) {
+        return ArgumentOutOfRangeException("Read/write range exceeds buffer length");
+    }
+    return null;
+}
+
+class MemoryStream extends Stream {
+    constructor(buffer, writable, ownsBuffer) {
+        this._buffer = buffer;
+        this._position = 0;
+        this._closed = false;
+        this._writable = writable;
+        this._ownsBuffer = ownsBuffer;
+    }
+
+    canRead: boolean {
+        get {
+            return !this._closed;
+        }
+    }
+
+    canWrite: boolean {
+        get {
+            return !this._closed && this._writable;
+        }
+    }
+
+    canSeek: boolean {
+        get {
+            return !this._closed;
+        }
+    }
+
+    length: number {
+        get {
+            let err = MemoryStream_ensureOpen(this);
+            if (err != null) {
+                return err;
+            }
+            return Buffer_Len(this._buffer);
+        }
+    }
+
+    position: number {
+        get {
+            return this._position;
+        }
+        set(value) {
+            this.seek(value, SeekOrigin_Begin);
+        }
+    }
+
+    read(buffer, offset, count) {
+        let err = MemoryStream_ensureCanRead(this);
+        if (err != null) {
+            return err;
+        }
+        err = MemoryStream_validateBufferArgs(buffer, offset, count);
+        if (err != null) {
+            return err;
+        }
+
+        let remaining = Buffer_Len(this._buffer) - this._position;
+        let toRead = count;
+        if (toRead > remaining) {
+            toRead = remaining;
+        }
+        if (toRead == 0) {
+            return 0;
+        }
+
+        let slice = Buffer_Slice(this._buffer, this._position, this._position + toRead);
+        err = Buffer_CopyTo(slice, buffer, offset, toRead);
+        if (err != null) {
+            return err;
+        }
+
+        this._position = this._position + toRead;
+        return toRead;
+    }
+
+    write(buffer, offset, count) {
+        let err = MemoryStream_ensureCanWrite(this);
+        if (err != null) {
+            return err;
+        }
+        err = MemoryStream_validateBufferArgs(buffer, offset, count);
+        if (err != null) {
+            return err;
+        }
+
+        let needed = this._position + count;
+        let currentLen = Buffer_Len(this._buffer);
+        if (needed > currentLen) {
+            err = Buffer_Resize(this._buffer, needed);
+            if (err != null) {
+                return err;
+            }
+        }
+
+        let i = 0;
+        while (i < count) {
+            let byte = Buffer_Read(buffer, offset + i);
+            err = Buffer_Write(this._buffer, this._position + i, byte);
+            if (err != null) {
+                return err;
+            }
+            i = i + 1;
+        }
+
+        this._position = this._position + count;
+        return count;
+    }
+
+    seek(offset, origin) {
+        let err = MemoryStream_ensureOpen(this);
+        if (err != null) {
+            return err;
+        }
+
+        let len = Buffer_Len(this._buffer);
+        let newPos = this._position;
+        if (origin == SeekOrigin_Begin) {
+            newPos = offset;
+        } else if (origin == SeekOrigin_Current) {
+            newPos = this._position + offset;
+        } else if (origin == SeekOrigin_End) {
+            newPos = len + offset;
+        } else {
+            return ArgumentOutOfRangeException("Unknown seek origin");
+        }
+
+        if (newPos < 0 || newPos > len) {
+            return ArgumentOutOfRangeException("Seek position out of range");
+        }
+
+        this._position = newPos;
+        return newPos;
+    }
+
+    flush() {
+        return MemoryStream_ensureOpen(this);
+    }
+
+    close() {
+        if (!this._closed) {
+            if (this._ownsBuffer) {
+                Buffer_Dispose(this._buffer);
+            }
+            this._closed = true;
+        }
+        return null;
+    }
+}
+
+function MemoryStream_new(capacity) {
+    if (capacity == null || capacity < 0) {
+        capacity = 0;
+    }
+    let buffer = Buffer_New(capacity);
+    return new MemoryStream(buffer, true, true);
+}
+
+function MemoryStream_fromString(text) {
+    if (text == null) {
+        text = "";
+    }
+    let buffer = Buffer_FromString(text);
+    return new MemoryStream(buffer, false, true);
+}
+
+function MemoryStream_fromBuffer(buffer, writable) {
+    if (writable == null) {
+        writable = false;
+    }
+    return new MemoryStream(buffer, writable, false);
+}
+
+function MemoryStream_toString(stream) {
+    let err = MemoryStream_ensureOpen(stream);
+    if (err != null) {
+        return err;
+    }
+    return Buffer_AsString(stream._buffer);
+}
+
+function MemoryStream_getBuffer(stream) {
+    let err = MemoryStream_ensureOpen(stream);
+    if (err != null) {
+        return err;
+    }
+    return stream._buffer;
+}

@@ -1,0 +1,36 @@
+// HttpClient unit tests (no network)
+
+import { HttpClient_create } from "@std/net/http/http_client";
+import { Http_parseUrl } from "@std/net/http/http_url";
+import { HttpResponse_parse } from "@std/net/http/http_response";
+
+function test_http_parse_url() {
+    let parsed = Http_parseUrl("http://example.com:8080/path");
+    let scheme = __runtime_object_get(parsed, "scheme");
+    if (scheme != "http") {
+        return false;
+    }
+    let host = __runtime_object_get(parsed, "host");
+    if (host != "example.com") {
+        return false;
+    }
+    let port = __runtime_object_get(parsed, "port");
+    return port == 8080;
+}
+
+function test_http_response_parse() {
+    let raw = "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nOK";
+    let response = HttpResponse_parse(raw);
+    if (__runtime_value_kind(response) != "instance") {
+        return false;
+    }
+    if (response.statusCode != 200) {
+        return false;
+    }
+    return response.body == "OK";
+}
+
+function test_http_client_create() {
+    let client = HttpClient_create();
+    return client != null;
+}

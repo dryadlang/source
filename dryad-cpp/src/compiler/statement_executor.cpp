@@ -23,7 +23,7 @@ void register_property_accessor(const std::shared_ptr<DryadClass>& klass,
 
     std::vector<Parameter> parameters;
     if (!is_getter) {
-        parameters.push_back({property_decl->setter_parameter, property_decl->type_annotation});
+        parameters.push_back(Parameter{property_decl->setter_parameter, property_decl->type_annotation, nullptr});
     }
 
     auto func_decl = std::make_unique<FunctionDeclaration>(
@@ -293,7 +293,7 @@ void StatementExecutor::execute_class_declaration(ClassDeclaration* stmt) {
 
         auto func_decl = std::make_unique<FunctionDeclaration>(
             method_decl->name,
-            method_decl->parameters,
+            std::move(method_decl->parameters),
             std::move(method_decl->body),
             "",
             false

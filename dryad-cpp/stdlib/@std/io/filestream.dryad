@@ -1,0 +1,332 @@
+// @std/io/filestream.dryad
+// FileStream — syscall-backed stream over an open file descriptor
+
+import { Stream, Stream_isError, SeekOrigin_Begin, SeekOrigin_End } from "@std/io/stream";
+import { Path_ensureParentForFile } from "@std/io/path";
+import {
+    Buffer_GetActualHandle,
+    Buffer_GetOffset,
+    Buffer_Len,
+    Buffer_New,
+    Buffer_FromString,
+    Buffer_AsString,
+    Buffer_Dispose
+} from "@std/buffers/buffer";
+import {
+    ArgumentException,
+    ArgumentNullException,
+    ArgumentOutOfRangeException,
+    IOException,
+    FileNotFoundException,
+    InvalidOperationException,
+    ObjectDisposedException
+} from "@std/core/exceptions";
+
+let FileMode_Read = 0;
+let FileMode_Write = 1;
+let FileMode_ReadWrite = 2;
+let FileMode_Append = 3;
+
+function FileMode_Create() {
+    let modes = __runtime_create_object();
+    __runtime_object_set(modes, "Read", 0);
+    __runtime_object_set(modes, "Write", 1);
+    __runtime_object_set(modes, "ReadWrite", 2);
+    __runtime_object_set(modes, "Append", 3);
+    return modes;
+}
+
+let FileMode = FileMode_Create();
+
+function FileStream_ensureOpen(stream) {
+    if (stream._closed) {
+        return ObjectDisposedException("FileStream");
+    }
+    return null;
+}
+
+function FileStream_ensureCanRead(stream) {
+    let err = FileStream_ensureOpen(stream);
+    if (err != null) {
+        return err;
+    }
+    if (!stream.canRead) {
+        return InvalidOperationException("Stream not readable");
+    }
+    return null;
+}
+
+function FileStream_ensureCanWrite(stream) {
+    let err = FileStream_ensureOpen(stream);
+    if (err != null) {
+        return err;
+    }
+    if (!stream.canWrite) {
+        return InvalidOperationException("Stream not writable");
+    }
+    return null;
+}
+
+function FileStream_validateBufferArgs(buffer, offset, count) {
+    if (buffer == null) {
+        return ArgumentNullException("buffer");
+    }
+    let disposed = __runtime_object_get(buffer, "_disposed");
+    if (disposed) {
+        return ObjectDisposedException("Buffer");
+    }
+    if (offset < 0 || count < 0) {
+        return ArgumentOutOfRangeException("Offset and count must be non-negative");
+    }
+    let length = Buffer_Len(buffer);
+    if (offset + count > length) {
+        return ArgumentOutOfRangeException("Read/write range exceeds buffer length");
+    }
+    return null;
+}
+
+class FileStream extends Stream {
+    constructor(fd, mode, path) {
+        this._fd = fd;
+        this._mode = mode;
+        this._path = path;
+        this._position = 0;
+        this._closed = false;
+    }
+
+    canRead: boolean {
+        get {
+            if (this._closed) {
+                return false;
+            }
+            return this._mode == FileMode_Read || this._mode == FileMode_ReadWrite;
+        }
+    }
+
+    canWrite: boolean {
+        get {
+            if (this._closed) {
+                return false;
+            }
+            return this._mode == FileMode_Write || this._mode == FileMode_ReadWrite ||
+                   this._mode == FileMode_Append;
+        }
+    }
+
+    canSeek: boolean {
+        get {
+            return !this._closed;
+        }
+    }
+
+    length: number {
+        get {
+            let err = FileStream_ensureOpen(this);
+            if (err != null) {
+                return err;
+            }
+            let size = __fstat(this._fd);
+            if (size < 0) {
+                return IOException("Failed to query file size");
+            }
+            return size;
+        }
+    }
+
+    position: number {
+        get {
+            return this._position;
+        }
+        set(value) {
+            this.seek(value, SeekOrigin_Begin);
+        }
+    }
+
+    read(buffer, offset, count) {
+        let err = FileStream_ensureCanRead(this);
+        if (err != null) {
+            return err;
+        }
+        err = FileStream_validateBufferArgs(buffer, offset, count);
+        if (err != null) {
+            return err;
+        }
+
+        let handle = Buffer_GetActualHandle(buffer);
+        let baseOffset = Buffer_GetOffset(buffer);
+        let nbytes = __read_buffer(this._fd, handle, baseOffset + offset, count);
+        if (nbytes < 0) {
+            return IOException("Read failed");
+        }
+        this._position = this._position + nbytes;
+        return nbytes;
+    }
+
+    write(buffer, offset, count) {
+        let err = FileStream_ensureCanWrite(this);
+        if (err != null) {
+            return err;
+        }
+        err = FileStream_validateBufferArgs(buffer, offset, count);
+        if (err != null) {
+            return err;
+        }
+
+        let handle = Buffer_GetActualHandle(buffer);
+        let baseOffset = Buffer_GetOffset(buffer);
+        let nbytes = __write_buffer(this._fd, handle, baseOffset + offset, count);
+        if (nbytes < 0) {
+            return IOException("Write failed");
+        }
+        this._position = this._position + nbytes;
+        return nbytes;
+    }
+
+    seek(offset, origin) {
+        let err = FileStream_ensureOpen(this);
+        if (err != null) {
+            return err;
+        }
+
+        let newPos = __lseek(this._fd, offset, origin);
+        if (newPos < 0) {
+            return IOException("Seek failed");
+        }
+        this._position = newPos;
+        return newPos;
+    }
+
+    flush() {
+        let err = FileStream_ensureOpen(this);
+        if (err != null) {
+            return err;
+        }
+        let result = __fsync(this._fd);
+        if (result < 0) {
+            return IOException("Flush failed");
+        }
+        return null;
+    }
+
+    close() {
+        if (!this._closed) {
+            __close(this._fd);
+            this._closed = true;
+        }
+        return null;
+    }
+}
+
+function File_open(path, mode) {
+    if (path == null || path == "") {
+        return ArgumentException("Path cannot be null or empty");
+    }
+    if (mode == null) {
+        mode = FileMode_Read;
+    }
+
+    if (mode == FileMode_Write || mode == FileMode_Append || mode == FileMode_ReadWrite) {
+        let dirErr = Path_ensureParentForFile(path);
+        if (dirErr != null) {
+            return dirErr;
+        }
+    }
+
+    let fd = -1;
+    if (mode == FileMode_Read) {
+        fd = __open_read(path);
+    } else if (mode == FileMode_Write) {
+        fd = __open_write(path);
+    } else if (mode == FileMode_Append) {
+        fd = __open_append(path);
+    } else if (mode == FileMode_ReadWrite) {
+        fd = __open_readwrite(path);
+    } else {
+        return ArgumentException("Unknown file mode");
+    }
+
+    if (fd < 0) {
+        return FileNotFoundException("Cannot open: " + path);
+    }
+
+    let stream = new FileStream(fd, mode, path);
+    if (mode == FileMode_Append) {
+        stream.seek(0, SeekOrigin_End);
+    }
+    return stream;
+}
+
+function File_exists(path) {
+    if (path == null || path == "") {
+        return false;
+    }
+    return __exists(path);
+}
+
+function File_delete(path) {
+    if (path == null || path == "") {
+        return ArgumentException("Path cannot be null or empty");
+    }
+    if (!__exists(path)) {
+        return IOException("Cannot delete: " + path);
+    }
+    let result = __unlink(path);
+    if (result < 0) {
+        return IOException("Cannot delete: " + path);
+    }
+    return null;
+}
+
+function File_readAllText(path) {
+    let stream = File_open(path, FileMode_Read);
+    if (Stream_isError(stream)) {
+        return stream;
+    }
+    let size = stream.length;
+    if (size < 0) {
+        stream.close();
+        return IOException("Failed to read file: " + path);
+    }
+
+    let buf = Buffer_New(size);
+    if (size > 0) {
+        let nbytes = stream.read(buf, 0, size);
+        if (nbytes != size) {
+            Buffer_Dispose(buf);
+            stream.close();
+            if (nbytes < 0) {
+                return IOException("Failed to read file: " + path);
+            }
+            return nbytes;
+        }
+    }
+
+    let text = Buffer_AsString(buf);
+    Buffer_Dispose(buf);
+    stream.close();
+    return text;
+}
+
+function File_writeAllText(path, content) {
+    if (content == null) {
+        content = "";
+    }
+
+    let stream = File_open(path, FileMode_Write);
+    if (Stream_isError(stream)) {
+        return stream;
+    }
+    let buf = Buffer_FromString(content);
+    let contentLen = Buffer_Len(buf);
+    let writeResult = stream.write(buf, 0, contentLen);
+    Buffer_Dispose(buf);
+    stream.close();
+
+    if (writeResult != contentLen) {
+        if (writeResult < 0) {
+            return IOException("Failed to write file: " + path);
+        }
+        return writeResult;
+    }
+    return null;
+}

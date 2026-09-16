@@ -1,0 +1,38 @@
+// @std/net/constants.dryad
+// Socket constants (POSIX values)
+
+let SocketDomain_IPv4 = 2;
+let SocketDomain_IPv6 = 10;
+
+let SocketType_Stream = 1;
+let SocketType_Datagram = 2;
+
+let Shutdown_Read = 0;
+let Shutdown_Write = 1;
+let Shutdown_Both = 2;
+
+function SocketDomain_Create() {
+    let domains = __runtime_create_object();
+    __runtime_object_set(domains, "IPv4", 2);
+    __runtime_object_set(domains, "IPv6", 10);
+    return domains;
+}
+
+function SocketType_Create() {
+    let types = __runtime_create_object();
+    __runtime_object_set(types, "Stream", 1);
+    __runtime_object_set(types, "Datagram", 2);
+    return types;
+}
+
+function Shutdown_Create() {
+    let modes = __runtime_create_object();
+    __runtime_object_set(modes, "Read", 0);
+    __runtime_object_set(modes, "Write", 1);
+    __runtime_object_set(modes, "Both", 2);
+    return modes;
+}
+
+let SocketDomain = SocketDomain_Create();
+let SocketType = SocketType_Create();
+let Shutdown = Shutdown_Create();

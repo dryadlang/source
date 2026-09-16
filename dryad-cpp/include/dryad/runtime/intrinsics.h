@@ -3,6 +3,7 @@
 
 #include "dryad/runtime/value.h"
 #include <cstdint>
+#include <functional>
 #include <mutex>
 
 namespace dryad {
@@ -33,6 +34,13 @@ public:
     static Value buffer_set(int64_t handle, int64_t index, int64_t value);
     static Value string_to_bytes(int64_t handle, int64_t offset, const std::string& data);
     static Value bytes_to_string(int64_t handle, int64_t offset, int64_t count);
+    static Value read_fd_to_buffer(int64_t fd, int64_t handle, int64_t offset, int64_t count);
+    static Value write_fd_from_buffer(int64_t fd, int64_t handle, int64_t offset, int64_t count);
+    static Value sendto_buffer(int64_t fd, int64_t handle, int64_t offset, int64_t count,
+                               const std::string& host, int64_t port);
+    static Value recvfrom_buffer(int64_t fd, int64_t handle, int64_t offset, int64_t count);
+    static Value io_buffer(int64_t handle, int64_t offset, int64_t count,
+                           const std::function<ssize_t(uint8_t*, size_t)>& io);
 };
 
 class Intrinsics {

@@ -249,7 +249,7 @@ let value = add(1);
 
     auto result = ProgramValidator::validate_source(source);
     EXPECT_FALSE(result.ok);
-    EXPECT_NE(result.message().find("expects 2 arguments"), std::string::npos);
+    EXPECT_NE(result.message().find("expects between 2 and 2 arguments"), std::string::npos);
 }
 
 TEST(LspFoundationTest, BinaryExpressionTypeValidation) {

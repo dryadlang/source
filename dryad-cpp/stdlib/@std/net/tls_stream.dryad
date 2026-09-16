@@ -1,0 +1,127 @@
+// @std/net/tls_stream.dryad
+// TLS stream adapter over a connected TCP socket
+
+import { Stream } from "@std/io/stream";
+import {
+    Buffer_GetActualHandle,
+    Buffer_GetOffset
+} from "@std/buffers/buffer";
+import {
+    InvalidOperationException,
+    NetworkException
+} from "@std/core/exceptions";
+
+function TlsStream_ensureOpen(stream) {
+    if (stream._closed) {
+        return InvalidOperationException("TlsStream is closed");
+    }
+    if (stream._tlsHandle < 0) {
+        return InvalidOperationException("Invalid TLS session");
+    }
+    return null;
+}
+
+class TlsStream extends Stream {
+    constructor(tlsHandle, host) {
+        this._tlsHandle = tlsHandle;
+        this._host = host;
+        this._closed = false;
+    }
+
+    canRead: boolean {
+        get {
+            return !this._closed && this._tlsHandle >= 0;
+        }
+    }
+
+    canWrite: boolean {
+        get {
+            return !this._closed && this._tlsHandle >= 0;
+        }
+    }
+
+    canSeek: boolean {
+        get {
+            return false;
+        }
+    }
+
+    length: number {
+        get {
+            return InvalidOperationException("TlsStream does not support length");
+        }
+    }
+
+    position: number {
+        get {
+            return InvalidOperationException("TlsStream is not seekable");
+        }
+        set(value) {
+            return InvalidOperationException("TlsStream is not seekable");
+        }
+    }
+
+    read(buffer, offset, count) {
+        let err = TlsStream_ensureOpen(this);
+        if (err != null) {
+            return err;
+        }
+        let handle = Buffer_GetActualHandle(buffer);
+        let baseOffset = Buffer_GetOffset(buffer);
+        let nbytes = __tls_recv_buffer(this._tlsHandle, handle, baseOffset + offset, count);
+        if (nbytes < 0) {
+            return NetworkException("TLS read failed");
+        }
+        return nbytes;
+    }
+
+    write(buffer, offset, count) {
+        let err = TlsStream_ensureOpen(this);
+        if (err != null) {
+            return err;
+        }
+        let handle = Buffer_GetActualHandle(buffer);
+        let baseOffset = Buffer_GetOffset(buffer);
+        let nbytes = __tls_send_buffer(this._tlsHandle, handle, baseOffset + offset, count);
+        if (nbytes < 0) {
+            return NetworkException("TLS write failed");
+        }
+        return nbytes;
+    }
+
+    seek(offset, origin) {
+        return InvalidOperationException("TlsStream is not seekable");
+    }
+
+    flush() {
+        return null;
+    }
+
+    close() {
+        if (!this._closed && this._tlsHandle >= 0) {
+            __tls_close(this._tlsHandle);
+            this._tlsHandle = -1;
+            this._closed = true;
+        }
+        return null;
+    }
+}
+
+function TlsStream_isAvailable() {
+    return __tls_available();
+}
+
+function TlsStream_isTlsStream(value) {
+    return value != null && value._tlsHandle != null;
+}
+
+function TlsStream_connect(fd, host) {
+    if (!__tls_available()) {
+        return NetworkException("TLS is not available in this build");
+    }
+    let tlsHandle = __tls_client_handshake(fd, host);
+    if (tlsHandle < 0) {
+        return NetworkException("TLS handshake failed");
+    }
+    return new TlsStream(tlsHandle, host);
+}

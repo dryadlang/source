@@ -1,43 +1,33 @@
 # Phase 4 Standard Library - Progress Report
 
-**Date**: 2026-09-15  
-**Status**: Phase 4.1 complete (Stream deferred)
+**Date**: 2026-09-16  
+**Status**: Phase 4.5 complete (Async + Networking P2)
 
 ---
 
 ## Summary
 
-Phase 4.1 (Core Foundation) is **complete** for the current language surface. Buffer, VFS I/O, error handling, cooperative locking, imports, and CLI script execution are implemented and tested. The Stream abstract class remains **explicitly deferred** until `abstract class` syntax exists.
+Phase 4 delivers the Dryad standard library foundation: core types, I/O, collections, networking, and async primitives. All planned modules for Phases 4.1–4.5 are implemented with full unit and integration test coverage.
 
-### Completed: 8/9 tasks (89%)
-- ✅ Task 4.1.1: `internal` keyword support
-- ✅ Task 4.1.2: Exception hierarchy base + `__get_stack_trace()` intrinsic
-- ✅ Task 4.1.3: Exception subclass factories
-- ✅ Task 4.1.4: IDisposable interface contract
-- ✅ Task 4.1.5–4.1.7: Buffer API (`@std/buffers/buffer.dryad`)
-- ⏸️ Task 4.1.8: Stream abstract class — **deferred** (see `@std/io/stream.dryad`)
-- ✅ Task 4.1.9: Integration test (`tests/integration/core_foundation_test.cpp`)
+### Completed phases
 
-### VFS plan (tasks 6–10)
-- ✅ Task 6: Error handling (`@std/io/io_errors.dryad`, path normalization)
-- ✅ Task 7: Concurrency (`@std/io/io_concurrency.dryad`)
-- ✅ Task 8: Integration tests (`tests/stdlib/io/integration_test.dryad`)
-- ✅ Task 9: Documentation (`@std/io/README.md`, `examples/io_examples.dryad`)
-- ✅ Task 10: Polish (path normalization wired, import-based module layout)
-
-### Import + CLI
-- ✅ `import { ... } from "@std/..."` parser and `ModuleLoader`
-- ✅ CLI: `dryad script.dryad`, `--help`, `--version`, `DRYAD_STDLIB_DIR`
+| Phase | Scope | Status |
+|-------|-------|--------|
+| 4.1 | Core Foundation (Buffer, VFS, exceptions, imports, CLI) | ✅ Complete |
+| 4.2 | File I/O & Streams (FileStream, MemoryStream, Path) | ✅ Complete |
+| 4.3 | Collections (List, Map, Set, Queue, IEnumerable) | ✅ Complete |
+| 4.4 | Networking TCP (Socket, TcpClient, TcpListener) | ✅ Complete |
+| 4.5 | Async + Networking P2 (Promise, Threading, UDP, DNS, TLS, HTTP) | ✅ Complete |
 
 ---
 
 ## Test Results
 
-**223/223 tests passing (100%)**
+**362/362 tests passing (100%)**
 
 ```
-Unit tests:         211 ✅
-Integration tests:   12 ✅
+Unit tests:         344 ✅
+Integration tests:   18 ✅
 ```
 
 ---
@@ -48,25 +38,67 @@ Integration tests:   12 ✅
 - Exception hierarchy with stack trace intrinsic
 - Buffer API (allocate, read/write, slice, resize, string conversion)
 - `internal` visibility for module-private functions
+- `IEnumerable` interface for collection iteration
 
 ### I/O (`@std/io`)
 - VFS with `MemoryBackend` and `NativeBackend`
-- High-level `file.dryad` and `FileHandle` lifecycle
-- Path validation/normalization and cooperative `ThreadSafeVFS`
+- `FileStream`, `MemoryStream`, abstract `Stream` API
+- `Path` utilities (join, normalize, parent, extension)
+- High-level `file.dryad` with async wrappers
+- Cooperative `ThreadSafeVFS` locks
 - Module README and runnable examples
 
+### Collections (`@std/collections`)
+- `List`: dynamic array, `map`/`filter`/`reduce`
+- `Map`: key-value store with `keys()` / `values()` → `List`
+- `Set`: unique values via internal `Map`
+- `Queue`: FIFO circular buffer
+- Barrel: `import { List, Map, Set, Queue } from "@std/collections"`
+
+### Networking (`@std/net`)
+- **TCP**: `Socket`, `NetworkStream`, `TcpClient`, `TcpListener`
+- **UDP**: `UdpClient` with `sendto`/`recvfrom` buffer intrinsics
+- **DNS**: `resolve_host` via `getaddrinfo` (IPv4)
+- **TLS**: optional OpenSSL client handshake (`DRYAD_ENABLE_TLS=ON`)
+- **HTTP**: minimal `HttpClient` (GET/POST, headers, URL parsing)
+- **Async wrappers**: `socket_async.dryad` (Promise over blocking I/O)
+- Network gated by `--allow-net` / `DRYAD_ALLOW_NET`
+- Architecture: `docs/plans/2026-09-16-net-architecture.md`
+
+### Async (`@std/async`)
+- **Promise**: deferred `then()` queues, `Promise_all`, `Promise_race`, `catchError`, `finallyDo`
+- **Threading** (`@std/async/threading/`):
+  - `Thread` — `start()` (non-blocking) + `join()` (blocking)
+  - `Thread_parallel` — run multiple functions concurrently
+  - `ThreadPool` — fixed worker pool with `submit`/`wait`/`run`
+  - `ThreadPool_map` — parallel map over function array
+- C++ `ThreadManager` — each worker uses isolated `Interpreter`
+- Intrinsics: `__thread_spawn`, `__thread_join`, `__thread_pool_*`, `__thread_sleep_ms`, `__thread_hardware_concurrency`
+
 ### Tooling
-- `dryad` CLI runs `.dryad` scripts with stdlib resolution
-- Tests and examples use `import` instead of source concatenation
+- `dryad` CLI: script execution, `--allow-net`, `--help`, `--version`
+- `DRYAD_STDLIB_DIR` for stdlib path resolution
+- `dryad check` semantic validation
 
 ---
 
-## Deferred
+## Known Limitations
 
-**Stream (`@std/io/stream.dryad`)** — abstract class with properties and `implements IDisposable`.
+| Area | Limitation |
+|------|------------|
+| Language | `catch`/`finally` reserved → `catchError`/`finallyDo` |
+| Async | No real event loop; Promise executor is synchronous |
+| Threading | Blocking join model; no `await` syntax yet |
+| TLS | Client-only, no rigorous cert verification |
+| Network | Blocking I/O; IPv4-focused DNS resolution |
+| Logic | `&&` does not short-circuit |
 
-### POO foundation (language)
-- Properties: `readonly name: type`, `abstract readonly prop: type`
-- Interfaces: `interface IDisposable { dispose(): void; }`
-- `implements` clause on classes
-- `SemanticAnalyzer` for undefined symbols (used by `dryad check`)
+---
+
+## Deferred (future phases)
+
+- Real event loop / `await` syntax integration
+- Non-blocking async I/O (epoll/kqueue)
+- Server-side TLS
+- Generics for collections
+- Full LSP completion and hover

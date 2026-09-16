@@ -153,6 +153,13 @@ void IntrinsicsRegistry::register_filesystem_intrinsics() {
         return open_with_flags(args[0].as_string(), O_WRONLY | O_CREAT | O_APPEND);
     });
 
+    register_intrinsic("syscall.open_readwrite", [open_with_flags](const std::vector<Value>& args) -> Value {
+        if (args.empty() || !args[0].is_string()) {
+            throw DryadException("syscall.open_readwrite requires 1 string argument");
+        }
+        return open_with_flags(args[0].as_string(), O_RDWR | O_CREAT);
+    });
+
     register_intrinsic("syscall.normalize_path", [](const std::vector<Value>& args) -> Value {
         if (args.empty() || !args[0].is_string()) {
             throw DryadException("syscall.normalize_path requires 1 string argument");

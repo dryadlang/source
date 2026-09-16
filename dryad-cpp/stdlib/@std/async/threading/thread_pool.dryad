@@ -1,0 +1,44 @@
+// @std/async/threading/thread_pool.dryad
+// Fixed-size worker pool with blocking wait
+
+class ThreadPool {
+    constructor(workerCount = 2) {
+        this._handle = __thread_pool_create(workerCount);
+    }
+
+    submit(fn, args = []) {
+        return __thread_pool_submit(this._handle, fn, args);
+    }
+
+    wait(jobId) {
+        return __thread_pool_wait(this._handle, jobId);
+    }
+
+    run(fn, args = []) {
+        let jobId = this.submit(fn, args);
+        return this.wait(jobId);
+    }
+
+    destroy() {
+        __thread_pool_destroy(this._handle);
+        return null;
+    }
+}
+
+function ThreadPool_map(pool, fns) {
+    let jobIds = [];
+    let i = 0;
+    let count = __runtime_array_length(fns);
+    while (i < count) {
+        __runtime_array_push(jobIds, pool.submit(fns[i], []));
+        i = i + 1;
+    }
+
+    let results = [];
+    i = 0;
+    while (i < count) {
+        __runtime_array_push(results, pool.wait(jobIds[i]));
+        i = i + 1;
+    }
+    return results;
+}

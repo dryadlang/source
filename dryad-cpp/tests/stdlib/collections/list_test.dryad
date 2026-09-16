@@ -1,0 +1,118 @@
+// List unit tests
+
+import { List } from "@std/collections/list";
+
+let __foreach_sum = 0;
+
+function __foreach_add(item) {
+    __foreach_sum = __foreach_sum + item;
+}
+
+function test_list_create_and_count() {
+    let list = new List(8);
+    return list.count == 0 && list.capacity == 8;
+}
+
+function test_list_default_capacity() {
+    let list = new List();
+    return list.capacity == 16;
+}
+
+function test_list_add_and_get() {
+    let list = new List();
+    list.add(10);
+    list.add(20);
+    list.add(30);
+    return list.count == 3 && list.get(1) == 20;
+}
+
+function test_list_set() {
+    let list = new List();
+    list.add("a");
+    list.add("b");
+    list.set(0, "z");
+    return list.get(0) == "z";
+}
+
+function test_list_insert() {
+    let list = new List();
+    list.add(1);
+    list.add(3);
+    list.insert(1, 2);
+    return list.get(0) == 1 && list.get(1) == 2 && list.get(2) == 3;
+}
+
+function test_list_remove_and_remove_at() {
+    let list = new List();
+    list.add(1);
+    list.add(2);
+    list.add(3);
+    let removed = list.remove(2);
+    list.removeAt(0);
+    return removed && list.count == 1 && list.get(0) == 3;
+}
+
+function test_list_clear() {
+    let list = new List();
+    list.add(1);
+    list.add(2);
+    list.clear();
+    return list.count == 0;
+}
+
+function test_list_contains_and_index_of() {
+    let list = new List();
+    list.add("x");
+    list.add("y");
+    return list.contains("y") && list.indexOf("missing") == -1;
+}
+
+function test_list_out_of_bounds() {
+    let list = new List();
+    list.add(1);
+    let err = list.get(5);
+    return err != null && err != 1;
+}
+
+function test_list_for_each() {
+    let list = new List();
+    list.add(1);
+    list.add(2);
+    list.add(3);
+    __foreach_sum = 0;
+    list.forEach(__foreach_add);
+    return __foreach_sum == 6;
+}
+
+function test_list_map_with_lambda() {
+    let list = new List();
+    list.add(1);
+    list.add(2);
+    list.add(3);
+    let doubled = list.map(function(x) {
+        return x * 2;
+    });
+    return doubled.count == 3 && doubled.get(0) == 2 && doubled.get(2) == 6;
+}
+
+function test_list_filter_with_lambda() {
+    let list = new List();
+    list.add(1);
+    list.add(2);
+    list.add(3);
+    let evens = list.filter(function(x) {
+        return x % 2 == 0;
+    });
+    return evens.count == 1 && evens.get(0) == 2;
+}
+
+function test_list_reduce_with_lambda() {
+    let list = new List();
+    list.add(1);
+    list.add(2);
+    list.add(3);
+    let total = list.reduce(function(acc, x) {
+        return acc + x;
+    }, 0);
+    return total == 6;
+}

@@ -1,0 +1,16 @@
+// TCP echo client example (requires echo server on localhost:9090)
+
+import { TcpClient_connect } from "@std/net/tcp_client";
+import { Buffer_FromString, Buffer_AsString, Buffer_Dispose } from "@std/buffers/buffer";
+
+let client = TcpClient_connect("127.0.0.1", 9090);
+if (client._lastError != null || !client.connected) {
+    print("Connect failed");
+} else {
+    let buf = Buffer_FromString("hello dryad");
+    client.send(buf, 0, 11);
+    client.receive(buf, 0, 11);
+    print(Buffer_AsString(buf));
+    Buffer_Dispose(buf);
+    client.close();
+}

@@ -20,3 +20,29 @@ abstract class Stream implements IDisposable {
         this.close();
     }
 }
+
+// SeekOrigin constants (POSIX whence values)
+let SeekOrigin_Begin = 0;
+let SeekOrigin_Current = 1;
+let SeekOrigin_End = 2;
+
+function SeekOrigin_Create() {
+    let origin = __runtime_create_object();
+    __runtime_object_set(origin, "Begin", 0);
+    __runtime_object_set(origin, "Current", 1);
+    __runtime_object_set(origin, "End", 2);
+    return origin;
+}
+
+let SeekOrigin = SeekOrigin_Create();
+
+function Stream_isStream(value) {
+    if (value == null) {
+        return false;
+    }
+    return value.canRead != null && value.read != null && value.close != null;
+}
+
+function Stream_isError(value) {
+    return !Stream_isStream(value);
+}

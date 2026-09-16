@@ -56,7 +56,7 @@ std::vector<Diagnostic> SemanticAnalyzer::analyze(Program* program) {
 
     register_builtin_types();
     globals_.insert("print");
-    function_signatures_["print"] = FunctionSignature{{}, "void"};
+    function_signatures_["print"] = FunctionSignature{{}, 0, "void"};
 
     collect_globals(program);
 
@@ -85,6 +85,9 @@ void SemanticAnalyzer::collect_globals(Program* program) {
                 signature.return_type = func_decl->return_type;
                 for (const auto& param : func_decl->parameters) {
                     signature.parameter_types.push_back(param.type_annotation);
+                    if (!param.default_value) {
+                        signature.required_parameter_count++;
+                    }
                 }
                 function_signatures_[func_decl->name] = std::move(signature);
                 break;
@@ -254,8 +257,10 @@ void SemanticAnalyzer::analyze_call(CallExpression* call, const std::shared_ptr<
     }
 
     const auto& signature = signature_it->second;
-    if (call->arguments.size() != signature.parameter_types.size()) {
-        report_error("Function '" + ident->name + "' expects " +
+    if (call->arguments.size() < signature.required_parameter_count ||
+        call->arguments.size() > signature.parameter_types.size()) {
+        report_error("Function '" + ident->name + "' expects between " +
+                         std::to_string(signature.required_parameter_count) + " and " +
                          std::to_string(signature.parameter_types.size()) + " arguments, got " +
                          std::to_string(call->arguments.size()),
                      call->location);
@@ -371,6 +376,20 @@ std::string SemanticAnalyzer::analyze_expression(Expression* expr, const std::sh
                 analyze_expression(arg.get(), scope);
             }
             return new_expr->class_name;
+        }
+        case ASTNodeType::FunctionExpression: {
+            auto* func_expr = static_cast<FunctionExpression*>(expr);
+            auto body_scope = std::make_shared<Scope>(scope);
+            for (const auto& param : func_expr->parameters) {
+                body_scope->define(param.name, param.type_annotation, func_expr->location, false);
+                if (param.default_value) {
+                    analyze_expression(param.default_value.get(), scope);
+                }
+            }
+            if (func_expr->body) {
+                analyze_block(func_expr->body->statements, body_scope, false);
+            }
+            return func_expr->return_type.empty() ? "unknown" : func_expr->return_type;
         }
         case ASTNodeType::IntegerLiteral:
         case ASTNodeType::FloatLiteral:

@@ -20,6 +20,28 @@ import {
 
 import { ArgumentException, IOException } from "@std/core/exceptions";
 
+import {
+    FileMode,
+    FileStream,
+    File_open,
+    File_exists,
+    File_delete,
+    File_readAllText,
+    File_writeAllText
+} from "@std/io/filestream";
+
+import {
+    MemoryStream,
+    MemoryStream_new,
+    MemoryStream_fromString,
+    MemoryStream_fromBuffer,
+    MemoryStream_toString
+} from "@std/io/memory_stream";
+
+import { Stream_isStream, Stream_isError, SeekOrigin } from "@std/io/stream";
+import { Path } from "@std/io/path";
+import { Promise, Promise_resolve } from "@std/async/promise";
+
 // Global default VFS instance (uses NativeBackend by default)
 let _globalVFS = null;
 
@@ -157,36 +179,32 @@ function setVFSBackend(backend) {
 }
 
 // ============================================================================
-// Async I/O Functions (Placeholders for Phase 5)
+// Async I/O Functions (Promise wrappers — synchronous executor model)
 // ============================================================================
-// These will be implemented when Promise<T> support is complete
 
-// readFileAsync(path: string): Promise<string>
 function readFileAsync(path) {
-    return IOException("Async I/O not yet implemented");
+    return Promise_resolve(readFile(path));
 }
 
-// writeFileAsync(path: string, content: string): Promise<void>
 function writeFileAsync(path, content) {
-    return IOException("Async I/O not yet implemented");
+    return Promise_resolve(writeFile(path, content));
 }
 
-// existsAsync(path: string): Promise<boolean>
 function existsAsync(path) {
-    return IOException("Async I/O not yet implemented");
+    return Promise_resolve(exists(path));
 }
 
-// removeFileAsync(path: string): Promise<void>
 function removeFileAsync(path) {
-    return IOException("Async I/O not yet implemented");
+    return Promise_resolve(removeFile(path));
 }
 
-// listDirectoryAsync(path: string): Promise<array>
 function listDirectoryAsync(path) {
-    return IOException("Async I/O not yet implemented");
+    return Promise_resolve(listDirectory(path));
 }
 
-// mkdirAsync(path: string): Promise<void>
 function mkdirAsync(path) {
-    return IOException("Async I/O not yet implemented");
+    return Promise_resolve(mkdir(path));
 }
+
+// Stream-based file I/O (FileStream, File_open, File_readAllText, ...) is
+// re-exported from @std/io/filestream via the import above.

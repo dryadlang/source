@@ -1,0 +1,114 @@
+// @std/collections/queue.dryad
+// FIFO queue backed by a circular buffer
+
+import { IEnumerable } from "@std/core/enumerable";
+
+function Queue_allocateSlots(items, capacity) {
+    let i = 0;
+    while (i < capacity) {
+        __runtime_array_push(items, null);
+        i = i + 1;
+    }
+    return items;
+}
+
+function Queue_grow(queue) {
+    let newCapacity = queue._capacity * 2;
+    if (newCapacity < 4) {
+        newCapacity = 4;
+    }
+
+    let newItems = [];
+    let i = 0;
+    while (i < queue._count) {
+        let index = (queue._head + i) % queue._capacity;
+        __runtime_array_push(newItems, queue._items[index]);
+        i = i + 1;
+    }
+
+    Queue_allocateSlots(newItems, newCapacity);
+    queue._items = newItems;
+    queue._capacity = newCapacity;
+    queue._head = 0;
+    queue._tail = queue._count;
+    return null;
+}
+
+class Queue implements IEnumerable {
+    constructor(capacity = 16) {
+        if (capacity < 1) {
+            capacity = 16;
+        }
+        this._items = Queue_allocateSlots([], capacity);
+        this._capacity = capacity;
+        this._count = 0;
+        this._head = 0;
+        this._tail = 0;
+    }
+
+    count: number {
+        get {
+            return this._count;
+        }
+    }
+
+    capacity: number {
+        get {
+            return this._capacity;
+        }
+    }
+
+    isEmpty() {
+        return this._count == 0;
+    }
+
+    enqueue(item) {
+        if (this._count >= this._capacity) {
+            Queue_grow(this);
+        }
+        this._items[this._tail] = item;
+        this._tail = (this._tail + 1) % this._capacity;
+        this._count = this._count + 1;
+        return null;
+    }
+
+    dequeue() {
+        if (this._count == 0) {
+            return null;
+        }
+        let item = this._items[this._head];
+        this._items[this._head] = null;
+        this._head = (this._head + 1) % this._capacity;
+        this._count = this._count - 1;
+        return item;
+    }
+
+    peek() {
+        if (this._count == 0) {
+            return null;
+        }
+        return this._items[this._head];
+    }
+
+    clear() {
+        let i = 0;
+        while (i < this._capacity) {
+            this._items[i] = null;
+            i = i + 1;
+        }
+        this._count = 0;
+        this._head = 0;
+        this._tail = 0;
+        return null;
+    }
+
+    forEach(callback) {
+        let i = 0;
+        while (i < this._count) {
+            let index = (this._head + i) % this._capacity;
+            callback(this._items[index]);
+            i = i + 1;
+        }
+        return null;
+    }
+}

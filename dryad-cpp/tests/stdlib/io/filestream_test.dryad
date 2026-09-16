@@ -1,0 +1,156 @@
+// FileStream and File utility tests (Phase 4.2)
+
+import {
+    FileMode,
+    FileStream,
+    File_open,
+    File_exists,
+    File_delete,
+    File_readAllText,
+    File_writeAllText
+} from "@std/io/filestream";
+
+import {
+    Buffer_New,
+    Buffer_FromString,
+    Buffer_AsString,
+    Buffer_Len,
+    Buffer_Dispose
+} from "@std/buffers/buffer";
+
+import { SeekOrigin } from "@std/io/stream";
+
+function test_file_mode_values() {
+    return FileMode.Read == 0 && FileMode.Write == 1 && FileMode.ReadWrite == 2 &&
+           FileMode.Append == 3;
+}
+
+function test_file_open_read_properties() {
+    let path = "dryad_filestream_props.txt";
+    File_writeAllText(path, "abc");
+    let fs = File_open(path, FileMode.Read);
+
+    let ok = fs.canRead && !fs.canWrite && fs.canSeek && fs.position == 0;
+    fs.close();
+    File_delete(path);
+    return ok;
+}
+
+function test_filestream_read_write() {
+    let path = "dryad_filestream_rw.txt";
+    let content = "Hello Stream";
+    let writeStream = File_open(path, FileMode.Write);
+    let buf = Buffer_FromString(content);
+    let written = writeStream.write(buf, 0, Buffer_Len(buf));
+    Buffer_Dispose(buf);
+    writeStream.close();
+
+    if (written != __string_length(content)) {
+        File_delete(path);
+        return false;
+    }
+
+    let readStream = File_open(path, FileMode.Read);
+    let readBuf = Buffer_New(__string_length(content));
+    let nbytes = readStream.read(readBuf, 0, __string_length(content));
+    let text = Buffer_AsString(readBuf);
+    Buffer_Dispose(readBuf);
+    readStream.close();
+    File_delete(path);
+
+    return nbytes == __string_length(content) && text == content;
+}
+
+function test_filestream_seek_and_flush() {
+    let path = "dryad_filestream_seek.txt";
+    File_writeAllText(path, "0123456789");
+
+    let fs = File_open(path, FileMode.Read);
+    fs.seek(3, SeekOrigin.Begin);
+    let pos1 = fs.position;
+    fs.seek(2, SeekOrigin.Current);
+    let pos2 = fs.position;
+    let flushResult = fs.flush();
+    fs.close();
+    File_delete(path);
+
+    return pos1 == 3 && pos2 == 5 && flushResult == null;
+}
+
+function test_filestream_close_disposes() {
+    let path = "dryad_filestream_close.txt";
+    File_writeAllText(path, "x");
+    let fs = File_open(path, FileMode.Read);
+    fs.close();
+
+    let buf = Buffer_New(1);
+    let afterRead = fs.read(buf, 0, 1);
+    Buffer_Dispose(buf);
+    File_delete(path);
+
+    return afterRead != 1;
+}
+
+function test_filestream_length() {
+    let path = "dryad_filestream_len.txt";
+    File_writeAllText(path, "12345");
+    let fs = File_open(path, FileMode.Read);
+    let len = fs.length;
+    fs.close();
+    File_delete(path);
+    return len == 5;
+}
+
+function test_file_exists_and_delete() {
+    let path = "dryad_file_exists.txt";
+    File_writeAllText(path, "data");
+    let existsBefore = File_exists(path);
+    File_delete(path);
+    let existsAfter = File_exists(path);
+    return existsBefore && !existsAfter;
+}
+
+function test_file_read_write_all_text() {
+    let path = "dryad_file_alltext.txt";
+    let content = "Hello, Dryad!";
+    File_writeAllText(path, content);
+    let read = File_readAllText(path);
+    File_delete(path);
+    return read == content;
+}
+
+function test_file_open_missing() {
+    let result = File_open("dryad_missing_file_404.txt", FileMode.Read);
+    return result != null && result != 0;
+}
+
+function test_file_write_nested_path() {
+    let path = "dryad_nested_out/sub/data.txt";
+    let writeErr = File_writeAllText(path, "nested ok");
+    let content = File_readAllText(path);
+    let existed = File_exists(path);
+    File_delete(path);
+    return writeErr == null && content == "nested ok" && existed;
+}
+
+function test_file_append_mode_position() {
+    let path = "dryad_append_pos.txt";
+    File_writeAllText(path, "start");
+    let stream = File_open(path, FileMode.Append);
+    let pos = stream.position;
+    stream.close();
+    File_delete(path);
+    return pos == 5;
+}
+
+function test_write_to_readonly_stream_fails() {
+    let path = "dryad_filestream_readonly.txt";
+    File_writeAllText(path, "x");
+    let fs = File_open(path, FileMode.Read);
+    let buf = Buffer_FromString("y");
+    let result = fs.write(buf, 0, 1);
+    Buffer_Dispose(buf);
+    fs.close();
+    File_delete(path);
+    return result != 1;
+}

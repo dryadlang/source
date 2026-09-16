@@ -1,0 +1,6 @@
+// @std/core/enumerable.dryad
+// IEnumerable interface for collection enumeration
+
+interface IEnumerable {
+    forEach(callback);
+}

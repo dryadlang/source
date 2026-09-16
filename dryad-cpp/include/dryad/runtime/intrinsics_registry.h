@@ -21,17 +21,24 @@ public:
     
     void register_file_io_intrinsics();
     void register_network_intrinsics();
+    void register_tls_intrinsics();
     void register_filesystem_intrinsics();
     void register_process_intrinsics();
     void register_memory_intrinsics();
     void register_string_intrinsics();
     void register_time_intrinsics();
     void register_misc_intrinsics();
+    void register_thread_intrinsics();
     void register_all();
+
+    void set_network_allowed(bool allowed) { network_allowed_ = allowed; }
+    bool network_allowed() const { return network_allowed_; }
+    void require_network_access() const;
     
 private:
     IntrinsicsRegistry() = default;
     std::unordered_map<std::string, IntrinsicFunction> intrinsics_;
+    bool network_allowed_ = false;
 };
 
 } // namespace dryad

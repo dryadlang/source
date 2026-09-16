@@ -1,0 +1,12 @@
+// @std/net/net.dryad
+// Barrel module for networking
+
+import { SocketDomain, SocketType, Shutdown } from "@std/net/constants";
+import { Socket, Socket_fromFd } from "@std/net/socket";
+import { NetworkStream, NetworkStream_fromSocket } from "@std/net/network_stream";
+import { TcpClient, TcpClient_connect, TcpClient_wrap } from "@std/net/tcp_client";
+import { TcpListener } from "@std/net/tcp_listener";
+import { UdpClient, UdpClient_create } from "@std/net/udp_client";
+import { Net_resolveHost, Net_resolveHostOrError } from "@std/net/dns";
+import { TlsStream, TlsStream_connect, TlsStream_isAvailable } from "@std/net/tls_stream";
+import { HttpClient, HttpClient_create } from "@std/net/http/http_client";

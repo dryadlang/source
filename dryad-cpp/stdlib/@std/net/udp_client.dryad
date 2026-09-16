@@ -1,0 +1,70 @@
+// @std/net/udp_client.dryad
+// UDP datagram client
+
+import { SocketDomain_IPv4, SocketType_Datagram } from "@std/net/constants";
+import { Socket } from "@std/net/socket";
+import { Net_resolveHostOrError } from "@std/net/dns";
+import { Net_validatePort } from "@std/net/net_errors";
+import {
+    ArgumentNullException,
+    InvalidOperationException,
+    SocketException
+} from "@std/core/exceptions";
+import { IDisposable } from "@std/core/disposable";
+
+class UdpClient implements IDisposable {
+    constructor() {
+        this._socket = new Socket(SocketDomain_IPv4, SocketType_Datagram);
+        this._lastError = null;
+        if (this._socket._fd < 0) {
+            this._lastError = SocketException("Cannot create UDP socket");
+            this._socket = null;
+        }
+    }
+
+    sendTo(host, port, buffer, offset, count) {
+        if (this._lastError != null) {
+            return this._lastError;
+        }
+        if (buffer == null) {
+            return ArgumentNullException("buffer");
+        }
+        let portErr = Net_validatePort(port);
+        if (portErr != null) {
+            return portErr;
+        }
+
+        let lookup = Net_resolveHostOrError(host, "sendTo");
+        if (lookup[1] != null) {
+            return lookup[1];
+        }
+
+        return this._socket.sendTo(lookup[0], port, buffer, offset, count);
+    }
+
+    receiveFrom(buffer, offset, count) {
+        if (this._lastError != null) {
+            return this._lastError;
+        }
+        if (this._socket == null) {
+            return InvalidOperationException("UDP socket is not available");
+        }
+        return this._socket.receiveFrom(buffer, offset, count);
+    }
+
+    close() {
+        if (this._socket != null) {
+            this._socket.close();
+            this._socket = null;
+        }
+        return null;
+    }
+
+    dispose() {
+        return this.close();
+    }
+}
+
+function UdpClient_create() {
+    return new UdpClient();
+}

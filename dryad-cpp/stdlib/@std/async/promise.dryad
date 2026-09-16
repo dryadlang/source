@@ -1,0 +1,283 @@
+// @std/async/promise.dryad
+// Promise<T> — synchronous executor with deferred then/catch queues (Phase 4.5)
+
+function Promise_isPromise(value) {
+    if (value == null) {
+        return false;
+    }
+    let kind = __runtime_value_kind(value);
+    if (kind != "instance" && kind != "object") {
+        return false;
+    }
+    return value._state != null;
+}
+
+function Promise_createDeferred() {
+    let deferred = __runtime_create_object();
+    let promise = new Promise(function(resolve, reject) {
+        __runtime_object_set(deferred, "resolve", resolve);
+        __runtime_object_set(deferred, "reject", reject);
+        return null;
+    });
+    __runtime_object_set(deferred, "promise", promise);
+    return deferred;
+}
+
+function Promise_adoptResolved(deferred, value) {
+    if (Promise_isPromise(value)) {
+        if (value._state == "fulfilled") {
+            value = value._value;
+        } else if (value._state == "rejected") {
+            let reject = __runtime_object_get(deferred, "reject");
+            reject(value._error);
+            return null;
+        } else if (value._state == "pending") {
+            value.then(function(v) {
+                let resolve = __runtime_object_get(deferred, "resolve");
+                resolve(v);
+                return v;
+            }, function(err) {
+                let reject = __runtime_object_get(deferred, "reject");
+                reject(err);
+                return err;
+            });
+            return null;
+        }
+    }
+    let resolve = __runtime_object_get(deferred, "resolve");
+    resolve(value);
+    return null;
+}
+
+function Promise_adoptRejected(deferred, error) {
+    let reject = __runtime_object_get(deferred, "reject");
+    reject(error);
+    return null;
+}
+
+function Promise_flushFulfilled(promise) {
+    let i = 0;
+    let count = __runtime_array_length(promise._callbacks);
+    while (i < count) {
+        let entry = promise._callbacks[i];
+        let onFulfilled = entry[0];
+        let deferred = entry[2];
+        if (onFulfilled != null) {
+            Promise_adoptResolved(deferred, onFulfilled(promise._value));
+        } else {
+            Promise_adoptResolved(deferred, promise._value);
+        }
+        i = i + 1;
+    }
+    promise._callbacks = [];
+    return null;
+}
+
+function Promise_flushRejected(promise) {
+    let i = 0;
+    let count = __runtime_array_length(promise._callbacks);
+    while (i < count) {
+        let entry = promise._callbacks[i];
+        let onRejected = entry[1];
+        let deferred = entry[2];
+        if (onRejected != null) {
+            Promise_adoptResolved(deferred, onRejected(promise._error));
+        } else {
+            Promise_adoptRejected(deferred, promise._error);
+        }
+        i = i + 1;
+    }
+    promise._callbacks = [];
+    return null;
+}
+
+class Promise {
+    constructor(executor) {
+        this._state = "pending";
+        this._value = null;
+        this._error = null;
+        this._callbacks = [];
+
+        let self = this;
+
+        function resolve(value) {
+            if (self._state != "pending") {
+                return null;
+            }
+            self._state = "fulfilled";
+            self._value = value;
+            Promise_flushFulfilled(self);
+            return null;
+        }
+
+        function reject(error) {
+            if (self._state != "pending") {
+                return null;
+            }
+            self._state = "rejected";
+            self._error = error;
+            Promise_flushRejected(self);
+            return null;
+        }
+
+        executor(resolve, reject);
+    }
+
+    then(onFulfilled, onRejected = null) {
+        if (this._state == "rejected") {
+            if (onRejected != null) {
+                return Promise_resolve(onRejected(this._error));
+            }
+            return Promise_wrap(this);
+        }
+        if (this._state == "fulfilled") {
+            if (onFulfilled != null) {
+                return Promise_resolve(onFulfilled(this._value));
+            }
+            return Promise_resolve(this._value);
+        }
+
+        let deferred = Promise_createDeferred();
+        __runtime_array_push(this._callbacks, [onFulfilled, onRejected, deferred]);
+        return __runtime_object_get(deferred, "promise");
+    }
+
+    catchError(onRejected) {
+        return this.then(null, onRejected);
+    }
+
+    finallyDo(onFinally) {
+        let result = this.then(function(value) {
+            return value;
+        }, function(error) {
+            return error;
+        });
+        if (onFinally != null) {
+            onFinally();
+        }
+        return result;
+    }
+}
+
+function Promise_resolve(value) {
+    if (Promise_isPromise(value)) {
+        if (value._state == "fulfilled") {
+            return Promise_wrap(value);
+        }
+        if (value._state == "rejected") {
+            return Promise_reject(value._error);
+        }
+        if (value._state == "pending") {
+            let deferred = Promise_createDeferred();
+            value.then(function(v) {
+                let resolve = __runtime_object_get(deferred, "resolve");
+                resolve(v);
+                return v;
+            }, function(err) {
+                let reject = __runtime_object_get(deferred, "reject");
+                reject(err);
+                return err;
+            });
+            return __runtime_object_get(deferred, "promise");
+        }
+    }
+    return new Promise(function(resolve, reject) {
+        resolve(value);
+        return null;
+    });
+}
+
+function Promise_reject(error) {
+    return new Promise(function(resolve, reject) {
+        reject(error);
+        return null;
+    });
+}
+
+function Promise_wrap(promise) {
+    return new Promise(function(resolve, reject) {
+        if (promise._state == "fulfilled") {
+            resolve(promise._value);
+            return null;
+        }
+        if (promise._state == "rejected") {
+            reject(promise._error);
+            return null;
+        }
+        promise.then(function(value) {
+            resolve(value);
+            return value;
+        }, function(error) {
+            reject(error);
+            return error;
+        });
+        return null;
+    });
+}
+
+function Promise_all(promises) {
+    return new Promise(function(resolve, reject) {
+        let remaining = __runtime_array_length(promises);
+        if (remaining == 0) {
+            resolve([]);
+            return null;
+        }
+
+        let results = [];
+        let i = 0;
+        while (i < remaining) {
+            __runtime_array_push(results, null);
+            i = i + 1;
+        }
+
+        let settled = 0;
+        i = 0;
+        while (i < remaining) {
+            let index = i;
+            promises[i].then(function(value) {
+                results[index] = value;
+                settled = settled + 1;
+                if (settled == remaining) {
+                    resolve(results);
+                }
+                return value;
+            }, function(error) {
+                reject(error);
+                return error;
+            });
+            i = i + 1;
+        }
+        return null;
+    });
+}
+
+function Promise_race(promises) {
+    return new Promise(function(resolve, reject) {
+        let count = __runtime_array_length(promises);
+        if (count == 0) {
+            reject("Promise.race: no promises");
+            return null;
+        }
+
+        let settled = false;
+        let i = 0;
+        while (i < count) {
+            let p = promises[i];
+            p.then(function(value) {
+                if (!settled) {
+                    settled = true;
+                    resolve(value);
+                }
+                return value;
+            }, function(error) {
+                if (!settled) {
+                    settled = true;
+                    reject(error);
+                }
+                return error;
+            });
+            i = i + 1;
+        }
+        return null;
+    });
+}

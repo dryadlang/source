@@ -1,0 +1,7 @@
+// @std/collections.dryad
+// Barrel module for collection types
+
+import { List } from "@std/collections/list";
+import { Map } from "@std/collections/map";
+import { Set } from "@std/collections/set";
+import { Queue } from "@std/collections/queue";

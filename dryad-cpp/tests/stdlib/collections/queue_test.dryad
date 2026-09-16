@@ -1,0 +1,83 @@
+// Queue unit tests
+
+import { Queue } from "@std/collections/queue";
+
+let __queue_sum = 0;
+
+function __queue_add(item) {
+    __queue_sum = __queue_sum + item;
+}
+
+function test_queue_create_and_empty() {
+    let queue = new Queue(4);
+    return queue.count == 0 && queue.capacity == 4 && queue.isEmpty();
+}
+
+function test_queue_enqueue_dequeue_fifo() {
+    let queue = new Queue(4);
+    queue.enqueue(1);
+    queue.enqueue(2);
+    queue.enqueue(3);
+    let first = queue.dequeue();
+    let second = queue.dequeue();
+    let third = queue.dequeue();
+    return first == 1 && second == 2 && third == 3 && queue.isEmpty();
+}
+
+function test_queue_peek() {
+    let queue = new Queue(4);
+    queue.enqueue("a");
+    queue.enqueue("b");
+    let top = queue.peek();
+    let still_there = queue.peek();
+    return top == "a" && still_there == "a" && queue.count == 2;
+}
+
+function test_queue_dequeue_empty_returns_null() {
+    let queue = new Queue(4);
+    return queue.dequeue() == null && queue.peek() == null;
+}
+
+function test_queue_clear() {
+    let queue = new Queue(4);
+    queue.enqueue(1);
+    queue.enqueue(2);
+    queue.clear();
+    return queue.isEmpty() && queue.count == 0;
+}
+
+function test_queue_grows_when_full() {
+    let queue = new Queue(2);
+    queue.enqueue(1);
+    queue.enqueue(2);
+    queue.enqueue(3);
+    let first = queue.dequeue();
+    let second = queue.dequeue();
+    let third = queue.dequeue();
+    return first == 1 && second == 2 && third == 3 && queue.capacity >= 4;
+}
+
+function test_queue_wraps_around_buffer() {
+    let queue = new Queue(4);
+    queue.enqueue(1);
+    queue.enqueue(2);
+    queue.dequeue();
+    queue.dequeue();
+    queue.enqueue(3);
+    queue.enqueue(4);
+    queue.enqueue(5);
+    let first = queue.dequeue();
+    let second = queue.dequeue();
+    let third = queue.dequeue();
+    return first == 3 && second == 4 && third == 5;
+}
+
+function test_queue_for_each() {
+    let queue = new Queue(4);
+    queue.enqueue(1);
+    queue.enqueue(2);
+    queue.enqueue(3);
+    __queue_sum = 0;
+    queue.forEach(__queue_add);
+    return __queue_sum == 6;
+}

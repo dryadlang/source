@@ -1,0 +1,26 @@
+// Path utility tests
+
+import { Path } from "@std/io/path";
+
+function test_path_join() {
+    return Path.join(Path.join("foo", "bar"), "baz.txt") == "foo/bar/baz.txt";
+}
+
+function test_path_dirname() {
+    return Path.dirname("/tmp/test.txt") == "/tmp";
+}
+
+function test_path_basename() {
+    return Path.basename("/tmp/test.txt") == "test.txt";
+}
+
+function test_path_extension() {
+    return Path.extension("test.txt") == ".txt" && Path.extension("test") == "";
+}
+
+function test_path_ensure_parent_for_nested_file() {
+    let path = Path.join("dryad_nested", "deep");
+    path = Path.join(path, "nested.txt");
+    let err = Path.ensureParentForFile(path);
+    return err == null;
+}

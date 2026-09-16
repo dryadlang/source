@@ -1,0 +1,44 @@
+// @std/collections/set.dryad
+// Unique value collection backed by Map
+
+import { Map } from "@std/collections/map";
+import { IEnumerable } from "@std/core/enumerable";
+
+class Set implements IEnumerable {
+    constructor() {
+        this._map = new Map();
+    }
+
+    size: number {
+        get {
+            return this._map.size;
+        }
+    }
+
+    add(item) {
+        this._map.put(item, true);
+        return null;
+    }
+
+    delete(item) {
+        return this._map.delete(item);
+    }
+
+    has(item) {
+        return this._map.has(item);
+    }
+
+    clear() {
+        return this._map.clear();
+    }
+
+    forEach(callback) {
+        let i = 0;
+        while (i < this._map._size) {
+            let entry = this._map._entries[i];
+            callback(__runtime_object_get(entry, "key"));
+            i = i + 1;
+        }
+        return null;
+    }
+}

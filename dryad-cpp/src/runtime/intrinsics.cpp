@@ -3,6 +3,9 @@
 #include <vector>
 #include <cstring>
 #include <stdexcept>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 namespace dryad {
 
@@ -169,6 +172,129 @@ Value MemoryManager::string_to_bytes(int64_t handle, int64_t offset, const std::
     std::memcpy(meta->data + offset, data.data(), data.size());
     
     return Value(static_cast<int64_t>(data.size()));
+}
+
+Value MemoryManager::read_fd_to_buffer(int64_t fd, int64_t handle, int64_t offset, int64_t count) {
+    if (count < 0 || offset < 0) {
+        return Value(static_cast<int64_t>(-1));
+    }
+
+    std::lock_guard<std::mutex> lock(allocation_mutex);
+    AllocationMetadata* meta = get_metadata(handle);
+    if (!meta || meta->is_freed) {
+        return Value(static_cast<int64_t>(-1));
+    }
+    if (offset + count > static_cast<int64_t>(meta->size)) {
+        return Value(static_cast<int64_t>(-1));
+    }
+
+    ssize_t nbytes = ::read(static_cast<int>(fd), meta->data + offset, static_cast<size_t>(count));
+    return Value(static_cast<int64_t>(nbytes));
+}
+
+Value MemoryManager::write_fd_from_buffer(int64_t fd, int64_t handle, int64_t offset, int64_t count) {
+    if (count < 0 || offset < 0) {
+        return Value(static_cast<int64_t>(-1));
+    }
+
+    std::lock_guard<std::mutex> lock(allocation_mutex);
+    AllocationMetadata* meta = get_metadata(handle);
+    if (!meta || meta->is_freed) {
+        return Value(static_cast<int64_t>(-1));
+    }
+    if (offset + count > static_cast<int64_t>(meta->size)) {
+        return Value(static_cast<int64_t>(-1));
+    }
+
+    ssize_t nbytes = ::write(static_cast<int>(fd), meta->data + offset, static_cast<size_t>(count));
+    return Value(static_cast<int64_t>(nbytes));
+}
+
+Value MemoryManager::io_buffer(int64_t handle, int64_t offset, int64_t count,
+                             const std::function<ssize_t(uint8_t*, size_t)>& io) {
+    if (count < 0 || offset < 0) {
+        return Value(static_cast<int64_t>(-1));
+    }
+
+    std::lock_guard<std::mutex> lock(allocation_mutex);
+    AllocationMetadata* meta = get_metadata(handle);
+    if (!meta || meta->is_freed) {
+        return Value(static_cast<int64_t>(-1));
+    }
+    if (offset + count > static_cast<int64_t>(meta->size)) {
+        return Value(static_cast<int64_t>(-1));
+    }
+
+    ssize_t nbytes = io(meta->data + offset, static_cast<size_t>(count));
+    return Value(static_cast<int64_t>(nbytes));
+}
+
+Value MemoryManager::sendto_buffer(int64_t fd, int64_t handle, int64_t offset, int64_t count,
+                                   const std::string& host, int64_t port) {
+    if (count < 0 || offset < 0) {
+        return Value(static_cast<int64_t>(-1));
+    }
+
+    struct sockaddr_in addr;
+    std::memset(&addr, 0, sizeof(addr));
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(static_cast<uint16_t>(port));
+    if (::inet_pton(AF_INET, host.c_str(), &addr.sin_addr) <= 0) {
+        return Value(static_cast<int64_t>(-1));
+    }
+
+    std::lock_guard<std::mutex> lock(allocation_mutex);
+    AllocationMetadata* meta = get_metadata(handle);
+    if (!meta || meta->is_freed) {
+        return Value(static_cast<int64_t>(-1));
+    }
+    if (offset + count > static_cast<int64_t>(meta->size)) {
+        return Value(static_cast<int64_t>(-1));
+    }
+
+    ssize_t nbytes = ::sendto(static_cast<int>(fd), meta->data + offset,
+                              static_cast<size_t>(count), 0,
+                              reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr));
+    return Value(static_cast<int64_t>(nbytes));
+}
+
+Value MemoryManager::recvfrom_buffer(int64_t fd, int64_t handle, int64_t offset, int64_t count) {
+    auto make_result = [](int64_t nbytes, const std::string& host, int64_t port) {
+        Value result = Value::create_object();
+        result.object_set("nbytes", Value(nbytes));
+        result.object_set("host", Value(host));
+        result.object_set("port", Value(port));
+        return result;
+    };
+
+    if (count < 0 || offset < 0) {
+        return make_result(-1, "", 0);
+    }
+
+    struct sockaddr_in addr;
+    socklen_t addrlen = sizeof(addr);
+    std::memset(&addr, 0, sizeof(addr));
+
+    std::lock_guard<std::mutex> lock(allocation_mutex);
+    AllocationMetadata* meta = get_metadata(handle);
+    if (!meta || meta->is_freed) {
+        return make_result(-1, "", 0);
+    }
+    if (offset + count > static_cast<int64_t>(meta->size)) {
+        return make_result(-1, "", 0);
+    }
+
+    ssize_t nbytes = ::recvfrom(static_cast<int>(fd), meta->data + offset,
+                               static_cast<size_t>(count), 0,
+                               reinterpret_cast<struct sockaddr*>(&addr), &addrlen);
+    if (nbytes < 0) {
+        return make_result(-1, "", 0);
+    }
+
+    char host_buf[INET_ADDRSTRLEN] = {};
+    ::inet_ntop(AF_INET, &addr.sin_addr, host_buf, sizeof(host_buf));
+    return make_result(static_cast<int64_t>(nbytes), std::string(host_buf),
+                       static_cast<int64_t>(ntohs(addr.sin_port)));
 }
 
 Value MemoryManager::bytes_to_string(int64_t handle, int64_t offset, int64_t count) {

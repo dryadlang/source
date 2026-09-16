@@ -37,6 +37,7 @@ private:
     bool match(TokenType type);
     bool match(std::initializer_list<TokenType> types);
     Token consume(TokenType type, const std::string& message);
+    Token consume_member_name(const std::string& message);
     
     void error(const std::string& message);
     void error_at(const SourceLocation& location, const std::string& message);
@@ -64,6 +65,7 @@ private:
     std::string parse_intrinsic_name();
     std::vector<Parameter> parse_parameters();
     std::string parse_return_type();
+    std::unique_ptr<FunctionExpression> parse_function_expression();
     
     std::unique_ptr<Expression> parse_expression();
     std::unique_ptr<Expression> parse_assignment();

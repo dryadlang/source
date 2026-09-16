@@ -22,6 +22,7 @@ std::unordered_map<std::string, TokenType> Lexer::keywords_ = {
     {"readonly", TokenType::KeywordReadonly},
     {"get", TokenType::KeywordGet},
     {"set", TokenType::KeywordSet},
+    {"delete", TokenType::KeywordDelete},
     {"new", TokenType::KeywordNew},
     {"this", TokenType::KeywordThis},
     {"super", TokenType::KeywordSuper},

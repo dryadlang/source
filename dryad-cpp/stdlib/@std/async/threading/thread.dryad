@@ -1,0 +1,77 @@
+// @std/async/threading/thread.dryad
+// OS thread wrapper (blocking join model)
+
+function Thread_makeOutcome(ok, payload) {
+    let outcome = __runtime_create_object();
+    __runtime_object_set(outcome, "ok", ok);
+    if (ok) {
+        __runtime_object_set(outcome, "value", payload);
+    } else {
+        __runtime_object_set(outcome, "error", payload);
+    }
+    return outcome;
+}
+
+class Thread {
+    constructor(fn, args = []) {
+        this._fn = fn;
+        this._args = args;
+        this._jobId = -1;
+        this._started = false;
+    }
+
+    start() {
+        if (this._started) {
+            return false;
+        }
+        this._jobId = __thread_spawn(this._fn, this._args);
+        this._started = true;
+        return true;
+    }
+
+    join() {
+        if (!this._started) {
+            return Thread_makeOutcome(false, "thread not started");
+        }
+        let value = __thread_join(this._jobId);
+        this._started = false;
+        return Thread_makeOutcome(true, value);
+    }
+
+    isStarted() {
+        return this._started;
+    }
+}
+
+function Thread_parallel(fns) {
+    let threads = [];
+    let i = 0;
+    let count = __runtime_array_length(fns);
+    while (i < count) {
+        let thread = new Thread(fns[i], []);
+        thread.start();
+        __runtime_array_push(threads, thread);
+        i = i + 1;
+    }
+
+    let results = [];
+    i = 0;
+    while (i < count) {
+        let outcome = threads[i].join();
+        if (!__runtime_object_get(outcome, "ok")) {
+            return outcome;
+        }
+        __runtime_array_push(results, __runtime_object_get(outcome, "value"));
+        i = i + 1;
+    }
+    return Thread_makeOutcome(true, results);
+}
+
+function Thread_sleepMs(milliseconds) {
+    __thread_sleep_ms(milliseconds);
+    return null;
+}
+
+function Thread_hardwareConcurrency() {
+    return __thread_hardware_concurrency();
+}

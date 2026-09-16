@@ -1,0 +1,106 @@
+// @std/net/http/http_response.dryad
+// HTTP response parser
+
+import { HttpHeaders, HttpHeaders_fromLines } from "@std/net/http/http_headers";
+import { Http_indexOf, Http_substring, Http_trim, Http_startsWith, Http_charAt } from "@std/net/http/http_string";
+import { ArgumentException } from "@std/core/exceptions";
+
+class HttpResponse {
+    constructor(statusCode, statusText, headers, body) {
+        this.statusCode = statusCode;
+        this.statusText = statusText;
+        this.headers = headers;
+        this.body = body;
+    }
+}
+
+function HttpResponse_parse(raw) {
+    if (raw == null || raw == "") {
+        return ArgumentException("Empty HTTP response");
+    }
+
+    let headerEnd = Http_indexOf(raw, "\r\n\r\n");
+    if (headerEnd < 0) {
+        return ArgumentException("Malformed HTTP response");
+    }
+
+    let headerBlock = Http_substring(raw, 0, headerEnd);
+    let body = Http_substring(raw, headerEnd + 4, __string_length(raw));
+
+    let lines = HttpResponse_splitLines(headerBlock);
+    if (__runtime_array_length(lines) < 1) {
+        return ArgumentException("Malformed HTTP status line");
+    }
+
+    let statusLine = lines[0];
+    let statusParts = HttpResponse_parseStatusLine(statusLine);
+    if (statusParts == null) {
+        return ArgumentException("Malformed HTTP status line");
+    }
+
+    let headerLines = [];
+    let i = 1;
+    while (i < __runtime_array_length(lines)) {
+        __runtime_array_push(headerLines, lines[i]);
+        i = i + 1;
+    }
+
+    let headers = HttpHeaders_fromLines(headerLines);
+    return new HttpResponse(statusParts[0], statusParts[1], headers, body);
+}
+
+function HttpResponse_splitLines(block) {
+    let lines = [];
+    let current = "";
+    let i = 0;
+    let len = __string_length(block);
+    while (i < len) {
+        let ch = Http_charAt(block, i);
+        if (ch == "\r" && i + 1 < len && Http_charAt(block, i + 1) == "\n") {
+            __runtime_array_push(lines, current);
+            current = "";
+            i = i + 2;
+        } else {
+            current = current + ch;
+            i = i + 1;
+        }
+    }
+    if (current != "") {
+        __runtime_array_push(lines, current);
+    }
+    return lines;
+}
+
+function HttpResponse_parseStatusLine(line) {
+    if (!Http_startsWith(line, "HTTP/")) {
+        return null;
+    }
+    let firstSpace = Http_indexOf(line, " ");
+    if (firstSpace < 0) {
+        return null;
+    }
+    let secondSpace = Http_indexOf(Http_substring(line, firstSpace + 1, __string_length(line)), " ");
+    let codeText = Http_substring(line, firstSpace + 1, firstSpace + 4);
+    let code = HttpResponse_parseInt(codeText);
+    let text = Http_trim(Http_substring(line, firstSpace + 4, __string_length(line)));
+    return [code, text];
+}
+
+function HttpResponse_parseInt(text) {
+    let value = 0;
+    let i = 0;
+    let len = __string_length(text);
+    let handle = __alloc_bytes(len);
+    __string_to_bytes(text, handle, 0);
+    while (i < len) {
+        let byte = __buffer_get(handle, i);
+        if (byte < 48 || byte > 57) {
+            __free_bytes(handle);
+            return 0;
+        }
+        value = value * 10 + (byte - 48);
+        i = i + 1;
+    }
+    __free_bytes(handle);
+    return value;
+}

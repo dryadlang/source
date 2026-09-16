@@ -1,0 +1,94 @@
+// @std/net/tcp_client.dryad
+// High-level TCP client
+
+import { SocketDomain_IPv4, SocketType_Stream } from "@std/net/constants";
+import { Socket } from "@std/net/socket";
+import { NetworkStream_fromSocket } from "@std/net/network_stream";
+import { SocketException } from "@std/core/exceptions";
+import { IDisposable } from "@std/core/disposable";
+
+class TcpClient implements IDisposable {
+    constructor() {
+        this._socket = null;
+        this._lastError = null;
+    }
+
+    connected: boolean {
+        get {
+            if (this._lastError != null) {
+                return false;
+            }
+            if (this._socket == null) {
+                return false;
+            }
+            return this._socket.connected;
+        }
+    }
+
+    getStream() {
+        if (this._lastError != null) {
+            return this._lastError;
+        }
+        if (this._socket == null || !this._socket.connected) {
+            return SocketException("Client is not connected");
+        }
+        return NetworkStream_fromSocket(this._socket);
+    }
+
+    send(buffer, offset, count) {
+        if (this._lastError != null) {
+            return this._lastError;
+        }
+        if (this._socket == null) {
+            return SocketException("Client is not connected");
+        }
+        return this._socket.send(buffer, offset, count);
+    }
+
+    receive(buffer, offset, count) {
+        if (this._lastError != null) {
+            return this._lastError;
+        }
+        if (this._socket == null) {
+            return SocketException("Client is not connected");
+        }
+        return this._socket.receive(buffer, offset, count);
+    }
+
+    close() {
+        if (this._socket != null) {
+            this._socket.close();
+            this._socket = null;
+        }
+        return null;
+    }
+
+    dispose() {
+        return this.close();
+    }
+}
+
+function TcpClient_connect(host, port) {
+    let client = new TcpClient();
+    let socket = new Socket(SocketDomain_IPv4, SocketType_Stream);
+    if (socket._fd < 0) {
+        client._lastError = SocketException("Cannot create socket");
+        return client;
+    }
+
+    let err = socket.connect(host, port);
+    if (err != null) {
+        socket.close();
+        client._lastError = err;
+        return client;
+    }
+
+    client._socket = socket;
+    return client;
+}
+
+function TcpClient_wrap(socket) {
+    let client = new TcpClient();
+    client._socket = socket;
+    return client;
+}

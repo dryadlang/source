@@ -1,0 +1,63 @@
+// Collections examples: List, Map, Set
+
+import { List, Map, Set, Queue } from "@std/collections";
+
+// List
+let numbers = new List();
+numbers.add(1);
+numbers.add(2);
+numbers.add(3);
+numbers.add(4);
+
+let doubled = numbers.map(function(x) {
+    return x * 2;
+});
+let evens = numbers.filter(function(x) {
+    return x % 2 == 0;
+});
+let total = numbers.reduce(function(acc, x) {
+    return acc + x;
+}, 0);
+
+print("List count");
+print(numbers.count);
+print("Doubled first");
+print(doubled.get(0));
+print("Evens count");
+print(evens.count);
+print("Sum");
+print(total);
+
+// Map
+let profile = new Map();
+profile.put("lang", "Dryad");
+profile.put("phase", 4);
+
+print("Map size");
+print(profile.size);
+print("Lang");
+print(profile.get("lang"));
+
+// Set
+let tags = new Set();
+tags.add("stdlib");
+tags.add("collections");
+tags.add("stdlib");
+
+print("Set size");
+print(tags.size);
+print("Has collections");
+print(tags.has("collections"));
+
+// Queue (FIFO)
+let queue = new Queue(4);
+queue.enqueue(10);
+queue.enqueue(20);
+queue.enqueue(30);
+
+print("Queue peek");
+print(queue.peek());
+print("Queue dequeue");
+print(queue.dequeue());
+print("Queue count");
+print(queue.count);

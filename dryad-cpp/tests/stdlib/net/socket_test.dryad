@@ -1,0 +1,38 @@
+// Socket unit tests
+
+import { Socket, Socket_isSocket } from "@std/net/socket";
+import { SocketDomain_IPv4, SocketType_Stream } from "@std/net/constants";
+import { Buffer_New, Buffer_FromString, Buffer_AsString, Buffer_Dispose } from "@std/buffers/buffer";
+
+function test_socket_create_and_close() {
+    let socket = new Socket(SocketDomain_IPv4, SocketType_Stream);
+    if (socket._fd < 0) {
+        return false;
+    }
+    let wasOpen = !socket.closed;
+    socket.close();
+    return wasOpen && socket.closed;
+}
+
+function test_socket_connect_invalid_port() {
+    let socket = new Socket(SocketDomain_IPv4, SocketType_Stream);
+    let err = socket.connect("127.0.0.1", 70000);
+    socket.close();
+    return err != null;
+}
+
+function test_socket_is_socket_helper() {
+    let socket = new Socket(SocketDomain_IPv4, SocketType_Stream);
+    let isSocket = Socket_isSocket(socket);
+    socket.close();
+    return isSocket;
+}
+
+function test_socket_send_without_connect() {
+    let socket = new Socket(SocketDomain_IPv4, SocketType_Stream);
+    let buf = Buffer_FromString("hi");
+    let err = socket.send(buf, 0, 2);
+    Buffer_Dispose(buf);
+    socket.close();
+    return err != null;
+}

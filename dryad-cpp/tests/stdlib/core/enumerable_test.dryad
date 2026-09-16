@@ -1,0 +1,18 @@
+// IEnumerable interface tests
+
+import { List } from "@std/collections/list";
+
+let __enum_total = 0;
+
+function __enum_add(item) {
+    __enum_total = __enum_total + item;
+}
+
+function test_list_implements_ienumerable() {
+    let list = new List();
+    list.add(1);
+    list.add(2);
+    __enum_total = 0;
+    list.forEach(__enum_add);
+    return __enum_total == 3;
+}

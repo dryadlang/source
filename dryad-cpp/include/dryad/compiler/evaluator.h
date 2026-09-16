@@ -28,6 +28,7 @@ private:
     Value evaluate_member(MemberExpression* expr);
     Value evaluate_array(ArrayExpression* expr);
     Value evaluate_new(NewExpression* expr);
+    Value evaluate_function_expression(FunctionExpression* expr);
     Value evaluate_this(ThisExpression* expr);
     Value evaluate_super_call(CallExpression* expr, const std::vector<Value>& arguments);
     Value evaluate_super_method_call(MemberExpression* member, const std::vector<Value>& arguments);

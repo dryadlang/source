@@ -1,0 +1,54 @@
+#include <gtest/gtest.h>
+#include "dryad/compiler/lexer.h"
+#include "dryad/compiler/parser.h"
+#include "dryad/compiler/interpreter.h"
+#include <fstream>
+#include <sstream>
+#include <stdexcept>
+
+using namespace dryad;
+
+namespace {
+
+std::string read_file(const std::string& path) {
+    std::ifstream file(path);
+    if (!file) {
+        throw std::runtime_error("Cannot open file: " + path);
+    }
+    std::ostringstream buffer;
+    buffer << file.rdbuf();
+    return buffer.str();
+}
+
+Value run_http_test(const std::string& test_fn) {
+    static const std::string tests = read_file(
+        std::string(DRYAD_TEST_DIR) + "/stdlib/net/http_client_test.dryad");
+
+    std::string source = tests + "\nlet __ok = " + test_fn + "();";
+
+    Lexer lexer(source);
+    Parser parser(lexer.tokenize());
+    auto program = parser.parse();
+    if (parser.has_error()) {
+        throw std::runtime_error("Parser error: " + parser.error_message());
+    }
+
+    Interpreter interpreter;
+    interpreter.set_stdlib_root(DRYAD_STDLIB_DIR);
+    interpreter.execute(program.get());
+    return interpreter.global_env()->get("__ok");
+}
+
+} // namespace
+
+TEST(HttpClientTest, ParseUrl) {
+    EXPECT_TRUE(run_http_test("test_http_parse_url").is_truthy());
+}
+
+TEST(HttpClientTest, ParseResponse) {
+    EXPECT_TRUE(run_http_test("test_http_response_parse").is_truthy());
+}
+
+TEST(HttpClientTest, Create) {
+    EXPECT_TRUE(run_http_test("test_http_client_create").is_truthy());
+}

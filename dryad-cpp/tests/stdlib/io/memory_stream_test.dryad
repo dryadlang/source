@@ -1,0 +1,79 @@
+// MemoryStream tests
+
+import {
+    MemoryStream_new,
+    MemoryStream_fromString,
+    MemoryStream_toString
+} from "@std/io/memory_stream";
+
+import {
+    Buffer_New,
+    Buffer_FromString,
+    Buffer_Len,
+    Buffer_AsString,
+    Buffer_Dispose
+} from "@std/buffers/buffer";
+
+import { SeekOrigin } from "@std/io/stream";
+
+function test_memory_stream_read_write() {
+    let stream = MemoryStream_new(16);
+    let input = Buffer_FromString("Hello");
+    let written = stream.write(input, 0, Buffer_Len(input));
+    Buffer_Dispose(input);
+
+    let output = Buffer_New(5);
+    stream.seek(0, SeekOrigin.Begin);
+    let nbytes = stream.read(output, 0, 5);
+    let text = Buffer_AsString(output);
+    Buffer_Dispose(output);
+    stream.close();
+
+    return written == 5 && nbytes == 5 && text == "Hello";
+}
+
+function test_memory_stream_from_string() {
+    let stream = MemoryStream_fromString("Dryad");
+    let buf = Buffer_New(5);
+    let n = stream.read(buf, 0, 5);
+    let text = Buffer_AsString(buf);
+    Buffer_Dispose(buf);
+    stream.close();
+    return n == 5 && text == "Dryad";
+}
+
+function test_memory_stream_seek() {
+    let stream = MemoryStream_fromString("0123456789");
+    stream.seek(4, SeekOrigin.Begin);
+    let pos1 = stream.position;
+    stream.seek(2, SeekOrigin.Current);
+    let pos2 = stream.position;
+    stream.close();
+    return pos1 == 4 && pos2 == 6;
+}
+
+function test_memory_stream_to_string() {
+    let stream = MemoryStream_fromString("payload");
+    let text = MemoryStream_toString(stream);
+    stream.close();
+    return text == "payload";
+}
+
+function test_memory_stream_grows_on_write() {
+    let stream = MemoryStream_new(2);
+    let input = Buffer_FromString("ABCDE");
+    let written = stream.write(input, 0, 5);
+    let len = stream.length;
+    Buffer_Dispose(input);
+    stream.close();
+    return written == 5 && len == 5;
+}
+
+function test_memory_stream_readonly_rejects_write() {
+    let stream = MemoryStream_fromString("locked");
+    let input = Buffer_FromString("x");
+    let result = stream.write(input, 0, 1);
+    Buffer_Dispose(input);
+    stream.close();
+    return result != 1;
+}

@@ -1,0 +1,61 @@
+// @std/net/socket_async.dryad
+// Async wrappers for socket operations (Promise-based)
+
+import { Promise } from "@std/async/promise";
+import { TcpClient_connect } from "@std/net/tcp_client";
+
+function Socket_connectAsync(socket, host, port) {
+    return new Promise(function(resolve, reject) {
+        let err = socket.connect(host, port);
+        if (err != null) {
+            reject(err);
+            return null;
+        }
+        resolve(null);
+        return null;
+    });
+}
+
+function Socket_sendAsync(socket, buffer, offset, count) {
+    return new Promise(function(resolve, reject) {
+        let result = socket.send(buffer, offset, count);
+        if (result != null && result < 0) {
+            reject(result);
+            return null;
+        }
+        if (result != null && result >= 0) {
+            resolve(result);
+            return null;
+        }
+        reject(result);
+        return null;
+    });
+}
+
+function Socket_receiveAsync(socket, buffer, offset, count) {
+    return new Promise(function(resolve, reject) {
+        let result = socket.receive(buffer, offset, count);
+        if (result != null && result < 0) {
+            reject(result);
+            return null;
+        }
+        if (result != null && result >= 0) {
+            resolve(result);
+            return null;
+        }
+        reject(result);
+        return null;
+    });
+}
+
+function TcpClient_connectAsync(host, port) {
+    return new Promise(function(resolve, reject) {
+        let client = TcpClient_connect(host, port);
+        if (client._lastError != null) {
+            reject(client._lastError);
+            return null;
+        }
+        resolve(client);
+        return null;
+    });
+}

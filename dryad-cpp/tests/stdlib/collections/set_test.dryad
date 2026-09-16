@@ -1,0 +1,49 @@
+// Set unit tests
+
+import { Set } from "@std/collections/set";
+
+let __set_total = 0;
+
+function __set_add_item(item) {
+    __set_total = __set_total + item;
+}
+
+function test_set_add_and_has() {
+    let unique = new Set();
+    unique.add("foo");
+    unique.add("bar");
+    return unique.has("foo") && unique.size == 2;
+}
+
+function test_set_ignores_duplicates() {
+    let unique = new Set();
+    unique.add("foo");
+    unique.add("foo");
+    return unique.size == 1;
+}
+
+function test_set_delete() {
+    let unique = new Set();
+    unique.add("a");
+    unique.add("b");
+    let removed = unique.delete("a");
+    return removed && !unique.has("a") && unique.size == 1;
+}
+
+function test_set_clear() {
+    let unique = new Set();
+    unique.add(1);
+    unique.add(2);
+    unique.clear();
+    return unique.size == 0;
+}
+
+function test_set_for_each() {
+    let unique = new Set();
+    unique.add(1);
+    unique.add(2);
+    unique.add(3);
+    __set_total = 0;
+    unique.forEach(__set_add_item);
+    return __set_total == 6;
+}

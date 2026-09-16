@@ -12,6 +12,7 @@ option(DRYAD_BUILD_TESTS "Build tests" ON)
 option(DRYAD_BUILD_BENCHMARKS "Build benchmarks" OFF)
 option(DRYAD_ENABLE_COVERAGE "Enable code coverage" OFF)
 option(DRYAD_ENABLE_SANITIZERS "Enable sanitizers (ASAN, UBSAN)" OFF)
+option(DRYAD_ENABLE_TLS "Enable TLS support via OpenSSL" ON)
 
 # =============================================================================
 # Compiler Flags
@@ -66,15 +67,29 @@ add_library(dryad_runtime STATIC
     src/runtime/intrinsics.cpp
     src/runtime/intrinsics_registry.cpp
     src/runtime/intrinsics_network.cpp
+    src/runtime/intrinsics_tls.cpp
     src/runtime/intrinsics_filesystem.cpp
     src/runtime/intrinsics_process.cpp
+    src/runtime/intrinsics_thread.cpp
+    src/runtime/thread_manager.cpp
     src/runtime/module_loader.cpp
     src/runtime/environment.cpp
     src/runtime/function.cpp
     src/runtime/class.cpp
 )
 target_include_directories(dryad_runtime PUBLIC include)
-target_link_libraries(dryad_runtime PUBLIC dryad_common)
+target_link_libraries(dryad_runtime PUBLIC dryad_common pthread)
+
+if(DRYAD_ENABLE_TLS)
+    find_package(OpenSSL)
+    if(OpenSSL_FOUND)
+        target_compile_definitions(dryad_runtime PUBLIC DRYAD_HAS_TLS)
+        target_link_libraries(dryad_runtime PUBLIC OpenSSL::SSL OpenSSL::Crypto)
+        message(STATUS "TLS support enabled (OpenSSL)")
+    else()
+        message(STATUS "TLS support disabled (OpenSSL not found)")
+    endif()
+endif()
 
 # Compiler library
 add_library(dryad_compiler STATIC
@@ -155,12 +170,28 @@ if(DRYAD_BUILD_TESTS)
         tests/unit/io_errors_test.cpp
         tests/unit/io_concurrency_test.cpp
         tests/unit/io_integration_test.cpp
+        tests/unit/filestream_test.cpp
+        tests/unit/memory_stream_test.cpp
+        tests/unit/path_test.cpp
+        tests/unit/enumerable_test.cpp
+        tests/unit/list_test.cpp
+        tests/unit/map_test.cpp
+        tests/unit/set_test.cpp
+        tests/unit/queue_test.cpp
+        tests/unit/network_intrinsics_test.cpp
+        tests/unit/socket_test.cpp
+        tests/unit/promise_test.cpp
+        tests/unit/threading_test.cpp
+        tests/unit/udp_test.cpp
+        tests/unit/http_client_test.cpp
+        tests/unit/language_features_test.cpp
         tests/unit/import_test.cpp
     )
     target_link_libraries(unit_tests PRIVATE 
         gtest_main
         dryad_runtime
         dryad_compiler
+        pthread
     )
     # Allow tests to locate stdlib source files (loaded at runtime by interpreter)
     target_compile_definitions(unit_tests PRIVATE
@@ -176,8 +207,15 @@ if(DRYAD_BUILD_TESTS)
         tests/integration/buffer_workflow_test.cpp
         tests/integration/vfs_workflow_test.cpp
         tests/integration/core_foundation_test.cpp
+        tests/integration/file_io_workflow_test.cpp
+        tests/integration/collections_workflow_test.cpp
+        tests/integration/net_echo_test.cpp
+        tests/integration/net_http_smoke_test.cpp
+        tests/integration/udp_echo_test.cpp
+        tests/integration/http_client_test.cpp
     )
     target_link_libraries(integration_tests PRIVATE
+        pthread
         gtest_main
         dryad_compiler
         dryad_runtime

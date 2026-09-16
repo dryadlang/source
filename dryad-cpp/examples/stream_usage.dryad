@@ -1,0 +1,52 @@
+// Stream I/O examples: FileStream, MemoryStream, and Path utilities
+
+import {
+    File_open,
+    File_writeAllText,
+    File_readAllText,
+    File_delete,
+    FileMode
+} from "@std/io/file";
+
+import {
+    MemoryStream_fromString,
+    MemoryStream_toString
+} from "@std/io/memory_stream";
+
+import { Path } from "@std/io/path";
+
+import {
+    Buffer_New,
+    Buffer_FromString,
+    Buffer_Len,
+    Buffer_AsString,
+    Buffer_Dispose
+} from "@std/buffers/buffer";
+
+// MemoryStream roundtrip
+let mem = MemoryStream_fromString("in-memory payload");
+let memText = MemoryStream_toString(mem);
+mem.close();
+print("MemoryStream: " + memText);
+
+// FileStream buffer copy
+let nestedPath = Path.join("dryad_examples", "stream_copy.txt");
+File_writeAllText(nestedPath, "FileStream copy demo");
+
+let src = File_open(nestedPath, FileMode.Read);
+let dstPath = Path.join("dryad_examples", "stream_copy_out.txt");
+let dst = File_open(dstPath, FileMode.Write);
+
+let buf = Buffer_New(256);
+let n = src.read(buf, 0, 256);
+dst.write(buf, 0, n);
+Buffer_Dispose(buf);
+
+src.close();
+dst.close();
+
+let copied = File_readAllText(dstPath);
+print("Copied: " + copied);
+
+File_delete(nestedPath);
+File_delete(dstPath);

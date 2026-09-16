@@ -1,0 +1,60 @@
+// Map unit tests
+
+import { Map } from "@std/collections/map";
+
+let __map_total = 0;
+
+function __map_add_values(key, value) {
+    __map_total = __map_total + value;
+}
+
+function test_map_put_get_has() {
+    let map = new Map();
+    map.put("age", 30);
+    return map.has("age") && map.get("age") == 30;
+}
+
+function test_map_update_existing() {
+    let map = new Map();
+    map.put("x", 1);
+    map.put("x", 2);
+    return map.size == 1 && map.get("x") == 2;
+}
+
+function test_map_delete() {
+    let map = new Map();
+    map.put("a", 1);
+    let removed = map.delete("a");
+    let missing = map.delete("missing");
+    return removed && !missing && map.size == 0;
+}
+
+function test_map_get_missing_returns_null() {
+    let map = new Map();
+    return map.get("missing") == null;
+}
+
+function test_map_for_each() {
+    let map = new Map();
+    map.put("a", 1);
+    map.put("b", 2);
+    __map_total = 0;
+    map.forEach(__map_add_values);
+    return __map_total == 3;
+}
+
+function test_map_keys_and_values() {
+    let map = new Map();
+    map.put("a", 1);
+    map.put("b", 2);
+    let keys = map.keys();
+    let values = map.values();
+    return keys.count == 2 && values.count == 2 && values.get(1) == 2;
+}
+
+function test_map_numeric_keys() {
+    let map = new Map();
+    map.put(1, "one");
+    map.put(2, "two");
+    return map.get(1) == "one" && map.has(2);
+}

@@ -1,0 +1,77 @@
+// @std/net/http/http_headers.dryad
+// HTTP header collection
+
+import { Map } from "@std/collections/map";
+import { Http_charAt, Http_substring } from "@std/net/http/http_string";
+
+class HttpHeaders {
+    constructor() {
+        this._map = new Map();
+    }
+
+    set(name, value) {
+        this._map.put(name, value);
+        return null;
+    }
+
+    get(name) {
+        return this._map.get(name);
+    }
+
+    has(name) {
+        return this._map.has(name);
+    }
+}
+
+function HttpHeaders_fromLines(lines) {
+    let headers = new HttpHeaders();
+    let i = 0;
+    let count = __runtime_array_length(lines);
+    while (i < count) {
+        let line = lines[i];
+        let colon = HttpHeaders_indexOfColon(line);
+        if (colon > 0) {
+            let name = Http_substring(line, 0, colon);
+            let value = HttpHeaders_trim(Http_substring(line, colon + 1, __string_length(line)));
+            headers.set(name, value);
+        }
+        i = i + 1;
+    }
+    return headers;
+}
+
+function HttpHeaders_indexOfColon(text) {
+    let i = 0;
+    let len = __string_length(text);
+    while (i < len) {
+        if (Http_charAt(text, i) == ":") {
+            return i;
+        }
+        i = i + 1;
+    }
+    return -1;
+}
+
+function HttpHeaders_trim(text) {
+    let start = 0;
+    let end = __string_length(text);
+    let trimmingStart = true;
+    while (start < end && trimmingStart) {
+        let ch = Http_charAt(text, start);
+        if (ch == " " || ch == "\t") {
+            start = start + 1;
+        } else {
+            trimmingStart = false;
+        }
+    }
+    let trimmingEnd = true;
+    while (end > start && trimmingEnd) {
+        let ch = Http_charAt(text, end - 1);
+        if (ch == " " || ch == "\t") {
+            end = end - 1;
+        } else {
+            trimmingEnd = false;
+        }
+    }
+    return Http_substring(text, start, end);
+}

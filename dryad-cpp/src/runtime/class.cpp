@@ -59,13 +59,38 @@ void DryadClass::run_constructor(const std::shared_ptr<ClassInstance>& instance,
 
     auto prev_class = interpreter->executing_class();
     bool prev_in_constructor = interpreter->in_constructor();
-    auto ctor_env = std::make_shared<Environment>(interpreter->current_env());
+    auto ctor_env = std::make_shared<Environment>(dryad_ctor->closure());
     ctor_env->define("this", Value(instance));
     interpreter->set_executing_class(shared_from_this());
     interpreter->set_in_constructor(true);
 
-    for (size_t i = 0; i < args.size() && i < dryad_ctor->declaration()->parameters.size(); ++i) {
-        ctor_env->define(dryad_ctor->declaration()->parameters[i].name, args[i]);
+    const auto& parameters = dryad_ctor->declaration()->parameters;
+    size_t required_count = 0;
+    for (const auto& param : parameters) {
+        if (!param.default_value) {
+            required_count++;
+        }
+    }
+
+    if (args.size() < required_count || args.size() > parameters.size()) {
+        throw DryadException("Constructor expects between " + std::to_string(required_count) +
+                           " and " + std::to_string(parameters.size()) +
+                           " arguments, got " + std::to_string(args.size()));
+    }
+
+    auto previous_env = interpreter->current_env();
+    for (size_t i = 0; i < parameters.size(); ++i) {
+        Value arg_value;
+        if (i < args.size()) {
+            arg_value = args[i];
+        } else if (parameters[i].default_value) {
+            interpreter->set_current_env(dryad_ctor->closure());
+            arg_value = interpreter->evaluate(parameters[i].default_value.get());
+            interpreter->set_current_env(previous_env);
+        } else {
+            throw DryadException("Missing argument for parameter '" + parameters[i].name + "'");
+        }
+        ctor_env->define(parameters[i].name, arg_value);
     }
 
     try {

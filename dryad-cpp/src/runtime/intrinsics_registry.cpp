@@ -6,6 +6,7 @@
 #include <sys/stat.h>
 #include <cerrno>
 #include <ctime>
+#include <string>
 
 namespace dryad {
 
@@ -28,6 +29,13 @@ Value IntrinsicsRegistry::call(const std::string& name, const std::vector<Value>
 
 bool IntrinsicsRegistry::has(const std::string& name) const {
     return intrinsics_.find(name) != intrinsics_.end();
+}
+
+void IntrinsicsRegistry::require_network_access() const {
+    if (!network_allowed_) {
+        throw DryadException(
+            "Network access denied. Pass --allow-net to dryad or set DRYAD_ALLOW_NET=1");
+    }
 }
 
 void IntrinsicsRegistry::register_file_io_intrinsics() {
@@ -81,6 +89,47 @@ void IntrinsicsRegistry::register_file_io_intrinsics() {
         
         int64_t fd = args[0].as_integer();
         int result = ::close(static_cast<int>(fd));
+        return Value(static_cast<int64_t>(result));
+    });
+
+    register_intrinsic("syscall.read_buffer", [](const std::vector<Value>& args) -> Value {
+        if (args.size() < 4 || !args[0].is_integer() || !args[1].is_integer() ||
+            !args[2].is_integer() || !args[3].is_integer()) {
+            throw DryadException("syscall.read_buffer requires 4 integer arguments");
+        }
+        return MemoryManager::read_fd_to_buffer(
+            args[0].as_integer(), args[1].as_integer(), args[2].as_integer(), args[3].as_integer());
+    });
+
+    register_intrinsic("syscall.write_buffer", [](const std::vector<Value>& args) -> Value {
+        if (args.size() < 4 || !args[0].is_integer() || !args[1].is_integer() ||
+            !args[2].is_integer() || !args[3].is_integer()) {
+            throw DryadException("syscall.write_buffer requires 4 integer arguments");
+        }
+        return MemoryManager::write_fd_from_buffer(
+            args[0].as_integer(), args[1].as_integer(), args[2].as_integer(), args[3].as_integer());
+    });
+
+    register_intrinsic("syscall.fstat", [](const std::vector<Value>& args) -> Value {
+        if (args.empty() || !args[0].is_integer()) {
+            throw DryadException("syscall.fstat requires 1 integer argument");
+        }
+        struct stat st;
+        if (::fstat(static_cast<int>(args[0].as_integer()), &st) < 0) {
+            return Value(static_cast<int64_t>(-1));
+        }
+        return Value(static_cast<int64_t>(st.st_size));
+    });
+
+    register_intrinsic("syscall.fsync", [](const std::vector<Value>& args) -> Value {
+        if (args.empty() || !args[0].is_integer()) {
+            throw DryadException("syscall.fsync requires 1 integer argument");
+        }
+#ifdef _WIN32
+        int result = ::_commit(static_cast<int>(args[0].as_integer()));
+#else
+        int result = ::fsync(static_cast<int>(args[0].as_integer()));
+#endif
         return Value(static_cast<int64_t>(result));
     });
     
@@ -216,6 +265,13 @@ void IntrinsicsRegistry::register_string_intrinsics() {
         
         return Value(static_cast<int64_t>(args[0].as_string().size()));
     });
+
+    register_intrinsic("syscall.int_to_string", [](const std::vector<Value>& args) -> Value {
+        if (args.empty() || !args[0].is_integer()) {
+            throw DryadException("syscall.int_to_string requires 1 integer argument");
+        }
+        return Value(std::to_string(args[0].as_integer()));
+    });
     
     register_intrinsic("syscall.string_to_bytes", [](const std::vector<Value>& args) -> Value {
         if (args.size() < 3 || !args[0].is_string() || 
@@ -248,9 +304,6 @@ void IntrinsicsRegistry::register_string_intrinsics() {
     });
 }
 
-void IntrinsicsRegistry::register_network_intrinsics() {
-}
-
 void IntrinsicsRegistry::register_misc_intrinsics() {
     register_intrinsic("runtime.get_stack_trace", [](const std::vector<Value>& args) -> Value {
         (void)args;
@@ -260,6 +313,25 @@ void IntrinsicsRegistry::register_misc_intrinsics() {
     register_intrinsic("runtime.create_object", [](const std::vector<Value>& args) -> Value {
         (void)args;
         return Value::create_object();
+    });
+
+    register_intrinsic("runtime.value_kind", [](const std::vector<Value>& args) -> Value {
+        if (args.empty()) {
+            return Value("null");
+        }
+        switch (args[0].type()) {
+            case ValueType::Null: return Value("null");
+            case ValueType::Boolean: return Value("boolean");
+            case ValueType::Integer: return Value("integer");
+            case ValueType::Float: return Value("float");
+            case ValueType::String: return Value("string");
+            case ValueType::Array: return Value("array");
+            case ValueType::Object: return Value("object");
+            case ValueType::Function: return Value("function");
+            case ValueType::Class: return Value("class");
+            case ValueType::Instance: return Value("instance");
+            default: return Value("unknown");
+        }
     });
     
     register_intrinsic("runtime.object_set", [](const std::vector<Value>& args) -> Value {
@@ -328,12 +400,14 @@ void IntrinsicsRegistry::register_misc_intrinsics() {
 void IntrinsicsRegistry::register_all() {
     register_file_io_intrinsics();
     register_network_intrinsics();
+    register_tls_intrinsics();
     register_filesystem_intrinsics();
     register_process_intrinsics();
     register_time_intrinsics();
     register_memory_intrinsics();
     register_string_intrinsics();
     register_misc_intrinsics();
+    register_thread_intrinsics();
 }
 
 } // namespace dryad

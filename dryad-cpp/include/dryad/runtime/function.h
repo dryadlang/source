@@ -39,6 +39,13 @@ public:
     DryadFunction(FunctionDeclaration* decl, std::shared_ptr<Environment> closure,
                   std::shared_ptr<DryadClass> home_class = nullptr)
         : declaration_(decl), closure_(std::move(closure)), home_class_(std::move(home_class)) {}
+
+    DryadFunction(std::unique_ptr<FunctionDeclaration> owned, std::shared_ptr<Environment> closure,
+                  std::shared_ptr<DryadClass> home_class = nullptr)
+        : owned_declaration_(std::move(owned)),
+          declaration_(owned_declaration_.get()),
+          closure_(std::move(closure)),
+          home_class_(std::move(home_class)) {}
     
     Value call(Interpreter* interp, const std::vector<Value>& args) override;
     Value call_with_receiver(Interpreter* interp, const std::vector<Value>& args,
@@ -49,6 +56,7 @@ public:
     std::shared_ptr<DryadClass> home_class() const { return home_class_; }
     
 private:
+    std::unique_ptr<FunctionDeclaration> owned_declaration_;
     FunctionDeclaration* declaration_;
     std::shared_ptr<Environment> closure_;
     std::shared_ptr<DryadClass> home_class_;

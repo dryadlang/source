@@ -11,7 +11,10 @@ High-level file operations built on a Virtual File System (VFS) with pluggable b
 | `filehandle.dryad` | Resource-managed read/write/append handles |
 | `io_errors.dryad` | Path validation, normalization, standardized error helpers |
 | `io_concurrency.dryad` | Cooperative lock wrapper (`ThreadSafeVFS`) |
-| `stream.dryad` | **Deferred** — abstract Stream API awaits language support |
+| `stream.dryad` | Abstract `Stream` API + `SeekOrigin` |
+| `filestream.dryad` | `FileStream` (extends `Stream`), `FileMode`, `File_open`, `File_readAllText`, … |
+| `memory_stream.dryad` | `MemoryStream` — in-memory `Stream` backed by `Buffer` |
+| `path.dryad` | `Path.join`, `Path.dirname`, `Path.basename`, `Path.extension`, `Path.ensureDirectory` |
 
 ## Quick start
 
@@ -51,6 +54,18 @@ Paths are normalized (`\` → `/`) before backend dispatch.
 ```bash
 ./bin/dryad examples/io_examples.dryad
 ./bin/dryad examples/file_io_usage.dryad
+./bin/dryad examples/stream_usage.dryad
+```
+
+Stream-based file I/O (creates parent directories automatically):
+
+```dryad
+import { File_writeAllText, File_readAllText } from "@std/io/file";
+import { Path } from "@std/io/path";
+
+let path = Path.join("output", "report.txt");
+File_writeAllText(path, "Hello");
+let text = File_readAllText(path);
 ```
 
 Set `DRYAD_STDLIB_DIR` if the stdlib is not at the default install path.

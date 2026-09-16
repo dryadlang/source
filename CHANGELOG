@@ -5,34 +5,66 @@ All notable changes to this project are documented in this file.
 ## [Unreleased]
 
 ### Added
+
+#### Phase 4.1 — Core Foundation
 - Managed byte buffer standard library (`@std/buffers/buffer.dryad`): bounds-checked allocation, byte read/write/fill, zero-copy slicing over parent buffers, resize, copy, and UTF-8 string conversion via `Buffer_FromString`/`Buffer_AsString`.
 - Memory intrinsics (`syscall.alloc_bytes`, `syscall.free_bytes`, `syscall.buffer_get`, `syscall.buffer_set`, `syscall.memcpy`, `syscall.memset`) backed by a bounds-checked `MemoryManager`.
 - String intrinsics (`syscall.string_length`, `syscall.string_to_bytes`, `syscall.bytes_to_string`) for UTF-8 bytes <-> string roundtrips.
-- Buffer workflow integration tests: file roundtrip, byte manipulation, slice extraction, and example script execution.
-- Usage example: `examples/buffer_usage.dryad` (UTF-8 roundtrip, slicing, byte editing).
 - Virtual filesystem (`@std/io/vfs.dryad`): MemoryBackend listing and a NativeBackend that reads, writes, removes, lists, and creates directories through filesystem syscalls.
 - High-level I/O (`@std/io/file.dryad`) and FileHandle lifecycle (`@std/io/filehandle.dryad`), including append mode.
 - Filesystem helpers: `syscall.exists`, `syscall.filesize`, `syscall.readdir`, `syscall.open_read` / `open_write` / `open_append`, `syscall.string_starts_with`, `runtime.object_keys`, `runtime.array_push`.
-- Usage example: `examples/file_io_usage.dryad` (native file roundtrip).
-- I/O error helpers (`@std/io/io_errors.dryad`), path normalization (`syscall.normalize_path`), and cooperative locks (`@std/io/io_concurrency.dryad`).
 - `import { ... } from "@std/..."` module loading with transitive stdlib resolution.
 - CLI script execution: `dryad script.dryad`, plus `--help` and `--version`.
-- Examples: `examples/io_examples.dryad`; `examples/buffer_usage.dryad` updated for imports.
-- Phase 4.1 integration test (`core_foundation_test`).
 - POO: `abstract class`, `super`, properties (`readonly`, `abstract readonly`), `interface`/`implements`, semantic validator (`dryad check`).
-- LSP foundation: explicit `get`/`set` accessors, multiple diagnostics, parser error recovery, basic type validation (`let x: number = 1`).
-- LSP phase 2: inline property accessors (`prop: type { get; set; }` and bodies), `ErrorExpression` AST nodes for resilient parsing, `Diagnostic` with `file:line:col` formatting in `dryad check`, unused-variable warnings, call argument validation, and binary expression type checking.
+- LSP foundation: explicit `get`/`set` accessors, multiple diagnostics, parser error recovery, basic type validation.
+
+#### Phase 4.2 — File I/O & Streams
 - `@std/io/stream.dryad` abstract Stream API; `@std/core/disposable.dryad` as real interface.
-- `@std/io/README.md` module documentation.
+- `FileStream` extending `Stream`, `FileMode`, `File_open`/`File_exists`/`File_delete`/`File_readAllText`/`File_writeAllText`.
+- `MemoryStream`, `Path` utilities (`@std/io/path.dryad`), auto-create parent dirs on `File_open`.
+- `Stream_isStream`/`Stream_isError` helpers; async file wrappers via `Promise_resolve`.
+- Examples: `examples/stream_usage.dryad`.
+
+#### Phase 4.3 — Collections
+- `@std/core/enumerable.dryad` — `IEnumerable` interface.
+- `@std/collections`: `List`, `Map`, `Set`, `Queue` with barrel module `@std/collections`.
+- Example: `examples/collections_usage.dryad`.
+
+#### Phase 4.4 — Networking (TCP)
+- Network syscalls: `socket`, `connect`, `bind`, `listen`, `accept`, `send`/`recv`, `send_buffer`/`recv_buffer`, `shutdown`, `getsockname`, `set_reuseaddr`, `get_errno`.
+- `--allow-net` CLI flag and `DRYAD_ALLOW_NET=1` env gate for network access.
+- `@std/net`: `Socket`, `NetworkStream`, `TcpClient`, `TcpListener`, `net_errors`.
+- Example: `examples/net_echo_client.dryad`.
+- Architecture plan: `docs/plans/2026-09-16-net-architecture.md`.
+
+#### Phase 4.5 — Async, UDP, DNS, TLS, HTTP
+- `@std/async/promise.dryad` — `Promise<T>` with deferred `then()` callback queues, `Promise_all`, `Promise_race`, `catchError`, `finallyDo`.
+- `@std/async/threading/` — `Thread`, `Thread_parallel`, `ThreadPool`, `ThreadPool_map` (OS threads, blocking join model).
+- C++ runtime: `ThreadManager`, `intrinsics_thread.cpp` (`__thread_spawn`, `__thread_join`, `__thread_pool_*`, `__thread_sleep_ms`, `__thread_hardware_concurrency`).
+- UDP: `syscall.sendto_buffer`, `syscall.recvfrom_buffer`; `@std/net/udp_client.dryad`.
+- DNS: `syscall.resolve_host`; `@std/net/dns.dryad`.
+- TLS (optional OpenSSL, `DRYAD_ENABLE_TLS=ON`): `tls_client_handshake`, `tls_send_buffer`, `tls_recv_buffer`, `tls_close`, `tls_available`; `@std/net/tls_stream.dryad`.
+- HTTP client: `@std/net/http/*` (`http_url`, `http_headers`, `http_request`, `http_response`, `http_client`).
+- `@std/net/socket_async.dryad` — Promise wrappers over blocking socket I/O.
+- Utils: `syscall.int_to_string`, `runtime.value_kind`.
 
 ### Fixed
 - POSIX compatibility for MSYS2/Windows builds (intrinsic handle width and file open flags).
-- Byte-accurate slice semantics in the usage example (UTF-8 multi-byte characters).
 - Class method calls now bind `this` when invoking instance methods (`obj.method()`).
-- Buffer/file workflow tests use portable `__open_read` / `__open_write` instead of raw POSIX flags.
+- Constructors use module closure (not caller env) for `new` lookups in collections.
+- `Net_socketError` — removed invalid integer+string concatenation.
+- HTTP/DNS/path helpers — fixed `__string_to_bytes` misuse in `Http_charAt` and similar byte-index helpers.
+- Thread pool deadlock — `pool_wait` no longer holds global mutex while worker initializes interpreter.
+- Thread pool race — workers hold `shared_ptr<ThreadJob>` from queue instead of map lookup after `wait()` erases entry.
+
+### Known limitations
+- `catch` / `finally` are reserved keywords → Promise uses `catchError` / `finallyDo`.
+- Promise model is synchronous (no real event loop); `then()` queues callbacks for pending promises.
+- Threading uses blocking `start()` + `join()`; each worker runs a separate `Interpreter`.
+- TLS is client-only with no rigorous certificate verification.
+- Dryad `&&` does not short-circuit — use nested `if` in tests/scripts.
 
 ### Tests
-- 31 BufferTest unit cases and 4 BufferWorkflow integration tests added.
-- VFS, I/O, and FileHandle tests added (28 unit cases, 2 integration cases).
-- Portable `__open_read` / `__open_write` used in buffer/file workflow tests so Linux and Windows share the same flags.
-- Suite status: 267/267 passing on Linux (255 unit + 12 integration).
+- **344 unit + 18 integration tests passing (100%)**
+- New suites: collections, filestream, memory_stream, path, enumerable, list/map/set/queue, network, socket, udp, http_client, promise, threading, language_features.
+- Integration: collections workflow, file I/O workflow, net echo, HTTP smoke, UDP echo, HTTP client.

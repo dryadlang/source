@@ -1,0 +1,25 @@
+// UDP unit tests
+
+import { UdpClient_create } from "@std/net/udp_client";
+import { Buffer_FromString, Buffer_Dispose } from "@std/buffers/buffer";
+
+function test_udp_client_create() {
+    let client = UdpClient_create();
+    if (client._lastError != null) {
+        return false;
+    }
+    client.close();
+    return true;
+}
+
+function test_udp_send_without_bind() {
+    let client = UdpClient_create();
+    if (client._lastError != null) {
+        return false;
+    }
+    let buf = Buffer_FromString("ping");
+    let result = client.sendTo("127.0.0.1", 9, buf, 0, 4);
+    Buffer_Dispose(buf);
+    client.close();
+    return result != null;
+}

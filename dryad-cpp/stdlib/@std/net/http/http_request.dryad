@@ -1,0 +1,33 @@
+// @std/net/http/http_request.dryad
+// HTTP request builder
+
+import { HttpHeaders } from "@std/net/http/http_headers";
+
+class HttpRequest {
+    constructor(method, url, headers, body) {
+        this.method = method;
+        this.url = url;
+        this.headers = headers;
+        this.body = body;
+        if (this.headers == null) {
+            this.headers = new HttpHeaders();
+        }
+        if (this.body == null) {
+            this.body = "";
+        }
+    }
+}
+
+function HttpRequest_buildWire(request, host, path) {
+    let wire = request.method + " " + path + " HTTP/1.1\r\n";
+    wire = wire + "Host: " + host + "\r\n";
+    wire = wire + "Connection: close\r\n";
+    if (request.body != null && __string_length(request.body) > 0) {
+        wire = wire + "Content-Length: " + __int_to_string(__string_length(request.body)) + "\r\n";
+    }
+    wire = wire + "\r\n";
+    if (request.body != null && __string_length(request.body) > 0) {
+        wire = wire + request.body;
+    }
+    return wire;
+}

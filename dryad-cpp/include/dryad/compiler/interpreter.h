@@ -8,6 +8,8 @@
 #include <memory>
 #include <functional>
 #include <string>
+#include <unordered_map>
+#include <vector>
 
 namespace dryad {
 
@@ -50,6 +52,7 @@ public:
     void define_native(const std::string& name, 
                       std::function<Value(const std::vector<Value>&)> func);
     void set_stdlib_root(const std::string& path);
+    void set_network_allowed(bool allowed);
     
     std::shared_ptr<Environment> global_env() { return global_; }
     std::shared_ptr<Environment> current_env() { return current_; }
@@ -65,6 +68,8 @@ public:
 
     bool in_constructor() const { return in_constructor_; }
     void set_in_constructor(bool value) { in_constructor_ = value; }
+
+    FunctionDeclaration* get_or_create_lambda_code(FunctionExpression* expr);
     
 private:
     std::shared_ptr<Environment> global_;
@@ -77,6 +82,8 @@ private:
     std::unique_ptr<ExpressionEvaluator> evaluator_;
     std::unique_ptr<StatementExecutor> executor_;
     std::unique_ptr<ModuleLoader> module_loader_;
+    std::unordered_map<FunctionExpression*, FunctionDeclaration*> lambda_code_cache_;
+    std::vector<std::unique_ptr<FunctionDeclaration>> owned_lambda_code_;
     
     void setup_native_functions();
     void setup_intrinsic_functions();

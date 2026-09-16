@@ -28,6 +28,7 @@ enum class ASTNodeType {
     ArrayExpression,
     ObjectExpression,
     NewExpression,
+    FunctionExpression,
     ThisExpression,
     SuperExpression,
     ErrorExpression,
@@ -205,6 +206,19 @@ public:
 struct Parameter {
     std::string name;
     std::string type_annotation;
+    std::unique_ptr<Expression> default_value;
+
+    Parameter() = default;
+    Parameter(std::string name, std::string type_annotation,
+              std::unique_ptr<Expression> default_value = nullptr)
+        : name(std::move(name)),
+          type_annotation(std::move(type_annotation)),
+          default_value(std::move(default_value)) {}
+
+    Parameter(Parameter&&) = default;
+    Parameter& operator=(Parameter&&) = default;
+    Parameter(const Parameter&) = delete;
+    Parameter& operator=(const Parameter&) = delete;
 };
 
 class FunctionDeclaration : public Statement {
@@ -305,6 +319,20 @@ public:
     
     NewExpression(std::string class_name, std::vector<std::unique_ptr<Expression>> arguments, SourceLocation location = SourceLocation())
         : Expression(ASTNodeType::NewExpression, location), class_name(std::move(class_name)), arguments(std::move(arguments)) {}
+};
+
+class FunctionExpression : public Expression {
+public:
+    std::vector<Parameter> parameters;
+    std::unique_ptr<BlockStatement> body;
+    std::string return_type;
+
+    FunctionExpression(std::vector<Parameter> parameters, std::unique_ptr<BlockStatement> body,
+                       std::string return_type = "", SourceLocation location = SourceLocation())
+        : Expression(ASTNodeType::FunctionExpression, location),
+          parameters(std::move(parameters)),
+          body(std::move(body)),
+          return_type(std::move(return_type)) {}
 };
 
 class ThisExpression : public Expression {

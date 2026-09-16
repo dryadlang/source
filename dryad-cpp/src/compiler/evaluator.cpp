@@ -41,6 +41,9 @@ Value ExpressionEvaluator::evaluate(Expression* expr) {
         
         case ASTNodeType::NewExpression:
             return evaluate_new(static_cast<NewExpression*>(expr));
+
+        case ASTNodeType::FunctionExpression:
+            return evaluate_function_expression(static_cast<FunctionExpression*>(expr));
         
         case ASTNodeType::ThisExpression:
             return evaluate_this(static_cast<ThisExpression*>(expr));
@@ -368,6 +371,12 @@ Value ExpressionEvaluator::evaluate_array(ArrayExpression* expr) {
     return arr;
 }
 
+
+Value ExpressionEvaluator::evaluate_function_expression(FunctionExpression* expr) {
+    FunctionDeclaration* code = interpreter_->get_or_create_lambda_code(expr);
+    auto func = std::make_shared<DryadFunction>(code, interpreter_->current_env());
+    return Value(func);
+}
 
 Value ExpressionEvaluator::evaluate_new(NewExpression* expr) {
     Value class_value = interpreter_->current_env()->get(expr->class_name);

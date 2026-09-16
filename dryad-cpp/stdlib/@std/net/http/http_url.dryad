@@ -1,0 +1,83 @@
+// @std/net/http/http_url.dryad
+// URL parsing for HTTP(S) clients
+
+import { ArgumentException } from "@std/core/exceptions";
+import { Http_startsWith, Http_indexOf, Http_substring } from "@std/net/http/http_string";
+
+function Http_parseUrl(url) {
+    if (url == null || url == "") {
+        return ArgumentException("URL cannot be null or empty");
+    }
+
+    let scheme = "http";
+    let host = "";
+    let port = 80;
+    let path = "/";
+    let rest = url;
+
+    if (Http_startsWith(rest, "https://")) {
+        scheme = "https";
+        port = 443;
+        rest = Http_substring(rest, 8, __string_length(rest));
+    } else if (Http_startsWith(rest, "http://")) {
+        scheme = "http";
+        port = 80;
+        rest = Http_substring(rest, 7, __string_length(rest));
+    } else {
+        return ArgumentException("URL must start with http:// or https://");
+    }
+
+    let slash = Http_indexOf(rest, "/");
+    let authority = rest;
+    if (slash >= 0) {
+        authority = Http_substring(rest, 0, slash);
+        path = Http_substring(rest, slash, __string_length(rest));
+    } else {
+        path = "/";
+    }
+
+    let colon = Http_indexOf(authority, ":");
+    if (colon >= 0) {
+        host = Http_substring(authority, 0, colon);
+        let portText = Http_substring(authority, colon + 1, __string_length(authority));
+        port = Http_parsePort(portText);
+        if (port < 0) {
+            return ArgumentException("Invalid URL port");
+        }
+    } else {
+        host = authority;
+    }
+
+    if (host == "") {
+        return ArgumentException("URL host is required");
+    }
+
+    let parsed = __runtime_create_object();
+    __runtime_object_set(parsed, "scheme", scheme);
+    __runtime_object_set(parsed, "host", host);
+    __runtime_object_set(parsed, "port", port);
+    __runtime_object_set(parsed, "path", path);
+    return parsed;
+}
+
+function Http_parsePort(text) {
+    let value = 0;
+    let i = 0;
+    let len = __string_length(text);
+    if (len == 0) {
+        return -1;
+    }
+    let handle = __alloc_bytes(len);
+    __string_to_bytes(text, handle, 0);
+    while (i < len) {
+        let byte = __buffer_get(handle, i);
+        if (byte < 48 || byte > 57) {
+            __free_bytes(handle);
+            return -1;
+        }
+        value = value * 10 + (byte - 48);
+        i = i + 1;
+    }
+    __free_bytes(handle);
+    return value;
+}

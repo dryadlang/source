@@ -1,0 +1,162 @@
+// @std/io/path.dryad
+// Path manipulation utilities
+
+import { ArgumentException, IOException } from "@std/core/exceptions";
+
+function Path_charAt(path, index) {
+    let len = __string_length(path);
+    if (index < 0 || index >= len) {
+        return "";
+    }
+    let handle = __alloc_bytes(len);
+    __string_to_bytes(path, handle, 0);
+    let ch = __bytes_to_string(handle, index, 1);
+    __free_bytes(handle);
+    return ch;
+}
+
+function Path_join(a, b) {
+    if (a == null || a == "") {
+        return ArgumentException("Path segment cannot be empty");
+    }
+    if (b == null || b == "") {
+        return __normalize_path(a);
+    }
+    return __normalize_path(a + "/" + b);
+}
+
+function Path_dirname(path) {
+    if (path == null || path == "") {
+        return ".";
+    }
+    path = __normalize_path(path);
+    let len = __string_length(path);
+    if (len == 0) {
+        return ".";
+    }
+
+    let i = len - 1;
+    while (i >= 0) {
+        let ch = Path_charAt(path, i);
+        if (ch == "/") {
+            if (i == 0) {
+                return "/";
+            }
+            let handle = __alloc_bytes(len);
+            __string_to_bytes(path, handle, 0);
+            let dir = __bytes_to_string(handle, 0, i);
+            __free_bytes(handle);
+            return dir;
+        }
+        i = i - 1;
+    }
+    return ".";
+}
+
+function Path_basename(path) {
+    if (path == null || path == "") {
+        return "";
+    }
+    path = __normalize_path(path);
+    let len = __string_length(path);
+    if (len == 0) {
+        return "";
+    }
+
+    let i = len - 1;
+    while (i >= 0) {
+        let ch = Path_charAt(path, i);
+        if (ch == "/") {
+            let nameLen = len - i - 1;
+            if (nameLen <= 0) {
+                return "";
+            }
+            let fullHandle = __alloc_bytes(len);
+            __string_to_bytes(path, fullHandle, 0);
+            let name = __bytes_to_string(fullHandle, i + 1, nameLen);
+            __free_bytes(fullHandle);
+            return name;
+        }
+        i = i - 1;
+    }
+    return path;
+}
+
+function Path_extension(path) {
+    let name = Path_basename(path);
+    let len = __string_length(name);
+    if (len == 0) {
+        return "";
+    }
+
+    let i = len - 1;
+    while (i >= 0) {
+        let ch = Path_charAt(name, i);
+        if (ch == ".") {
+            if (i == 0) {
+                return "";
+            }
+            let nameHandle = __alloc_bytes(len);
+            __string_to_bytes(name, nameHandle, 0);
+            let ext = __bytes_to_string(nameHandle, i, len - i);
+            __free_bytes(nameHandle);
+            return ext;
+        }
+        i = i - 1;
+    }
+    return "";
+}
+
+function Path_ensureDirectory(path) {
+    if (path == null || path == "") {
+        return ArgumentException("Path cannot be null or empty");
+    }
+
+    path = __normalize_path(path);
+    if (path == "." || path == "/") {
+        return null;
+    }
+
+    if (__exists(path)) {
+        return null;
+    }
+
+    let parent = Path_dirname(path);
+    if (parent != "." && parent != path) {
+        let parentErr = Path_ensureDirectory(parent);
+        if (parentErr != null) {
+            return parentErr;
+        }
+    }
+
+    let result = __mkdir(path);
+    if (result < 0) {
+        return IOException("Failed to create directory: " + path);
+    }
+    return null;
+}
+
+function Path_ensureParentForFile(path) {
+    if (path == null || path == "") {
+        return ArgumentException("Path cannot be null or empty");
+    }
+
+    let dir = Path_dirname(path);
+    if (dir == "." || dir == "") {
+        return null;
+    }
+    return Path_ensureDirectory(dir);
+}
+
+function Path_Create() {
+    let path = __runtime_create_object();
+    __runtime_object_set(path, "join", Path_join);
+    __runtime_object_set(path, "dirname", Path_dirname);
+    __runtime_object_set(path, "basename", Path_basename);
+    __runtime_object_set(path, "extension", Path_extension);
+    __runtime_object_set(path, "ensureDirectory", Path_ensureDirectory);
+    __runtime_object_set(path, "ensureParentForFile", Path_ensureParentForFile);
+    return path;
+}
+
+let Path = Path_Create();

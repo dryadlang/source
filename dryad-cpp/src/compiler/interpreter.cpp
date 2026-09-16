@@ -5,6 +5,7 @@
 #include "dryad/compiler/parser.h"
 #include "dryad/runtime/function.h"
 #include "dryad/runtime/intrinsics_registry.h"
+#include "dryad/runtime/thread_manager.h"
 #include "dryad/common/utils.h"
 #include <fstream>
 #include <iostream>
@@ -45,18 +46,29 @@ void Interpreter::setup_intrinsic_functions() {
         "syscall.unlink", "syscall.stat", "syscall.time", "syscall.clock_gettime",
         "syscall.malloc", "syscall.free", "syscall.realloc", "syscall.memcpy", "syscall.memset",
         "syscall.alloc_bytes", "syscall.free_bytes", "syscall.buffer_get", "syscall.buffer_set",
-        "syscall.string_length", "syscall.string_to_bytes", "syscall.bytes_to_string",
+        "syscall.string_length", "syscall.int_to_string", "syscall.string_to_bytes",
+        "syscall.bytes_to_string",
         "syscall.socket", "syscall.connect", "syscall.bind", "syscall.listen",
         "syscall.accept", "syscall.send", "syscall.recv", "syscall.shutdown",
+        "syscall.send_buffer", "syscall.recv_buffer", "syscall.sendto_buffer",
+        "syscall.recvfrom_buffer", "syscall.resolve_host", "syscall.getsockname",
+        "syscall.set_reuseaddr", "syscall.get_errno",
+        "syscall.tls_client_handshake", "syscall.tls_send_buffer", "syscall.tls_recv_buffer",
+        "syscall.tls_close", "syscall.tls_available",
         "syscall.mkdir", "syscall.rmdir", "syscall.lseek", "syscall.rename",
         "syscall.getcwd", "syscall.chdir",
         "syscall.exists", "syscall.filesize", "syscall.readdir",
-        "syscall.open_read", "syscall.open_write", "syscall.open_append",
+        "syscall.open_read", "syscall.open_write", "syscall.open_append", "syscall.open_readwrite",
+        "syscall.read_buffer", "syscall.write_buffer", "syscall.fstat", "syscall.fsync",
         "syscall.getpid", "syscall.getenv", "syscall.setenv", "syscall.sleep",
+        "syscall.thread_spawn", "syscall.thread_join",
+        "syscall.thread_pool_create", "syscall.thread_pool_destroy",
+        "syscall.thread_pool_submit", "syscall.thread_pool_wait",
+        "syscall.thread_hardware_concurrency", "syscall.thread_sleep_ms",
         "syscall.exit",
         "syscall.string_starts_with", "syscall.normalize_path",
-        "runtime.get_stack_trace", "runtime.create_object", "runtime.object_set",
-        "runtime.object_get", "runtime.object_keys", "runtime.array_length",
+        "runtime.get_stack_trace", "runtime.create_object", "runtime.value_kind",
+        "runtime.object_set", "runtime.object_get", "runtime.object_keys", "runtime.array_length",
         "runtime.array_push"
     };
     
@@ -96,6 +108,11 @@ void Interpreter::decrement_call_depth() {
 void Interpreter::set_stdlib_root(const std::string& path) {
     stdlib_root_ = path;
     module_loader_->set_stdlib_root(path);
+    ThreadManager::set_stdlib_root(path);
+}
+
+void Interpreter::set_network_allowed(bool allowed) {
+    IntrinsicsRegistry::instance().set_network_allowed(allowed);
 }
 
 void Interpreter::run_file(const std::string& path) {
@@ -134,6 +151,26 @@ void Interpreter::execute_statement(Statement* stmt) {
 void Interpreter::execute_block(const std::vector<std::unique_ptr<Statement>>& statements,
                                 std::shared_ptr<Environment> env) {
     executor_->execute_block(statements, env);
+}
+
+FunctionDeclaration* Interpreter::get_or_create_lambda_code(FunctionExpression* expr) {
+    auto cached = lambda_code_cache_.find(expr);
+    if (cached != lambda_code_cache_.end()) {
+        return cached->second;
+    }
+
+    auto owned = std::make_unique<FunctionDeclaration>(
+        "",
+        std::move(expr->parameters),
+        std::move(expr->body),
+        expr->return_type,
+        false,
+        expr->location
+    );
+    FunctionDeclaration* code = owned.get();
+    owned_lambda_code_.push_back(std::move(owned));
+    lambda_code_cache_[expr] = code;
+    return code;
 }
 
 } // namespace dryad

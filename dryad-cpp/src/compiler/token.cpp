@@ -81,6 +81,7 @@ std::string token_type_to_string(TokenType type) {
         {TokenType::KeywordReadonly, "readonly"},
         {TokenType::KeywordGet, "get"},
         {TokenType::KeywordSet, "set"},
+        {TokenType::KeywordDelete, "delete"},
         {TokenType::KeywordNew, "new"},
         {TokenType::KeywordThis, "this"},
         {TokenType::KeywordSuper, "super"},

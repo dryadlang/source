@@ -1,0 +1,77 @@
+// Promise unit tests
+
+import {
+    Promise,
+    Promise_resolve,
+    Promise_reject,
+    Promise_all,
+    Promise_race
+} from "@std/async/promise";
+
+function test_promise_resolve() {
+    let p = Promise_resolve(42);
+    return p._state == "fulfilled" && p._value == 42;
+}
+
+function test_promise_reject() {
+    let p = Promise_reject("error");
+    return p._state == "rejected" && p._error == "error";
+}
+
+function test_promise_then() {
+    let p = Promise_resolve(10);
+    let chained = p.then(function(value) {
+        return value + 5;
+    });
+    return chained._state == "fulfilled" && chained._value == 15;
+}
+
+function test_promise_all() {
+    let p1 = Promise_resolve(1);
+    let p2 = Promise_resolve(2);
+    let all = Promise_all([p1, p2]);
+    return all._state == "fulfilled" && __runtime_array_length(all._value) == 2;
+}
+
+function test_promise_race() {
+    let p1 = Promise_resolve("first");
+    let p2 = Promise_resolve("second");
+    let race = Promise_race([p1, p2]);
+    return race._state == "fulfilled" && race._value == "first";
+}
+
+function test_promise_deferred_then_resolve() {
+    let holder = __runtime_create_object();
+    let p = new Promise(function(resolve, reject) {
+        __runtime_object_set(holder, "resolve", resolve);
+        return null;
+    });
+    let chained = p.then(function(value) {
+        return value + 1;
+    });
+    let resolve = __runtime_object_get(holder, "resolve");
+    resolve(41);
+    return chained._state == "fulfilled" && chained._value == 42;
+}
+
+function test_promise_all_deferred() {
+    let holder1 = __runtime_create_object();
+    let holder2 = __runtime_create_object();
+    let p1 = new Promise(function(resolve, reject) {
+        __runtime_object_set(holder1, "resolve", resolve);
+        return null;
+    });
+    let p2 = new Promise(function(resolve, reject) {
+        __runtime_object_set(holder2, "resolve", resolve);
+        return null;
+    });
+    let all = Promise_all([p1, p2]);
+    if (all._state != "pending") {
+        return false;
+    }
+    __runtime_object_get(holder1, "resolve")(10);
+    __runtime_object_get(holder2, "resolve")(20);
+    return all._state == "fulfilled"
+        && all._value[0] == 10
+        && all._value[1] == 20;
+}

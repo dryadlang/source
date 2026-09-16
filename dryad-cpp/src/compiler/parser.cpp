@@ -72,6 +72,19 @@ Token Parser::consume(TokenType type, const std::string& message) {
     throw DryadException(ss.str());
 }
 
+Token Parser::consume_member_name(const std::string& message) {
+    if (check(TokenType::Identifier)) {
+        return advance();
+    }
+    if (match(TokenType::KeywordGet) || match(TokenType::KeywordSet) || match(TokenType::KeywordDelete)) {
+        return previous();
+    }
+
+    std::stringstream ss;
+    ss << message << " Got '" << token_type_to_string(peek().type) << "'";
+    throw DryadException(ss.str());
+}
+
 void Parser::error(const std::string& message) {
     error_at(peek().location, message);
 }
@@ -143,6 +156,7 @@ void Parser::synchronize_class_member() {
             case TokenType::KeywordReadonly:
             case TokenType::KeywordGet:
             case TokenType::KeywordSet:
+            case TokenType::KeywordDelete:
             case TokenType::Identifier:
                 return;
             default:
@@ -460,7 +474,7 @@ std::unique_ptr<Expression> Parser::parse_postfix() {
             expr = std::make_unique<CallExpression>(std::move(expr), std::move(arguments), previous().location);
         }
         else if (match(TokenType::Dot)) {
-            Token name = consume(TokenType::Identifier, "Expected property name after '.'");
+            Token name = consume_member_name("Expected property name after '.'");
             auto property = std::make_unique<Identifier>(name.lexeme, name.location);
             expr = std::make_unique<MemberExpression>(std::move(expr), std::move(property), false, previous().location);
         }
@@ -520,6 +534,10 @@ std::unique_ptr<Expression> Parser::parse_primary() {
         return std::make_unique<NewExpression>(class_name.lexeme, std::move(arguments), loc);
     }
     
+    if (match(TokenType::KeywordFunction)) {
+        return parse_function_expression();
+    }
+
     if (match(TokenType::KeywordThis)) {
         return std::make_unique<ThisExpression>(previous().location);
     }
@@ -707,10 +725,27 @@ std::unique_ptr<Statement> Parser::parse_class_declaration(bool is_internal, boo
             bool member_is_getter = false;
             bool member_is_setter = false;
 
+            Token member_name = Token(TokenType::Error, "", SourceLocation());
             if (match(TokenType::KeywordGet)) {
-                member_is_getter = true;
+                if (check(TokenType::Identifier)) {
+                    member_is_getter = true;
+                    member_name = advance();
+                } else {
+                    member_name = previous();
+                }
             } else if (match(TokenType::KeywordSet)) {
-                member_is_setter = true;
+                if (check(TokenType::Identifier)) {
+                    member_is_setter = true;
+                    member_name = advance();
+                } else {
+                    member_name = previous();
+                }
+            } else if (match(TokenType::KeywordDelete)) {
+                if (check(TokenType::LeftParen)) {
+                    member_name = previous();
+                } else {
+                    throw DryadException("Expected '(' after method name 'delete'");
+                }
             } else {
                 if (match(TokenType::KeywordAbstract)) {
                     member_is_abstract = true;
@@ -718,9 +753,8 @@ std::unique_ptr<Statement> Parser::parse_class_declaration(bool is_internal, boo
                 if (match(TokenType::KeywordReadonly)) {
                     member_is_readonly = true;
                 }
+                member_name = consume_member_name("Expected class member name");
             }
-
-            Token member_name = consume(TokenType::Identifier, "Expected class member name");
 
             if (member_is_getter || member_is_setter) {
                 methods.push_back(parse_method_declaration(false, member_name, loc, member_is_getter, member_is_setter));
@@ -836,12 +870,37 @@ std::vector<Parameter> Parser::parse_parameters() {
                 Token type = consume(TokenType::Identifier, "Expected type annotation");
                 type_annotation = type.lexeme;
             }
+
+            std::unique_ptr<Expression> default_value = nullptr;
+            if (match(TokenType::Equal)) {
+                default_value = parse_expression();
+            }
             
-            parameters.push_back({param_name.lexeme, type_annotation});
+            parameters.push_back(Parameter{param_name.lexeme, type_annotation, std::move(default_value)});
         } while (match(TokenType::Comma));
     }
     
     return parameters;
+}
+
+std::unique_ptr<FunctionExpression> Parser::parse_function_expression() {
+    SourceLocation loc = previous().location;
+
+    consume(TokenType::LeftParen, "Expected '(' after 'function'");
+    std::vector<Parameter> parameters = parse_parameters();
+    consume(TokenType::RightParen, "Expected ')' after parameters");
+
+    std::string return_type = parse_return_type();
+
+    consume(TokenType::LeftBrace, "Expected '{' before function body");
+    auto body = parse_block_statement();
+
+    return std::make_unique<FunctionExpression>(
+        std::move(parameters),
+        std::unique_ptr<BlockStatement>(static_cast<BlockStatement*>(body.release())),
+        return_type,
+        loc
+    );
 }
 
 std::string Parser::parse_return_type() {

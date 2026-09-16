@@ -16,13 +16,23 @@ Value DryadFunction::call_with_receiver(Interpreter* interp, const std::vector<V
 
 Value DryadFunction::call_impl(Interpreter* interp, const std::vector<Value>& args,
                                std::shared_ptr<ClassInstance> receiver) {
-    if (args.size() != declaration_->parameters.size()) {
-        throw DryadException("Function expects " + std::to_string(declaration_->parameters.size()) +
+    const auto& parameters = declaration_->parameters;
+    size_t required_count = 0;
+    for (const auto& param : parameters) {
+        if (!param.default_value) {
+            required_count++;
+        }
+    }
+
+    if (args.size() < required_count || args.size() > parameters.size()) {
+        throw DryadException("Function expects between " + std::to_string(required_count) +
+                           " and " + std::to_string(parameters.size()) +
                            " arguments, got " + std::to_string(args.size()));
     }
 
     auto function_env = std::make_shared<Environment>(closure_);
     auto previous_class = interp->executing_class();
+    auto previous_env = interp->current_env();
 
     if (receiver) {
         function_env->define("this", Value(receiver));
@@ -31,8 +41,18 @@ Value DryadFunction::call_impl(Interpreter* interp, const std::vector<Value>& ar
         interp->set_executing_class(home_class_);
     }
 
-    for (size_t i = 0; i < args.size(); ++i) {
-        function_env->define(declaration_->parameters[i].name, args[i]);
+    for (size_t i = 0; i < parameters.size(); ++i) {
+        Value arg_value;
+        if (i < args.size()) {
+            arg_value = args[i];
+        } else if (parameters[i].default_value) {
+            interp->set_current_env(closure_);
+            arg_value = interp->evaluate(parameters[i].default_value.get());
+            interp->set_current_env(previous_env);
+        } else {
+            throw DryadException("Missing argument for parameter '" + parameters[i].name + "'");
+        }
+        function_env->define(parameters[i].name, arg_value);
     }
 
     interp->increment_call_depth();

@@ -1,0 +1,94 @@
+// @std/net/network_stream.dryad
+// Stream adapter over a connected Socket
+
+import { Stream } from "@std/io/stream";
+import { InvalidOperationException } from "@std/core/exceptions";
+
+function NetworkStream_ensureSocket(socket) {
+    if (socket == null) {
+        return InvalidOperationException("Socket cannot be null");
+    }
+    if (socket.closed) {
+        return InvalidOperationException("Socket is closed");
+    }
+    if (!socket.connected) {
+        return InvalidOperationException("Socket must be connected");
+    }
+    return null;
+}
+
+class NetworkStream extends Stream {
+    constructor(socket) {
+        this._socket = socket;
+    }
+
+    canRead: boolean {
+        get {
+            if (this._socket == null) {
+                return false;
+            }
+            return this._socket.connected && !this._socket.closed;
+        }
+    }
+
+    canWrite: boolean {
+        get {
+            if (this._socket == null) {
+                return false;
+            }
+            return this._socket.connected && !this._socket.closed;
+        }
+    }
+
+    canSeek: boolean {
+        get {
+            return false;
+        }
+    }
+
+    length: number {
+        get {
+            return InvalidOperationException("NetworkStream does not support length");
+        }
+    }
+
+    position: number {
+        get {
+            return InvalidOperationException("NetworkStream is not seekable");
+        }
+        set(value) {
+            return InvalidOperationException("NetworkStream is not seekable");
+        }
+    }
+
+    read(buffer, offset, count) {
+        return this._socket.receive(buffer, offset, count);
+    }
+
+    write(buffer, offset, count) {
+        return this._socket.send(buffer, offset, count);
+    }
+
+    seek(offset, origin) {
+        return InvalidOperationException("NetworkStream is not seekable");
+    }
+
+    flush() {
+        return null;
+    }
+
+    close() {
+        if (this._socket != null) {
+            this._socket.close();
+        }
+        return null;
+    }
+}
+
+function NetworkStream_fromSocket(socket) {
+    let err = NetworkStream_ensureSocket(socket);
+    if (err != null) {
+        return err;
+    }
+    return new NetworkStream(socket);
+}

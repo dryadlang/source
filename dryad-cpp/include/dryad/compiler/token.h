@@ -74,6 +74,7 @@ enum class TokenType {
     KeywordReadonly,
     KeywordGet,
     KeywordSet,
+    KeywordDelete,
     KeywordNew,
     KeywordThis,
     KeywordSuper,

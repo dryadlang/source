@@ -1,0 +1,322 @@
+// @std/net/socket.dryad
+// Low-level TCP/UDP socket wrapper over network syscalls
+
+import { IDisposable } from "@std/core/disposable";
+import { SocketDomain_IPv4, SocketType_Stream, Shutdown_Both } from "@std/net/constants";
+import {
+    Net_validatePort,
+    Net_validateConnectHost,
+    Net_normalizeBindHost,
+    Net_socketError
+} from "@std/net/net_errors";
+import { Net_resolveHostOrError } from "@std/net/dns";
+import {
+    Buffer_GetActualHandle,
+    Buffer_GetOffset,
+    Buffer_Len
+} from "@std/buffers/buffer";
+import {
+    ArgumentNullException,
+    ArgumentOutOfRangeException,
+    InvalidOperationException,
+    ObjectDisposedException
+} from "@std/core/exceptions";
+
+function Socket_ensureOpen(socket) {
+    if (socket._closed) {
+        return ObjectDisposedException("Socket");
+    }
+    if (socket._fd < 0) {
+        return InvalidOperationException("Invalid socket handle");
+    }
+    return null;
+}
+
+function Socket_ensureConnected(socket) {
+    let err = Socket_ensureOpen(socket);
+    if (err != null) {
+        return err;
+    }
+    if (!socket._connected) {
+        return InvalidOperationException("Socket is not connected");
+    }
+    return null;
+}
+
+function Socket_validateBufferArgs(buffer, offset, count) {
+    if (buffer == null) {
+        return ArgumentNullException("buffer");
+    }
+    let disposed = __runtime_object_get(buffer, "_disposed");
+    if (disposed) {
+        return ObjectDisposedException("Buffer");
+    }
+    if (offset < 0 || count < 0) {
+        return ArgumentOutOfRangeException("Offset and count must be non-negative");
+    }
+    let length = Buffer_Len(buffer);
+    if (offset + count > length) {
+        return ArgumentOutOfRangeException("Read/write range exceeds buffer length");
+    }
+    return null;
+}
+
+class Socket implements IDisposable {
+    constructor(domain, type, protocol = 0) {
+        this._fd = __socket(domain, type, protocol);
+        this._connected = false;
+        this._closed = false;
+        this._listening = false;
+    }
+
+    connected: boolean {
+        get {
+            return this._connected && !this._closed;
+        }
+    }
+
+    closed: boolean {
+        get {
+            return this._closed;
+        }
+    }
+
+    listening: boolean {
+        get {
+            return this._listening && !this._closed;
+        }
+    }
+
+    localPort() {
+        let err = Socket_ensureOpen(this);
+        if (err != null) {
+            return err;
+        }
+        let port = __getsockname(this._fd);
+        if (port < 0) {
+            return Net_socketError("getsockname");
+        }
+        return port;
+    }
+
+    connect(host, port) {
+        let err = Socket_ensureOpen(this);
+        if (err != null) {
+            return err;
+        }
+        err = Net_validateConnectHost(host);
+        if (err != null) {
+            return err;
+        }
+        err = Net_validatePort(port);
+        if (err != null) {
+            return err;
+        }
+
+        let lookup = Net_resolveHostOrError(host, "connect");
+        if (lookup[1] != null) {
+            return lookup[1];
+        }
+
+        let result = __connect(this._fd, lookup[0], port);
+        if (result < 0) {
+            return Net_socketError("connect");
+        }
+        this._connected = true;
+        return null;
+    }
+
+    sendTo(host, port, buffer, offset, count) {
+        let err = Socket_ensureOpen(this);
+        if (err != null) {
+            return err;
+        }
+        err = Net_validatePort(port);
+        if (err != null) {
+            return err;
+        }
+        err = Socket_validateBufferArgs(buffer, offset, count);
+        if (err != null) {
+            return err;
+        }
+
+        let lookup = Net_resolveHostOrError(host, "sendTo");
+        if (lookup[1] != null) {
+            return lookup[1];
+        }
+
+        let handle = Buffer_GetActualHandle(buffer);
+        let baseOffset = Buffer_GetOffset(buffer);
+        let nbytes = __sendto_buffer(this._fd, handle, baseOffset + offset, count, lookup[0], port);
+        if (nbytes < 0) {
+            return Net_socketError("sendTo");
+        }
+        return nbytes;
+    }
+
+    receiveFrom(buffer, offset, count) {
+        let err = Socket_ensureOpen(this);
+        if (err != null) {
+            return err;
+        }
+        err = Socket_validateBufferArgs(buffer, offset, count);
+        if (err != null) {
+            return err;
+        }
+
+        let handle = Buffer_GetActualHandle(buffer);
+        let baseOffset = Buffer_GetOffset(buffer);
+        let result = __recvfrom_buffer(this._fd, handle, baseOffset + offset, count);
+        if (result == null) {
+            return Net_socketError("receiveFrom");
+        }
+        let nbytes = __runtime_object_get(result, "nbytes");
+        if (nbytes < 0) {
+            return Net_socketError("receiveFrom");
+        }
+
+        let endpoint = __runtime_create_object();
+        __runtime_object_set(endpoint, "nbytes", nbytes);
+        __runtime_object_set(endpoint, "host", __runtime_object_get(result, "host"));
+        __runtime_object_set(endpoint, "port", __runtime_object_get(result, "port"));
+        return endpoint;
+    }
+
+    bind(host, port) {
+        let err = Socket_ensureOpen(this);
+        if (err != null) {
+            return err;
+        }
+        err = Net_validatePort(port);
+        if (err != null) {
+            return err;
+        }
+
+        let bindHost = Net_normalizeBindHost(host);
+        __set_reuseaddr(this._fd, true);
+        let result = __bind(this._fd, bindHost, port);
+        if (result < 0) {
+            return Net_socketError("bind");
+        }
+        return null;
+    }
+
+    listen(backlog = 128) {
+        let err = Socket_ensureOpen(this);
+        if (err != null) {
+            return err;
+        }
+        if (backlog < 1) {
+            backlog = 1;
+        }
+
+        let result = __listen(this._fd, backlog);
+        if (result < 0) {
+            return Net_socketError("listen");
+        }
+        this._listening = true;
+        return null;
+    }
+
+    accept() {
+        let err = Socket_ensureOpen(this);
+        if (err != null) {
+            return err;
+        }
+        if (!this._listening) {
+            return InvalidOperationException("Socket is not listening");
+        }
+
+        let clientFd = __accept(this._fd);
+        if (clientFd < 0) {
+            return null;
+        }
+        return Socket_fromFd(clientFd);
+    }
+
+    send(buffer, offset, count) {
+        let err = Socket_ensureConnected(this);
+        if (err != null) {
+            return err;
+        }
+        err = Socket_validateBufferArgs(buffer, offset, count);
+        if (err != null) {
+            return err;
+        }
+
+        let handle = Buffer_GetActualHandle(buffer);
+        let baseOffset = Buffer_GetOffset(buffer);
+        let nbytes = __send_buffer(this._fd, handle, baseOffset + offset, count);
+        if (nbytes < 0) {
+            return Net_socketError("send");
+        }
+        return nbytes;
+    }
+
+    receive(buffer, offset, count) {
+        let err = Socket_ensureConnected(this);
+        if (err != null) {
+            return err;
+        }
+        err = Socket_validateBufferArgs(buffer, offset, count);
+        if (err != null) {
+            return err;
+        }
+
+        let handle = Buffer_GetActualHandle(buffer);
+        let baseOffset = Buffer_GetOffset(buffer);
+        let nbytes = __recv_buffer(this._fd, handle, baseOffset + offset, count);
+        if (nbytes < 0) {
+            return Net_socketError("receive");
+        }
+        return nbytes;
+    }
+
+    shutdown(how) {
+        let err = Socket_ensureOpen(this);
+        if (err != null) {
+            return err;
+        }
+        let result = __shutdown(this._fd, how);
+        if (result < 0) {
+            return Net_socketError("shutdown");
+        }
+        return null;
+    }
+
+    close() {
+        if (!this._closed && this._fd >= 0) {
+            __shutdown(this._fd, Shutdown_Both);
+            __close(this._fd);
+            this._closed = true;
+            this._connected = false;
+            this._listening = false;
+            this._fd = -1;
+        }
+        return null;
+    }
+
+    dispose() {
+        return this.close();
+    }
+}
+
+function Socket_isSocket(value) {
+    if (value == null) {
+        return false;
+    }
+    return value._fd != null && value.close != null;
+}
+
+function Socket_fromFd(fd) {
+    let socket = new Socket(SocketDomain_IPv4, SocketType_Stream);
+    let leakedFd = socket._fd;
+    socket._fd = fd;
+    if (leakedFd >= 0 && leakedFd != fd) {
+        __close(leakedFd);
+    }
+    socket._connected = true;
+    socket._closed = false;
+    socket._listening = false;
+    return socket;
+}

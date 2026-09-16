@@ -1,0 +1,66 @@
+// Threading unit tests
+
+import {
+    Thread,
+    Thread_parallel,
+    Thread_sleepMs,
+    Thread_hardwareConcurrency,
+    ThreadPool,
+    ThreadPool_map
+} from "@std/async/threading/threading";
+
+function worker_add(a, b) {
+    return a + b;
+}
+
+function worker_identity() {
+    return 99;
+}
+
+function test_thread_start_join() {
+    let thread = new Thread(worker_identity, []);
+    thread.start();
+    let outcome = thread.join();
+    return __runtime_object_get(outcome, "ok")
+        && __runtime_object_get(outcome, "value") == 99;
+}
+
+function test_thread_with_args() {
+    let thread = new Thread(worker_add, [20, 22]);
+    thread.start();
+    let outcome = thread.join();
+    return __runtime_object_get(outcome, "ok")
+        && __runtime_object_get(outcome, "value") == 42;
+}
+
+function test_thread_parallel() {
+    let outcome = Thread_parallel([worker_identity, worker_identity]);
+    if (!__runtime_object_get(outcome, "ok")) {
+        return false;
+    }
+    let values = __runtime_object_get(outcome, "value");
+    return values[0] == 99 && values[1] == 99;
+}
+
+function test_thread_pool_run() {
+    let pool = new ThreadPool(2);
+    let value = pool.run(worker_add, [10, 32]);
+    pool.destroy();
+    return value == 42;
+}
+
+function test_thread_pool_map() {
+    let pool = new ThreadPool(2);
+    let results = ThreadPool_map(pool, [worker_identity, worker_identity]);
+    pool.destroy();
+    return results[0] == 99 && results[1] == 99;
+}
+
+function test_thread_hardware_concurrency() {
+    return Thread_hardwareConcurrency() >= 1;
+}
+
+function test_thread_sleep() {
+    Thread_sleepMs(1);
+    return true;
+}

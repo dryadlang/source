@@ -39,6 +39,7 @@ private:
 
     struct FunctionSignature {
         std::vector<std::string> parameter_types;
+        size_t required_parameter_count = 0;
         std::string return_type;
     };
 

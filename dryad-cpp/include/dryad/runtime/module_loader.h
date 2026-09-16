@@ -19,6 +19,7 @@ public:
     
     void set_stdlib_root(const std::string& stdlib_root);
     void execute_import(ImportDeclaration* stmt, Interpreter* interpreter);
+    std::shared_ptr<Environment> load_module(const std::string& specifier, Interpreter* interpreter);
     
 private:
     std::string stdlib_root_;
@@ -28,7 +29,6 @@ private:
     
     std::string resolve_module_path(const std::string& specifier) const;
     static std::string read_file(const std::string& path);
-    std::shared_ptr<Environment> load_module(const std::string& specifier, Interpreter* interpreter);
 };
 
 } // namespace dryad

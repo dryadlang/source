@@ -51,6 +51,9 @@ Value ExpressionEvaluator::evaluate(Expression* expr) {
         case ASTNodeType::SuperExpression:
             throw DryadException("'super' must be used in super() or super.method()");
 
+        case ASTNodeType::AwaitExpression:
+            return evaluate_await(static_cast<AwaitExpression*>(expr));
+
         case ASTNodeType::ErrorExpression:
             throw DryadException(static_cast<ErrorExpression*>(expr)->message);
         
@@ -397,6 +400,11 @@ Value ExpressionEvaluator::evaluate_new(NewExpression* expr) {
     
     auto instance = klass->instantiate(args, interpreter_);
     return Value(instance);
+}
+
+Value ExpressionEvaluator::evaluate_await(AwaitExpression* expr) {
+    Value promise = evaluate(expr->operand.get());
+    return interpreter_->await_promise(promise);
 }
 
 Value ExpressionEvaluator::evaluate_this(ThisExpression* expr) {

@@ -5,7 +5,8 @@ import {
     Thread,
     Thread_parallel,
     Thread_sleepMs,
-    Thread_hardwareConcurrency
+    Thread_hardwareConcurrency,
+    Thread_startAsync
 } from "@std/async/threading/thread";
 
 import {

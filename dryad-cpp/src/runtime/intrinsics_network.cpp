@@ -9,6 +9,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include <fcntl.h>
 #endif
 #include <cerrno>
 #include <cstring>
@@ -285,6 +286,20 @@ void IntrinsicsRegistry::register_network_intrinsics() {
         ::inet_ntop(AF_INET, &sin->sin_addr, ip, sizeof(ip));
         ::freeaddrinfo(result);
         return Value(std::string(ip));
+    });
+
+    register_intrinsic("syscall.set_nonblocking", [](const std::vector<Value>& args) -> Value {
+        require_network();
+        if (args.empty()) {
+            throw DryadException("syscall.set_nonblocking requires fd");
+        }
+        const int fd = static_cast<int>(args[0].as_integer());
+        int flags = ::fcntl(fd, F_GETFL, 0);
+        if (flags < 0) {
+            return Value(static_cast<int64_t>(-1));
+        }
+        const int result = ::fcntl(fd, F_SETFL, flags | O_NONBLOCK);
+        return Value(static_cast<int64_t>(result));
     });
 
     register_intrinsic("syscall.shutdown", [](const std::vector<Value>& args) -> Value {

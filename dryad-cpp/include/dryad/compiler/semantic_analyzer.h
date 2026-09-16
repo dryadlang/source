@@ -47,6 +47,7 @@ private:
     std::unordered_set<std::string> known_types_;
     std::unordered_map<std::string, FunctionSignature> function_signatures_;
     std::vector<Diagnostic> diagnostics_;
+    size_t async_depth_ = 0;
 
     void register_builtin_types();
     void collect_globals(Program* program);

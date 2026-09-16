@@ -48,7 +48,7 @@ private:
     std::unique_ptr<Statement> parse_statement();
     std::unique_ptr<Statement> parse_declaration();
     std::unique_ptr<Statement> parse_variable_declaration();
-    std::unique_ptr<Statement> parse_function_declaration(bool is_internal = false);
+    std::unique_ptr<Statement> parse_function_declaration(bool is_internal = false, bool is_async = false);
     std::unique_ptr<Statement> parse_class_declaration(bool is_internal = false, bool is_abstract = false);
     std::unique_ptr<Statement> parse_interface_declaration(bool is_internal = false);
     std::unique_ptr<PropertyDeclaration> parse_property_declaration(bool is_abstract, bool is_readonly, const Token& name, SourceLocation loc);

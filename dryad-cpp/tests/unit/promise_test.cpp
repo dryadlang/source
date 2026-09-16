@@ -68,3 +68,11 @@ TEST(PromiseTest, DeferredThen) {
 TEST(PromiseTest, AllDeferred) {
     EXPECT_TRUE(run_promise_test("test_promise_all_deferred").is_truthy());
 }
+
+TEST(PromiseTest, CatchAlias) {
+    EXPECT_TRUE(run_promise_test("test_promise_catch_alias").is_truthy());
+}
+
+TEST(PromiseTest, FinallyAlias) {
+    EXPECT_TRUE(run_promise_test("test_promise_finally_alias").is_truthy());
+}

@@ -305,6 +305,13 @@ std::string SemanticAnalyzer::analyze_expression(Expression* expr, const std::sh
             }
             return inferred;
         }
+        case ASTNodeType::AwaitExpression: {
+            if (async_depth_ == 0) {
+                report_error("'await' is only valid inside async functions",
+                             static_cast<AwaitExpression*>(expr)->location);
+            }
+            return analyze_expression(static_cast<AwaitExpression*>(expr)->operand.get(), scope);
+        }
         case ASTNodeType::UnaryExpression: {
             auto* unary = static_cast<UnaryExpression*>(expr);
             std::string operand = analyze_expression(unary->operand.get(), scope);
@@ -493,7 +500,13 @@ void SemanticAnalyzer::analyze_statement(Statement* stmt, const std::shared_ptr<
             for (const auto& param : func_decl->parameters) {
                 body_scope->define(param.name, param.type_annotation, func_decl->location, false);
             }
+            if (func_decl->is_async) {
+                ++async_depth_;
+            }
             analyze_block(func_decl->body->statements, body_scope, true);
+            if (func_decl->is_async) {
+                --async_depth_;
+            }
             break;
         }
         case ASTNodeType::ClassDeclaration:

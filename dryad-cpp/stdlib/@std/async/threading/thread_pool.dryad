@@ -1,5 +1,7 @@
 // @std/async/threading/thread_pool.dryad
-// Fixed-size worker pool with blocking wait
+// Fixed-size worker pool (blocking wait + Promise async submit)
+
+import { Promise } from "@std/async/promise";
 
 class ThreadPool {
     constructor(workerCount = 2) {
@@ -17,6 +19,13 @@ class ThreadPool {
     run(fn, args = []) {
         let jobId = this.submit(fn, args);
         return this.wait(jobId);
+    }
+
+    submitAsync(fn, args = []) {
+        return new Promise(function(resolve, reject) {
+            __thread_spawn_async(fn, resolve, reject, args);
+            return null;
+        });
     }
 
     destroy() {

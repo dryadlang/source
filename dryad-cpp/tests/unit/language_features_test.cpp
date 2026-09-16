@@ -105,6 +105,32 @@ TEST(LanguageFeaturesTest, ConstructorDefaultParameters) {
     EXPECT_TRUE(run_source(source).is_truthy());
 }
 
+TEST(LanguageFeaturesTest, CatchFinallyAsMemberAccess) {
+    const std::string source = R"(
+        class Box {
+            constructor(value) {
+                this._value = value;
+            }
+
+            catch(handler) {
+                return handler(this._value);
+            }
+
+            finally(handler) {
+                handler();
+                return this._value;
+            }
+        }
+
+        let box = new Box(42);
+        let from_catch = box.catch(function(v) { return v + 1; });
+        let from_finally = box.finally(function() { return null; });
+        let result = from_catch == 43 && from_finally == 42;
+    )";
+
+    EXPECT_TRUE(run_source(source).is_truthy());
+}
+
 TEST(LanguageFeaturesTest, ParserAcceptsReservedMemberNamesAfterDot) {
     const std::string source = R"(
         class Holder {

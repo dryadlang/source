@@ -1,0 +1,49 @@
+// async/await and microtask tests
+
+import {
+    Promise,
+    Promise_resolve,
+    Promise_flush
+} from "@std/async/promise";
+
+import { EventLoop_pump } from "@std/async/event_loop";
+
+import { Thread_startAsync } from "@std/async/threading/threading";
+
+function test_microtask_order() {
+    let order = [];
+    Promise_resolve(1).then(function(v) {
+        __runtime_array_push(order, 1);
+        return v;
+    });
+    __runtime_array_push(order, 0);
+    EventLoop_pump();
+    return order[0] == 0 && order[1] == 1;
+}
+
+async function async_add_one(value) {
+    let x = await Promise_resolve(value);
+    return x + 1;
+}
+
+function test_async_await() {
+    let p = async_add_one(41);
+    Promise_flush();
+    return p._state == "fulfilled" && p._value == 42;
+}
+
+function worker_double(n) {
+    return n * 2;
+}
+
+function test_thread_start_async() {
+    let p = Thread_startAsync(worker_double, [21]);
+    let value = __runtime_await_promise(p);
+    return value == 42;
+}
+
+function test_thread_start_async_promise() {
+    let p = Thread_startAsync(worker_double, [10]);
+    let value = __runtime_await_promise(p);
+    return value == 20;
+}

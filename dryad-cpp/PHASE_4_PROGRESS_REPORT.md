@@ -23,11 +23,11 @@ Phase 4 delivers the Dryad standard library foundation: core types, I/O, collect
 
 ## Test Results
 
-**362/362 tests passing (100%)**
+**372/372 tests passing (100%)**
 
 ```
-Unit tests:         344 ✅
-Integration tests:   18 ✅
+Unit tests:         353 ✅
+Integration tests:   19 ✅
 ```
 
 ---
@@ -95,10 +95,16 @@ Integration tests:   18 ✅
 
 ---
 
-## Deferred (future phases)
+## Phase 5 — Async Runtime ✅
 
-- Real event loop / `await` syntax integration
-- Non-blocking async I/O (epoll/kqueue)
+- 5.1 Microtask-driven Promises + auto pump at script end
+- 5.2 `async` / `await` syntax
+- 5.3 epoll I/O poller (Linux) + `syscall.set_nonblocking`
+- 5.4 `Thread_startAsync`, `ThreadPool.submitAsync`, `thread_spawn_async`
+- 5.5 Integration test `async_workflow_test` + 353 unit / 19 integration tests passing
+
+## Deferred (later)
+
 - Server-side TLS
 - Generics for collections
 - Full LSP completion and hover

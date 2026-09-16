@@ -29,6 +29,8 @@ public:
     void register_time_intrinsics();
     void register_misc_intrinsics();
     void register_thread_intrinsics();
+    void register_event_loop_intrinsics();
+    void register_poller_intrinsics();
     void register_all();
 
     void set_network_allowed(bool allowed) { network_allowed_ = allowed; }

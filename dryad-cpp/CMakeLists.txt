@@ -72,6 +72,11 @@ add_library(dryad_runtime STATIC
     src/runtime/intrinsics_process.cpp
     src/runtime/intrinsics_thread.cpp
     src/runtime/thread_manager.cpp
+    src/runtime/event_loop.cpp
+    src/runtime/intrinsics_event_loop.cpp
+    src/runtime/intrinsics_poller.cpp
+    src/runtime/promise_runtime.cpp
+    src/runtime/io_poller.cpp
     src/runtime/module_loader.cpp
     src/runtime/environment.cpp
     src/runtime/function.cpp
@@ -182,6 +187,8 @@ if(DRYAD_BUILD_TESTS)
         tests/unit/socket_test.cpp
         tests/unit/promise_test.cpp
         tests/unit/threading_test.cpp
+        tests/unit/event_loop_test.cpp
+        tests/unit/async_test.cpp
         tests/unit/udp_test.cpp
         tests/unit/http_client_test.cpp
         tests/unit/language_features_test.cpp
@@ -213,6 +220,7 @@ if(DRYAD_BUILD_TESTS)
         tests/integration/net_http_smoke_test.cpp
         tests/integration/udp_echo_test.cpp
         tests/integration/http_client_test.cpp
+        tests/integration/async_workflow_test.cpp
     )
     target_link_libraries(integration_tests PRIVATE
         pthread

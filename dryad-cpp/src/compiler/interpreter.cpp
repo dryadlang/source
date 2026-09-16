@@ -6,12 +6,20 @@
 #include "dryad/runtime/function.h"
 #include "dryad/runtime/intrinsics_registry.h"
 #include "dryad/runtime/thread_manager.h"
+#include "dryad/runtime/event_loop.h"
+#include "dryad/runtime/promise_runtime.h"
 #include "dryad/common/utils.h"
 #include <fstream>
 #include <iostream>
 #include <sstream>
 
 namespace dryad {
+
+thread_local Interpreter* Interpreter::active_ = nullptr;
+
+Interpreter* Interpreter::active() {
+    return active_;
+}
 
 Interpreter::Interpreter()
     : call_depth_(0), in_constructor_(false) {
@@ -61,7 +69,8 @@ void Interpreter::setup_intrinsic_functions() {
         "syscall.open_read", "syscall.open_write", "syscall.open_append", "syscall.open_readwrite",
         "syscall.read_buffer", "syscall.write_buffer", "syscall.fstat", "syscall.fsync",
         "syscall.getpid", "syscall.getenv", "syscall.setenv", "syscall.sleep",
-        "syscall.thread_spawn", "syscall.thread_join",
+        "syscall.thread_spawn", "syscall.thread_join", "syscall.thread_spawn_async",
+        "syscall.set_nonblocking",
         "syscall.thread_pool_create", "syscall.thread_pool_destroy",
         "syscall.thread_pool_submit", "syscall.thread_pool_wait",
         "syscall.thread_hardware_concurrency", "syscall.thread_sleep_ms",
@@ -69,7 +78,11 @@ void Interpreter::setup_intrinsic_functions() {
         "syscall.string_starts_with", "syscall.normalize_path",
         "runtime.get_stack_trace", "runtime.create_object", "runtime.value_kind",
         "runtime.object_set", "runtime.object_get", "runtime.object_keys", "runtime.array_length",
-        "runtime.array_push"
+        "runtime.array_push",
+        "runtime.schedule_microtask", "runtime.event_loop_pending",
+        "runtime.event_loop_pump_all", "runtime.event_loop_run_turn",
+        "runtime.await_promise", "runtime.io_register_fd", "runtime.io_unregister_fd",
+        "runtime.io_poll_once", "runtime.thread_spawn_async"
     };
     
     for (const auto& name : intrinsic_names) {
@@ -135,9 +148,20 @@ void Interpreter::run_file(const std::string& path) {
 }
 
 void Interpreter::execute(Program* program) {
+    active_ = this;
     for (auto& stmt : program->statements) {
         execute_statement(stmt.get());
     }
+    pump_event_loop();
+    active_ = nullptr;
+}
+
+size_t Interpreter::pump_event_loop() {
+    return EventLoop::instance().pump_all(this);
+}
+
+Value Interpreter::await_promise(const Value& promise) {
+    return PromiseRuntime::await_value(this, promise);
 }
 
 Value Interpreter::evaluate(Expression* expr) {
@@ -164,6 +188,7 @@ FunctionDeclaration* Interpreter::get_or_create_lambda_code(FunctionExpression* 
         std::move(expr->parameters),
         std::move(expr->body),
         expr->return_type,
+        false,
         false,
         expr->location
     );

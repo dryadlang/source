@@ -408,6 +408,8 @@ void IntrinsicsRegistry::register_all() {
     register_string_intrinsics();
     register_misc_intrinsics();
     register_thread_intrinsics();
+    register_event_loop_intrinsics();
+    register_poller_intrinsics();
 }
 
 } // namespace dryad

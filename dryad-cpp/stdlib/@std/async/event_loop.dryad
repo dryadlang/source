@@ -1,0 +1,19 @@
+// @std/async/event_loop.dryad
+// Microtask scheduler (Phase 5 foundation)
+
+function EventLoop_schedule(callback) {
+    __runtime_schedule_microtask(callback);
+    return null;
+}
+
+function EventLoop_pendingCount() {
+    return __runtime_event_loop_pending();
+}
+
+function EventLoop_pump() {
+    return __runtime_event_loop_pump_all();
+}
+
+function EventLoop_runTurn() {
+    return __runtime_event_loop_run_turn();
+}

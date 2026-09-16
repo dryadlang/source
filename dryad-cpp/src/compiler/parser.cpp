@@ -76,7 +76,8 @@ Token Parser::consume_member_name(const std::string& message) {
     if (check(TokenType::Identifier)) {
         return advance();
     }
-    if (match(TokenType::KeywordGet) || match(TokenType::KeywordSet) || match(TokenType::KeywordDelete)) {
+    if (match(TokenType::KeywordGet) || match(TokenType::KeywordSet) || match(TokenType::KeywordDelete)
+        || match(TokenType::KeywordCatch) || match(TokenType::KeywordFinally)) {
         return previous();
     }
 
@@ -202,11 +203,12 @@ std::unique_ptr<Statement> Parser::parse_declaration() {
         return parse_variable_declaration();
     }
     
+    bool is_async = match(TokenType::KeywordAsync);
     if (match(TokenType::KeywordFunction)) {
         if (is_abstract) {
             throw DryadException("'abstract' modifier can only be used with classes");
         }
-        return parse_function_declaration(is_internal);
+        return parse_function_declaration(is_internal, is_async);
     }
     
     if (match(TokenType::KeywordInterface)) {
@@ -252,7 +254,7 @@ std::unique_ptr<Statement> Parser::parse_variable_declaration() {
     return std::make_unique<VariableDeclaration>(name.lexeme, type_annotation, std::move(initializer), is_const, loc);
 }
 
-std::unique_ptr<Statement> Parser::parse_function_declaration(bool is_internal) {
+std::unique_ptr<Statement> Parser::parse_function_declaration(bool is_internal, bool is_async) {
     SourceLocation loc = previous().location;
     
     Token name = consume(TokenType::Identifier, "Expected function name");
@@ -274,6 +276,7 @@ std::unique_ptr<Statement> Parser::parse_function_declaration(bool is_internal) 
         std::unique_ptr<BlockStatement>(static_cast<BlockStatement*>(body.release())),
         return_type,
         is_internal,
+        is_async,
         loc
     );
 }
@@ -448,6 +451,12 @@ std::unique_ptr<Expression> Parser::parse_multiplication() {
 }
 
 std::unique_ptr<Expression> Parser::parse_unary() {
+    if (match(TokenType::KeywordAwait)) {
+        SourceLocation loc = previous().location;
+        auto operand = parse_unary();
+        return std::make_unique<AwaitExpression>(std::move(operand), loc);
+    }
+
     if (match({TokenType::Bang, TokenType::Minus})) {
         TokenType op = previous().type;
         auto operand = parse_unary();

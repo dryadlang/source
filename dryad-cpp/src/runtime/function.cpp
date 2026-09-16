@@ -1,6 +1,7 @@
 #include "dryad/runtime/function.h"
 #include "dryad/runtime/class.h"
 #include "dryad/compiler/interpreter.h"
+#include "dryad/runtime/promise_runtime.h"
 #include "dryad/common/utils.h"
 
 namespace dryad {
@@ -55,21 +56,37 @@ Value DryadFunction::call_impl(Interpreter* interp, const std::vector<Value>& ar
         function_env->define(parameters[i].name, arg_value);
     }
 
+    const bool is_async = declaration_->is_async;
+
     interp->increment_call_depth();
     try {
         interp->execute_block(declaration_->body->statements, function_env);
     } catch (const ReturnException& ret) {
         interp->decrement_call_depth();
         interp->set_executing_class(previous_class);
+        interp->set_current_env(previous_env);
+        if (is_async) {
+            return PromiseRuntime::resolve(interp, ret.value);
+        }
         return ret.value;
+    } catch (const DryadException&) {
+        interp->decrement_call_depth();
+        interp->set_executing_class(previous_class);
+        interp->set_current_env(previous_env);
+        throw;
     } catch (...) {
         interp->decrement_call_depth();
         interp->set_executing_class(previous_class);
+        interp->set_current_env(previous_env);
         throw;
     }
 
     interp->decrement_call_depth();
     interp->set_executing_class(previous_class);
+    interp->set_current_env(previous_env);
+    if (is_async) {
+        return PromiseRuntime::resolve(interp, Value());
+    }
     return Value();
 }
 

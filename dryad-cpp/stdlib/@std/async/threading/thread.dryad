@@ -1,5 +1,7 @@
 // @std/async/threading/thread.dryad
-// OS thread wrapper (blocking join model)
+// OS thread wrapper (blocking join + Promise-based async)
+
+import { Promise } from "@std/async/promise";
 
 function Thread_makeOutcome(ok, payload) {
     let outcome = __runtime_create_object();
@@ -74,4 +76,11 @@ function Thread_sleepMs(milliseconds) {
 
 function Thread_hardwareConcurrency() {
     return __thread_hardware_concurrency();
+}
+
+function Thread_startAsync(fn, args = []) {
+    return new Promise(function(resolve, reject) {
+        __thread_spawn_async(fn, resolve, reject, args);
+        return null;
+    });
 }

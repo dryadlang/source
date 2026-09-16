@@ -7,7 +7,9 @@ import {
     Promise_reject,
     Promise_wrap,
     Promise_all,
-    Promise_race
+    Promise_race,
+    Promise_flush,
+    Promise_await
 } from "@std/async/promise";
 
 import {
@@ -15,6 +17,14 @@ import {
     Thread_parallel,
     Thread_sleepMs,
     Thread_hardwareConcurrency,
+    Thread_startAsync,
     ThreadPool,
     ThreadPool_map
 } from "@std/async/threading/threading";
+
+import {
+    EventLoop_schedule,
+    EventLoop_pendingCount,
+    EventLoop_pump,
+    EventLoop_runTurn
+} from "@std/async/event_loop";

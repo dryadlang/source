@@ -60,6 +60,8 @@ public:
 
     static int64_t spawn(Value function, const std::vector<Value>& arguments);
     static Value join(int64_t job_id);
+    static void spawn_async(Value function, const std::vector<Value>& arguments,
+                            Value resolve, Value reject);
 
     static int64_t create_pool(size_t worker_count);
     static void destroy_pool(int64_t pool_handle);

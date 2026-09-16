@@ -1,5 +1,26 @@
 // @std/async/promise.dryad
-// Promise<T> — synchronous executor with deferred then/catch queues (Phase 4.5)
+// Promise<T> — microtask-driven settlement (Phase 5.1+)
+
+import { EventLoop_schedule } from "@std/async/event_loop";
+
+function Promise_queueSettlement(promise, fulfilled, payload) {
+    EventLoop_schedule(function() {
+        if (promise._state != "pending") {
+            return null;
+        }
+        if (fulfilled) {
+            promise._state = "fulfilled";
+            promise._value = payload;
+            Promise_flushFulfilled(promise);
+        } else {
+            promise._state = "rejected";
+            promise._error = payload;
+            Promise_flushRejected(promise);
+        }
+        return null;
+    });
+    return null;
+}
 
 function Promise_isPromise(value) {
     if (value == null) {
@@ -104,9 +125,7 @@ class Promise {
             if (self._state != "pending") {
                 return null;
             }
-            self._state = "fulfilled";
-            self._value = value;
-            Promise_flushFulfilled(self);
+            Promise_queueSettlement(self, true, value);
             return null;
         }
 
@@ -114,9 +133,7 @@ class Promise {
             if (self._state != "pending") {
                 return null;
             }
-            self._state = "rejected";
-            self._error = error;
-            Promise_flushRejected(self);
+            Promise_queueSettlement(self, false, error);
             return null;
         }
 
@@ -126,15 +143,28 @@ class Promise {
     then(onFulfilled, onRejected = null) {
         if (this._state == "rejected") {
             if (onRejected != null) {
-                return Promise_resolve(onRejected(this._error));
+                let deferredRejected = Promise_createDeferred();
+                let err = this._error;
+                EventLoop_schedule(function() {
+                    Promise_adoptResolved(deferredRejected, onRejected(err));
+                    return null;
+                });
+                return __runtime_object_get(deferredRejected, "promise");
             }
             return Promise_wrap(this);
         }
         if (this._state == "fulfilled") {
-            if (onFulfilled != null) {
-                return Promise_resolve(onFulfilled(this._value));
-            }
-            return Promise_resolve(this._value);
+            let deferred = Promise_createDeferred();
+            let val = this._value;
+            EventLoop_schedule(function() {
+                if (onFulfilled != null) {
+                    Promise_adoptResolved(deferred, onFulfilled(val));
+                } else {
+                    Promise_adoptResolved(deferred, val);
+                }
+                return null;
+            });
+            return __runtime_object_get(deferred, "promise");
         }
 
         let deferred = Promise_createDeferred();
@@ -142,8 +172,16 @@ class Promise {
         return __runtime_object_get(deferred, "promise");
     }
 
+    catch(onRejected) {
+        return this.catchError(onRejected);
+    }
+
     catchError(onRejected) {
         return this.then(null, onRejected);
+    }
+
+    finally(onFinally) {
+        return this.finallyDo(onFinally);
     }
 
     finallyDo(onFinally) {
@@ -249,6 +287,15 @@ function Promise_all(promises) {
         }
         return null;
     });
+}
+
+function Promise_flush() {
+    __runtime_event_loop_pump_all();
+    return null;
+}
+
+function Promise_await(promise) {
+    return __runtime_await_promise(promise);
 }
 
 function Promise_race(promises) {

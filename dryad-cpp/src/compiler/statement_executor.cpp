@@ -31,6 +31,7 @@ void register_property_accessor(const std::shared_ptr<DryadClass>& klass,
         std::move(parameters),
         std::move(body),
         "",
+        false,
         false
     );
 
@@ -296,6 +297,7 @@ void StatementExecutor::execute_class_declaration(ClassDeclaration* stmt) {
             std::move(method_decl->parameters),
             std::move(method_decl->body),
             "",
+            false,
             false
         );
 

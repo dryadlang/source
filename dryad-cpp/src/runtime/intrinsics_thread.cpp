@@ -77,6 +77,15 @@ void IntrinsicsRegistry::register_thread_intrinsics() {
         return Value(ThreadManager::hardware_concurrency());
     });
 
+    register_intrinsic("syscall.thread_spawn_async", [](const std::vector<Value>& args) -> Value {
+        if (args.size() < 3 || !args[0].is_function() || !args[1].is_function() || !args[2].is_function()) {
+            throw DryadException("syscall.thread_spawn_async requires function, resolve, reject");
+        }
+        const auto arguments = extract_arguments(args, 3);
+        ThreadManager::spawn_async(args[0], arguments, args[1], args[2]);
+        return Value();
+    });
+
     register_intrinsic("syscall.thread_sleep_ms", [](const std::vector<Value>& args) -> Value {
         int64_t ms = 0;
         if (!args.empty()) {

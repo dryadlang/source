@@ -31,6 +31,7 @@ enum class ASTNodeType {
     FunctionExpression,
     ThisExpression,
     SuperExpression,
+    AwaitExpression,
     ErrorExpression,
     
     VariableDeclaration,
@@ -228,9 +229,10 @@ public:
     std::unique_ptr<BlockStatement> body;
     std::string return_type;
     bool is_internal;
+    bool is_async;
     
-    FunctionDeclaration(std::string name, std::vector<Parameter> parameters, std::unique_ptr<BlockStatement> body, std::string return_type = "", bool is_internal = false, SourceLocation location = SourceLocation())
-        : Statement(ASTNodeType::FunctionDeclaration, location), name(std::move(name)), parameters(std::move(parameters)), body(std::move(body)), return_type(std::move(return_type)), is_internal(is_internal) {}
+    FunctionDeclaration(std::string name, std::vector<Parameter> parameters, std::unique_ptr<BlockStatement> body, std::string return_type = "", bool is_internal = false, bool is_async = false, SourceLocation location = SourceLocation())
+        : Statement(ASTNodeType::FunctionDeclaration, location), name(std::move(name)), parameters(std::move(parameters)), body(std::move(body)), return_type(std::move(return_type)), is_internal(is_internal), is_async(is_async) {}
 };
 
 class IntrinsicDeclaration : public Statement {
@@ -345,6 +347,14 @@ class SuperExpression : public Expression {
 public:
     SuperExpression(SourceLocation location = SourceLocation())
         : Expression(ASTNodeType::SuperExpression, location) {}
+};
+
+class AwaitExpression : public Expression {
+public:
+    std::unique_ptr<Expression> operand;
+
+    AwaitExpression(std::unique_ptr<Expression> operand, SourceLocation location = SourceLocation())
+        : Expression(ASTNodeType::AwaitExpression, location), operand(std::move(operand)) {}
 };
 
 class ErrorExpression : public Expression {

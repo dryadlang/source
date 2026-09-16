@@ -1,6 +1,7 @@
 #include "dryad/runtime/thread_manager.h"
 #include "dryad/runtime/function.h"
 #include "dryad/compiler/interpreter.h"
+#include "dryad/runtime/event_loop.h"
 #include "dryad/common/utils.h"
 #include <chrono>
 #include <thread>
@@ -83,6 +84,33 @@ int64_t ThreadManager::spawn(Value function, const std::vector<Value>& arguments
     }).detach();
 
     return id;
+}
+
+void ThreadManager::spawn_async(Value function, const std::vector<Value>& arguments,
+                                Value resolve, Value reject) {
+    if (!function.is_function()) {
+        throw DryadException("thread spawn_async requires a function");
+    }
+    if (!resolve.is_function() || !reject.is_function()) {
+        throw DryadException("thread spawn_async requires resolve and reject functions");
+    }
+
+    std::thread([function = std::move(function), arguments, resolve, reject]() {
+        ThreadCompletion completion;
+        completion.resolve = resolve;
+        completion.reject = reject;
+        try {
+            completion.result = execute_dryad_job(function, arguments);
+            completion.success = true;
+        } catch (const std::exception& e) {
+            completion.error = e.what();
+            completion.success = false;
+        } catch (...) {
+            completion.error = "unknown thread error";
+            completion.success = false;
+        }
+        EventLoop::instance().schedule_thread_completion(completion);
+    }).detach();
 }
 
 Value ThreadManager::join(int64_t job_id) {

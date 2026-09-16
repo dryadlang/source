@@ -70,8 +70,13 @@ public:
     void set_in_constructor(bool value) { in_constructor_ = value; }
 
     FunctionDeclaration* get_or_create_lambda_code(FunctionExpression* expr);
+
+    static Interpreter* active();
+    size_t pump_event_loop();
+    Value await_promise(const Value& promise);
     
 private:
+    static thread_local Interpreter* active_;
     std::shared_ptr<Environment> global_;
     std::shared_ptr<Environment> current_;
     std::string stdlib_root_;

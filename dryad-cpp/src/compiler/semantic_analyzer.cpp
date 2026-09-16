@@ -523,6 +523,12 @@ void SemanticAnalyzer::analyze_statement(Statement* stmt, const std::shared_ptr<
             analyze_block(static_cast<BlockStatement*>(stmt)->statements, block_scope, true);
             break;
         }
+        case ASTNodeType::CompileBlockStatement: {
+            auto* compile_block = static_cast<CompileBlockStatement*>(stmt);
+            auto block_scope = std::make_shared<Scope>(scope);
+            analyze_block(compile_block->body->statements, block_scope, true);
+            break;
+        }
         case ASTNodeType::IfStatement: {
             auto* if_stmt = static_cast<IfStatement*>(stmt);
             analyze_expression(if_stmt->condition.get(), scope);

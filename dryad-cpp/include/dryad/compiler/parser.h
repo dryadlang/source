@@ -2,6 +2,7 @@
 #define DRYAD_COMPILER_PARSER_H
 
 #include "dryad/compiler/diagnostic.h"
+#include "dryad/compiler/execution_mode.h"
 #include "dryad/compiler/token.h"
 #include "dryad/compiler/ast.h"
 #include <vector>
@@ -55,6 +56,8 @@ private:
     void parse_property_accessors(PropertyDeclaration& property, SourceLocation loc);
     std::unique_ptr<MethodDeclaration> parse_method_declaration(bool is_abstract, const Token& name, SourceLocation loc, bool is_getter = false, bool is_setter = false);
     std::unique_ptr<Statement> parse_intrinsic_declaration();
+    ExecutionMode parse_compile_mode();
+    std::unique_ptr<Statement> parse_compile_block();
     std::unique_ptr<Statement> parse_block_statement();
     std::unique_ptr<Statement> parse_expression_statement();
     std::unique_ptr<Statement> parse_if_statement();

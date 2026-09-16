@@ -30,6 +30,7 @@ private:
     void execute_while(WhileStatement* stmt);
     void execute_return(ReturnStatement* stmt);
     void execute_import(ImportDeclaration* stmt);
+    void execute_compile_block(CompileBlockStatement* stmt);
 };
 
 } // namespace dryad

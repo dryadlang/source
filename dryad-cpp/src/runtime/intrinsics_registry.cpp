@@ -1,12 +1,13 @@
 #include "dryad/runtime/intrinsics_registry.h"
 #include "dryad/runtime/intrinsics.h"
 #include "dryad/common/utils.h"
-#include <fcntl.h>
-#include <unistd.h>
-#include <sys/stat.h>
+#include <algorithm>
 #include <cerrno>
 #include <ctime>
+#include <fcntl.h>
 #include <string>
+#include <sys/stat.h>
+#include <unistd.h>
 
 namespace dryad {
 
@@ -16,7 +17,10 @@ IntrinsicsRegistry& IntrinsicsRegistry::instance() {
 }
 
 void IntrinsicsRegistry::register_intrinsic(const std::string& name, IntrinsicFunction func) {
-    intrinsics_[name] = std::move(func);
+    intrinsics_[name] = func;
+    functions_by_id_[next_id_] = func;
+    name_to_id_[name] = next_id_;
+    next_id_++;
 }
 
 Value IntrinsicsRegistry::call(const std::string& name, const std::vector<Value>& args) {
@@ -29,6 +33,31 @@ Value IntrinsicsRegistry::call(const std::string& name, const std::vector<Value>
 
 bool IntrinsicsRegistry::has(const std::string& name) const {
     return intrinsics_.find(name) != intrinsics_.end();
+}
+
+Value IntrinsicsRegistry::call_by_id(uint16_t id, const std::vector<Value>& args) {
+    auto it = functions_by_id_.find(id);
+    if (it == functions_by_id_.end()) {
+        throw DryadException("Unknown intrinsic ID: " + std::to_string(id));
+    }
+    return it->second(args);
+}
+
+uint16_t IntrinsicsRegistry::get_id(const std::string& name) const {
+    auto it = name_to_id_.find(name);
+    if (it == name_to_id_.end()) {
+        throw DryadException("Intrinsic not registered: " + name);
+    }
+    return it->second;
+}
+
+std::vector<std::pair<uint16_t, std::string>> IntrinsicsRegistry::list_all_intrinsics() const {
+    std::vector<std::pair<uint16_t, std::string>> result;
+    for (const auto& pair : name_to_id_) {
+        result.emplace_back(pair.second, pair.first);
+    }
+    std::sort(result.begin(), result.end());
+    return result;
 }
 
 void IntrinsicsRegistry::require_network_access() const {

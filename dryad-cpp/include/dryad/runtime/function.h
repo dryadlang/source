@@ -50,6 +50,8 @@ public:
     Value call(Interpreter* interp, const std::vector<Value>& args) override;
     Value call_with_receiver(Interpreter* interp, const std::vector<Value>& args,
                              std::shared_ptr<ClassInstance> receiver);
+    Value call_interpreted(Interpreter* interp, const std::vector<Value>& args,
+                           std::shared_ptr<ClassInstance> receiver = nullptr);
     
     FunctionDeclaration* declaration() { return declaration_; }
     std::shared_ptr<Environment> closure() { return closure_; }

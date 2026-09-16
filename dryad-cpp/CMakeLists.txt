@@ -81,6 +81,10 @@ add_library(dryad_runtime STATIC
     src/runtime/environment.cpp
     src/runtime/function.cpp
     src/runtime/class.cpp
+    src/runtime/opcode.cpp
+    src/runtime/vm.cpp
+    src/runtime/bytecode_builder.cpp
+    src/runtime/bytecode_module.cpp
 )
 target_include_directories(dryad_runtime PUBLIC include)
 target_link_libraries(dryad_runtime PUBLIC dryad_common pthread)
@@ -108,9 +112,23 @@ add_library(dryad_compiler STATIC
     src/compiler/validator.cpp
     src/compiler/semantic_analyzer.cpp
     src/compiler/diagnostic.cpp
+    src/compiler/type_profiler.cpp
+    src/compiler/bytecode_compiler.cpp
+    src/compiler/execution_mode.cpp
+    src/compiler/execution_engine.cpp
+    src/compiler/compile_pipeline.cpp
 )
 target_include_directories(dryad_compiler PUBLIC include)
 target_link_libraries(dryad_compiler PUBLIC dryad_runtime)
+
+add_library(dryad_aot STATIC
+    src/aot/micro_ir.cpp
+    src/aot/llvm_backend.cpp
+    src/aot/analyze_pass.cpp
+    src/aot/aot_compiler.cpp
+)
+target_include_directories(dryad_aot PUBLIC include)
+target_link_libraries(dryad_aot PUBLIC dryad_compiler)
 
 # =============================================================================
 # Executables
@@ -121,7 +139,7 @@ add_executable(dryad
     src/tools/main.cpp
     src/tools/repl.cpp
 )
-target_link_libraries(dryad PRIVATE dryad_compiler dryad_runtime)
+target_link_libraries(dryad PRIVATE dryad_compiler dryad_runtime dryad_aot)
 target_compile_definitions(dryad PRIVATE
     DRYAD_STDLIB_DIR="${PROJECT_SOURCE_DIR}/stdlib"
 )
@@ -189,6 +207,11 @@ if(DRYAD_BUILD_TESTS)
         tests/unit/threading_test.cpp
         tests/unit/event_loop_test.cpp
         tests/unit/async_test.cpp
+        tests/unit/type_profiler_test.cpp
+        tests/unit/vm_test.cpp
+        tests/unit/bytecode_compiler_test.cpp
+        tests/unit/execution_engine_test.cpp
+        tests/unit/aot_test.cpp
         tests/unit/udp_test.cpp
         tests/unit/http_client_test.cpp
         tests/unit/language_features_test.cpp
@@ -198,6 +221,7 @@ if(DRYAD_BUILD_TESTS)
         gtest_main
         dryad_runtime
         dryad_compiler
+        dryad_aot
         pthread
     )
     # Allow tests to locate stdlib source files (loaded at runtime by interpreter)

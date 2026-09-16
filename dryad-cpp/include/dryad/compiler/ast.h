@@ -1,6 +1,7 @@
 #ifndef DRYAD_COMPILER_AST_H
 #define DRYAD_COMPILER_AST_H
 
+#include "dryad/compiler/execution_mode.h"
 #include "dryad/compiler/token.h"
 #include "dryad/runtime/value.h"
 #include <memory>
@@ -48,6 +49,7 @@ enum class ASTNodeType {
     ForStatement,
     BreakStatement,
     ContinueStatement,
+    CompileBlockStatement,
     
     ImportDeclaration,
     ExportDeclaration
@@ -230,9 +232,22 @@ public:
     std::string return_type;
     bool is_internal;
     bool is_async;
+    ExecutionMode compile_mode;
     
-    FunctionDeclaration(std::string name, std::vector<Parameter> parameters, std::unique_ptr<BlockStatement> body, std::string return_type = "", bool is_internal = false, bool is_async = false, SourceLocation location = SourceLocation())
-        : Statement(ASTNodeType::FunctionDeclaration, location), name(std::move(name)), parameters(std::move(parameters)), body(std::move(body)), return_type(std::move(return_type)), is_internal(is_internal), is_async(is_async) {}
+    FunctionDeclaration(std::string name, std::vector<Parameter> parameters, std::unique_ptr<BlockStatement> body, std::string return_type = "", bool is_internal = false, bool is_async = false, ExecutionMode compile_mode = ExecutionMode::Inherit, SourceLocation location = SourceLocation())
+        : Statement(ASTNodeType::FunctionDeclaration, location), name(std::move(name)), parameters(std::move(parameters)), body(std::move(body)), return_type(std::move(return_type)), is_internal(is_internal), is_async(is_async), compile_mode(compile_mode) {}
+};
+
+class CompileBlockStatement : public Statement {
+public:
+    ExecutionMode mode;
+    std::unique_ptr<BlockStatement> body;
+
+    CompileBlockStatement(ExecutionMode mode, std::unique_ptr<BlockStatement> body,
+                          SourceLocation location = SourceLocation())
+        : Statement(ASTNodeType::CompileBlockStatement, location),
+          mode(mode),
+          body(std::move(body)) {}
 };
 
 class IntrinsicDeclaration : public Statement {

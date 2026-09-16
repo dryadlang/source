@@ -1,4 +1,5 @@
 #include "dryad/compiler/interpreter.h"
+#include "dryad/compiler/execution_engine.h"
 #include "dryad/compiler/evaluator.h"
 #include "dryad/compiler/statement_executor.h"
 #include "dryad/compiler/lexer.h"
@@ -28,6 +29,7 @@ Interpreter::Interpreter()
     
     evaluator_ = std::make_unique<ExpressionEvaluator>(this);
     executor_ = std::make_unique<StatementExecutor>(this);
+    execution_engine_ = std::make_unique<ExecutionEngine>(this);
     module_loader_ = std::make_unique<ModuleLoader>(stdlib_root_);
     
     IntrinsicsRegistry::instance().register_all();
@@ -128,6 +130,10 @@ void Interpreter::set_network_allowed(bool allowed) {
     IntrinsicsRegistry::instance().set_network_allowed(allowed);
 }
 
+void Interpreter::set_default_execution_mode(ExecutionMode mode) {
+    execution_engine_->set_default_mode(mode);
+}
+
 void Interpreter::run_file(const std::string& path) {
     std::ifstream file(path);
     if (!file) {
@@ -190,6 +196,7 @@ FunctionDeclaration* Interpreter::get_or_create_lambda_code(FunctionExpression* 
         expr->return_type,
         false,
         false,
+        ExecutionMode::Inherit,
         expr->location
     );
     FunctionDeclaration* code = owned.get();

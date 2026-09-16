@@ -1,5 +1,6 @@
 #include "dryad/runtime/function.h"
 #include "dryad/runtime/class.h"
+#include "dryad/compiler/execution_engine.h"
 #include "dryad/compiler/interpreter.h"
 #include "dryad/runtime/promise_runtime.h"
 #include "dryad/common/utils.h"
@@ -17,6 +18,11 @@ Value DryadFunction::call_with_receiver(Interpreter* interp, const std::vector<V
 
 Value DryadFunction::call_impl(Interpreter* interp, const std::vector<Value>& args,
                                std::shared_ptr<ClassInstance> receiver) {
+    return interp->execution_engine().invoke_function(declaration_, this, args, receiver);
+}
+
+Value DryadFunction::call_interpreted(Interpreter* interp, const std::vector<Value>& args,
+                                      std::shared_ptr<ClassInstance> receiver) {
     const auto& parameters = declaration_->parameters;
     size_t required_count = 0;
     for (const auto& param : parameters) {
@@ -42,6 +48,8 @@ Value DryadFunction::call_impl(Interpreter* interp, const std::vector<Value>& ar
         interp->set_executing_class(home_class_);
     }
 
+    interp->type_profiler().begin_function(declaration_);
+
     for (size_t i = 0; i < parameters.size(); ++i) {
         Value arg_value;
         if (i < args.size()) {
@@ -51,9 +59,12 @@ Value DryadFunction::call_impl(Interpreter* interp, const std::vector<Value>& ar
             arg_value = interp->evaluate(parameters[i].default_value.get());
             interp->set_current_env(previous_env);
         } else {
+            interp->type_profiler().end_function();
             throw DryadException("Missing argument for parameter '" + parameters[i].name + "'");
         }
         function_env->define(parameters[i].name, arg_value);
+        interp->type_profiler().observe_slot(parameters[i].name, arg_value,
+                                           parameters[i].type_annotation);
     }
 
     const bool is_async = declaration_->is_async;
@@ -63,6 +74,7 @@ Value DryadFunction::call_impl(Interpreter* interp, const std::vector<Value>& ar
         interp->execute_block(declaration_->body->statements, function_env);
     } catch (const ReturnException& ret) {
         interp->decrement_call_depth();
+        interp->type_profiler().end_function();
         interp->set_executing_class(previous_class);
         interp->set_current_env(previous_env);
         if (is_async) {
@@ -71,17 +83,20 @@ Value DryadFunction::call_impl(Interpreter* interp, const std::vector<Value>& ar
         return ret.value;
     } catch (const DryadException&) {
         interp->decrement_call_depth();
+        interp->type_profiler().end_function();
         interp->set_executing_class(previous_class);
         interp->set_current_env(previous_env);
         throw;
     } catch (...) {
         interp->decrement_call_depth();
+        interp->type_profiler().end_function();
         interp->set_executing_class(previous_class);
         interp->set_current_env(previous_env);
         throw;
     }
 
     interp->decrement_call_depth();
+    interp->type_profiler().end_function();
     interp->set_executing_class(previous_class);
     interp->set_current_env(previous_env);
     if (is_async) {

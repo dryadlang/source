@@ -259,6 +259,12 @@ Value ExpressionEvaluator::evaluate_call(CallExpression* expr) {
         throw DryadException("Cannot call non-function value");
     }
 
+    auto dryad_func = std::dynamic_pointer_cast<DryadFunction>(callee.as_function());
+    if (dryad_func && dryad_func->declaration()) {
+        interpreter_->type_profiler().observe_call(
+            TypeProfiler::function_key(dryad_func->declaration()));
+    }
+
     return callee.as_function()->call(interpreter_, arguments);
 }
 
@@ -268,6 +274,7 @@ Value ExpressionEvaluator::evaluate_assignment(AssignmentExpression* expr) {
     if (expr->target->type == ASTNodeType::Identifier) {
         auto* ident = static_cast<Identifier*>(expr->target.get());
         interpreter_->current_env()->assign(ident->name, value);
+        interpreter_->type_profiler().observe_slot(ident->name, value);
         return value;
     }
     

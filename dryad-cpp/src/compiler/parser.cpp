@@ -172,14 +172,31 @@ std::unique_ptr<Statement> Parser::parse_declaration() {
         return parse_import_declaration();
     }
 
-    // Check for @intrinsic decorator
     if (match(TokenType::At)) {
         Token decorator = consume(TokenType::Identifier, "Expected decorator name after '@'");
         if (decorator.lexeme == "intrinsic") {
             return parse_intrinsic_declaration();
-        } else {
-            throw DryadException("Unknown decorator '@" + decorator.lexeme + "'");
         }
+        if (decorator.lexeme == "compile") {
+            ExecutionMode mode = parse_compile_mode();
+            if (match(TokenType::KeywordAsync) || check(TokenType::KeywordFunction)) {
+                bool is_async_fn = previous().type == TokenType::KeywordAsync;
+                if (!is_async_fn) {
+                    consume(TokenType::KeywordFunction, "Expected 'function' after @compile(...)");
+                }
+                auto fn = parse_function_declaration(false, is_async_fn);
+                static_cast<FunctionDeclaration*>(fn.get())->compile_mode = mode;
+                return fn;
+            }
+            SourceLocation loc = previous().location;
+            consume(TokenType::LeftBrace, "Expected '{' or 'function' after @compile(...)");
+            auto body = parse_block_statement();
+            return std::make_unique<CompileBlockStatement>(
+                mode,
+                std::unique_ptr<BlockStatement>(static_cast<BlockStatement*>(body.release())),
+                loc);
+        }
+        throw DryadException("Unknown decorator '@" + decorator.lexeme + "'");
     }
     
     bool is_internal = false;
@@ -277,11 +294,38 @@ std::unique_ptr<Statement> Parser::parse_function_declaration(bool is_internal, 
         return_type,
         is_internal,
         is_async,
+        ExecutionMode::Inherit,
         loc
     );
 }
 
+ExecutionMode Parser::parse_compile_mode() {
+    consume(TokenType::LeftParen, "Expected '(' after @compile");
+    Token mode = consume(TokenType::StringLiteral, "Expected compile mode string");
+    consume(TokenType::RightParen, "Expected ')' after @compile mode");
+    return parse_execution_mode(mode.lexeme);
+}
+
+std::unique_ptr<Statement> Parser::parse_compile_block() {
+    ExecutionMode mode = parse_compile_mode();
+    SourceLocation loc = previous().location;
+    consume(TokenType::LeftBrace, "Expected '{' after @compile(...)");
+    auto body = parse_block_statement();
+    return std::make_unique<CompileBlockStatement>(
+        mode,
+        std::unique_ptr<BlockStatement>(static_cast<BlockStatement*>(body.release())),
+        loc);
+}
+
 std::unique_ptr<Statement> Parser::parse_statement() {
+    if (match(TokenType::At)) {
+        Token decorator = consume(TokenType::Identifier, "Expected decorator name after '@'");
+        if (decorator.lexeme == "compile") {
+            return parse_compile_block();
+        }
+        throw DryadException("Unknown decorator '@" + decorator.lexeme + "' in statement position");
+    }
+
     if (match(TokenType::LeftBrace)) {
         return parse_block_statement();
     }

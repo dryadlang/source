@@ -2,6 +2,8 @@
 #define DRYAD_COMPILER_INTERPRETER_H
 
 #include "dryad/compiler/ast.h"
+#include "dryad/compiler/execution_mode.h"
+#include "dryad/compiler/type_profiler.h"
 #include "dryad/runtime/value.h"
 #include "dryad/runtime/environment.h"
 #include "dryad/runtime/module_loader.h"
@@ -32,6 +34,7 @@ public:
 
 class ExpressionEvaluator;
 class StatementExecutor;
+class ExecutionEngine;
 
 class DryadClass;
 
@@ -74,6 +77,14 @@ public:
     static Interpreter* active();
     size_t pump_event_loop();
     Value await_promise(const Value& promise);
+
+    TypeProfiler& type_profiler() { return type_profiler_; }
+    const TypeProfiler& type_profiler() const { return type_profiler_; }
+    void set_type_profiling_enabled(bool enabled) { type_profiler_.set_enabled(enabled); }
+
+    ExecutionEngine& execution_engine() { return *execution_engine_; }
+    const ExecutionEngine& execution_engine() const { return *execution_engine_; }
+    void set_default_execution_mode(ExecutionMode mode);
     
 private:
     static thread_local Interpreter* active_;
@@ -89,6 +100,8 @@ private:
     std::unique_ptr<ModuleLoader> module_loader_;
     std::unordered_map<FunctionExpression*, FunctionDeclaration*> lambda_code_cache_;
     std::vector<std::unique_ptr<FunctionDeclaration>> owned_lambda_code_;
+    TypeProfiler type_profiler_;
+    std::unique_ptr<ExecutionEngine> execution_engine_;
     
     void setup_native_functions();
     void setup_intrinsic_functions();

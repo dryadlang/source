@@ -1,4 +1,5 @@
 #include "dryad/compiler/statement_executor.h"
+#include "dryad/compiler/execution_engine.h"
 #include "dryad/compiler/interpreter.h"
 #include "dryad/runtime/function.h"
 #include "dryad/runtime/class.h"
@@ -114,6 +115,10 @@ void StatementExecutor::execute(Statement* stmt) {
         case ASTNodeType::ImportDeclaration:
             execute_import(static_cast<ImportDeclaration*>(stmt));
             break;
+
+        case ASTNodeType::CompileBlockStatement:
+            execute_compile_block(static_cast<CompileBlockStatement*>(stmt));
+            break;
         
         default:
             throw DryadException("Unknown statement type");
@@ -130,6 +135,7 @@ void StatementExecutor::execute_variable_declaration(VariableDeclaration* stmt) 
         value = interpreter_->evaluate(stmt->initializer.get());
     }
     interpreter_->current_env()->define(stmt->name, value);
+    interpreter_->type_profiler().observe_slot(stmt->name, value, stmt->type_annotation);
 }
 
 void StatementExecutor::execute_function_declaration(FunctionDeclaration* stmt) {
@@ -161,7 +167,9 @@ void StatementExecutor::execute_block(const std::vector<std::unique_ptr<Statemen
 
 void StatementExecutor::execute_if(IfStatement* stmt) {
     Value condition = interpreter_->evaluate(stmt->condition.get());
-    
+    const std::string site = "if@" + std::to_string(stmt->location.line);
+    interpreter_->type_profiler().observe_branch(site, condition.is_truthy());
+
     if (condition.is_truthy()) {
         execute(stmt->then_branch.get());
     } else if (stmt->else_branch) {
@@ -170,8 +178,10 @@ void StatementExecutor::execute_if(IfStatement* stmt) {
 }
 
 void StatementExecutor::execute_while(WhileStatement* stmt) {
+    const std::string site = "while@" + std::to_string(stmt->location.line);
     while (true) {
         Value condition = interpreter_->evaluate(stmt->condition.get());
+        interpreter_->type_profiler().observe_branch(site, condition.is_truthy());
         if (!condition.is_truthy()) break;
         
         try {
@@ -194,6 +204,14 @@ void StatementExecutor::execute_return(ReturnStatement* stmt) {
 
 void StatementExecutor::execute_import(ImportDeclaration* stmt) {
     interpreter_->module_loader().execute_import(stmt, interpreter_);
+}
+
+void StatementExecutor::execute_compile_block(CompileBlockStatement* stmt) {
+    auto& engine = interpreter_->execution_engine();
+    engine.push_scope_mode(stmt->mode);
+    auto block_env = std::make_shared<Environment>(interpreter_->current_env());
+    execute_block(stmt->body->statements, block_env);
+    engine.pop_scope_mode();
 }
 
 void StatementExecutor::execute_interface_declaration(InterfaceDeclaration* stmt) {

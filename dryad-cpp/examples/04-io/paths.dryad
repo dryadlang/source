@@ -1,0 +1,16 @@
+// Path utilities: join, dirname, basename, extension.
+// Run: dryad examples/04-io/paths.dryad
+
+import { Path } from "@std/io/path";
+
+let full = Path.join("foo", "bar");
+full = Path.join(full, "baz.txt");
+
+print("join");
+print(full);
+print("dirname");
+print(Path.dirname("/tmp/test.txt"));
+print("basename");
+print(Path.basename("/tmp/test.txt"));
+print("extension");
+print(Path.extension("test.txt"));

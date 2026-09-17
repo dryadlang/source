@@ -85,9 +85,12 @@ add_library(dryad_runtime STATIC
     src/runtime/vm.cpp
     src/runtime/bytecode_builder.cpp
     src/runtime/bytecode_module.cpp
+    src/runtime/bytecode_cache.cpp
+    src/runtime/native_module.cpp
+    src/runtime/loop_analyzer.cpp
 )
 target_include_directories(dryad_runtime PUBLIC include)
-target_link_libraries(dryad_runtime PUBLIC dryad_common pthread)
+target_link_libraries(dryad_runtime PUBLIC dryad_common pthread ${CMAKE_DL_LIBS})
 
 if(DRYAD_ENABLE_TLS)
     find_package(OpenSSL)
@@ -117,6 +120,7 @@ add_library(dryad_compiler STATIC
     src/compiler/execution_mode.cpp
     src/compiler/execution_engine.cpp
     src/compiler/compile_pipeline.cpp
+    src/compiler/program_entry.cpp
 )
 target_include_directories(dryad_compiler PUBLIC include)
 target_link_libraries(dryad_compiler PUBLIC dryad_runtime)
@@ -126,6 +130,8 @@ add_library(dryad_aot STATIC
     src/aot/llvm_backend.cpp
     src/aot/analyze_pass.cpp
     src/aot/aot_compiler.cpp
+    src/aot/native_linker.cpp
+    src/aot/jit_compiler.cpp
 )
 target_include_directories(dryad_aot PUBLIC include)
 target_link_libraries(dryad_aot PUBLIC dryad_compiler)
@@ -142,6 +148,8 @@ add_executable(dryad
 target_link_libraries(dryad PRIVATE dryad_compiler dryad_runtime dryad_aot)
 target_compile_definitions(dryad PRIVATE
     DRYAD_STDLIB_DIR="${PROJECT_SOURCE_DIR}/stdlib"
+    DRYAD_AOT_RUNTIME_SRC="${PROJECT_SOURCE_DIR}/src/aot/aot_runtime.c"
+    DRYAD_INCLUDE_DIR="${PROJECT_SOURCE_DIR}/include"
 )
 
 # Set output directory
@@ -212,6 +220,7 @@ if(DRYAD_BUILD_TESTS)
         tests/unit/bytecode_compiler_test.cpp
         tests/unit/execution_engine_test.cpp
         tests/unit/aot_test.cpp
+        tests/unit/bytecode_cache_test.cpp
         tests/unit/udp_test.cpp
         tests/unit/http_client_test.cpp
         tests/unit/language_features_test.cpp
@@ -228,6 +237,9 @@ if(DRYAD_BUILD_TESTS)
     target_compile_definitions(unit_tests PRIVATE
         DRYAD_STDLIB_DIR="${PROJECT_SOURCE_DIR}/stdlib"
         DRYAD_TEST_DIR="${PROJECT_SOURCE_DIR}/tests"
+        DRYAD_EXAMPLE_DIR="${PROJECT_SOURCE_DIR}/examples"
+        DRYAD_AOT_RUNTIME_SRC="${PROJECT_SOURCE_DIR}/src/aot/aot_runtime.c"
+        DRYAD_INCLUDE_DIR="${PROJECT_SOURCE_DIR}/include"
     )
     gtest_discover_tests(unit_tests)
     

@@ -1,66 +1,54 @@
-# Dryad Programming Language - C++ Implementation
+# Dryad — C++ Implementation
 
 Modern dynamic programming language with self-hosting standard library and minimal runtime.
 
-## Features
-
-- **Clean Syntax**: Python-like readability with modern ES6-style modules
-- **Self-Hosting**: 100% of standard library written in Dryad
-- **Minimal Runtime**: ~50 intrinsic syscalls instead of manual bindings
-- **Fast I/O**: 5-10x faster than traditional binding approaches
-- **Gradual Typing**: Optional type annotations for AOT optimization
-- **Async-First**: Event loop and async I/O in pure Dryad
-
-## Quick Start
+## Quick start
 
 ```bash
-# Build
-mkdir build && cd build
-cmake -DCMAKE_BUILD_TYPE=Release ..
-cmake --build .
+cmake -B build -DCMAKE_BUILD_TYPE=Release -DDRYAD_ENABLE_TLS=ON
+cmake --build build -j$(nproc)
 
 # Run a script
-./bin/dryad script.dryad
+./build/bin/dryad examples/01-language/basics.dryad
+
+# Run all examples (benchmark)
+./examples/run_benchmark.sh
 
 # Run tests
-ctest --output-on-failure
+cd build && ctest --output-on-failure
 ```
 
-## Architecture
+## CLI
 
 ```
-Layer 4: Application Code (User Dryad Programs)
-   ↓
-Layer 3: Standard Library (100% Dryad)
-   @std/io, @std/http, @std/crypto, @std/net
-   ↓
-Layer 2: Intrinsics Layer (~50 Syscall Primitives)
-   File I/O, Network, Memory, Async I/O
-   ↓
-Layer 1: C++ Micro-Kernel Runtime
-   VM Core, GC, Module Loader, Bytecode, JIT/AOT
+dryad [--allow-net] [--vm] <script.dryad>
+dryad compile <file> [-o out.dryadc] [--aot -o out.ll]
+dryad analyze <file>
+dryad check <file>
 ```
 
 ## Documentation
 
-- **Theory**: See `/home/pedro/repo/source/dryad_theory/dryad_theoretical_foundation_v2.pdf`
-- **Implementation Plan**: See `/home/pedro/repo/source/dryad_theory/REWORK_OVERVIEW.md`
-- **Quick Start**: See `/home/pedro/repo/source/dryad_theory/QUICK_START.md`
+| Topic | Path |
+|-------|------|
+| Docs index | [docs/README.md](../docs/README.md) |
+| Build guide | [docs/getting-started/building.md](../docs/getting-started/building.md) |
+| Language spec | [dryad_theory/](../dryad_theory/) |
+| Examples | [examples/README.md](examples/README.md) |
+| Stdlib guides | [docs/stdlib/](../docs/stdlib/) |
 
-## Development
+## Project layout
 
-- **Language**: C++17 or later
-- **Build System**: CMake 3.15+
-- **Testing**: Google Test
-- **Coverage**: >90% target
-- **Discipline**: TDD enforced (tests before implementation)
-
-## Project Status
-
-🚧 **Phase 4.1: Core Foundation** — Buffer, VFS I/O, imports, CLI script execution
-
-See task tracking in `/home/pedro/repo/source/dryad_theory/TASK_CHECKLIST.md`
+```
+dryad-cpp/
+├── src/           # Compiler, runtime, AOT
+├── include/       # Public headers
+├── stdlib/@std/   # Standard library (100% Dryad)
+├── tests/         # Unit + integration + stdlib tests
+├── examples/      # Runnable feature examples + benchmark
+└── build/         # CMake output (dryad binary at build/bin/)
+```
 
 ## License
 
-MIT License - See LICENSE file
+MIT — see [LICENSE](../LICENSE)

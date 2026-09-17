@@ -16,6 +16,7 @@ std::string to_lower(std::string s) {
 
 void TypeProfiler::reset() {
     current_fn_ = nullptr;
+    script_slots_.clear();
     profiles_.clear();
 }
 
@@ -60,12 +61,11 @@ void TypeProfiler::end_function() {
 
 void TypeProfiler::observe_slot(const std::string& name, const Value& value,
                                 const std::string& type_annotation) {
-    if (!enabled_ || !current_fn_ || name.empty()) {
+    if (!enabled_ || name.empty()) {
         return;
     }
 
-    auto& profile = profile_for(current_fn_);
-    auto& slot = profile.slots[name];
+    auto& slot = current_fn_ ? profile_for(current_fn_).slots[name] : script_slots_[name];
 
     if (!type_annotation.empty()) {
         merge_slot(slot, from_annotation(type_annotation), TypeConfidence::STATIC);
@@ -105,6 +105,14 @@ const FunctionProfile* TypeProfiler::current_function_profile() const {
     }
     auto it = profiles_.find(current_fn_);
     return it != profiles_.end() ? &it->second : nullptr;
+}
+
+FunctionProfile TypeProfiler::build_script_function_profile(const std::string& name) const {
+    FunctionProfile profile;
+    profile.name = name;
+    profile.slots = script_slots_;
+    profile.invocation_count = script_slots_.empty() ? 0 : 1;
+    return profile;
 }
 
 const FunctionProfile* TypeProfiler::get_function_profile(const std::string& name) const {

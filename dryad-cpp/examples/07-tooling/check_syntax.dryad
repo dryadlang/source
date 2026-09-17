@@ -1,0 +1,8 @@
+// Minimal file for dryad check (syntax validation only).
+// print() is a runtime builtin not known to the static validator.
+
+function add(a, b) {
+    return a + b;
+}
+
+let result = add(1, 2);

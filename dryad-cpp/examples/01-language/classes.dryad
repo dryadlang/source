@@ -1,0 +1,31 @@
+// Classes: constructor, methods, inheritance.
+// Run: dryad examples/01-language/classes.dryad
+
+class Animal {
+    constructor(name) {
+        this.name = name;
+    }
+
+    speak() {
+        return this.name + " makes a sound";
+    }
+}
+
+class Dog extends Animal {
+    constructor(name, breed) {
+        super(name);
+        this.breed = breed;
+    }
+
+    speak() {
+        return this.name + " barks";
+    }
+}
+
+let dog = new Dog("Rex", "Labrador");
+print("name");
+print(dog.name);
+print("breed");
+print(dog.breed);
+print("speak");
+print(dog.speak());

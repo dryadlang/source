@@ -8,7 +8,7 @@ namespace dryad {
 namespace {
 
 constexpr char kMagic[] = "DRYADC";
-constexpr uint32_t kFormatVersion = 1;
+constexpr uint32_t kFormatVersion = 2;
 
 void write_u32(std::vector<uint8_t>& out, uint32_t value) {
     for (int i = 0; i < 4; ++i) {
@@ -152,6 +152,7 @@ std::vector<uint8_t> serialize_program(const CompiledProgram& program) {
             out.push_back(static_cast<uint8_t>(slot.type));
             out.push_back(static_cast<uint8_t>(slot.confidence));
         }
+        out.push_back(fn.metadata.parameter_count);
         write_u16(out, fn.metadata.stack_depth);
         write_u32(out, fn.metadata.opcode_count);
         write_u32(out, static_cast<uint32_t>(fn.module.code.size()));
@@ -171,7 +172,7 @@ CompiledProgram deserialize_program(const std::vector<uint8_t>& data) {
     }
     size_t offset = 6;
     const uint32_t version = read_u32(data, offset);
-    if (version != kFormatVersion) {
+    if (version != 1 && version != kFormatVersion) {
         throw DryadException("dryadc: unsupported format version");
     }
 
@@ -188,6 +189,9 @@ CompiledProgram deserialize_program(const std::vector<uint8_t>& data) {
             slot.type = static_cast<ObservedType>(data[offset++]);
             slot.confidence = static_cast<TypeConfidence>(data[offset++]);
             fn.metadata.slots.push_back(slot);
+        }
+        if (version >= 2) {
+            fn.metadata.parameter_count = data[offset++];
         }
         fn.metadata.stack_depth = read_u16(data, offset);
         fn.metadata.opcode_count = read_u32(data, offset);
@@ -237,6 +241,15 @@ bool load_compiled_program(const std::string& path, CompiledProgram& program) {
     } catch (...) {
         return false;
     }
+}
+
+uint16_t find_function_index(const CompiledProgram& program, const std::string& name) {
+    for (size_t i = 0; i < program.functions.size(); ++i) {
+        if (program.functions[i].metadata.name == name) {
+            return static_cast<uint16_t>(i);
+        }
+    }
+    throw DryadException("Function not found in compiled program: " + name);
 }
 
 } // namespace dryad

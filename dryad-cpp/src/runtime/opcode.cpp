@@ -25,6 +25,8 @@ const char* opcode_name(Opcode op) {
         case Opcode::ADD_I32:          return "ADD_I32";
         case Opcode::SUB_I32:          return "SUB_I32";
         case Opcode::MUL_I32:          return "MUL_I32";
+        case Opcode::DIV_I32:          return "DIV_I32";
+        case Opcode::NOT:              return "NOT";
         case Opcode::EQ:               return "EQ";
         case Opcode::NEQ:              return "NEQ";
         case Opcode::LT:               return "LT";
@@ -35,8 +37,19 @@ const char* opcode_name(Opcode op) {
         case Opcode::JUMP_IF_FALSE:    return "JUMP_IF_FALSE";
         case Opcode::JUMP_IF_TRUE:     return "JUMP_IF_TRUE";
         case Opcode::HALT:             return "HALT";
+        case Opcode::CALL:             return "CALL";
+        case Opcode::RET:              return "RET";
         case Opcode::LOAD_FAST:        return "LOAD_FAST";
         case Opcode::STORE_FAST:       return "STORE_FAST";
+        case Opcode::LOAD_GLOBAL:      return "LOAD_GLOBAL";
+        case Opcode::NEW_ARRAY:        return "NEW_ARRAY";
+        case Opcode::ARRAY_PUSH:       return "ARRAY_PUSH";
+        case Opcode::SET_ELEMENT:      return "SET_ELEMENT";
+        case Opcode::GET_PROPERTY:     return "GET_PROPERTY";
+        case Opcode::SET_PROPERTY:     return "SET_PROPERTY";
+        case Opcode::METHOD_CALL:      return "METHOD_CALL";
+        case Opcode::NEW_INSTANCE:     return "NEW_INSTANCE";
+        case Opcode::CALL_GLOBAL:      return "CALL_GLOBAL";
         case Opcode::GET_ELEMENT:      return "GET_ELEMENT";
         case Opcode::GET_ELEMENT_F64:  return "GET_ELEMENT_F64";
         case Opcode::INTRINSIC_SYSCALL: return "INTRINSIC_SYSCALL";

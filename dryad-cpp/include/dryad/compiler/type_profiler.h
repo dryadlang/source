@@ -71,6 +71,8 @@ public:
 
     const FunctionProfile* current_function_profile() const;
     const FunctionProfile* get_function_profile(const std::string& name) const;
+    const std::unordered_map<std::string, SlotProfile>& script_slots() const { return script_slots_; }
+    FunctionProfile build_script_function_profile(const std::string& name) const;
     const std::unordered_map<FunctionDeclaration*, FunctionProfile>& profiles() const {
         return profiles_;
     }
@@ -84,6 +86,7 @@ public:
 private:
     bool enabled_ = true;
     FunctionDeclaration* current_fn_ = nullptr;
+    std::unordered_map<std::string, SlotProfile> script_slots_;
     std::unordered_map<FunctionDeclaration*, FunctionProfile> profiles_;
 
     FunctionProfile& profile_for(FunctionDeclaration* fn);

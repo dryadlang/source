@@ -62,6 +62,7 @@ private:
     std::unique_ptr<Statement> parse_expression_statement();
     std::unique_ptr<Statement> parse_if_statement();
     std::unique_ptr<Statement> parse_while_statement();
+    std::unique_ptr<Statement> parse_for_statement();
     std::unique_ptr<Statement> parse_return_statement();
     std::unique_ptr<Statement> parse_import_declaration();
     

@@ -52,6 +52,6 @@ TEST(VFSWorkflow, NativeRoundtrip) {
 TEST(VFSWorkflow, ExampleScript) {
     Interpreter interpreter;
     interpreter.set_stdlib_root(DRYAD_STDLIB_DIR);
-    interpreter.run_file(std::string(DRYAD_EXAMPLE_DIR) + "/file_io_usage.dryad");
+    interpreter.run_file(std::string(DRYAD_EXAMPLE_DIR) + "/04-io/file_io_usage.dryad");
     EXPECT_TRUE(interpreter.global_env()->get("ok").is_truthy());
 }

@@ -1,4 +1,6 @@
 #include "dryad/compiler/bytecode_compiler.h"
+#include "dryad/compiler/program_entry.h"
+#include "dryad/runtime/intrinsics_registry.h"
 #include "dryad/common/utils.h"
 
 namespace dryad {
@@ -129,6 +131,61 @@ Opcode BytecodeCompiler::select_mul_opcode(const std::string& left, const std::s
     return Opcode::MUL;
 }
 
+Opcode BytecodeCompiler::select_div_opcode(const std::string& left, const std::string& right) const {
+    const SlotProfile l = slot_profile(left);
+    const SlotProfile r = slot_profile(right);
+    if (is_specializable(l) && is_specializable(r) &&
+        l.type == ObservedType::F64 && r.type == ObservedType::F64) {
+        return Opcode::DIV_F64;
+    }
+    if (is_specializable(l) && is_specializable(r) &&
+        l.type == ObservedType::I32 && r.type == ObservedType::I32) {
+        return Opcode::DIV_I32;
+    }
+    return Opcode::DIV;
+}
+
+bool BytecodeCompiler::try_resolve_intrinsic_id(const std::string& name, uint16_t& id) const {
+    auto& registry = IntrinsicsRegistry::instance();
+    if (registry.has(name)) {
+        id = registry.get_id(name);
+        return true;
+    }
+    if (name.rfind("__runtime_", 0) == 0) {
+        const std::string runtime_name = "runtime." + name.substr(10);
+        if (registry.has(runtime_name)) {
+            id = registry.get_id(runtime_name);
+            return true;
+        }
+    }
+    if (name.rfind("__", 0) == 0) {
+        const std::string syscall_name = "syscall." + name.substr(2);
+        if (registry.has(syscall_name)) {
+            id = registry.get_id(syscall_name);
+            return true;
+        }
+    }
+    return false;
+}
+
+void BytecodeCompiler::patch_break_jumps(size_t exit_pc) {
+    if (loop_stack_.empty()) {
+        return;
+    }
+    for (size_t patch_offset : loop_stack_.back().break_jump_patches) {
+        builder_.patch_u16(patch_offset, static_cast<uint16_t>(exit_pc));
+    }
+}
+
+void BytecodeCompiler::patch_continue_jumps(size_t target_pc) {
+    if (loop_stack_.empty()) {
+        return;
+    }
+    for (size_t patch_offset : loop_stack_.back().continue_jump_patches) {
+        builder_.patch_u16(patch_offset, static_cast<uint16_t>(target_pc));
+    }
+}
+
 bool BytecodeCompiler::use_f64_element_access(const std::string& array_name) const {
     const SlotProfile profile = slot_profile(array_name);
     if (is_specializable(profile) && profile.type == ObservedType::F64) {
@@ -179,39 +236,217 @@ void BytecodeCompiler::compile_expression(Expression* expr) {
 
         case ASTNodeType::Identifier: {
             const std::string& name = static_cast<Identifier*>(expr)->name;
-            builder_.emit_load_fast(slot_index(name));
+            auto slot_it = slot_map_.find(name);
+            if (slot_it != slot_map_.end()) {
+                builder_.emit_load_fast(slot_it->second);
+            } else {
+                const uint16_t name_const = builder_.add_constant(Value(name));
+                builder_.emit_load_global(name_const);
+            }
             push_stack();
             break;
         }
 
-        case ASTNodeType::BinaryExpression:
-            compile_binary(static_cast<BinaryExpression*>(expr));
+        case ASTNodeType::BinaryExpression: {
+            auto* binary = static_cast<BinaryExpression*>(expr);
+            if (binary->op == TokenType::AmpersandAmpersand || binary->op == TokenType::PipePipe) {
+                compile_logical(binary);
+            } else {
+                compile_binary(binary);
+            }
+            break;
+        }
+
+        case ASTNodeType::UnaryExpression:
+            compile_unary(static_cast<UnaryExpression*>(expr));
+            break;
+
+        case ASTNodeType::ThisExpression:
+            builder_.emit_load_fast(slot_index("this"));
+            push_stack();
             break;
 
         case ASTNodeType::AssignmentExpression:
             compile_assignment(static_cast<AssignmentExpression*>(expr));
             break;
 
-        case ASTNodeType::MemberExpression: {
-            auto* member = static_cast<MemberExpression*>(expr);
-            if (!member->computed) {
-                throw DryadException("Bytecode compiler: only computed member access is supported");
+        case ASTNodeType::ArrayExpression: {
+            auto* array_expr = static_cast<ArrayExpression*>(expr);
+            builder_.emit_new_array();
+            push_stack();
+            for (const auto& element : array_expr->elements) {
+                compile_expression(element.get());
+                builder_.emit_array_push();
             }
-            const std::string array_name = identifier_name(member->object.get());
-            compile_expression(member->object.get());
-            compile_expression(member->property.get());
-            if (!array_name.empty() && use_f64_element_access(array_name)) {
-                builder_.emit(Opcode::GET_ELEMENT_F64);
-            } else {
-                builder_.emit(Opcode::GET_ELEMENT);
-            }
-            pop_stack();
             break;
         }
+
+        case ASTNodeType::MemberExpression: {
+            auto* member = static_cast<MemberExpression*>(expr);
+            if (member->computed) {
+                const std::string array_name = identifier_name(member->object.get());
+                compile_expression(member->object.get());
+                compile_expression(member->property.get());
+                if (!array_name.empty() && use_f64_element_access(array_name)) {
+                    builder_.emit(Opcode::GET_ELEMENT_F64);
+                } else {
+                    builder_.emit(Opcode::GET_ELEMENT);
+                }
+                pop_stack();
+            } else {
+                auto* prop = dynamic_cast<Identifier*>(member->property.get());
+                if (!prop) {
+                    throw DryadException("Bytecode compiler: property must be an identifier");
+                }
+                compile_expression(member->object.get());
+                const uint16_t name_const = builder_.add_constant(Value(prop->name));
+                builder_.emit_get_property(name_const);
+                push_stack();
+            }
+            break;
+        }
+
+        case ASTNodeType::NewExpression: {
+            auto* new_expr = static_cast<NewExpression*>(expr);
+            if (new_expr->arguments.size() > 255) {
+                throw DryadException("Bytecode compiler: too many constructor arguments");
+            }
+            for (const auto& arg : new_expr->arguments) {
+                compile_expression(arg.get());
+            }
+            const uint16_t class_const = builder_.add_constant(Value(new_expr->class_name));
+            const uint8_t argc = static_cast<uint8_t>(new_expr->arguments.size());
+            builder_.emit_new_instance(class_const, argc);
+            push_stack();
+            break;
+        }
+
+        case ASTNodeType::CallExpression:
+            compile_call(static_cast<CallExpression*>(expr));
+            break;
+
+        case ASTNodeType::FunctionExpression:
+            throw DryadException(
+                "Bytecode compiler: function expressions require named @compile functions");
+
+        case ASTNodeType::AwaitExpression:
+            throw DryadException("Bytecode compiler: await is not supported in bytecode mode");
+
+        case ASTNodeType::SuperExpression:
+            throw DryadException("Bytecode compiler: super requires interpreter dispatch");
 
         default:
             throw DryadException("Bytecode compiler: unsupported expression type");
     }
+}
+
+void BytecodeCompiler::compile_unary(UnaryExpression* expr) {
+    if (!expr) {
+        return;
+    }
+    compile_expression(expr->operand.get());
+    switch (expr->op) {
+        case TokenType::Bang:
+            builder_.emit(Opcode::NOT);
+            break;
+        case TokenType::Minus:
+            builder_.emit_push_int(0);
+            push_stack();
+            builder_.emit(Opcode::SUB);
+            pop_stack();
+            break;
+        default:
+            throw DryadException("Bytecode compiler: unsupported unary operator");
+    }
+}
+
+void BytecodeCompiler::compile_logical(BinaryExpression* expr) {
+    if (!expr) {
+        return;
+    }
+    if (expr->op == TokenType::AmpersandAmpersand) {
+        compile_expression(expr->left.get());
+        builder_.emit(Opcode::DUP);
+        const size_t jump_false = builder_.emit_jump_placeholder(Opcode::JUMP_IF_FALSE);
+        builder_.emit(Opcode::POP);
+        pop_stack();
+        compile_expression(expr->right.get());
+        builder_.patch_u16(jump_false, builder_.current_pc());
+        return;
+    }
+    if (expr->op == TokenType::PipePipe) {
+        compile_expression(expr->left.get());
+        builder_.emit(Opcode::DUP);
+        const size_t jump_true = builder_.emit_jump_placeholder(Opcode::JUMP_IF_TRUE);
+        builder_.emit(Opcode::POP);
+        pop_stack();
+        compile_expression(expr->right.get());
+        builder_.patch_u16(jump_true, builder_.current_pc());
+        return;
+    }
+    throw DryadException("Bytecode compiler: invalid logical expression");
+}
+
+void BytecodeCompiler::compile_call(CallExpression* expr) {
+    if (!expr) {
+        throw DryadException("Bytecode compiler: invalid call expression");
+    }
+
+    if (expr->callee->type == ASTNodeType::MemberExpression) {
+        auto* member = static_cast<MemberExpression*>(expr->callee.get());
+        if (member->computed) {
+            throw DryadException("Bytecode compiler: computed method calls are not supported");
+        }
+        auto* prop = dynamic_cast<Identifier*>(member->property.get());
+        if (!prop) {
+            throw DryadException("Bytecode compiler: method name must be an identifier");
+        }
+        if (expr->arguments.size() > 255) {
+            throw DryadException("Bytecode compiler: too many arguments for METHOD_CALL");
+        }
+        compile_expression(member->object.get());
+        for (auto& arg : expr->arguments) {
+            compile_expression(arg.get());
+        }
+        const uint16_t name_const = builder_.add_constant(Value(prop->name));
+        const uint8_t argc = static_cast<uint8_t>(expr->arguments.size());
+        builder_.emit_method_call(name_const, argc);
+        push_stack();
+        return;
+    }
+
+    if (expr->callee->type != ASTNodeType::Identifier) {
+        throw DryadException("Bytecode compiler: only direct function and method calls are supported");
+    }
+    const std::string& name = static_cast<Identifier*>(expr->callee.get())->name;
+
+    if (expr->arguments.size() > 255) {
+        throw DryadException("Bytecode compiler: too many arguments for CALL");
+    }
+
+    for (auto& arg : expr->arguments) {
+        compile_expression(arg.get());
+    }
+
+    const uint8_t argc = static_cast<uint8_t>(expr->arguments.size());
+
+    uint16_t intrinsic_id = 0;
+    if (try_resolve_intrinsic_id(name, intrinsic_id)) {
+        builder_.emit_intrinsic_syscall(intrinsic_id, argc);
+        push_stack();
+        return;
+    }
+
+    auto target = function_indices_.find(name);
+    if (target != function_indices_.end()) {
+        builder_.emit_call(target->second, argc);
+        push_stack();
+        return;
+    }
+
+    const uint16_t name_const = builder_.add_constant(Value(name));
+    builder_.emit_call_global(name_const, argc);
+    push_stack();
 }
 
 void BytecodeCompiler::compile_binary(BinaryExpression* expr) {
@@ -232,7 +467,7 @@ void BytecodeCompiler::compile_binary(BinaryExpression* expr) {
             builder_.emit(select_mul_opcode(left_name, right_name));
             break;
         case TokenType::Slash:
-            builder_.emit(Opcode::DIV);
+            builder_.emit(select_div_opcode(left_name, right_name));
             break;
         case TokenType::Percent:
             builder_.emit(Opcode::MOD);
@@ -262,8 +497,28 @@ void BytecodeCompiler::compile_binary(BinaryExpression* expr) {
 }
 
 void BytecodeCompiler::compile_assignment(AssignmentExpression* expr) {
+    if (expr->target->type == ASTNodeType::MemberExpression) {
+        auto* member = static_cast<MemberExpression*>(expr->target.get());
+        if (member->computed) {
+            compile_expression(member->object.get());
+            compile_expression(member->property.get());
+            compile_expression(expr->value.get());
+            builder_.emit_set_element();
+            return;
+        }
+        auto* prop = dynamic_cast<Identifier*>(member->property.get());
+        if (!prop) {
+            throw DryadException("Bytecode compiler: property must be an identifier");
+        }
+        compile_expression(member->object.get());
+        compile_expression(expr->value.get());
+        const uint16_t name_const = builder_.add_constant(Value(prop->name));
+        builder_.emit_set_property(name_const);
+        return;
+    }
+
     if (expr->target->type != ASTNodeType::Identifier) {
-        throw DryadException("Bytecode compiler: only identifier assignment is supported");
+        throw DryadException("Bytecode compiler: only identifier and member assignment is supported");
     }
     const std::string& name = static_cast<Identifier*>(expr->target.get())->name;
     compile_expression(expr->value.get());
@@ -302,6 +557,8 @@ void BytecodeCompiler::compile_statement(Statement* stmt) {
                 builder_.emit(Opcode::PUSH_NULL);
                 push_stack();
             }
+            builder_.emit_ret();
+            pop_stack();
             break;
         }
 
@@ -328,14 +585,88 @@ void BytecodeCompiler::compile_statement(Statement* stmt) {
             compile_expression(while_stmt->condition.get());
             const size_t jump_exit = builder_.emit_jump_placeholder(Opcode::JUMP_IF_FALSE);
             pop_stack();
+            LoopCompileContext loop_ctx;
+            loop_stack_.push_back(loop_ctx);
             compile_statement(while_stmt->body.get());
+            patch_continue_jumps(loop_start);
             builder_.emit_jump(Opcode::JUMP, loop_start);
-            builder_.patch_u16(jump_exit, builder_.current_pc());
+            const size_t loop_exit = builder_.current_pc();
+            patch_break_jumps(loop_exit);
+            loop_stack_.pop_back();
+            builder_.patch_u16(jump_exit, loop_exit);
+            break;
+        }
+
+        case ASTNodeType::ForStatement: {
+            auto* for_stmt = static_cast<ForStatement*>(stmt);
+            if (for_stmt->initializer) {
+                compile_statement(for_stmt->initializer.get());
+            }
+            const size_t loop_start = builder_.current_pc();
+            if (for_stmt->condition) {
+                compile_expression(for_stmt->condition.get());
+                const size_t jump_exit = builder_.emit_jump_placeholder(Opcode::JUMP_IF_FALSE);
+                pop_stack();
+                LoopCompileContext loop_ctx;
+                loop_stack_.push_back(loop_ctx);
+                compile_statement(for_stmt->body.get());
+                if (for_stmt->increment) {
+                    patch_continue_jumps(builder_.current_pc());
+                    compile_expression(for_stmt->increment.get());
+                    builder_.emit(Opcode::POP);
+                    pop_stack();
+                } else {
+                    patch_continue_jumps(loop_start);
+                }
+                builder_.emit_jump(Opcode::JUMP, loop_start);
+                const size_t loop_exit = builder_.current_pc();
+                patch_break_jumps(loop_exit);
+                loop_stack_.pop_back();
+                builder_.patch_u16(jump_exit, loop_exit);
+            } else {
+                LoopCompileContext loop_ctx;
+                loop_stack_.push_back(loop_ctx);
+                compile_statement(for_stmt->body.get());
+                if (for_stmt->increment) {
+                    patch_continue_jumps(builder_.current_pc());
+                    compile_expression(for_stmt->increment.get());
+                    builder_.emit(Opcode::POP);
+                    pop_stack();
+                } else {
+                    patch_continue_jumps(loop_start);
+                }
+                builder_.emit_jump(Opcode::JUMP, loop_start);
+                const size_t loop_exit = builder_.current_pc();
+                patch_break_jumps(loop_exit);
+                loop_stack_.pop_back();
+            }
+            break;
+        }
+
+        case ASTNodeType::BreakStatement: {
+            if (loop_stack_.empty()) {
+                throw DryadException("Bytecode compiler: break outside of loop");
+            }
+            const size_t patch = builder_.emit_jump_placeholder(Opcode::JUMP);
+            loop_stack_.back().break_jump_patches.push_back(patch);
+            break;
+        }
+
+        case ASTNodeType::ContinueStatement: {
+            if (loop_stack_.empty()) {
+                throw DryadException("Bytecode compiler: continue outside of loop");
+            }
+            const size_t patch = builder_.emit_jump_placeholder(Opcode::JUMP);
+            loop_stack_.back().continue_jump_patches.push_back(patch);
             break;
         }
 
         case ASTNodeType::BlockStatement:
             compile_block(static_cast<BlockStatement*>(stmt));
+            break;
+
+        case ASTNodeType::CompileBlockStatement:
+            compile_block(static_cast<CompileBlockStatement*>(stmt)->body.get());
             break;
 
         default:
@@ -376,11 +707,16 @@ CompiledFunction BytecodeCompiler::compile_function(FunctionDeclaration* fn,
     builder_ = BytecodeBuilder{};
     slot_map_.clear();
     slot_annotations_.clear();
+    if (function_indices_.empty()) {
+        function_indices_[fn->name] = 0;
+    }
     profile_ = profile;
     metadata_ = FunctionMetadata{};
     metadata_.name = fn->name;
+    metadata_.parameter_count = static_cast<uint8_t>(fn->parameters.size());
     stack_depth_ = 0;
     max_stack_depth_ = 0;
+    loop_stack_.clear();
 
     for (const auto& param : fn->parameters) {
         allocate_slot(param.name, param.type_annotation);
@@ -402,6 +738,9 @@ CompiledProgram BytecodeCompiler::compile_program(Program* program, const TypePr
         return result;
     }
 
+    function_indices_.clear();
+    uint16_t next_index = 0;
+
     for (auto& stmt : program->statements) {
         if (stmt->type != ASTNodeType::FunctionDeclaration) {
             continue;
@@ -414,8 +753,38 @@ CompiledProgram BytecodeCompiler::compile_program(Program* program, const TypePr
                 break;
             }
         }
-        result.functions.push_back(compile_function(fn, profile));
+        try {
+            result.functions.push_back(compile_function(fn, profile));
+            function_indices_[fn->name] = next_index++;
+        } catch (const DryadException& ex) {
+            const std::string message = ex.what();
+            if (message.find("function expressions") != std::string::npos ||
+                message.find("await is not supported") != std::string::npos ||
+                message.find("super requires interpreter") != std::string::npos) {
+                continue;
+            }
+            throw;
+        }
     }
+
+    std::unique_ptr<FunctionDeclaration> script_entry = synthesize_script_entry_function(program);
+    if (script_entry) {
+        const FunctionProfile script_profile =
+            profiler.build_script_function_profile(kScriptEntryFunctionName);
+        const FunctionProfile* profile_ptr = script_profile.slots.empty() ? nullptr : &script_profile;
+        try {
+            result.functions.push_back(compile_function(script_entry.get(), profile_ptr));
+        } catch (const DryadException&) {
+            auto* body = dynamic_cast<BlockStatement*>(script_entry->body.get());
+            if (body) {
+                for (auto& stmt : body->statements) {
+                    program->statements.push_back(std::move(stmt));
+                }
+                body->statements.clear();
+            }
+        }
+    }
+
     return result;
 }
 

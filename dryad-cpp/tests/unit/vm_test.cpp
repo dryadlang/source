@@ -163,6 +163,32 @@ TEST_F(VMTest, SequentialIntrinsicCalls) {
     EXPECT_EQ(vm.stack_size(), 2u);
 }
 
+TEST_F(VMTest, CallAndRetAcrossFunctions) {
+    BytecodeBuilder helper;
+    helper.emit_push_int(20);
+    helper.emit_push_int(22);
+    helper.emit(Opcode::ADD_I32);
+    helper.emit_ret();
+
+    BytecodeBuilder driver;
+    driver.emit_call(1, 0);
+    driver.emit_halt();
+
+    CompiledProgram program;
+    program.functions.push_back({});
+    program.functions[0].metadata.name = "driver";
+    program.functions[0].module = driver.build();
+    program.functions.push_back({});
+    program.functions[1].metadata.name = "helper";
+    program.functions[1].module = helper.build();
+
+    vm.load_program(program, 0);
+    vm.execute();
+
+    EXPECT_TRUE(vm.halted());
+    EXPECT_EQ(vm.get_stack_top().as_integer(), 42);
+}
+
 TEST_F(VMTest, GenericAddStringConcat) {
     BytecodeBuilder builder;
     uint16_t a = builder.add_constant(Value("hello"));

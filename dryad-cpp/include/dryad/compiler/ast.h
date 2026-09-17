@@ -407,6 +407,37 @@ public:
         : Statement(ASTNodeType::WhileStatement, location), condition(std::move(condition)), body(std::move(body)) {}
 };
 
+class BreakStatement : public Statement {
+public:
+    BreakStatement(SourceLocation location = SourceLocation())
+        : Statement(ASTNodeType::BreakStatement, location) {}
+};
+
+class ContinueStatement : public Statement {
+public:
+    ContinueStatement(SourceLocation location = SourceLocation())
+        : Statement(ASTNodeType::ContinueStatement, location) {}
+};
+
+class ForStatement : public Statement {
+public:
+    std::unique_ptr<Statement> initializer;
+    std::unique_ptr<Expression> condition;
+    std::unique_ptr<Expression> increment;
+    std::unique_ptr<Statement> body;
+
+    ForStatement(std::unique_ptr<Statement> initializer,
+                 std::unique_ptr<Expression> condition,
+                 std::unique_ptr<Expression> increment,
+                 std::unique_ptr<Statement> body,
+                 SourceLocation location = SourceLocation())
+        : Statement(ASTNodeType::ForStatement, location),
+          initializer(std::move(initializer)),
+          condition(std::move(condition)),
+          increment(std::move(increment)),
+          body(std::move(body)) {}
+};
+
 class ImportDeclaration : public Statement {
 public:
     std::vector<std::string> names;

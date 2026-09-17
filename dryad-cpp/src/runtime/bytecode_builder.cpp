@@ -56,6 +56,10 @@ void BytecodeBuilder::emit_store_fast(uint16_t slot) {
     emit_u16(Opcode::STORE_FAST, slot);
 }
 
+void BytecodeBuilder::emit_load_global(uint16_t name_const) {
+    emit_u16(Opcode::LOAD_GLOBAL, name_const);
+}
+
 void BytecodeBuilder::emit_intrinsic_syscall(uint16_t intrinsic_id, uint8_t argc) {
     emit(Opcode::INTRINSIC_SYSCALL);
     code_.push_back(static_cast<uint8_t>((intrinsic_id >> 8) & 0xFF));
@@ -65,6 +69,54 @@ void BytecodeBuilder::emit_intrinsic_syscall(uint16_t intrinsic_id, uint8_t argc
 
 void BytecodeBuilder::emit_halt() {
     emit(Opcode::HALT);
+}
+
+void BytecodeBuilder::emit_call(uint16_t function_index, uint8_t argc) {
+    emit(Opcode::CALL);
+    write_u16(function_index);
+    code_.push_back(argc);
+}
+
+void BytecodeBuilder::emit_ret() {
+    emit(Opcode::RET);
+}
+
+void BytecodeBuilder::emit_new_array() {
+    emit(Opcode::NEW_ARRAY);
+}
+
+void BytecodeBuilder::emit_array_push() {
+    emit(Opcode::ARRAY_PUSH);
+}
+
+void BytecodeBuilder::emit_set_element() {
+    emit(Opcode::SET_ELEMENT);
+}
+
+void BytecodeBuilder::emit_get_property(uint16_t name_const) {
+    emit_u16(Opcode::GET_PROPERTY, name_const);
+}
+
+void BytecodeBuilder::emit_set_property(uint16_t name_const) {
+    emit_u16(Opcode::SET_PROPERTY, name_const);
+}
+
+void BytecodeBuilder::emit_method_call(uint16_t name_const, uint8_t argc) {
+    emit(Opcode::METHOD_CALL);
+    write_u16(name_const);
+    code_.push_back(argc);
+}
+
+void BytecodeBuilder::emit_new_instance(uint16_t class_name_const, uint8_t argc) {
+    emit(Opcode::NEW_INSTANCE);
+    write_u16(class_name_const);
+    code_.push_back(argc);
+}
+
+void BytecodeBuilder::emit_call_global(uint16_t name_const, uint8_t argc) {
+    emit(Opcode::CALL_GLOBAL);
+    write_u16(name_const);
+    code_.push_back(argc);
 }
 
 size_t BytecodeBuilder::emit_jump_placeholder(Opcode op) {

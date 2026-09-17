@@ -1,6 +1,6 @@
 # Phase 6: Triple Execution Model
 
-> **Status:** Phase 6.4–6.5 complete (CLI compile/analyze + AOT LLVM IR)  
+> **Status:** Phase 6.10 complete — see [PHASE_6_TRIPLE_MODEL.md](../phases/PHASE_6_TRIPLE_MODEL.md)  
 > **Spec reference:** Dryad Conventions §8, §13, §14  
 > **Date:** 2026-09-16
 
@@ -99,9 +99,41 @@ Implement Dryad's three-layer execution pipeline where each layer feeds the next
 - `dryad_intrinsic_slow` / `dryad_variant_*` slow-path declarations
 - Native object linking deferred (use `clang out.ll` manually)
 
-### 6.6 — JIT (§18 refinement, future)
-- Loop back-edge counting; hot fragment compilation
-- Not part of core triple model
+### 6.6 — CALL/RET + cross-function bytecode ✅
+- `CALL func_idx, argc` / `RET` opcodes with VM call frames
+- `VM::load_program()` for multi-function execution
+- `BytecodeCompiler` emits `CallExpression` and `RET` on return
+- `ExecutionEngine` caches `CompiledProgram` per `Program*`
+- Micro-IR + AOT pipeline handle `RET` and `CALL` (call → slow path)
+- `@compile` blocks compile inner body inline
+
+### 6.7 — Runtime `.dryadc` loading ✅
+- `BytecodeModuleCache` auto-loads `script.dryadc` companion on `run_file`
+- `@compile("AOT")` executes precompiled bytecode when `.dryadc` exists
+- Falls back to in-memory bytecode compile when no companion
+
+### 6.8 — Native linking ✅
+- `aot_runtime.c` — C ABI stubs (`dryad_variant_*`, `dryad_intrinsic_slow`, `dryad_unbox_*`)
+- `dryad compile --aot --link -o out.so` — clang links LLVM IR + runtime → `.so`
+- `NativeModule` — `dlopen` companion `.so`, invoke native functions with boxed parameters
+
+### 6.9 — Native ABI with parameters ✅
+- `FunctionMetadata.parameter_count` in `.dryadc` format v2
+- LLVM emission: `define i8* @func(i8* %arg0, ...)` with unbox into slots
+- `NativeModule::invoke()` boxes arguments and calls up to 4-parameter native functions
+
+### 6.11 — Opcode coverage ✅
+- `NEW_ARRAY`, `ARRAY_PUSH`, `SET_ELEMENT` for array literals and indexed write
+- C-style `for` loop (parser + interpreter + bytecode)
+- `GET_PROPERTY`, `SET_PROPERTY`, `METHOD_CALL`, `NEW_INSTANCE` for classes
+- `VmRuntimeDelegate` wired through `ExecutionEngine` for object dispatch
+- See [2026-09-17-opcode-coverage.md](2026-09-17-opcode-coverage.md)
+
+### 6.10 — JIT hot-loop (§18) ✅
+- `loop_analyzer` — detects while-loop back-edges in bytecode
+- `JitCompiler` — on threshold, compiles loop body fragment → LLVM → `.so` via clang
+- VM back-edge counting + `VmJitDelegate` dispatches hot loop body as native `void(i64* slots)`
+- `ExecutionEngine::set_jit_delegate()` wires JIT into bytecode execution path
 
 ## File Layout
 
@@ -109,14 +141,22 @@ Implement Dryad's three-layer execution pipeline where each layer feeds the next
 include/dryad/compiler/
   type_profiler.h          # Phase 6.0
   bytecode_compiler.h      # Phase 6.2
+  execution_engine.h       # Phase 6.3 + JIT delegate wiring
 include/dryad/runtime/
   opcode.h                 # Phase 6.1
-  vm.h
-  bytecode_module.h        # Metadata Header + .dryadc
+  vm.h                     # Phase 6.10 JIT back-edge dispatch
+  loop_analyzer.h          # Phase 6.10
+  vm_jit_delegate.h        # Phase 6.10
+  vm_runtime_delegate.h    # Phase 6.11 object dispatch
+  bytecode_module.h        # Metadata Header + .dryadc v2
+  native_module.h          # Phase 6.8–6.9
 include/dryad/aot/
   micro_ir.h               # Phase 6.5
-  llvm_backend.h
+  llvm_backend.h           # Phase 6.5 + 6.9 params + 6.10 JIT IR
+  jit_compiler.h           # Phase 6.10
+  native_linker.h          # Phase 6.8
   analyze_pass.h
+src/aot/aot_runtime.c        # C ABI: box/unbox/variant
 ```
 
 ## Metadata Header (per function)
@@ -188,4 +228,10 @@ Replaces legacy `set_compile_mode()` API.
 - [x] `@compile()` selects execution backend per scope
 - [x] AOT emits LLVM IR from bytecode (`.ll`; native link via clang)
 - [x] `dryad analyze` reports Fast/Slow path sites
-- [ ] All existing tests pass; new triple-model tests added per phase
+- [x] All existing tests pass; new triple-model tests added per phase (403 unit tests, +1 JIT)
+- [x] Cross-function bytecode calls via CALL/RET
+- [x] Runtime `.dryadc` module loading for `@compile("AOT")`
+- [x] Native `.so` linking from LLVM IR via clang
+- [x] Opcode coverage: array literals, `for`, class methods ([6.11](2026-09-17-opcode-coverage.md))
+- [x] Full native ABI with function parameters
+- [x] JIT hot-loop back-edge compilation (§18)

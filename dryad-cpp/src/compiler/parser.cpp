@@ -337,6 +337,22 @@ std::unique_ptr<Statement> Parser::parse_statement() {
     if (match(TokenType::KeywordWhile)) {
         return parse_while_statement();
     }
+
+    if (match(TokenType::KeywordFor)) {
+        return parse_for_statement();
+    }
+
+    if (match(TokenType::KeywordBreak)) {
+        SourceLocation loc = previous().location;
+        consume(TokenType::Semicolon, "Expected ';' after 'break'");
+        return std::make_unique<BreakStatement>(loc);
+    }
+
+    if (match(TokenType::KeywordContinue)) {
+        SourceLocation loc = previous().location;
+        consume(TokenType::Semicolon, "Expected ';' after 'continue'");
+        return std::make_unique<ContinueStatement>(loc);
+    }
     
     if (match(TokenType::KeywordReturn)) {
         return parse_return_statement();
@@ -392,6 +408,50 @@ std::unique_ptr<Statement> Parser::parse_while_statement() {
     auto body = parse_statement();
     
     return std::make_unique<WhileStatement>(std::move(condition), std::move(body), loc);
+}
+
+std::unique_ptr<Statement> Parser::parse_for_statement() {
+    SourceLocation loc = previous().location;
+
+    consume(TokenType::LeftParen, "Expected '(' after 'for'");
+
+    std::unique_ptr<Statement> initializer = nullptr;
+    if (!check(TokenType::Semicolon)) {
+        if (match({TokenType::KeywordLet, TokenType::KeywordConst})) {
+            bool is_const = previous().type == TokenType::KeywordConst;
+            Token name = consume(TokenType::Identifier, "Expected variable name in for-loop");
+            std::string type_annotation;
+            if (match(TokenType::Colon)) {
+                Token type_token = consume(TokenType::Identifier, "Expected type annotation");
+                type_annotation = type_token.lexeme;
+            }
+            consume(TokenType::Equal, "Expected '=' in for-loop initializer");
+            auto init_expr = parse_expression();
+            initializer = std::make_unique<VariableDeclaration>(
+                name.lexeme, type_annotation, std::move(init_expr), is_const, name.location);
+        } else {
+            auto expr = parse_expression();
+            initializer = std::make_unique<ExpressionStatement>(std::move(expr), loc);
+        }
+    }
+    consume(TokenType::Semicolon, "Expected ';' after for-loop initializer");
+
+    std::unique_ptr<Expression> condition = nullptr;
+    if (!check(TokenType::Semicolon)) {
+        condition = parse_expression();
+    }
+    consume(TokenType::Semicolon, "Expected ';' after for-loop condition");
+
+    std::unique_ptr<Expression> increment = nullptr;
+    if (!check(TokenType::RightParen)) {
+        increment = parse_expression();
+    }
+    consume(TokenType::RightParen, "Expected ')' after for-loop clauses");
+
+    auto body = parse_statement();
+
+    return std::make_unique<ForStatement>(
+        std::move(initializer), std::move(condition), std::move(increment), std::move(body), loc);
 }
 
 std::unique_ptr<Statement> Parser::parse_return_statement() {

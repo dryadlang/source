@@ -1,0 +1,40 @@
+// Promise API: resolve, reject, then, all, race.
+// Run: dryad examples/05-async/promises.dryad
+
+import {
+    Promise_resolve,
+    Promise_reject,
+    Promise_all,
+    Promise_race,
+    Promise_flush
+} from "@std/async/promise";
+
+let p1 = Promise_resolve(42);
+Promise_flush();
+print("resolve");
+print(p1._value);
+
+let chained = p1.then(function(v) {
+    return v + 1;
+});
+Promise_flush();
+print("then");
+print(chained._value);
+
+let all = Promise_all([Promise_resolve(10), Promise_resolve(20)]);
+Promise_flush();
+print("all");
+print(all._value[0]);
+print(all._value[1]);
+
+let race = Promise_race([Promise_resolve("first"), Promise_resolve("second")]);
+Promise_flush();
+print("race");
+print(race._value);
+
+let recovered = Promise_reject("err").catch(function(e) {
+    return "ok";
+});
+Promise_flush();
+print("catch");
+print(recovered._value);

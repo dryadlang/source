@@ -1,0 +1,29 @@
+// Functions: declarations, parameters, closures, recursion.
+// Run: dryad examples/01-language/functions.dryad
+
+function add(a, b) {
+    return a + b;
+}
+
+function makeMultiplier(factor) {
+    return function(x) {
+        return x * factor;
+    };
+}
+
+function factorial(n) {
+    if (n <= 1) {
+        return 1;
+    }
+    return n * factorial(n - 1);
+}
+
+print("add");
+print(add(20, 22));
+
+let double = makeMultiplier(2);
+print("closure");
+print(double(21));
+
+print("factorial");
+print(factorial(5));

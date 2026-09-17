@@ -6,6 +6,7 @@
 #include "dryad/compiler/bytecode_compiler.h"
 #include "dryad/runtime/vm.h"
 #include "dryad/runtime/opcode.h"
+#include "dryad/runtime/intrinsics_registry.h"
 
 using namespace dryad;
 
@@ -175,6 +176,31 @@ TEST(BytecodeCompilerTest, MetadataHeaderPopulated) {
     EXPECT_TRUE(found_sum);
 }
 
+TEST(BytecodeCompilerTest, CallExpressionCompilesAndRuns) {
+    const std::string source = R"(
+        function helper(a, b) {
+            return a + b;
+        }
+        function driver() {
+            return helper(20, 22);
+        }
+        driver();
+    )";
+
+    Interpreter interp;
+    run_interpreter(source, interp);
+    auto program = parse_program(source);
+    BytecodeCompiler compiler;
+    CompiledProgram compiled = compiler.compile_program(program.get(), interp.type_profiler());
+    ASSERT_EQ(compiled.functions.size(), 2u);
+    EXPECT_TRUE(code_contains_opcode(compiled.functions[1].module, Opcode::CALL));
+
+    VM vm;
+    vm.load_program(compiled, find_function_index(compiled, "driver"));
+    vm.execute();
+    EXPECT_EQ(vm.get_stack_top().as_integer(), 42);
+}
+
 TEST(BytecodeCompilerTest, DryadcRoundTrip) {
     const std::string source = R"(
         function compute() {
@@ -211,4 +237,133 @@ TEST(BytecodeCompilerTest, DryadcRoundTrip) {
     vm.load(loaded.functions[0].module);
     vm.execute();
     EXPECT_EQ(vm.get_stack_top().as_integer(), 1);
+}
+
+TEST(BytecodeCompilerTest, ArrayLiteralAndIndexedAssignment) {
+    const std::string source = R"(
+        function build() {
+            let arr = [10, 20, 30];
+            arr[1] = 99;
+            return arr[1];
+        }
+        build();
+    )";
+
+    auto compiled = compile_named_function(source, "build", nullptr);
+    EXPECT_TRUE(code_contains_opcode(compiled.module, Opcode::NEW_ARRAY));
+    EXPECT_TRUE(code_contains_opcode(compiled.module, Opcode::ARRAY_PUSH));
+    EXPECT_TRUE(code_contains_opcode(compiled.module, Opcode::SET_ELEMENT));
+
+    VM vm;
+    vm.load(compiled.module);
+    vm.execute();
+    EXPECT_EQ(vm.get_stack_top().as_integer(), 99);
+}
+
+TEST(BytecodeCompilerTest, ForLoopCompilesAndRuns) {
+    const std::string source = R"(
+        function sum_to(n) {
+            let total = 0;
+            for (let i = 0; i < n; i = i + 1) {
+                total = total + i;
+            }
+            return total;
+        }
+        sum_to(4);
+    )";
+
+    Interpreter interp;
+    run_interpreter(source, interp);
+    auto compiled = compile_named_function(
+        source, "sum_to", interp.type_profiler().get_function_profile("sum_to"));
+
+    VM vm;
+    vm.load(compiled.module);
+    vm.set_slot(0, Value(int64_t{4}));
+    vm.execute();
+    EXPECT_EQ(vm.get_stack_top().as_integer(), 6);
+}
+
+TEST(BytecodeCompilerTest, LogicalAndOrShortCircuit) {
+    const std::string source = R"(
+        function test() {
+            let a = true && 10;
+            let b = false || 20;
+            return a + b;
+        }
+    )";
+
+    auto compiled = compile_named_function(source, "test", nullptr);
+    EXPECT_TRUE(code_contains_opcode(compiled.module, Opcode::JUMP_IF_FALSE));
+    EXPECT_TRUE(code_contains_opcode(compiled.module, Opcode::JUMP_IF_TRUE));
+
+    VM vm;
+    vm.load(compiled.module);
+    vm.execute();
+    EXPECT_EQ(vm.get_stack_top().as_integer(), 30);
+}
+
+TEST(BytecodeCompilerTest, UnaryNotAndNegation) {
+    const std::string source = R"(
+        function test() {
+            let a = !false;
+            let b = -5;
+            return a && b == -5;
+        }
+    )";
+
+    auto compiled = compile_named_function(source, "test", nullptr);
+    EXPECT_TRUE(code_contains_opcode(compiled.module, Opcode::NOT));
+
+    VM vm;
+    vm.load(compiled.module);
+    vm.execute();
+    EXPECT_TRUE(vm.get_stack_top().is_truthy());
+}
+
+TEST(BytecodeCompilerTest, BreakAndContinueInForLoop) {
+    const std::string source = R"(
+        function test() {
+            let sum = 0;
+            for (let i = 0; i < 10; i = i + 1) {
+                if (i == 3) {
+                    continue;
+                }
+                if (i == 7) {
+                    break;
+                }
+                sum = sum + i;
+            }
+            return sum;
+        }
+    )";
+
+    auto compiled = compile_named_function(source, "test", nullptr);
+    VM vm;
+    vm.load(compiled.module);
+    vm.execute();
+    EXPECT_EQ(vm.get_stack_top().as_integer(), 18);
+}
+
+TEST(BytecodeCompilerTest, IntrinsicSyscallEmission) {
+    IntrinsicsRegistry::instance().register_all();
+
+    const std::string source = R"(
+        function len(arr) {
+            return __runtime_array_length(arr);
+        }
+    )";
+
+    auto compiled = compile_named_function(source, "len", nullptr);
+    EXPECT_TRUE(code_contains_opcode(compiled.module, Opcode::INTRINSIC_SYSCALL));
+
+    Value arr = Value::create_array();
+    arr.array_push(Value(int64_t{1}));
+    arr.array_push(Value(int64_t{2}));
+
+    VM vm;
+    vm.load(compiled.module);
+    vm.set_slot(0, arr);
+    vm.execute();
+    EXPECT_EQ(vm.get_stack_top().as_integer(), 2);
 }

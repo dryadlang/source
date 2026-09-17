@@ -1,0 +1,38 @@
+// Threading: Thread, ThreadPool, parallel execution.
+// Run: dryad examples/05-async/threading.dryad
+
+import {
+    Thread,
+    Thread_parallel,
+    ThreadPool,
+    ThreadPool_map
+} from "@std/async/threading/threading";
+
+function worker_add(a, b) {
+    return a + b;
+}
+
+function worker_identity() {
+    return 99;
+}
+
+let thread = new Thread(worker_add, [20, 22]);
+thread.start();
+let outcome = thread.join();
+print("thread join");
+print(__runtime_object_get(outcome, "value"));
+
+let parallel = Thread_parallel([worker_identity, worker_identity]);
+print("parallel");
+print(__runtime_object_get(parallel, "value")[0]);
+
+let pool = new ThreadPool(2);
+let value = pool.run(worker_add, [10, 32]);
+print("pool run");
+print(value);
+
+let mapped = ThreadPool_map(pool, [worker_identity, worker_identity]);
+pool.destroy();
+print("pool map");
+print(mapped[0]);
+print(mapped[1]);

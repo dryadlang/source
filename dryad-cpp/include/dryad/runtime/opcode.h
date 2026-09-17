@@ -32,6 +32,10 @@ enum class Opcode : uint8_t {
     ADD_I32     = 0x19,
     SUB_I32     = 0x1A,
     MUL_I32     = 0x1B,
+    DIV_I32     = 0x1C,
+
+    // Logical (0x20–0x22)
+    NOT         = 0x20,
 
     // Comparison (0x40–0x45)
     EQ          = 0x40,
@@ -46,14 +50,25 @@ enum class Opcode : uint8_t {
     JUMP_IF_FALSE = 0x51,
     JUMP_IF_TRUE  = 0x52,
     HALT        = 0x53,
+    CALL        = 0x54,
+    RET         = 0x55,
 
-    // Variables — fast locals (0x60–0x63)
+    // Variables — fast locals / globals (0x60–0x63)
     LOAD_FAST   = 0x60,
     STORE_FAST  = 0x61,
+    LOAD_GLOBAL = 0x62,
 
-    // Array / element access (0x80–0x87)
+    // Array / object / class (0x80–0x88)
+    NEW_ARRAY           = 0x80,
+    ARRAY_PUSH          = 0x81,
+    SET_ELEMENT         = 0x82,
+    GET_PROPERTY        = 0x83,
+    SET_PROPERTY        = 0x84,
     GET_ELEMENT         = 0x85,
     GET_ELEMENT_F64     = 0x86,
+    METHOD_CALL         = 0x87,
+    NEW_INSTANCE        = 0x88,
+    CALL_GLOBAL         = 0x89,
 
     // Intrinsic dispatch (0xFF)
     INTRINSIC_SYSCALL = 0xFF,

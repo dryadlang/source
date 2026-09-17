@@ -33,7 +33,7 @@ Layer 1: C++ Micro-Kernel Runtime
 |------|----------|
 | `dryad_theory/` | Language specification (PDF + LaTeX) and architecture design documents |
 | `dryad-cpp/` | C++ interpreter implementation, standard library, tests, examples |
-| `docs/` | Supporting documentation |
+| `docs/` | **Central documentation** (phases, plans, stdlib guides) |
 | `archived/` | Superseded material |
 | `CHANGELOG` | Notable changes per release |
 
@@ -67,7 +67,7 @@ Tests are built with `-Wall -Wextra -Werror`.
 
 ## Example
 
-`dryad-cpp/examples/buffer_usage.dryad` — UTF-8 string ↔ buffer conversion, slicing, and byte editing:
+`dryad-cpp/examples/02-buffers/buffer_usage.dryad` — UTF-8 string ↔ buffer conversion, slicing, and byte editing:
 
 ```dryad
 let text = "Olá, mundo!";
@@ -88,19 +88,24 @@ Run examples with the CLI:
 
 ```bash
 cd build
-./bin/dryad ../dryad-cpp/examples/buffer_usage.dryad
-./bin/dryad ../dryad-cpp/examples/file_io_usage.dryad
-./bin/dryad ../dryad-cpp/examples/io_examples.dryad
+./bin/dryad ../dryad-cpp/examples/02-buffers/buffer_usage.dryad
+./bin/dryad ../dryad-cpp/examples/04-io/file_io_usage.dryad
+./bin/dryad ../dryad-cpp/examples/04-io/io_examples.dryad
+
+# Run all examples with timing
+cd ../dryad-cpp && ./examples/run_benchmark.sh
 ```
 
 Set `DRYAD_STDLIB_DIR` if the stdlib is not at the default install path.
 
 ## Documentation
 
+All documentation is consolidated under [`docs/`](docs/README.md):
+
 - **Specification**: `dryad_theory/dryad_theoretical_foundation_v2.pdf` (canonical, v2.0)
-- **Theory index**: `dryad_theory/README.md`
-- **Implementation plans**: `dryad-cpp/STDLIB_ARCHITECTURE.md`, `dryad-cpp/STDLIB_IMPLEMENTATION_PLAN.md`
-- **Phase reports**: `dryad-cpp/PHASE_0_COMPLETE.md` … `dryad-cpp/PHASE_4_PROGRESS_REPORT.md`
+- **Implementation**: phases, architecture, plans → `docs/implementation/`
+- **Standard library**: `docs/stdlib/`
+- **Examples catalog**: `dryad-cpp/examples/README.md`
 
 ## Contributing
 

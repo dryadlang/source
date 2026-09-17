@@ -28,6 +28,9 @@ private:
     void execute_block_statement(BlockStatement* stmt);
     void execute_if(IfStatement* stmt);
     void execute_while(WhileStatement* stmt);
+    void execute_for(ForStatement* stmt);
+    void execute_break(BreakStatement* stmt);
+    void execute_continue(ContinueStatement* stmt);
     void execute_return(ReturnStatement* stmt);
     void execute_import(ImportDeclaration* stmt);
     void execute_compile_block(CompileBlockStatement* stmt);

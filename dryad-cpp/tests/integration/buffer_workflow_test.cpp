@@ -89,7 +89,7 @@ TEST(BufferWorkflow, SliceExtraction) {
 }
 
 TEST(BufferWorkflow, ExampleScriptRuns) {
-    std::string source = read_file(std::string(DRYAD_EXAMPLE_DIR) + "/buffer_usage.dryad");
+    std::string source = read_file(std::string(DRYAD_EXAMPLE_DIR) + "/02-buffers/buffer_usage.dryad");
 
     Lexer lexer(source);
     auto tokens = lexer.tokenize();

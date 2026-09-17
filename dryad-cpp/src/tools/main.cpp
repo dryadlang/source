@@ -1,4 +1,5 @@
 #include "dryad/aot/aot_compiler.h"
+#include "dryad/aot/native_linker.h"
 #include "dryad/aot/analyze_pass.h"
 #include "dryad/compiler/compile_pipeline.h"
 #include "dryad/compiler/execution_mode.h"
@@ -14,13 +15,21 @@
 #define DRYAD_STDLIB_DIR "stdlib"
 #endif
 
+#ifndef DRYAD_AOT_RUNTIME_SRC
+#define DRYAD_AOT_RUNTIME_SRC "src/aot/aot_runtime.c"
+#endif
+
+#ifndef DRYAD_INCLUDE_DIR
+#define DRYAD_INCLUDE_DIR "include"
+#endif
+
 namespace {
 
 void print_help() {
     std::cout << "Dryad Programming Language v2.0.0\n\n";
     std::cout << "Usage:\n";
     std::cout << "  dryad [--allow-net] [--vm] <script.dryad>     Run a Dryad script\n";
-    std::cout << "  dryad compile <file> [-o out.dryadc] [--aot -o out.ll] [--no-profile]\n";
+    std::cout << "  dryad compile <file> [-o out] [--aot] [--link] [--executable] [--entry fn] [--no-profile]\n";
     std::cout << "  dryad analyze <file> [--no-profile]           AOT fast/slow path report\n";
     std::cout << "  dryad check <file>                            Validate syntax only\n";
     std::cout << "  dryad --analyze <file>                      Alias for analyze\n";
@@ -29,11 +38,17 @@ void print_help() {
     std::cout << "Options:\n";
     std::cout << "  --allow-net     Enable socket/network syscalls for this run\n";
     std::cout << "  --vm            Default to bytecode VM execution mode\n";
-    std::cout << "  --no-profile    Skip interpreter profiling during compile/analyze\n\n";
+    std::cout << "  --no-profile    Skip interpreter profiling during compile/analyze\n";
+    std::cout << "  --link          Link LLVM IR to native .so (requires --aot)\n";
+    std::cout << "  --executable    Link to native ELF executable (requires --aot --link)\n";
+    std::cout << "  --entry <fn>    Entry function for --executable (default: first function)\n\n";
     std::cout << "Environment:\n";
-    std::cout << "  DRYAD_STDLIB_DIR   Override stdlib path (default: "
+    std::cout << "  DRYAD_STDLIB_DIR      Override stdlib path (default: "
               << DRYAD_STDLIB_DIR << ")\n";
-    std::cout << "  DRYAD_ALLOW_NET    Set to 1 or true to enable network access\n";
+    std::cout << "  DRYAD_ALLOW_NET       Set to 1 or true to enable network access\n";
+    std::cout << "  DRYAD_VM_MAX_STEPS    VM instruction budget (0 = unlimited)\n";
+    std::cout << "  DRYAD_ARENA_BYTES     AOT runtime box arena size (default 65536)\n";
+    std::cout << "  DRYAD_RUN_TIMEOUT     Example/benchmark run timeout seconds (default 30)\n";
 }
 
 std::string stdlib_root() {
@@ -87,7 +102,10 @@ int run_compile_command(int argc, char** argv) {
     bool allow_net = network_allowed_from_env();
     bool run_profiler = true;
     bool aot = false;
+    bool link_native = false;
+    bool link_executable = false;
     std::string output_path;
+    std::string entry_function;
 
     for (int i = 3; i < argc; ++i) {
         const std::string token = argv[i];
@@ -103,6 +121,20 @@ int run_compile_command(int argc, char** argv) {
             aot = true;
             continue;
         }
+        if (token == "--link") {
+            link_native = true;
+            continue;
+        }
+        if (token == "--executable") {
+            link_executable = true;
+            link_native = true;
+            aot = true;
+            continue;
+        }
+        if (token == "--entry" && i + 1 < argc) {
+            entry_function = argv[++i];
+            continue;
+        }
         if (token == "-o" && i + 1 < argc) {
             output_path = argv[++i];
             continue;
@@ -111,15 +143,45 @@ int run_compile_command(int argc, char** argv) {
         return 1;
     }
 
+    if (link_executable && !aot) {
+        std::cerr << "Error: --executable requires --aot\n";
+        return 1;
+    }
+    if (link_native && !aot) {
+        std::cerr << "Error: --link requires --aot\n";
+        return 1;
+    }
+
     if (output_path.empty()) {
-        output_path = aot ? default_llvm_output(input_path) : default_dryadc_output(input_path);
+        const auto dot = input_path.rfind('.');
+        const std::string stem =
+            dot == std::string::npos ? input_path : input_path.substr(0, dot);
+        if (link_executable) {
+            output_path = stem + dryad::default_executable_extension();
+        } else if (link_native) {
+            output_path = stem + dryad::default_shared_extension();
+        } else {
+            output_path = aot ? default_llvm_output(input_path) : default_dryadc_output(input_path);
+        }
     }
 
     try {
-        const auto options = default_compile_options(allow_net, run_profiler);
-        const dryad::AotCompileResult result = aot
-            ? dryad::compile_to_llvm_ir(input_path, output_path, options)
-            : dryad::compile_to_dryadc(input_path, output_path, options);
+        auto options = default_compile_options(allow_net, run_profiler);
+        options.entry_function = entry_function;
+
+        dryad::AotCompileResult result;
+        if (link_executable) {
+            result = dryad::compile_to_native_executable(
+                input_path, output_path, options, DRYAD_AOT_RUNTIME_SRC, DRYAD_INCLUDE_DIR);
+        } else if (link_native) {
+            result = dryad::compile_to_native_module(
+                input_path, output_path, options, DRYAD_AOT_RUNTIME_SRC, DRYAD_INCLUDE_DIR);
+        } else if (aot) {
+            result = dryad::compile_to_llvm_ir(input_path, output_path, options);
+        } else {
+            result = dryad::compile_to_dryadc(input_path, output_path, options);
+        }
+
         if (!result.success) {
             std::cerr << "Error: " << result.message << "\n";
             return 1;

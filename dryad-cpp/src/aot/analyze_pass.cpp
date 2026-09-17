@@ -68,6 +68,7 @@ void analyze_bytecode(const CompiledFunction& function, AnalyzeReport& report) {
             case Opcode::PUSH_CONST:
             case Opcode::LOAD_FAST:
             case Opcode::STORE_FAST:
+            case Opcode::LOAD_GLOBAL:
             case Opcode::JUMP:
             case Opcode::JUMP_IF_FALSE:
             case Opcode::JUMP_IF_TRUE:

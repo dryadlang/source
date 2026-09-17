@@ -1,0 +1,32 @@
+// Language basics: literals, arithmetic, comparison, logical operators.
+// Run: dryad examples/01-language/basics.dryad
+
+let a = 10;
+let b = 3;
+print("add");
+print(a + b);
+print("sub");
+print(a - b);
+print("mul");
+print(a * b);
+print("div");
+print(a / b);
+print("mod");
+print(a % b);
+
+let pi = 3.14;
+print("float");
+print(pi * 2);
+
+let greeting = "Hello, Dryad!";
+print(greeting);
+
+let flag = true;
+print("bool");
+print(flag);
+print("not");
+print(!flag);
+
+print("compare");
+print(a > b);
+print(a == 10);

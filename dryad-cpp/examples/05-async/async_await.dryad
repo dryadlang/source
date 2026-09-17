@@ -1,0 +1,27 @@
+// async/await: microtasks and async functions.
+// Run: dryad examples/05-async/async_await.dryad
+
+import { Promise_resolve, Promise_flush } from "@std/async/promise";
+import { EventLoop_pump } from "@std/async/event_loop";
+
+async function add(a, b) {
+    let x = await Promise_resolve(a);
+    let y = await Promise_resolve(b);
+    return x + y;
+}
+
+let result = add(20, 22);
+Promise_flush();
+print("async add");
+print(result._value);
+
+let order = [];
+Promise_resolve(1).then(function(v) {
+    __runtime_array_push(order, 1);
+    return v;
+});
+__runtime_array_push(order, 0);
+EventLoop_pump();
+print("microtask order");
+print(order[0]);
+print(order[1]);

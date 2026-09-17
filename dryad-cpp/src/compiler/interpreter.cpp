@@ -150,14 +150,13 @@ void Interpreter::run_file(const std::string& path) {
         throw DryadException("Parser error: " + parser.error_message());
     }
 
+    execution_engine_->set_source_path(path);
     execute(program.get());
 }
 
 void Interpreter::execute(Program* program) {
     active_ = this;
-    for (auto& stmt : program->statements) {
-        execute_statement(stmt.get());
-    }
+    execution_engine_->execute_program(program);
     pump_event_loop();
     active_ = nullptr;
 }

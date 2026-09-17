@@ -107,6 +107,18 @@ void StatementExecutor::execute(Statement* stmt) {
         case ASTNodeType::WhileStatement:
             execute_while(static_cast<WhileStatement*>(stmt));
             break;
+
+        case ASTNodeType::ForStatement:
+            execute_for(static_cast<ForStatement*>(stmt));
+            break;
+
+        case ASTNodeType::BreakStatement:
+            execute_break(static_cast<BreakStatement*>(stmt));
+            break;
+
+        case ASTNodeType::ContinueStatement:
+            execute_continue(static_cast<ContinueStatement*>(stmt));
+            break;
         
         case ASTNodeType::ReturnStatement:
             execute_return(static_cast<ReturnStatement*>(stmt));
@@ -192,6 +204,45 @@ void StatementExecutor::execute_while(WhileStatement* stmt) {
             continue;
         }
     }
+}
+
+void StatementExecutor::execute_for(ForStatement* stmt) {
+    const std::string site = "for@" + std::to_string(stmt->location.line);
+    if (stmt->initializer) {
+        execute(stmt->initializer.get());
+    }
+    while (true) {
+        if (stmt->condition) {
+            Value condition = interpreter_->evaluate(stmt->condition.get());
+            interpreter_->type_profiler().observe_branch(site, condition.is_truthy());
+            if (!condition.is_truthy()) {
+                break;
+            }
+        }
+        try {
+            execute(stmt->body.get());
+        } catch (const BreakException&) {
+            break;
+        } catch (const ContinueException&) {
+            if (stmt->increment) {
+                interpreter_->evaluate(stmt->increment.get());
+            }
+            continue;
+        }
+        if (stmt->increment) {
+            interpreter_->evaluate(stmt->increment.get());
+        }
+    }
+}
+
+void StatementExecutor::execute_break(BreakStatement* stmt) {
+    (void)stmt;
+    throw BreakException();
+}
+
+void StatementExecutor::execute_continue(ContinueStatement* stmt) {
+    (void)stmt;
+    throw ContinueException();
 }
 
 void StatementExecutor::execute_return(ReturnStatement* stmt) {

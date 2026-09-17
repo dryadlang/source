@@ -12,6 +12,7 @@ struct CompileOptions {
     bool run_profiler = true;
     bool allow_network = false;
     std::string stdlib_root;
+    std::string entry_function;
 };
 
 std::unique_ptr<Program> parse_file(const std::string& path);

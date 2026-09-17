@@ -5,6 +5,7 @@
 #include "dryad/runtime/bytecode_module.h"
 #include <memory>
 #include <string>
+#include <vector>
 
 namespace dryad {
 
@@ -13,6 +14,8 @@ struct CompileOptions {
     bool allow_network = false;
     std::string stdlib_root;
     std::string entry_function;
+    std::vector<std::string> library_paths;
+    std::vector<std::string> link_libraries;
 };
 
 std::unique_ptr<Program> parse_file(const std::string& path);

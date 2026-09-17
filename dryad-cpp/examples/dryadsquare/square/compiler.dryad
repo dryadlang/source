@@ -1,0 +1,222 @@
+// Square AST → bytecode compiler (pure Dryad).
+
+import { List } from "@std/collections/list";
+
+function Sq_opcode(name) {
+    if (name == "HALT") { return 0; }
+    if (name == "CONST") { return 1; }
+    if (name == "LOAD") { return 2; }
+    if (name == "STORE") { return 3; }
+    if (name == "ADD") { return 4; }
+    if (name == "SUB") { return 5; }
+    if (name == "MUL") { return 6; }
+    if (name == "DIV") { return 7; }
+    if (name == "MOD") { return 8; }
+    if (name == "LT") { return 9; }
+    if (name == "EQ") { return 10; }
+    if (name == "JMP") { return 11; }
+    if (name == "JMP_IF_FALSE") { return 12; }
+    if (name == "PRINT") { return 13; }
+    return -1;
+}
+
+function Sq_makeInstr(op, arg) {
+    let instr = __runtime_create_object();
+    __runtime_object_set(instr, "op", op);
+    __runtime_object_set(instr, "arg", arg);
+    return instr;
+}
+
+function Sq_makeCompiler() {
+    let state = __runtime_create_object();
+    __runtime_object_set(state, "code", []);
+    __runtime_object_set(state, "names", []);
+    __runtime_object_set(state, "code_size", 0);
+    return state;
+}
+
+function Sq_emit(state, op, arg) {
+    let code = __runtime_object_get(state, "code");
+    let index = __runtime_object_get(state, "code_size");
+    __runtime_array_push(code, Sq_makeInstr(op, arg));
+    __runtime_object_set(state, "code_size", index + 1);
+    return index;
+}
+
+function Sq_codeSize(state) {
+    return __runtime_object_get(state, "code_size");
+}
+
+function Sq_nameIndex(state, name) {
+    let names = __runtime_object_get(state, "names");
+    let i = 0;
+    let nameCount = __runtime_array_length(names);
+    while (i < nameCount) {
+        if (names[i] == name) {
+            return i;
+        }
+        i = i + 1;
+    }
+    __runtime_array_push(names, name);
+    return __runtime_array_length(names) - 1;
+}
+
+function Sq_compileExpr(state, expr) {
+    let kind = __runtime_object_get(expr, "kind");
+
+    if (kind == "number") {
+        Sq_emit(state, Sq_opcode("CONST"), __runtime_object_get(expr, "value"));
+        return null;
+    }
+
+    if (kind == "ident") {
+        let index = Sq_nameIndex(state, __runtime_object_get(expr, "name"));
+        Sq_emit(state, Sq_opcode("LOAD"), index);
+        return null;
+    }
+
+    if (kind == "unary") {
+        let op = __runtime_object_get(expr, "op");
+        Sq_compileExpr(state, __runtime_object_get(expr, "operand"));
+        if (op == "-") {
+            Sq_emit(state, Sq_opcode("CONST"), 0);
+            Sq_emit(state, Sq_opcode("SUB"), 0);
+        }
+        return null;
+    }
+
+    if (kind == "binary") {
+        let op = __runtime_object_get(expr, "op");
+        let left = __runtime_object_get(expr, "left");
+        let right = __runtime_object_get(expr, "right");
+
+        if (op == ">") {
+            Sq_compileExpr(state, right);
+            Sq_compileExpr(state, left);
+            Sq_emit(state, Sq_opcode("LT"), 0);
+            return null;
+        }
+        if (op == "<=") {
+            Sq_compileExpr(state, right);
+            Sq_compileExpr(state, left);
+            Sq_emit(state, Sq_opcode("LT"), 0);
+            Sq_emit(state, Sq_opcode("CONST"), 1);
+            Sq_emit(state, Sq_opcode("SUB"), 0);
+            return null;
+        }
+
+        Sq_compileExpr(state, left);
+        Sq_compileExpr(state, right);
+        if (op == "+") { Sq_emit(state, Sq_opcode("ADD"), 0); }
+        if (op == "-") { Sq_emit(state, Sq_opcode("SUB"), 0); }
+        if (op == "*") { Sq_emit(state, Sq_opcode("MUL"), 0); }
+        if (op == "/") { Sq_emit(state, Sq_opcode("DIV"), 0); }
+        if (op == "%") { Sq_emit(state, Sq_opcode("MOD"), 0); }
+        if (op == "<") { Sq_emit(state, Sq_opcode("LT"), 0); }
+        if (op == "==") { Sq_emit(state, Sq_opcode("EQ"), 0); }
+        if (op == "!=") {
+            Sq_emit(state, Sq_opcode("EQ"), 0);
+            Sq_emit(state, Sq_opcode("CONST"), 1);
+            Sq_emit(state, Sq_opcode("SUB"), 0);
+        }
+        if (op == ">=") {
+            Sq_emit(state, Sq_opcode("LT"), 0);
+            Sq_emit(state, Sq_opcode("CONST"), 1);
+            Sq_emit(state, Sq_opcode("SUB"), 0);
+        }
+        return null;
+    }
+
+    return null;
+}
+
+function Sq_compileBlock(state, block) {
+    let statements = __runtime_object_get(block, "statements");
+    let i = 0;
+    let count = __runtime_array_length(statements);
+    while (i < count) {
+        Sq_compileStmt(state, statements[i]);
+        i = i + 1;
+    }
+    return null;
+}
+
+function Sq_compileStmt(state, stmt) {
+    let kind = __runtime_object_get(stmt, "kind");
+
+    if (kind == "var") {
+        Sq_compileExpr(state, __runtime_object_get(stmt, "init"));
+        Sq_emit(state, Sq_opcode("STORE"), Sq_nameIndex(state, __runtime_object_get(stmt, "name")));
+        return null;
+    }
+
+    if (kind == "assign") {
+        Sq_compileExpr(state, __runtime_object_get(stmt, "value"));
+        Sq_emit(state, Sq_opcode("STORE"), Sq_nameIndex(state, __runtime_object_get(stmt, "name")));
+        return null;
+    }
+
+    if (kind == "print") {
+        Sq_compileExpr(state, __runtime_object_get(stmt, "expr"));
+        Sq_emit(state, Sq_opcode("PRINT"), 0);
+        return null;
+    }
+
+    if (kind == "block") {
+        Sq_compileBlock(state, stmt);
+        return null;
+    }
+
+    if (kind == "while") {
+        let loopStart = Sq_codeSize(state);
+        Sq_compileExpr(state, __runtime_object_get(stmt, "cond"));
+        let jumpOut = Sq_emit(state, Sq_opcode("JMP_IF_FALSE"), -1);
+        Sq_compileBlock(state, __runtime_object_get(stmt, "body"));
+        Sq_emit(state, Sq_opcode("JMP"), loopStart);
+        let code = __runtime_object_get(state, "code");
+        let jumpInstr = code[jumpOut];
+        __runtime_object_set(jumpInstr, "arg", Sq_codeSize(state));
+        return null;
+    }
+
+    if (kind == "if") {
+        Sq_compileExpr(state, __runtime_object_get(stmt, "cond"));
+        let jumpElse = Sq_emit(state, Sq_opcode("JMP_IF_FALSE"), -1);
+        Sq_compileBlock(state, __runtime_object_get(stmt, "then"));
+        let elseBlock = __runtime_object_get(stmt, "else");
+        if (elseBlock != null) {
+            let jumpEnd = Sq_emit(state, Sq_opcode("JMP"), -1);
+            let code = __runtime_object_get(state, "code");
+            let elseInstr = code[jumpElse];
+            __runtime_object_set(elseInstr, "arg", Sq_codeSize(state));
+            Sq_compileBlock(state, elseBlock);
+            let endInstr = code[jumpEnd];
+            __runtime_object_set(endInstr, "arg", Sq_codeSize(state));
+        } else {
+            let code = __runtime_object_get(state, "code");
+            let elseOnly = code[jumpElse];
+            __runtime_object_set(elseOnly, "arg", Sq_codeSize(state));
+        }
+        return null;
+    }
+
+    return null;
+}
+
+function Sq_compile(ast) {
+    let state = Sq_makeCompiler();
+    let statements = __runtime_object_get(ast, "statements");
+    let i = 0;
+    let stmtCount = __runtime_array_length(statements);
+    while (i < stmtCount) {
+        Sq_compileStmt(state, statements[i]);
+        i = i + 1;
+    }
+    Sq_emit(state, Sq_opcode("HALT"), 0);
+
+    let program = __runtime_create_object();
+    __runtime_object_set(program, "code", __runtime_object_get(state, "code"));
+    __runtime_object_set(program, "names", __runtime_object_get(state, "names"));
+    __runtime_object_set(program, "code_size", Sq_codeSize(state));
+    return program;
+}

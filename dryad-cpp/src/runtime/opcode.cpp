@@ -42,6 +42,7 @@ const char* opcode_name(Opcode op) {
         case Opcode::LOAD_FAST:        return "LOAD_FAST";
         case Opcode::STORE_FAST:       return "STORE_FAST";
         case Opcode::LOAD_GLOBAL:      return "LOAD_GLOBAL";
+        case Opcode::MAKE_FUNCTION:    return "MAKE_FUNCTION";
         case Opcode::NEW_ARRAY:        return "NEW_ARRAY";
         case Opcode::ARRAY_PUSH:       return "ARRAY_PUSH";
         case Opcode::SET_ELEMENT:      return "SET_ELEMENT";

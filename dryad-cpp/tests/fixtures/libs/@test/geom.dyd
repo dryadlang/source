@@ -1,0 +1,24 @@
+// Test library: geometry primitives with explicit exports.
+
+export class Vec2 {
+    constructor(x, y) {
+        this.x = x;
+        this.y = y;
+    }
+
+    sum() {
+        return this.x + this.y;
+    }
+}
+
+export function makeVec2(x, y) {
+    return new Vec2(x, y);
+}
+
+export let ORIGIN_X = 0;
+
+function _hiddenHelper() {
+    return 99;
+}
+
+let _privateCounter = 0;

@@ -78,6 +78,8 @@ add_library(dryad_runtime STATIC
     src/runtime/promise_runtime.cpp
     src/runtime/io_poller.cpp
     src/runtime/module_loader.cpp
+    src/runtime/library_module.cpp
+    src/runtime/package_manifest.cpp
     src/runtime/environment.cpp
     src/runtime/function.cpp
     src/runtime/class.cpp
@@ -120,6 +122,7 @@ add_library(dryad_compiler STATIC
     src/compiler/execution_mode.cpp
     src/compiler/execution_engine.cpp
     src/compiler/compile_pipeline.cpp
+    src/compiler/library_compiler.cpp
     src/compiler/program_entry.cpp
 )
 target_include_directories(dryad_compiler PUBLIC include)
@@ -132,6 +135,8 @@ add_library(dryad_aot STATIC
     src/aot/aot_compiler.cpp
     src/aot/native_linker.cpp
     src/aot/jit_compiler.cpp
+    src/aot/package_installer.cpp
+    src/aot/library_linker.cpp
 )
 target_include_directories(dryad_aot PUBLIC include)
 target_link_libraries(dryad_aot PUBLIC dryad_compiler)
@@ -225,6 +230,9 @@ if(DRYAD_BUILD_TESTS)
         tests/unit/http_client_test.cpp
         tests/unit/language_features_test.cpp
         tests/unit/import_test.cpp
+        tests/unit/library_test.cpp
+        tests/unit/library_aot_test.cpp
+        tests/unit/package_test.cpp
     )
     target_link_libraries(unit_tests PRIVATE 
         gtest_main

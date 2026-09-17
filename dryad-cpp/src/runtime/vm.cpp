@@ -1,5 +1,6 @@
 #include "dryad/runtime/vm.h"
 #include "dryad/runtime/class.h"
+#include "dryad/runtime/function.h"
 #include "dryad/runtime/intrinsics_registry.h"
 #include "dryad/common/utils.h"
 #include <cmath>
@@ -529,6 +530,20 @@ void VM::dispatch_opcode(Opcode op) {
                 throw DryadException("LOAD_GLOBAL invalid name constant");
             }
             stack_.push_back(runtime_delegate_->get_global(constants_[name_index].as_string()));
+            advance(3);
+            break;
+        }
+
+        case Opcode::MAKE_FUNCTION: {
+            if (!runtime_delegate_) {
+                throw DryadException("MAKE_FUNCTION requires a runtime delegate");
+            }
+            uint16_t function_index = read_u16_at(pc_ + 1);
+            auto native_fn = std::make_shared<NativeFunction>(
+                [this, function_index](const std::vector<Value>& args) -> Value {
+                    return runtime_delegate_->invoke_bytecode_function(function_index, args);
+                });
+            stack_.push_back(Value(native_fn));
             advance(3);
             break;
         }

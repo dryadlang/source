@@ -213,6 +213,14 @@ CompiledProgram deserialize_program(const std::vector<uint8_t>& data) {
 
 } // namespace
 
+std::vector<uint8_t> serialize_program_to_bytes(const CompiledProgram& program) {
+    return serialize_program(program);
+}
+
+CompiledProgram deserialize_program_from_bytes(const std::vector<uint8_t>& data) {
+    return deserialize_program(data);
+}
+
 bool save_compiled_program(const CompiledProgram& program, const std::string& path) {
     try {
         const auto bytes = serialize_program(program);

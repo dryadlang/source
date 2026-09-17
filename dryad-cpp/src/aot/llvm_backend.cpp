@@ -24,6 +24,12 @@ const char* llvm_type(IrType type) {
 
 std::string reg_name(int id) { return "%v" + std::to_string(id); }
 
+std::string as_i8_ptr(std::ostringstream& out, int reg, int& next_temp) {
+    const std::string cast_name = "%as_i8_" + std::to_string(next_temp++);
+    out << "  " << cast_name << " = bitcast ptr " << reg_name(reg) << " to i8*\n";
+    return cast_name;
+}
+
 std::string sanitize_symbol(const std::string& name) {
     if (name.empty()) {
         return "anonymous";
@@ -50,6 +56,8 @@ void emit_runtime_declarations(std::ostringstream& out) {
     out << "declare i8* @dryad_box_f64(double)\n";
     out << "declare i8* @dryad_box_bool(i1)\n";
     out << "declare i32 @dryad_unbox_i32(i8*)\n";
+    out << "declare i1 @dryad_variant_eq(i8*, i8*)\n";
+    out << "declare i1 @dryad_variant_neq(i8*, i8*)\n";
     out << "declare double @dryad_unbox_f64(i8*)\n";
     out << "declare i1 @dryad_unbox_bool(i8*)\n";
     out << "declare i8* @dryad_box_cstring(i8*)\n";
@@ -58,20 +66,99 @@ void emit_runtime_declarations(std::ostringstream& out) {
 
 std::string block_label(uint32_t id) { return "bb" + std::to_string(id); }
 
+std::string box_argument(std::ostringstream& out,
+                         int reg,
+                         IrType type,
+                         int& next_temp,
+                         const std::string& suffix) {
+    if (type == IrType::I32) {
+        const std::string boxed = "%lc_box" + suffix;
+        out << "  " << boxed << " = call i8* @dryad_box_i32(i32 " << reg_name(reg) << ")\n";
+        return boxed;
+    }
+    if (type == IrType::F64) {
+        const std::string boxed = "%lc_box" + suffix;
+        out << "  " << boxed << " = call i8* @dryad_box_f64(double " << reg_name(reg) << ")\n";
+        return boxed;
+    }
+    if (type == IrType::Bool) {
+        const std::string boxed = "%lc_box" + suffix;
+        out << "  " << boxed << " = call i8* @dryad_box_bool(i1 " << reg_name(reg) << ")\n";
+        return boxed;
+    }
+    return as_i8_ptr(out, reg, next_temp);
+}
+
+bool emit_linked_global_call(std::ostringstream& out,
+                             const IrFunction& function,
+                             const IrInstruction& inst,
+                             const std::string& symbol,
+                             int& next_temp) {
+    std::vector<std::string> boxed_args;
+    if (inst.intrinsic_argc >= 2) {
+        boxed_args.push_back(
+            box_argument(out, inst.rhs, IrType::I32, next_temp, std::to_string(inst.result) + "_0"));
+        boxed_args.push_back(
+            box_argument(out, inst.lhs, IrType::I32, next_temp, std::to_string(inst.result) + "_1"));
+    } else if (inst.intrinsic_argc == 1) {
+        boxed_args.push_back(
+            box_argument(out, inst.rhs, inst.result_type, next_temp, std::to_string(inst.result) + "_0"));
+    }
+
+    const std::string ret = "%lc_ret" + std::to_string(inst.result);
+    out << "  " << ret << " = call i8* @" << symbol << "(";
+    for (size_t i = 0; i < boxed_args.size(); ++i) {
+        if (i > 0) {
+            out << ", ";
+        }
+        out << "i8* " << boxed_args[i];
+    }
+    out << ")\n";
+
+    if (inst.result_type == IrType::I32) {
+        out << "  " << reg_name(inst.result) << " = call i32 @dryad_unbox_i32(i8* " << ret
+            << ")\n";
+    } else if (inst.result_type == IrType::F64) {
+        out << "  " << reg_name(inst.result) << " = call double @dryad_unbox_f64(i8* " << ret
+            << ")\n";
+    } else if (inst.result_type == IrType::Bool) {
+        out << "  " << reg_name(inst.result) << " = call i1 @dryad_unbox_bool(i8* " << ret
+            << ")\n";
+    } else {
+        out << "  " << reg_name(inst.result) << " = bitcast i8* " << ret << " to i8*\n";
+    }
+    return true;
+}
+
 bool emit_intrinsic_call(std::ostringstream& out,
                          const IrFunction& function,
-                         const IrInstruction& inst) {
+                         const IrInstruction& inst,
+                         int& next_temp,
+                         const IrEmitOptions& options) {
     const uint8_t opcode = static_cast<uint8_t>(inst.intrinsic_id & 0xFFu);
     switch (static_cast<Opcode>(opcode)) {
         case Opcode::NEW_ARRAY:
             out << "  " << reg_name(inst.result) << " = call i8* @dryad_new_array()\n";
             return true;
         case Opcode::ARRAY_PUSH: {
-            const std::string boxed = "%apush_box" + std::to_string(inst.result);
-            out << "  " << boxed << " = call i8* @dryad_box_i32(i32 "
-                << reg_name(inst.rhs) << ")\n";
+            std::string element = reg_name(inst.rhs);
+            if (inst.result_type == IrType::I32) {
+                const std::string boxed = "%apush_box" + std::to_string(inst.result);
+                out << "  " << boxed << " = call i8* @dryad_box_i32(i32 " << element << ")\n";
+                element = boxed;
+            } else if (inst.result_type == IrType::F64) {
+                const std::string boxed = "%apush_box" + std::to_string(inst.result);
+                out << "  " << boxed << " = call i8* @dryad_box_f64(double " << element << ")\n";
+                element = boxed;
+            } else if (inst.result_type == IrType::Bool) {
+                const std::string boxed = "%apush_box" + std::to_string(inst.result);
+                out << "  " << boxed << " = call i8* @dryad_box_bool(i1 " << element << ")\n";
+                element = boxed;
+            } else {
+                element = as_i8_ptr(out, inst.rhs, next_temp);
+            }
             out << "  " << reg_name(inst.result) << " = call i8* @dryad_array_push(i8* "
-                << reg_name(inst.lhs) << ", i8* " << boxed << ")\n";
+                << reg_name(inst.lhs) << ", i8* " << element << ")\n";
             return true;
         }
         case Opcode::SET_ELEMENT:
@@ -79,7 +166,35 @@ bool emit_intrinsic_call(std::ostringstream& out,
                 << reg_name(inst.lhs) << ", i8* " << reg_name(inst.rhs) << ", i8* "
                 << reg_name(static_cast<int>(inst.slot)) << ")\n";
             return true;
+        case Opcode::EQ:
+            if (inst.intrinsic_argc == 2) {
+                const std::string lhs_ptr = as_i8_ptr(out, inst.lhs, next_temp);
+                const std::string rhs_ptr = as_i8_ptr(out, inst.rhs, next_temp);
+                out << "  " << reg_name(inst.result) << " = call i1 @dryad_variant_eq(i8* "
+                    << lhs_ptr << ", i8* " << rhs_ptr << ")\n";
+                return true;
+            }
+            break;
+        case Opcode::NEQ:
+            if (inst.intrinsic_argc == 2) {
+                const std::string lhs_ptr = as_i8_ptr(out, inst.lhs, next_temp);
+                const std::string rhs_ptr = as_i8_ptr(out, inst.rhs, next_temp);
+                out << "  " << reg_name(inst.result) << " = call i1 @dryad_variant_neq(i8* "
+                    << lhs_ptr << ", i8* " << rhs_ptr << ")\n";
+                return true;
+            }
+            break;
+        case Opcode::MAKE_FUNCTION:
+            out << "  " << reg_name(inst.result) << " = inttoptr i64 0 to i8*\n";
+            return true;
         case Opcode::CALL_GLOBAL:
+            if (inst.const_string_id < function.string_literals.size()) {
+                const std::string& global_name = function.string_literals[inst.const_string_id];
+                const auto linked = options.linked_exports.find(global_name);
+                if (linked != options.linked_exports.end()) {
+                    return emit_linked_global_call(out, function, inst, linked->second, next_temp);
+                }
+            }
             if (inst.intrinsic_argc == 1 && inst.const_string_id < function.string_literals.size() &&
                 function.string_literals[inst.const_string_id] == "print") {
                 if (inst.result_type == IrType::I32) {
@@ -186,7 +301,8 @@ void emit_parameter_init(std::ostringstream& out,
 void emit_instruction(std::ostringstream& out,
                       const IrFunction& function,
                       const IrInstruction& inst,
-                      int& next_temp) {
+                      int& next_temp,
+                      const IrEmitOptions& options) {
     switch (inst.op) {
         case IrOpcode::ConstI32:
             out << "  " << reg_name(inst.result) << " = add i32 0, " << inst.const_i32 << "\n";
@@ -209,17 +325,62 @@ void emit_instruction(std::ostringstream& out,
                 << inst.const_string_id << ", i64 0, i64 0))\n";
             break;
         }
-        case IrOpcode::LoadFast:
-            out << "  " << reg_name(inst.result) << " = load "
-                << llvm_type(inst.result_type) << ", "
-                << llvm_type(inst.result_type) << "* %slot" << inst.slot
-                << ", align 8\n";
+        case IrOpcode::LoadFast: {
+            IrType slot_type = IrType::Variant;
+            if (inst.slot < function.slot_types.size()) {
+                slot_type = function.slot_types[inst.slot];
+            }
+            if (slot_type == IrType::Variant && inst.result_type != IrType::Variant) {
+                const std::string loaded = "%slot_load" + std::to_string(next_temp++);
+                out << "  " << loaded << " = load i8*, i8** %slot" << inst.slot << ", align 8\n";
+                if (inst.result_type == IrType::Bool) {
+                    out << "  " << reg_name(inst.result)
+                        << " = call i1 @dryad_unbox_bool(i8* " << loaded << ")\n";
+                } else if (inst.result_type == IrType::I32) {
+                    out << "  " << reg_name(inst.result)
+                        << " = call i32 @dryad_unbox_i32(i8* " << loaded << ")\n";
+                } else if (inst.result_type == IrType::F64) {
+                    out << "  " << reg_name(inst.result)
+                        << " = call double @dryad_unbox_f64(i8* " << loaded << ")\n";
+                } else {
+                    out << "  " << reg_name(inst.result) << " = load i8*, i8** %slot"
+                        << inst.slot << ", align 8\n";
+                }
+            } else {
+                out << "  " << reg_name(inst.result) << " = load "
+                    << llvm_type(inst.result_type) << ", "
+                    << llvm_type(slot_type) << "* %slot" << inst.slot << ", align 8\n";
+            }
             break;
-        case IrOpcode::StoreFast:
-            out << "  store " << llvm_type(inst.result_type) << " "
-                << reg_name(inst.result) << ", " << llvm_type(inst.result_type)
-                << "* %slot" << inst.slot << ", align 8\n";
+        }
+        case IrOpcode::StoreFast: {
+            IrType slot_type = IrType::Variant;
+            if (inst.slot < function.slot_types.size()) {
+                slot_type = function.slot_types[inst.slot];
+            }
+            if (slot_type == IrType::Variant && inst.result_type != IrType::Variant) {
+                std::string boxed = reg_name(inst.result);
+                if (inst.result_type == IrType::Bool) {
+                    boxed = "%store_box" + std::to_string(next_temp++);
+                    out << "  " << boxed << " = call i8* @dryad_box_bool(i1 "
+                        << reg_name(inst.result) << ")\n";
+                } else if (inst.result_type == IrType::I32) {
+                    boxed = "%store_box" + std::to_string(next_temp++);
+                    out << "  " << boxed << " = call i8* @dryad_box_i32(i32 "
+                        << reg_name(inst.result) << ")\n";
+                } else if (inst.result_type == IrType::F64) {
+                    boxed = "%store_box" + std::to_string(next_temp++);
+                    out << "  " << boxed << " = call i8* @dryad_box_f64(double "
+                        << reg_name(inst.result) << ")\n";
+                }
+                out << "  store i8* " << boxed << ", i8** %slot" << inst.slot << ", align 8\n";
+            } else {
+                out << "  store " << llvm_type(inst.result_type) << " "
+                    << reg_name(inst.result) << ", " << llvm_type(slot_type)
+                    << "* %slot" << inst.slot << ", align 8\n";
+            }
             break;
+        }
         case IrOpcode::AddI32:
             out << "  " << reg_name(inst.result) << " = add i32 "
                 << reg_name(inst.lhs) << ", " << reg_name(inst.rhs) << "\n";
@@ -286,17 +447,49 @@ void emit_instruction(std::ostringstream& out,
             out << "  " << reg_name(inst.result)
                 << " = call i32 @dryad_unbox_i32(i8* " << reg_name(inst.lhs) << ")\n";
             break;
+        case IrOpcode::UnboxBool: {
+            const std::string operand = as_i8_ptr(out, inst.lhs, next_temp);
+            out << "  " << reg_name(inst.result)
+                << " = call i1 @dryad_unbox_bool(i8* " << operand << ")\n";
+            break;
+        }
+        case IrOpcode::NotBool:
+            out << "  " << reg_name(inst.result) << " = icmp eq i1 "
+                << reg_name(inst.lhs) << ", 0\n";
+            break;
+        case IrOpcode::Phi: {
+            IrType phi_type = inst.result_type;
+            if (phi_type == IrType::Void) {
+                phi_type = IrType::Bool;
+            }
+            out << "  " << reg_name(inst.result) << " = phi "
+                << llvm_type(phi_type) << " ";
+            for (size_t i = 0; i < inst.phi_incomings.size(); ++i) {
+                if (i > 0) {
+                    out << ", ";
+                }
+                const auto& incoming = inst.phi_incomings[i];
+                out << "[" << reg_name(incoming.reg) << ", %"
+                    << block_label(incoming.block) << "]";
+            }
+            out << "\n";
+            break;
+        }
         case IrOpcode::GenericAdd: {
+            const std::string ul = "%ga_ul" + std::to_string(inst.result);
+            const std::string ur = "%ga_ur" + std::to_string(inst.result);
             const std::string bl = "%ga_l" + std::to_string(inst.result);
             const std::string br = "%ga_r" + std::to_string(inst.result);
-            out << "  " << bl << " = call i8* @dryad_box_i32(i32 " << reg_name(inst.lhs) << ")\n";
-            out << "  " << br << " = call i8* @dryad_box_i32(i32 " << reg_name(inst.rhs) << ")\n";
+            out << "  " << ul << " = call i32 @dryad_unbox_i32(i8* " << reg_name(inst.lhs) << ")\n";
+            out << "  " << ur << " = call i32 @dryad_unbox_i32(i8* " << reg_name(inst.rhs) << ")\n";
+            out << "  " << bl << " = call i8* @dryad_box_i32(i32 " << ul << ")\n";
+            out << "  " << br << " = call i8* @dryad_box_i32(i32 " << ur << ")\n";
             out << "  " << reg_name(inst.result)
                 << " = call i8* @dryad_variant_add(i8* " << bl << ", i8* " << br << ")\n";
             break;
         }
         case IrOpcode::IntrinsicSlow:
-            emit_intrinsic_call(out, function, inst);
+            emit_intrinsic_call(out, function, inst, next_temp, options);
             break;
         case IrOpcode::Br:
             out << "  br label %" << block_label(inst.branch_target) << "\n";
@@ -437,7 +630,7 @@ std::string append_executable_main(const std::string& ir, const IrFunction& entr
     return out.str();
 }
 
-std::string emit_llvm_ir(const IrModule& module) {
+std::string emit_llvm_ir(const IrModule& module, const IrEmitOptions& options) {
     std::ostringstream out;
     emit_runtime_declarations(out);
     emit_string_literal_globals(out, module);
@@ -468,7 +661,7 @@ std::string emit_llvm_ir(const IrModule& module) {
                 out << block_label(block.id) << ":\n";
                 bool terminated = false;
                 for (const auto& inst : block.instructions) {
-                    emit_instruction(out, function, inst, next_temp);
+                    emit_instruction(out, function, inst, next_temp, options);
                     if (inst.op == IrOpcode::Return || inst.op == IrOpcode::Br ||
                         inst.op == IrOpcode::BrCond) {
                         terminated = true;
@@ -484,7 +677,7 @@ std::string emit_llvm_ir(const IrModule& module) {
             emit_parameter_init(out, function, next_temp);
             bool returned = false;
             for (const auto& inst : function.instructions) {
-                emit_instruction(out, function, inst, next_temp);
+                emit_instruction(out, function, inst, next_temp, options);
                 if (inst.op == IrOpcode::Return) {
                     returned = true;
                 }
@@ -515,18 +708,21 @@ std::string emit_jit_loop_ir(const IrFunction& function, const std::string& symb
     return out.str();
 }
 
-bool write_llvm_ir_file(const IrModule& module, const std::string& path) {
+bool write_llvm_ir_file(const IrModule& module,
+                        const std::string& path,
+                        const IrEmitOptions& options) {
     std::ofstream file(path);
     if (!file) {
         return false;
     }
-    file << emit_llvm_ir(module);
+    file << emit_llvm_ir(module, options);
     return static_cast<bool>(file);
 }
 
 bool write_llvm_ir_executable_file(const IrModule& module,
                                    const std::string& path,
-                                   const std::string& entry_symbol) {
+                                   const std::string& entry_symbol,
+                                   const IrEmitOptions& options) {
     const IrFunction* entry = nullptr;
     for (const auto& function : module.functions) {
         if (function.name == entry_symbol) {
@@ -542,7 +738,7 @@ bool write_llvm_ir_executable_file(const IrModule& module,
     if (!file) {
         return false;
     }
-    file << append_executable_main(emit_llvm_ir(module), *entry);
+    file << append_executable_main(emit_llvm_ir(module, options), *entry);
     return static_cast<bool>(file);
 }
 

@@ -82,11 +82,24 @@ NativeLinkResult link_native_binary(NativeLinkKind kind,
                                     const std::string& output_path,
                                     const std::string& aot_runtime_source,
                                     const std::string& include_dir) {
+    return link_native_binary(
+        kind, std::vector<std::string>{llvm_ir_path}, output_path, aot_runtime_source, include_dir);
+}
+
+NativeLinkResult link_native_binary(NativeLinkKind kind,
+                                    const std::vector<std::string>& llvm_ir_paths,
+                                    const std::string& output_path,
+                                    const std::string& aot_runtime_source,
+                                    const std::string& include_dir) {
     NativeLinkResult result;
     result.output_path = output_path;
 
     if (!clang_available()) {
         result.message = "clang not found in PATH";
+        return result;
+    }
+    if (llvm_ir_paths.empty()) {
+        result.message = "No LLVM IR inputs provided for linking";
         return result;
     }
 
@@ -95,8 +108,11 @@ NativeLinkResult link_native_binary(NativeLinkKind kind,
     if (!kind_flags.empty()) {
         command += " " + kind_flags;
     }
-    command += " -I\"" + include_dir + "\" -o \"" + output_path + "\" \"" + llvm_ir_path +
-               "\" \"" + aot_runtime_source + "\" " + platform_link_libraries() + " 2>&1";
+    command += " -I\"" + include_dir + "\" -o \"" + output_path + "\"";
+    for (const auto& llvm_ir_path : llvm_ir_paths) {
+        command += " \"" + llvm_ir_path + "\"";
+    }
+    command += " \"" + aot_runtime_source + "\" " + platform_link_libraries() + " 2>&1";
 
     const int status = run_command(command);
     if (status != 0) {

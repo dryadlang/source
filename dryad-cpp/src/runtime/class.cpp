@@ -1,6 +1,7 @@
 #include "dryad/runtime/class.h"
 #include "dryad/runtime/value.h"
 #include "dryad/runtime/function.h"
+#include "dryad/runtime/library_module.h"
 #include "dryad/compiler/interpreter.h"
 #include "dryad/common/utils.h"
 
@@ -49,6 +50,10 @@ void DryadClass::run_constructor(const std::shared_ptr<ClassInstance>& instance,
                                    const std::vector<Value>& args,
                                    Interpreter* interpreter) {
     if (!constructor) {
+        return;
+    }
+
+    if (try_invoke_library_constructor(constructor, instance, args, interpreter)) {
         return;
     }
 

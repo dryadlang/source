@@ -108,6 +108,11 @@ public:
         return fn_val.as_function()->call(interpreter_, args);
     }
 
+    Value invoke_bytecode_function(uint16_t function_index,
+                                   const std::vector<Value>& args) override {
+        return interpreter_->execution_engine().invoke_bytecode_by_index(function_index, args);
+    }
+
 private:
     Interpreter* interpreter_;
 };
@@ -197,7 +202,8 @@ void ExecutionEngine::execute_program(Program* program) {
 
     if (default_mode_ == ExecutionMode::Bytecode) {
         const CompiledProgram& compiled = compiled_program_for(program);
-        if (has_bytecode_function(compiled, kScriptEntryFunctionName)) {
+        if (!program_has_user_functions(program) &&
+            has_bytecode_function(compiled, kScriptEntryFunctionName)) {
             VM vm;
             vm.load_program(compiled, find_bytecode_function_index(compiled, kScriptEntryFunctionName));
             vm.set_runtime_delegate(runtime_adapter_.get());
@@ -241,6 +247,7 @@ CompiledProgram& ExecutionEngine::compiled_program_for(Program* program) {
     }
 
     BytecodeCompiler compiler;
+    compiler.set_interpreter(interpreter_);
     CompiledProgram compiled = compiler.compile_program(program, interpreter_->type_profiler());
     program_cache_[program] = compiled;
     return program_cache_[program];
@@ -262,11 +269,21 @@ Value ExecutionEngine::invoke_interpreter(DryadFunction* function,
     return function->call_interpreted(interpreter_, args, receiver);
 }
 
+Value ExecutionEngine::invoke_bytecode_by_index(uint16_t function_index,
+                                                const std::vector<Value>& args) {
+    return invoke_bytecode_program(resolve_bytecode_program(), function_index, args);
+}
+
 Value ExecutionEngine::invoke_bytecode_program(const CompiledProgram& program,
                                                FunctionDeclaration* decl,
                                                const std::vector<Value>& args) {
     const uint16_t function_index = find_function_index(program, decl->name);
+    return invoke_bytecode_program(program, function_index, args);
+}
 
+Value ExecutionEngine::invoke_bytecode_program(const CompiledProgram& program,
+                                               uint16_t function_index,
+                                               const std::vector<Value>& args) {
     VM vm;
     vm.load_program(program, function_index);
     if (jit_delegate_) {

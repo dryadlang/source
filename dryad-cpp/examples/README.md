@@ -69,6 +69,15 @@ Triple coverage gate (phase 6.15): all examples must pass interpreter, `--vm`, a
 | `http_parse.dryad` | HTTP URL/response parsing (no network) |
 | `tcp_client.dryad` | TCP echo client (`--allow-net`, optional) |
 
+### DryadSquare — Turing benchmark
+
+| File | Feature |
+|------|---------|
+| `dryadsquare/dryadsquare.dryad` | Mini-compiler + VM (100% Dryad), golden tests |
+| `dryadsquare/run_turing_benchmark.sh` | Interpreter + VM + AOT gate |
+
+See [dryadsquare/README.md](dryadsquare/README.md) and [dryadsquare/SPEC.md](dryadsquare/SPEC.md).
+
 ### 07 — Tooling (via benchmark script)
 
 | Command | Feature |

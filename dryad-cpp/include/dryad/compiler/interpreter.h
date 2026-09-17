@@ -55,8 +55,10 @@ public:
     void define_native(const std::string& name, 
                       std::function<Value(const std::vector<Value>&)> func);
     void set_stdlib_root(const std::string& path);
+    void set_library_paths(const std::vector<std::string>& paths);
     void set_network_allowed(bool allowed);
     
+    std::shared_ptr<Environment> runtime_env() { return runtime_; }
     std::shared_ptr<Environment> global_env() { return global_; }
     std::shared_ptr<Environment> current_env() { return current_; }
     void set_current_env(std::shared_ptr<Environment> env) { current_ = env; }
@@ -73,6 +75,7 @@ public:
     void set_in_constructor(bool value) { in_constructor_ = value; }
 
     FunctionDeclaration* get_or_create_lambda_code(FunctionExpression* expr);
+    FunctionDeclaration* lookup_lambda_code(const FunctionExpression* expr) const;
 
     static Interpreter* active();
     size_t pump_event_loop();
@@ -88,6 +91,7 @@ public:
     
 private:
     static thread_local Interpreter* active_;
+    std::shared_ptr<Environment> runtime_;
     std::shared_ptr<Environment> global_;
     std::shared_ptr<Environment> current_;
     std::string stdlib_root_;

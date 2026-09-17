@@ -40,10 +40,18 @@ enum class IrOpcode {
     GenericAdd,
     GenericGetElement,
     UnboxI32,
+    UnboxBool,
+    NotBool,
     IntrinsicSlow,
+    Phi,
     Br,
     BrCond,
     Return
+};
+
+struct PhiIncoming {
+    uint32_t block = 0;
+    int reg = -1;
 };
 
 struct IrInstruction {
@@ -61,6 +69,7 @@ struct IrInstruction {
     uint8_t intrinsic_argc = 0;
     uint32_t branch_target = 0;
     uint32_t branch_false_target = 0;
+    std::vector<PhiIncoming> phi_incomings;
 };
 
 struct IrBasicBlock {

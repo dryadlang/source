@@ -1,0 +1,20 @@
+// DryadSquare pipeline: source → AST → bytecode → VM.
+
+import { Sq_parse } from "examples/dryadsquare/square/parse";
+import { Sq_compile } from "examples/dryadsquare/square/compiler";
+import { Sq_vmRun, Sq_vmGetVar } from "examples/dryadsquare/square/vm";
+
+function Sq_compileSource(source) {
+    let ast = Sq_parse(source);
+    return Sq_compile(ast);
+}
+
+function Sq_runSource(source) {
+    let program = Sq_compileSource(source);
+    return Sq_vmRun(program);
+}
+
+function Sq_runAndGet(source, varName) {
+    let state = Sq_runSource(source);
+    return Sq_vmGetVar(state, varName);
+}

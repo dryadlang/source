@@ -18,6 +18,7 @@ size_t opcode_length(Opcode op) {
         case Opcode::LOAD_FAST:
         case Opcode::STORE_FAST:
         case Opcode::LOAD_GLOBAL:
+        case Opcode::MAKE_FUNCTION:
         case Opcode::JUMP:
         case Opcode::JUMP_IF_FALSE:
         case Opcode::JUMP_IF_TRUE:
@@ -65,9 +66,7 @@ public:
     explicit BytecodeToIr(const CompiledFunction& function) : function_(function) {}
 
     IrFunction build() {
-        block_entry_stacks_.clear();
-        block_entry_type_stacks_.clear();
-        block_stack_known_.clear();
+        block_entry_states_.clear();
         IrFunction ir;
         ir.name = function_.metadata.name;
         ir.metadata = function_.metadata;
@@ -119,20 +118,122 @@ private:
     std::vector<int> stack_;
     std::vector<IrType> stack_types_;
     std::vector<std::string> string_literals_;
-    std::vector<std::vector<int>> block_entry_stacks_;
-    std::vector<std::vector<IrType>> block_entry_type_stacks_;
-    std::vector<bool> block_stack_known_;
+    struct BlockEntryState {
+        uint32_t pred_block = 0;
+        std::vector<int> stack;
+        std::vector<IrType> stack_types;
+    };
+    std::vector<std::vector<BlockEntryState>> block_entry_states_;
     int next_reg_ = 0;
 
-    void record_block_entry_stack(uint32_t block_index) {
-        if (block_index >= block_entry_stacks_.size()) {
-            block_entry_stacks_.resize(block_index + 1);
-            block_entry_type_stacks_.resize(block_index + 1);
-            block_stack_known_.resize(block_index + 1);
+    void record_block_entry_stack(uint32_t pred_block, uint32_t block_index) {
+        if (block_index >= block_entry_states_.size()) {
+            block_entry_states_.resize(block_index + 1);
         }
-        block_entry_stacks_[block_index] = stack_;
-        block_entry_type_stacks_[block_index] = stack_types_;
-        block_stack_known_[block_index] = true;
+        BlockEntryState state;
+        state.pred_block = pred_block;
+        state.stack = stack_;
+        state.stack_types = stack_types_;
+        while (state.stack_types.size() < state.stack.size()) {
+            state.stack_types.push_back(IrType::Variant);
+        }
+        while (state.stack_types.size() > state.stack.size()) {
+            state.stack_types.pop_back();
+        }
+        block_entry_states_[block_index].push_back(std::move(state));
+    }
+
+    static IrType common_stack_type(IrType a, IrType b) {
+        if (a == b) {
+            return a;
+        }
+        if (a == IrType::Bool || b == IrType::Bool) {
+            return IrType::Bool;
+        }
+        if (a == IrType::I32 || b == IrType::I32) {
+            return IrType::I32;
+        }
+        return IrType::Variant;
+    }
+
+    int ensure_bool_operand(IrBasicBlock& block, int reg, IrType type) {
+        if (type == IrType::Bool) {
+            return reg;
+        }
+        IrInstruction unbox;
+        unbox.op = IrOpcode::UnboxBool;
+        unbox.lhs = reg;
+        unbox.result = fresh_reg(IrType::Bool);
+        unbox.result_type = IrType::Bool;
+        block.instructions.push_back(unbox);
+        return unbox.result;
+    }
+
+    void initialize_block_stack(uint32_t block_index, IrBasicBlock& block) {
+        if (block_index == 0) {
+            stack_.clear();
+            stack_types_.clear();
+            return;
+        }
+        if (block_index >= block_entry_states_.size() ||
+            block_entry_states_[block_index].empty()) {
+            stack_.clear();
+            stack_types_.clear();
+            return;
+        }
+
+        const auto& entries = block_entry_states_[block_index];
+        if (entries.size() == 1) {
+            stack_ = entries.front().stack;
+            stack_types_ = entries.front().stack_types;
+            return;
+        }
+
+        const size_t depth = entries.front().stack.size();
+        stack_.clear();
+        stack_types_.clear();
+        for (size_t pos = 0; pos < depth; ++pos) {
+            bool same = true;
+            const int first_reg = entries.front().stack[pos];
+            IrType merged_type = entries.front().stack_types[pos];
+            for (size_t entry_index = 1; entry_index < entries.size(); ++entry_index) {
+                merged_type = common_stack_type(merged_type, entries[entry_index].stack_types[pos]);
+                if (entries[entry_index].stack[pos] != first_reg) {
+                    same = false;
+                }
+            }
+            if (same) {
+                stack_.push_back(first_reg);
+                stack_types_.push_back(merged_type);
+                continue;
+            }
+
+            bool all_bool = true;
+            for (const auto& entry : entries) {
+                if (pos >= entry.stack_types.size() ||
+                    entry.stack_types[pos] != IrType::Bool) {
+                    all_bool = false;
+                    break;
+                }
+            }
+            if (all_bool) {
+                merged_type = IrType::Bool;
+            }
+
+            IrInstruction phi;
+            phi.op = IrOpcode::Phi;
+            phi.result_type = merged_type;
+            phi.result = fresh_reg(merged_type);
+            for (const auto& entry : entries) {
+                PhiIncoming incoming;
+                incoming.block = entry.pred_block;
+                incoming.reg = entry.stack[pos];
+                phi.phi_incomings.push_back(incoming);
+            }
+            block.instructions.push_back(phi);
+            stack_.push_back(phi.result);
+            stack_types_.push_back(merged_type);
+        }
     }
 
     uint16_t intern_string(const std::string& text) {
@@ -183,11 +284,64 @@ private:
         }
         int value = stack_.back();
         stack_.pop_back();
-        if (type_out && !stack_types_.empty()) {
-            *type_out = stack_types_.back();
+        if (!stack_types_.empty()) {
+            if (type_out) {
+                *type_out = stack_types_.back();
+            }
             stack_types_.pop_back();
+        } else if (type_out) {
+            *type_out = IrType::Variant;
         }
         return value;
+    }
+
+    IrType live_slot_type(const IrFunction& ir, uint16_t slot) const {
+        if (slot < ir.slot_types.size()) {
+            return ir.slot_types[slot];
+        }
+        return IrType::Variant;
+    }
+
+    int ensure_i32_operand(IrBasicBlock& block, int reg, IrType type) {
+        if (type == IrType::I32) {
+            return reg;
+        }
+        IrInstruction unbox;
+        unbox.op = IrOpcode::UnboxI32;
+        unbox.lhs = reg;
+        unbox.result = fresh_reg(IrType::I32);
+        block.instructions.push_back(unbox);
+        return unbox.result;
+    }
+
+    void emit_i32_compare(IrBasicBlock& block, IrOpcode cmp_op, Opcode fallback_opcode) {
+        IrType rhs_type = IrType::Variant;
+        IrType lhs_type = IrType::Variant;
+        const int rhs = pop(&rhs_type);
+        const int lhs = pop(&lhs_type);
+        IrInstruction inst;
+
+        if (lhs_type == IrType::I32 && rhs_type == IrType::I32) {
+            inst.op = cmp_op;
+            inst.lhs = lhs;
+            inst.rhs = rhs;
+        } else if (lhs_type == IrType::Variant && rhs_type == IrType::Variant &&
+                   (cmp_op == IrOpcode::CmpEqI32 || cmp_op == IrOpcode::CmpNeI32)) {
+            inst.op = IrOpcode::IntrinsicSlow;
+            inst.intrinsic_id =
+                static_cast<uint16_t>(0xFF00u | static_cast<uint8_t>(fallback_opcode));
+            inst.intrinsic_argc = 2;
+            inst.lhs = lhs;
+            inst.rhs = rhs;
+        } else {
+            inst.op = cmp_op;
+            inst.lhs = ensure_i32_operand(block, lhs, lhs_type);
+            inst.rhs = ensure_i32_operand(block, rhs, rhs_type);
+        }
+        inst.result_type = IrType::Bool;
+        inst.result = fresh_reg(IrType::Bool);
+        block.instructions.push_back(inst);
+        push(inst.result, IrType::Bool);
     }
 
     void emit_block(uint32_t block_index,
@@ -200,17 +354,7 @@ private:
                                   ? leaders[block_index + 1]
                                   : code.size();
         IrBasicBlock& block = ir.blocks[block_index];
-        if (block_index == 0) {
-            stack_.clear();
-            stack_types_.clear();
-        } else if (block_index < block_stack_known_.size() &&
-                   block_stack_known_[block_index]) {
-            stack_ = block_entry_stacks_[block_index];
-            stack_types_ = block_entry_type_stacks_[block_index];
-        } else {
-            stack_.clear();
-            stack_types_.clear();
-        }
+        initialize_block_stack(block_index, block);
 
         while (pc < end_pc) {
             Opcode op = static_cast<Opcode>(code[pc]);
@@ -234,7 +378,7 @@ private:
                 emit_jump(op, pc, block_index, block, pc_to_block);
                 return;
             }
-            emit_opcode(op, pc, block);
+            emit_opcode(op, pc, block, ir);
         }
 
         if (block_index + 1 < leaders.size()) {
@@ -242,7 +386,7 @@ private:
             br.op = IrOpcode::Br;
             br.branch_target = static_cast<uint32_t>(block_index + 1);
             block.instructions.push_back(br);
-            record_block_entry_stack(static_cast<uint32_t>(block_index + 1));
+            record_block_entry_stack(block_index, static_cast<uint32_t>(block_index + 1));
         }
     }
 
@@ -264,13 +408,13 @@ private:
             br.op = IrOpcode::Br;
             br.branch_target = target_block;
             block.instructions.push_back(br);
-            record_block_entry_stack(target_block);
+            record_block_entry_stack(block_index, target_block);
         } else {
             IrType cond_type = IrType::Bool;
             const int cond = pop(&cond_type);
             IrInstruction br;
             br.op = IrOpcode::BrCond;
-            br.lhs = cond;
+            br.lhs = ensure_bool_operand(block, cond, cond_type);
             if (op == Opcode::JUMP_IF_FALSE) {
                 br.branch_target = fallthrough_block;
                 br.branch_false_target = target_block;
@@ -279,12 +423,12 @@ private:
                 br.branch_false_target = fallthrough_block;
             }
             block.instructions.push_back(br);
-            record_block_entry_stack(fallthrough_block);
-            record_block_entry_stack(target_block);
+            record_block_entry_stack(block_index, fallthrough_block);
+            record_block_entry_stack(block_index, target_block);
         }
     }
 
-    void emit_opcode(Opcode op, size_t& pc, IrBasicBlock& block) {
+    void emit_opcode(Opcode op, size_t& pc, IrBasicBlock& block, IrFunction& ir) {
         IrInstruction inst;
         switch (op) {
             case Opcode::PUSH_INT:
@@ -333,7 +477,11 @@ private:
                 uint16_t slot = read_u16(pc + 1);
                 inst.op = IrOpcode::LoadFast;
                 inst.slot = slot;
-                inst.result_type = ir_type_for_slot(function_.metadata, slot);
+                IrType slot_type = live_slot_type(ir, slot);
+                if (slot_type == IrType::Variant) {
+                    slot_type = ir_type_for_slot(function_.metadata, slot);
+                }
+                inst.result_type = slot_type;
                 inst.result = fresh_reg(inst.result_type);
                 block.instructions.push_back(inst);
                 push(inst.result, inst.result_type);
@@ -365,19 +513,27 @@ private:
                 inst.result = pop(&value_type);
                 inst.result_type = value_type;
                 block.instructions.push_back(inst);
+                if (slot < ir.slot_types.size()) {
+                    ir.slot_types[slot] = value_type;
+                }
                 pc += 3;
                 break;
             }
-            case Opcode::ADD_I32:
+            case Opcode::ADD_I32: {
+                IrType rhs_type = IrType::Variant;
+                IrType lhs_type = IrType::Variant;
                 inst.op = IrOpcode::AddI32;
                 inst.result_type = IrType::I32;
-                inst.rhs = pop();
-                inst.lhs = pop();
+                inst.rhs = pop(&rhs_type);
+                inst.lhs = pop(&lhs_type);
+                inst.rhs = ensure_i32_operand(block, inst.rhs, rhs_type);
+                inst.lhs = ensure_i32_operand(block, inst.lhs, lhs_type);
                 inst.result = fresh_reg(IrType::I32);
                 block.instructions.push_back(inst);
                 push(inst.result, IrType::I32);
                 pc += 1;
                 break;
+            }
             case Opcode::ADD_F64:
                 inst.op = IrOpcode::AddF64;
                 inst.result_type = IrType::F64;
@@ -388,16 +544,21 @@ private:
                 push(inst.result, IrType::F64);
                 pc += 1;
                 break;
-            case Opcode::SUB_I32:
+            case Opcode::SUB_I32: {
+                IrType rhs_type = IrType::Variant;
+                IrType lhs_type = IrType::Variant;
                 inst.op = IrOpcode::SubI32;
                 inst.result_type = IrType::I32;
-                inst.rhs = pop();
-                inst.lhs = pop();
+                inst.rhs = pop(&rhs_type);
+                inst.lhs = pop(&lhs_type);
+                inst.rhs = ensure_i32_operand(block, inst.rhs, rhs_type);
+                inst.lhs = ensure_i32_operand(block, inst.lhs, lhs_type);
                 inst.result = fresh_reg(IrType::I32);
                 block.instructions.push_back(inst);
                 push(inst.result, IrType::I32);
                 pc += 1;
                 break;
+            }
             case Opcode::SUB_F64:
                 inst.op = IrOpcode::SubF64;
                 inst.result_type = IrType::F64;
@@ -408,16 +569,21 @@ private:
                 push(inst.result, IrType::F64);
                 pc += 1;
                 break;
-            case Opcode::MUL_I32:
+            case Opcode::MUL_I32: {
+                IrType rhs_type = IrType::Variant;
+                IrType lhs_type = IrType::Variant;
                 inst.op = IrOpcode::MulI32;
                 inst.result_type = IrType::I32;
-                inst.rhs = pop();
-                inst.lhs = pop();
+                inst.rhs = pop(&rhs_type);
+                inst.lhs = pop(&lhs_type);
+                inst.rhs = ensure_i32_operand(block, inst.rhs, rhs_type);
+                inst.lhs = ensure_i32_operand(block, inst.lhs, lhs_type);
                 inst.result = fresh_reg(IrType::I32);
                 block.instructions.push_back(inst);
                 push(inst.result, IrType::I32);
                 pc += 1;
                 break;
+            }
             case Opcode::SUB:
             case Opcode::MUL:
             case Opcode::DIV:
@@ -433,22 +599,31 @@ private:
                 pc += 1;
                 break;
             }
-            case Opcode::DIV_I32:
-            case Opcode::NOT:
+            case Opcode::DIV_I32: {
                 inst.op = IrOpcode::IntrinsicSlow;
                 inst.intrinsic_id = static_cast<uint16_t>(0xFF00u | static_cast<uint8_t>(op));
-                inst.intrinsic_argc = (op == Opcode::NOT) ? 1 : 2;
-                if (op == Opcode::NOT) {
-                    inst.lhs = pop();
-                } else {
-                    inst.rhs = pop();
-                    inst.lhs = pop();
-                }
+                inst.intrinsic_argc = 2;
+                inst.rhs = pop();
+                inst.lhs = pop();
                 inst.result = fresh_reg(IrType::Variant);
                 block.instructions.push_back(inst);
                 push(inst.result, IrType::Variant);
                 pc += 1;
                 break;
+            }
+            case Opcode::NOT: {
+                IrType lhs_type = IrType::Variant;
+                const int lhs = pop(&lhs_type);
+                const int bool_lhs = ensure_bool_operand(block, lhs, lhs_type);
+                inst.op = IrOpcode::NotBool;
+                inst.lhs = bool_lhs;
+                inst.result = fresh_reg(IrType::Bool);
+                inst.result_type = IrType::Bool;
+                block.instructions.push_back(inst);
+                push(inst.result, IrType::Bool);
+                pc += 1;
+                break;
+            }
             case Opcode::MUL_F64:
                 inst.op = IrOpcode::MulF64;
                 inst.result_type = IrType::F64;
@@ -470,76 +645,60 @@ private:
                 pc += 1;
                 break;
             case Opcode::EQ:
-                inst.op = IrOpcode::CmpEqI32;
-                inst.result_type = IrType::Bool;
-                inst.rhs = pop();
-                inst.lhs = pop();
-                inst.result = fresh_reg(IrType::Bool);
-                block.instructions.push_back(inst);
-                push(inst.result, IrType::Bool);
+                emit_i32_compare(block, IrOpcode::CmpEqI32, Opcode::EQ);
                 pc += 1;
                 break;
             case Opcode::NEQ:
-                inst.op = IrOpcode::CmpNeI32;
-                inst.result_type = IrType::Bool;
-                inst.rhs = pop();
-                inst.lhs = pop();
-                inst.result = fresh_reg(IrType::Bool);
-                block.instructions.push_back(inst);
-                push(inst.result, IrType::Bool);
+                emit_i32_compare(block, IrOpcode::CmpNeI32, Opcode::NEQ);
                 pc += 1;
                 break;
             case Opcode::LT:
-                inst.op = IrOpcode::CmpLtI32;
-                inst.result_type = IrType::Bool;
-                inst.rhs = pop();
-                inst.lhs = pop();
-                inst.result = fresh_reg(IrType::Bool);
-                block.instructions.push_back(inst);
-                push(inst.result, IrType::Bool);
+                emit_i32_compare(block, IrOpcode::CmpLtI32, Opcode::LT);
                 pc += 1;
                 break;
             case Opcode::LTE:
-                inst.op = IrOpcode::CmpLeI32;
-                inst.result_type = IrType::Bool;
-                inst.rhs = pop();
-                inst.lhs = pop();
-                inst.result = fresh_reg(IrType::Bool);
-                block.instructions.push_back(inst);
-                push(inst.result, IrType::Bool);
+                emit_i32_compare(block, IrOpcode::CmpLeI32, Opcode::LTE);
                 pc += 1;
                 break;
             case Opcode::GT:
-                inst.op = IrOpcode::CmpGtI32;
-                inst.result_type = IrType::Bool;
-                inst.rhs = pop();
-                inst.lhs = pop();
-                inst.result = fresh_reg(IrType::Bool);
-                block.instructions.push_back(inst);
-                push(inst.result, IrType::Bool);
+                emit_i32_compare(block, IrOpcode::CmpGtI32, Opcode::GT);
                 pc += 1;
                 break;
             case Opcode::GTE:
-                inst.op = IrOpcode::CmpGeI32;
-                inst.result_type = IrType::Bool;
-                inst.rhs = pop();
-                inst.lhs = pop();
-                inst.result = fresh_reg(IrType::Bool);
-                block.instructions.push_back(inst);
-                push(inst.result, IrType::Bool);
+                emit_i32_compare(block, IrOpcode::CmpGeI32, Opcode::GTE);
                 pc += 1;
                 break;
+            case Opcode::MAKE_FUNCTION: {
+                inst.op = IrOpcode::IntrinsicSlow;
+                inst.intrinsic_id =
+                    static_cast<uint16_t>(0xFF00u | static_cast<uint8_t>(Opcode::MAKE_FUNCTION));
+                inst.intrinsic_argc = 0;
+                inst.slot = read_u16(pc + 1);
+                inst.result = fresh_reg(IrType::Variant);
+                block.instructions.push_back(inst);
+                push(inst.result, IrType::Variant);
+                pc += 3;
+                break;
+            }
             case Opcode::ADD: {
                 IrType rhs_type = IrType::Variant;
                 IrType lhs_type = IrType::Variant;
                 inst.rhs = pop(&rhs_type);
                 inst.lhs = pop(&lhs_type);
-                if (lhs_type == IrType::I32 && rhs_type == IrType::I32) {
+                if (lhs_type == IrType::I32 || rhs_type == IrType::I32) {
                     inst.op = IrOpcode::AddI32;
                     inst.result_type = IrType::I32;
+                    inst.rhs = ensure_i32_operand(block, inst.rhs, rhs_type);
+                    inst.lhs = ensure_i32_operand(block, inst.lhs, lhs_type);
                     inst.result = fresh_reg(IrType::I32);
                     block.instructions.push_back(inst);
                     push(inst.result, IrType::I32);
+                } else if (lhs_type == IrType::F64 || rhs_type == IrType::F64) {
+                    inst.op = IrOpcode::AddF64;
+                    inst.result_type = IrType::F64;
+                    inst.result = fresh_reg(IrType::F64);
+                    block.instructions.push_back(inst);
+                    push(inst.result, IrType::F64);
                 } else {
                     inst.op = IrOpcode::GenericAdd;
                     inst.result_type = IrType::Variant;
@@ -561,11 +720,13 @@ private:
                 break;
             }
             case Opcode::ARRAY_PUSH: {
-                inst.rhs = pop();
+                IrType value_type = IrType::Variant;
+                inst.rhs = pop(&value_type);
                 inst.lhs = pop();
                 inst.op = IrOpcode::IntrinsicSlow;
                 inst.intrinsic_id = static_cast<uint16_t>(0xFF00u | static_cast<uint8_t>(op));
                 inst.intrinsic_argc = 2;
+                inst.result_type = value_type;
                 inst.result = fresh_reg(IrType::Variant);
                 block.instructions.push_back(inst);
                 push(inst.result, IrType::Variant);
@@ -641,9 +802,22 @@ private:
                 if (op == Opcode::METHOD_CALL) {
                     inst.lhs = pop();
                 }
-                inst.result = fresh_reg(IrType::Variant);
+                IrType call_result_type = IrType::Variant;
+                if (op == Opcode::CALL_GLOBAL && !arg_types.empty()) {
+                    bool all_i32 = true;
+                    for (IrType arg_type : arg_types) {
+                        if (arg_type != IrType::I32) {
+                            all_i32 = false;
+                            break;
+                        }
+                    }
+                    if (all_i32) {
+                        call_result_type = IrType::I32;
+                    }
+                }
+                inst.result = fresh_reg(call_result_type);
                 block.instructions.push_back(inst);
-                push(inst.result, IrType::Variant);
+                push(inst.result, call_result_type);
                 pc += 4;
                 break;
             }

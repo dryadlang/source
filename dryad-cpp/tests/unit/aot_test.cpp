@@ -47,8 +47,9 @@ TEST(AotTest, CompileToDryadc) {
 
     CompiledProgram loaded;
     ASSERT_TRUE(load_compiled_program(output, loaded));
-    EXPECT_EQ(loaded.functions.size(), 1u);
+    EXPECT_EQ(loaded.functions.size(), 2u);
     EXPECT_EQ(loaded.functions[0].metadata.name, "compute");
+    EXPECT_EQ(loaded.functions[1].metadata.name, kScriptEntryFunctionName);
 
     std::remove(input.c_str());
     std::remove(output.c_str());
@@ -194,8 +195,9 @@ TEST(AotTest, MicroIrFromBytecode) {
     options.run_profiler = true;
     CompiledProgram program = compile_file_to_bytecode(input, options);
     IrModule ir = bytecode_to_micro_ir(program);
-    EXPECT_EQ(ir.functions.size(), 1u);
+    EXPECT_EQ(ir.functions.size(), 2u);
     EXPECT_FALSE(ir.functions[0].instructions.empty());
+    EXPECT_EQ(ir.functions[1].metadata.name, kScriptEntryFunctionName);
 
     std::remove(input.c_str());
 }

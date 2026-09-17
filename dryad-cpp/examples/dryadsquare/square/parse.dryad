@@ -1,0 +1,275 @@
+// Recursive-descent parser for Square.
+
+import { List } from "@std/collections/list";
+import { Sq_lex } from "examples/dryadsquare/square/token";
+
+function Sq_node(kind) {
+    let node = __runtime_create_object();
+    __runtime_object_set(node, "kind", kind);
+    return node;
+}
+
+function Sq_parser(tokens) {
+    let parser = __runtime_create_object();
+    __runtime_object_set(parser, "tokens", tokens);
+    __runtime_object_set(parser, "index", 0);
+    return parser;
+}
+
+function Sq_current(parser) {
+    let tokens = __runtime_object_get(parser, "tokens");
+    let index = __runtime_object_get(parser, "index");
+    return tokens.get(index);
+}
+
+function Sq_advance(parser) {
+    let index = __runtime_object_get(parser, "index");
+    __runtime_object_set(parser, "index", index + 1);
+    return null;
+}
+
+function Sq_check(parser, type) {
+    let token = Sq_current(parser);
+    return __runtime_object_get(token, "type") == type;
+}
+
+function Sq_match(parser, type) {
+    if (Sq_check(parser, type)) {
+        Sq_advance(parser);
+        return true;
+    }
+    return false;
+}
+
+function Sq_expect(parser, type) {
+    if (!Sq_match(parser, type)) {
+        return null;
+    }
+    return true;
+}
+
+function Sq_parseBlock(parser) {
+    if (!Sq_expect(parser, "LBRACE")) {
+        return null;
+    }
+    let block = Sq_node("block");
+    let statements = [];
+    while (!Sq_check(parser, "RBRACE") && !Sq_check(parser, "EOF")) {
+        let stmt = Sq_parseStatement(parser);
+        if (stmt != null) {
+            __runtime_array_push(statements, stmt);
+        } else {
+            Sq_advance(parser);
+        }
+    }
+    if (!Sq_expect(parser, "RBRACE")) {
+        return null;
+    }
+    __runtime_object_set(block, "statements", statements);
+    return block;
+}
+
+function Sq_parsePrimary(parser) {
+    let token = Sq_current(parser);
+    let type = __runtime_object_get(token, "type");
+
+    if (type == "NUMBER") {
+        Sq_advance(parser);
+        let node = Sq_node("number");
+        __runtime_object_set(node, "value", __runtime_object_get(token, "value"));
+        return node;
+    }
+
+    if (type == "IDENT") {
+        Sq_advance(parser);
+        let node = Sq_node("ident");
+        __runtime_object_set(node, "name", __runtime_object_get(token, "value"));
+        return node;
+    }
+
+    if (Sq_match(parser, "LPAREN")) {
+        let expr = Sq_parseExpression(parser);
+        if (!Sq_expect(parser, "RPAREN")) {
+            return null;
+        }
+        return expr;
+    }
+
+    return null;
+}
+
+function Sq_parseUnary(parser) {
+    if (Sq_match(parser, "MINUS")) {
+        let node = Sq_node("unary");
+        __runtime_object_set(node, "op", "-");
+        __runtime_object_set(node, "operand", Sq_parseUnary(parser));
+        return node;
+    }
+    return Sq_parsePrimary(parser);
+}
+
+function Sq_parseFactor(parser) {
+    let left = Sq_parseUnary(parser);
+    while (Sq_check(parser, "STAR") || Sq_check(parser, "SLASH") || Sq_check(parser, "PERCENT")) {
+        let token = Sq_current(parser);
+        let op = __runtime_object_get(token, "value");
+        Sq_advance(parser);
+        let right = Sq_parseUnary(parser);
+        let node = Sq_node("binary");
+        __runtime_object_set(node, "op", op);
+        __runtime_object_set(node, "left", left);
+        __runtime_object_set(node, "right", right);
+        left = node;
+    }
+    return left;
+}
+
+function Sq_parseTerm(parser) {
+    let left = Sq_parseFactor(parser);
+    while (Sq_check(parser, "PLUS") || Sq_check(parser, "MINUS")) {
+        let token = Sq_current(parser);
+        let op = __runtime_object_get(token, "value");
+        Sq_advance(parser);
+        let right = Sq_parseFactor(parser);
+        let node = Sq_node("binary");
+        __runtime_object_set(node, "op", op);
+        __runtime_object_set(node, "left", left);
+        __runtime_object_set(node, "right", right);
+        left = node;
+    }
+    return left;
+}
+
+function Sq_parseComparison(parser) {
+    let left = Sq_parseTerm(parser);
+    if (Sq_check(parser, "LT") || Sq_check(parser, "LTE") ||
+        Sq_check(parser, "EQEQ") || Sq_check(parser, "NEQ") ||
+        Sq_check(parser, "GTE") || Sq_check(parser, "GT")) {
+        let token = Sq_current(parser);
+        let op = __runtime_object_get(token, "value");
+        Sq_advance(parser);
+        let right = Sq_parseTerm(parser);
+        let node = Sq_node("binary");
+        __runtime_object_set(node, "op", op);
+        __runtime_object_set(node, "left", left);
+        __runtime_object_set(node, "right", right);
+        return node;
+    }
+    return left;
+}
+
+function Sq_parseExpression(parser) {
+    return Sq_parseComparison(parser);
+}
+
+function Sq_parseStatement(parser) {
+    if (Sq_check(parser, "KW_VAR")) {
+        Sq_advance(parser);
+        let nameToken = Sq_current(parser);
+        if (!Sq_match(parser, "IDENT")) {
+            return null;
+        }
+        if (!Sq_expect(parser, "EQ")) {
+            return null;
+        }
+        let init = Sq_parseExpression(parser);
+        if (!Sq_expect(parser, "SEMI")) {
+            return null;
+        }
+        let node = Sq_node("var");
+        __runtime_object_set(node, "name", __runtime_object_get(nameToken, "value"));
+        __runtime_object_set(node, "init", init);
+        return node;
+    }
+
+    if (Sq_check(parser, "KW_PRINT")) {
+        Sq_advance(parser);
+        let expr = Sq_parseExpression(parser);
+        if (!Sq_expect(parser, "SEMI")) {
+            return null;
+        }
+        let node = Sq_node("print");
+        __runtime_object_set(node, "expr", expr);
+        return node;
+    }
+
+    if (Sq_check(parser, "KW_WHILE")) {
+        Sq_advance(parser);
+        if (!Sq_expect(parser, "LPAREN")) {
+            return null;
+        }
+        let cond = Sq_parseExpression(parser);
+        if (!Sq_expect(parser, "RPAREN")) {
+            return null;
+        }
+        let body = Sq_parseBlock(parser);
+        let node = Sq_node("while");
+        __runtime_object_set(node, "cond", cond);
+        __runtime_object_set(node, "body", body);
+        return node;
+    }
+
+    if (Sq_check(parser, "KW_IF")) {
+        Sq_advance(parser);
+        if (!Sq_expect(parser, "LPAREN")) {
+            return null;
+        }
+        let cond = Sq_parseExpression(parser);
+        if (!Sq_expect(parser, "RPAREN")) {
+            return null;
+        }
+        let thenBlock = Sq_parseBlock(parser);
+        let elseBlock = null;
+        if (Sq_match(parser, "KW_ELSE")) {
+            elseBlock = Sq_parseBlock(parser);
+        }
+        let node = Sq_node("if");
+        __runtime_object_set(node, "cond", cond);
+        __runtime_object_set(node, "then", thenBlock);
+        __runtime_object_set(node, "else", elseBlock);
+        return node;
+    }
+
+    if (Sq_check(parser, "IDENT")) {
+        let nameToken = Sq_current(parser);
+        Sq_advance(parser);
+        if (!Sq_expect(parser, "EQ")) {
+            return null;
+        }
+        let value = Sq_parseExpression(parser);
+        if (!Sq_expect(parser, "SEMI")) {
+            return null;
+        }
+        let node = Sq_node("assign");
+        __runtime_object_set(node, "name", __runtime_object_get(nameToken, "value"));
+        __runtime_object_set(node, "value", value);
+        return node;
+    }
+
+    if (Sq_check(parser, "LBRACE")) {
+        return Sq_parseBlock(parser);
+    }
+
+    return null;
+}
+
+function Sq_parseProgram(parser) {
+    let program = Sq_node("program");
+    let statements = [];
+    while (!Sq_check(parser, "EOF")) {
+        let stmt = Sq_parseStatement(parser);
+        if (stmt != null) {
+            __runtime_array_push(statements, stmt);
+        } else {
+            Sq_advance(parser);
+        }
+    }
+    __runtime_object_set(program, "statements", statements);
+    return program;
+}
+
+function Sq_parse(source) {
+    let tokens = Sq_lex(source);
+    let parser = Sq_parser(tokens);
+    return Sq_parseProgram(parser);
+}

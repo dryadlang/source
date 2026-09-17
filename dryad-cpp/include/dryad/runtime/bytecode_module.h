@@ -40,6 +40,8 @@ struct CompiledProgram {
 
 bool save_compiled_program(const CompiledProgram& program, const std::string& path);
 bool load_compiled_program(const std::string& path, CompiledProgram& program);
+std::vector<uint8_t> serialize_program_to_bytes(const CompiledProgram& program);
+CompiledProgram deserialize_program_from_bytes(const std::vector<uint8_t>& data);
 uint16_t find_function_index(const CompiledProgram& program, const std::string& name);
 
 } // namespace dryad

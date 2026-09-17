@@ -19,6 +19,8 @@ public:
                                 const std::vector<Value>& args) = 0;
     virtual Value new_instance(const Value& class_value, const std::vector<Value>& args) = 0;
     virtual Value invoke_global(const std::string& name, const std::vector<Value>& args) = 0;
+    virtual Value invoke_bytecode_function(uint16_t function_index,
+                                           const std::vector<Value>& args) = 0;
 };
 
 } // namespace dryad

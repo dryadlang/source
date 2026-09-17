@@ -33,6 +33,7 @@ void register_property_accessor(const std::shared_ptr<DryadClass>& klass,
         std::move(body),
         "",
         false,
+        false,
         false
     );
 
@@ -126,6 +127,10 @@ void StatementExecutor::execute(Statement* stmt) {
 
         case ASTNodeType::ImportDeclaration:
             execute_import(static_cast<ImportDeclaration*>(stmt));
+            break;
+
+        case ASTNodeType::ExportDeclaration:
+            execute_export_from(static_cast<ExportFromDeclaration*>(stmt));
             break;
 
         case ASTNodeType::CompileBlockStatement:
@@ -257,6 +262,10 @@ void StatementExecutor::execute_import(ImportDeclaration* stmt) {
     interpreter_->module_loader().execute_import(stmt, interpreter_);
 }
 
+void StatementExecutor::execute_export_from(ExportFromDeclaration* stmt) {
+    interpreter_->module_loader().execute_export_from(stmt, interpreter_);
+}
+
 void StatementExecutor::execute_compile_block(CompileBlockStatement* stmt) {
     auto& engine = interpreter_->execution_engine();
     engine.push_scope_mode(stmt->mode);
@@ -366,6 +375,7 @@ void StatementExecutor::execute_class_declaration(ClassDeclaration* stmt) {
             std::move(method_decl->parameters),
             std::move(method_decl->body),
             "",
+            false,
             false,
             false
         );

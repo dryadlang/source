@@ -33,13 +33,24 @@ CompiledProgram compile_file_to_bytecode(const std::string& path, const CompileO
     if (!options.stdlib_root.empty()) {
         interpreter.set_stdlib_root(options.stdlib_root);
     }
+    if (!options.library_paths.empty()) {
+        interpreter.set_library_paths(options.library_paths);
+    }
     interpreter.set_network_allowed(options.allow_network);
+    interpreter.module_loader().push_import_context(path);
 
     if (options.run_profiler) {
-        interpreter.execute(program.get());
+        try {
+            interpreter.execute(program.get());
+        } catch (...) {
+            interpreter.module_loader().pop_import_context();
+            throw;
+        }
     }
+    interpreter.module_loader().pop_import_context();
 
     BytecodeCompiler compiler;
+    compiler.set_interpreter(&interpreter);
     return compiler.compile_program(program.get(), interpreter.type_profiler());
 }
 

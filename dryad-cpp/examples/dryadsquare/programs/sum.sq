@@ -1,0 +1,9 @@
+// Sum integers 0..9 → 45
+var n = 10;
+var i = 0;
+var sum = 0;
+while (i < n) {
+    sum = sum + i;
+    i = i + 1;
+}
+print sum;

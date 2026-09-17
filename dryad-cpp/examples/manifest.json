@@ -115,6 +115,13 @@
       "category": "net",
       "description": "HTTP URL/response parsing (no network)",
       "flags": []
+    },
+    {
+      "id": "turing-dryadsquare",
+      "path": "dryadsquare/dryadsquare.dryad",
+      "category": "tooling",
+      "description": "DryadSquare mini-compiler Turing-completeness benchmark",
+      "flags": []
     }
   ],
   "tooling": [

@@ -31,6 +31,12 @@ NativeLinkResult link_native_binary(NativeLinkKind kind,
                                   const std::string& aot_runtime_source,
                                   const std::string& include_dir);
 
+NativeLinkResult link_native_binary(NativeLinkKind kind,
+                                  const std::vector<std::string>& llvm_ir_paths,
+                                  const std::string& output_path,
+                                  const std::string& aot_runtime_source,
+                                  const std::string& include_dir);
+
 NativeLinkResult link_native_shared_object(const std::string& llvm_ir_path,
                                            const std::string& output_path,
                                            const std::string& aot_runtime_source,

@@ -33,6 +33,7 @@ private:
     void execute_continue(ContinueStatement* stmt);
     void execute_return(ReturnStatement* stmt);
     void execute_import(ImportDeclaration* stmt);
+    void execute_export_from(ExportFromDeclaration* stmt);
     void execute_compile_block(CompileBlockStatement* stmt);
 };
 

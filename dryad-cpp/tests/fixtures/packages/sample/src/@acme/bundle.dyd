@@ -1,0 +1,1 @@
+export { Vec2 } from "@test/geom";

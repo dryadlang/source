@@ -48,9 +48,9 @@ private:
     
     std::unique_ptr<Statement> parse_statement();
     std::unique_ptr<Statement> parse_declaration();
-    std::unique_ptr<Statement> parse_variable_declaration();
-    std::unique_ptr<Statement> parse_function_declaration(bool is_internal = false, bool is_async = false);
-    std::unique_ptr<Statement> parse_class_declaration(bool is_internal = false, bool is_abstract = false);
+    std::unique_ptr<Statement> parse_variable_declaration(bool is_exported = false);
+    std::unique_ptr<Statement> parse_function_declaration(bool is_internal = false, bool is_exported = false, bool is_async = false);
+    std::unique_ptr<Statement> parse_class_declaration(bool is_internal = false, bool is_abstract = false, bool is_exported = false);
     std::unique_ptr<Statement> parse_interface_declaration(bool is_internal = false);
     std::unique_ptr<PropertyDeclaration> parse_property_declaration(bool is_abstract, bool is_readonly, const Token& name, SourceLocation loc);
     void parse_property_accessors(PropertyDeclaration& property, SourceLocation loc);
@@ -65,6 +65,8 @@ private:
     std::unique_ptr<Statement> parse_for_statement();
     std::unique_ptr<Statement> parse_return_statement();
     std::unique_ptr<Statement> parse_import_declaration();
+    std::unique_ptr<Statement> parse_export_from_declaration();
+    std::unique_ptr<ImportDeclaration> parse_named_import_list(const std::string& closing_error);
     
     std::string parse_intrinsic_name();
     std::vector<Parameter> parse_parameters();

@@ -24,7 +24,8 @@ Interpreter* Interpreter::active() {
 
 Interpreter::Interpreter()
     : call_depth_(0), in_constructor_(false) {
-    global_ = std::make_shared<Environment>();
+    runtime_ = std::make_shared<Environment>();
+    global_ = std::make_shared<Environment>(runtime_);
     current_ = global_;
     
     evaluator_ = std::make_unique<ExpressionEvaluator>(this);
@@ -105,7 +106,7 @@ void Interpreter::setup_intrinsic_functions() {
 void Interpreter::define_native(const std::string& name,
                                 std::function<Value(const std::vector<Value>&)> func) {
     auto native_fn = std::make_shared<NativeFunction>(std::move(func));
-    global_->define(name, Value(native_fn));
+    runtime_->define(name, Value(native_fn));
 }
 
 void Interpreter::increment_call_depth() {
@@ -124,6 +125,10 @@ void Interpreter::set_stdlib_root(const std::string& path) {
     stdlib_root_ = path;
     module_loader_->set_stdlib_root(path);
     ThreadManager::set_stdlib_root(path);
+}
+
+void Interpreter::set_library_paths(const std::vector<std::string>& paths) {
+    module_loader_->set_library_paths(paths);
 }
 
 void Interpreter::set_network_allowed(bool allowed) {
@@ -151,7 +156,14 @@ void Interpreter::run_file(const std::string& path) {
     }
 
     execution_engine_->set_source_path(path);
-    execute(program.get());
+    module_loader_->push_import_context(path);
+    try {
+        execute(program.get());
+    } catch (...) {
+        module_loader_->pop_import_context();
+        throw;
+    }
+    module_loader_->pop_import_context();
 }
 
 void Interpreter::execute(Program* program) {
@@ -182,10 +194,18 @@ void Interpreter::execute_block(const std::vector<std::unique_ptr<Statement>>& s
     executor_->execute_block(statements, env);
 }
 
-FunctionDeclaration* Interpreter::get_or_create_lambda_code(FunctionExpression* expr) {
-    auto cached = lambda_code_cache_.find(expr);
+FunctionDeclaration* Interpreter::lookup_lambda_code(const FunctionExpression* expr) const {
+    auto cached = lambda_code_cache_.find(const_cast<FunctionExpression*>(expr));
     if (cached != lambda_code_cache_.end()) {
         return cached->second;
+    }
+    return nullptr;
+}
+
+FunctionDeclaration* Interpreter::get_or_create_lambda_code(FunctionExpression* expr) {
+    FunctionDeclaration* existing = lookup_lambda_code(expr);
+    if (existing) {
+        return existing;
     }
 
     auto owned = std::make_unique<FunctionDeclaration>(
@@ -193,6 +213,7 @@ FunctionDeclaration* Interpreter::get_or_create_lambda_code(FunctionExpression* 
         std::move(expr->parameters),
         std::move(expr->body),
         expr->return_type,
+        false,
         false,
         false,
         ExecutionMode::Inherit,

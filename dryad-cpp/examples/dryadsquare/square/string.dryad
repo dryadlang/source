@@ -1,0 +1,124 @@
+// String helpers for DryadSquare (pure Dryad, no host extensions).
+
+function Sq_len(text) {
+    return __string_length(text);
+}
+
+function Sq_charByte(text, index) {
+    let len = __string_length(text);
+    if (index < 0 || index >= len) {
+        return -1;
+    }
+    let handle = __alloc_bytes(len);
+    __string_to_bytes(text, handle, 0);
+    let byte = __buffer_get(handle, index);
+    __free_bytes(handle);
+    return byte;
+}
+
+function Sq_charAt(text, index) {
+    let handle = __alloc_bytes(1);
+    let byte = Sq_charByte(text, index);
+    if (byte < 0) {
+        __free_bytes(handle);
+        return "";
+    }
+    __buffer_set(handle, 0, byte);
+    let ch = __bytes_to_string(handle, 0, 1);
+    __free_bytes(handle);
+    return ch;
+}
+
+function Sq_substring(text, start, end) {
+    let len = end - start;
+    if (len <= 0) {
+        return "";
+    }
+    let handle = __alloc_bytes(len);
+    let textHandle = __alloc_bytes(__string_length(text));
+    __string_to_bytes(text, textHandle, 0);
+    let i = 0;
+    while (i < len) {
+        __buffer_set(handle, i, __buffer_get(textHandle, start + i));
+        i = i + 1;
+    }
+    __free_bytes(textHandle);
+    let result = __bytes_to_string(handle, 0, len);
+    __free_bytes(handle);
+    return result;
+}
+
+function Sq_isWhitespaceByte(byte) {
+    return byte == 32 || byte == 9 || byte == 10 || byte == 13;
+}
+
+function Sq_skipWhitespace(text, pos) {
+    let len = Sq_len(text);
+    while (pos < len) {
+        if (!Sq_isWhitespaceByte(Sq_charByte(text, pos))) {
+            return pos;
+        }
+        pos = pos + 1;
+    }
+    return pos;
+}
+
+function Sq_isDigitByte(byte) {
+    return byte >= 48 && byte <= 57;
+}
+
+function Sq_isIdentStartByte(byte) {
+    if (byte >= 65 && byte <= 90) {
+        return true;
+    }
+    if (byte >= 97 && byte <= 122) {
+        return true;
+    }
+    return byte == 95;
+}
+
+function Sq_isIdentPartByte(byte) {
+    if (Sq_isIdentStartByte(byte)) {
+        return true;
+    }
+    return Sq_isDigitByte(byte);
+}
+
+function Sq_parseInt(text) {
+    let value = 0;
+    let i = 0;
+    let len = Sq_len(text);
+    let negative = false;
+    if (i < len && Sq_charAt(text, i) == "-") {
+        negative = true;
+        i = i + 1;
+    }
+    while (i < len) {
+        let byte = Sq_charByte(text, i);
+        if (!Sq_isDigitByte(byte)) {
+            return 0;
+        }
+        value = value * 10 + (byte - 48);
+        i = i + 1;
+    }
+    if (negative) {
+        return 0 - value;
+    }
+    return value;
+}
+
+function Sq_startsWith(text, prefix) {
+    let prefixLen = Sq_len(prefix);
+    let textLen = Sq_len(text);
+    if (prefixLen > textLen) {
+        return false;
+    }
+    let i = 0;
+    while (i < prefixLen) {
+        if (Sq_charAt(text, i) != Sq_charAt(prefix, i)) {
+            return false;
+        }
+        i = i + 1;
+    }
+    return true;
+}

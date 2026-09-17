@@ -1,0 +1,203 @@
+// Square bytecode virtual machine.
+
+import { Map } from "@std/collections/map";
+
+function Sq_vmMakeState(program) {
+    let state = __runtime_create_object();
+    __runtime_object_set(state, "program", program);
+    __runtime_object_set(state, "pc", 0);
+    __runtime_object_set(state, "stack", []);
+    __runtime_object_set(state, "sp", 0);
+    __runtime_object_set(state, "vars", new Map());
+    __runtime_object_set(state, "halted", false);
+    return state;
+}
+
+function Sq_stackPush(state, value) {
+    let stack = __runtime_object_get(state, "stack");
+    let sp = __runtime_object_get(state, "sp");
+    if (sp < __runtime_array_length(stack)) {
+        stack[sp] = value;
+    } else {
+        __runtime_array_push(stack, value);
+    }
+    __runtime_object_set(state, "sp", sp + 1);
+    return null;
+}
+
+function Sq_stackPop(state) {
+    let stack = __runtime_object_get(state, "stack");
+    let sp = __runtime_object_get(state, "sp");
+    if (sp == 0) {
+        return 0;
+    }
+    sp = sp - 1;
+    __runtime_object_set(state, "sp", sp);
+    return stack[sp];
+}
+
+function Sq_varGet(state, index) {
+    let program = __runtime_object_get(state, "program");
+    let names = __runtime_object_get(program, "names");
+    let name = names[index];
+    let vars = __runtime_object_get(state, "vars");
+    if (!vars.has(name)) {
+        return 0;
+    }
+    return vars.get(name);
+}
+
+function Sq_varSet(state, index, value) {
+    let program = __runtime_object_get(state, "program");
+    let names = __runtime_object_get(program, "names");
+    let name = names[index];
+    let vars = __runtime_object_get(state, "vars");
+    vars.put(name, value);
+    return null;
+}
+
+function Sq_vmStep(state) {
+    if (__runtime_object_get(state, "halted")) {
+        return false;
+    }
+
+    let program = __runtime_object_get(state, "program");
+    let code = __runtime_object_get(program, "code");
+    let pc = __runtime_object_get(state, "pc");
+    let codeSize = __runtime_object_get(program, "code_size");
+    if (pc >= codeSize) {
+        __runtime_object_set(state, "halted", true);
+        return false;
+    }
+
+    let instr = code[pc];
+    let op = __runtime_object_get(instr, "op");
+    let arg = __runtime_object_get(instr, "arg");
+
+    if (op == 0) {
+        __runtime_object_set(state, "halted", true);
+        return false;
+    }
+    if (op == 1) {
+        Sq_stackPush(state, arg);
+        __runtime_object_set(state, "pc", pc + 1);
+        return true;
+    }
+    if (op == 2) {
+        Sq_stackPush(state, Sq_varGet(state, arg));
+        __runtime_object_set(state, "pc", pc + 1);
+        return true;
+    }
+    if (op == 3) {
+        Sq_varSet(state, arg, Sq_stackPop(state));
+        __runtime_object_set(state, "pc", pc + 1);
+        return true;
+    }
+    if (op == 4) {
+        let b = Sq_stackPop(state);
+        let a = Sq_stackPop(state);
+        Sq_stackPush(state, a + b);
+        __runtime_object_set(state, "pc", pc + 1);
+        return true;
+    }
+    if (op == 5) {
+        let b = Sq_stackPop(state);
+        let a = Sq_stackPop(state);
+        Sq_stackPush(state, a - b);
+        __runtime_object_set(state, "pc", pc + 1);
+        return true;
+    }
+    if (op == 6) {
+        let b = Sq_stackPop(state);
+        let a = Sq_stackPop(state);
+        Sq_stackPush(state, a * b);
+        __runtime_object_set(state, "pc", pc + 1);
+        return true;
+    }
+    if (op == 7) {
+        let b = Sq_stackPop(state);
+        let a = Sq_stackPop(state);
+        if (b == 0) {
+            __runtime_object_set(state, "halted", true);
+            return false;
+        }
+        Sq_stackPush(state, a / b);
+        __runtime_object_set(state, "pc", pc + 1);
+        return true;
+    }
+    if (op == 8) {
+        let b = Sq_stackPop(state);
+        let a = Sq_stackPop(state);
+        if (b == 0) {
+            __runtime_object_set(state, "halted", true);
+            return false;
+        }
+        Sq_stackPush(state, a % b);
+        __runtime_object_set(state, "pc", pc + 1);
+        return true;
+    }
+    if (op == 9) {
+        let b = Sq_stackPop(state);
+        let a = Sq_stackPop(state);
+        if (a < b) {
+            Sq_stackPush(state, 1);
+        } else {
+            Sq_stackPush(state, 0);
+        }
+        __runtime_object_set(state, "pc", pc + 1);
+        return true;
+    }
+    if (op == 10) {
+        let b = Sq_stackPop(state);
+        let a = Sq_stackPop(state);
+        if (a == b) {
+            Sq_stackPush(state, 1);
+        } else {
+            Sq_stackPush(state, 0);
+        }
+        __runtime_object_set(state, "pc", pc + 1);
+        return true;
+    }
+    if (op == 11) {
+        __runtime_object_set(state, "pc", arg);
+        return true;
+    }
+    if (op == 12) {
+        let cond = Sq_stackPop(state);
+        if (cond == 0 || cond == false) {
+            __runtime_object_set(state, "pc", arg);
+        } else {
+            __runtime_object_set(state, "pc", pc + 1);
+        }
+        return true;
+    }
+    if (op == 13) {
+        print(Sq_stackPop(state));
+        __runtime_object_set(state, "pc", pc + 1);
+        return true;
+    }
+
+    __runtime_object_set(state, "halted", true);
+    return false;
+}
+
+function Sq_vmGetVar(state, name) {
+    let vars = __runtime_object_get(state, "vars");
+    if (!vars.has(name)) {
+        return null;
+    }
+    return vars.get(name);
+}
+
+function Sq_vmRun(program) {
+    let state = Sq_vmMakeState(program);
+    let steps = 0;
+    let maxSteps = 1000000;
+    while (steps < maxSteps) {
+        if (!Sq_vmStep(state)) {
+            break;
+        }
+        steps = steps + 1;
+    }
+    return state;
+}

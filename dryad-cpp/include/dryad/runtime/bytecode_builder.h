@@ -20,6 +20,7 @@ public:
     void emit_load_fast(uint16_t slot);
     void emit_store_fast(uint16_t slot);
     void emit_load_global(uint16_t name_const);
+    void emit_make_function(uint16_t function_index);
     void emit_intrinsic_syscall(uint16_t intrinsic_id, uint8_t argc);
     void emit_halt();
     void emit_call(uint16_t function_index, uint8_t argc);

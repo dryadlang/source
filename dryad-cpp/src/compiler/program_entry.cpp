@@ -41,7 +41,7 @@ bool program_has_script_body(const Program* program) {
 }
 
 std::unique_ptr<FunctionDeclaration> synthesize_script_entry_function(Program* program) {
-    if (!program || program_has_user_functions(program) || !program_has_script_body(program)) {
+    if (!program || !program_has_script_body(program)) {
         return nullptr;
     }
 

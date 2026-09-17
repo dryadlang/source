@@ -1,0 +1,128 @@
+// Lexer for the Square language.
+
+import { List } from "@std/collections/list";
+import {
+    Sq_len,
+    Sq_charAt,
+    Sq_charByte,
+    Sq_substring,
+    Sq_skipWhitespace,
+    Sq_isDigitByte,
+    Sq_isIdentStartByte,
+    Sq_isIdentPartByte,
+    Sq_parseInt
+} from "examples/dryadsquare/square/string";
+
+function Sq_makeToken(type, value, pos) {
+    let token = __runtime_create_object();
+    __runtime_object_set(token, "type", type);
+    __runtime_object_set(token, "value", value);
+    __runtime_object_set(token, "pos", pos);
+    return token;
+}
+
+function Sq_keywordType(text) {
+    if (text == "var") { return "KW_VAR"; }
+    if (text == "while") { return "KW_WHILE"; }
+    if (text == "if") { return "KW_IF"; }
+    if (text == "else") { return "KW_ELSE"; }
+    if (text == "print") { return "KW_PRINT"; }
+    return "IDENT";
+}
+
+function Sq_lex(source) {
+    let tokens = new List();
+    let i = 0;
+    let len = Sq_len(source);
+
+    while (i < len) {
+        i = Sq_skipWhitespace(source, i);
+        if (i >= len) {
+            break;
+        }
+
+        let ch = Sq_charAt(source, i);
+        let byte = Sq_charByte(source, i);
+
+        if (ch == "/" && Sq_charAt(source, i + 1) == "/") {
+            while (i < len && Sq_charByte(source, i) != 10) {
+                i = i + 1;
+            }
+            continue;
+        }
+
+        if (Sq_isDigitByte(byte)) {
+            let start = i;
+            while (i < len && Sq_isDigitByte(Sq_charByte(source, i))) {
+                i = i + 1;
+            }
+            let text = Sq_substring(source, start, i);
+            tokens.add(Sq_makeToken("NUMBER", Sq_parseInt(text), start));
+            continue;
+        }
+
+        if (Sq_isIdentStartByte(byte)) {
+            let start = i;
+            while (i < len && Sq_isIdentPartByte(Sq_charByte(source, i))) {
+                i = i + 1;
+            }
+            let text = Sq_substring(source, start, i);
+            tokens.add(Sq_makeToken(Sq_keywordType(text), text, start));
+            continue;
+        }
+
+        if (ch == "+") { tokens.add(Sq_makeToken("PLUS", "+", i)); i = i + 1; continue; }
+        if (ch == "-") { tokens.add(Sq_makeToken("MINUS", "-", i)); i = i + 1; continue; }
+        if (ch == "*") { tokens.add(Sq_makeToken("STAR", "*", i)); i = i + 1; continue; }
+        if (ch == "/") { tokens.add(Sq_makeToken("SLASH", "/", i)); i = i + 1; continue; }
+        if (ch == "%") { tokens.add(Sq_makeToken("PERCENT", "%", i)); i = i + 1; continue; }
+        if (ch == "(") { tokens.add(Sq_makeToken("LPAREN", "(", i)); i = i + 1; continue; }
+        if (ch == ")") { tokens.add(Sq_makeToken("RPAREN", ")", i)); i = i + 1; continue; }
+        if (ch == "{") { tokens.add(Sq_makeToken("LBRACE", "{", i)); i = i + 1; continue; }
+        if (ch == "}") { tokens.add(Sq_makeToken("RBRACE", "}", i)); i = i + 1; continue; }
+        if (ch == ";") { tokens.add(Sq_makeToken("SEMI", ";", i)); i = i + 1; continue; }
+        if (ch == "=") {
+            if (Sq_charAt(source, i + 1) == "=") {
+                tokens.add(Sq_makeToken("EQEQ", "==", i));
+                i = i + 2;
+            } else {
+                tokens.add(Sq_makeToken("EQ", "=", i));
+                i = i + 1;
+            }
+            continue;
+        }
+        if (ch == "<") {
+            if (Sq_charAt(source, i + 1) == "=") {
+                tokens.add(Sq_makeToken("LTE", "<=", i));
+                i = i + 2;
+            } else {
+                tokens.add(Sq_makeToken("LT", "<", i));
+                i = i + 1;
+            }
+            continue;
+        }
+        if (ch == ">") {
+            if (Sq_charAt(source, i + 1) == "=") {
+                tokens.add(Sq_makeToken("GTE", ">=", i));
+                i = i + 2;
+            } else {
+                tokens.add(Sq_makeToken("GT", ">", i));
+                i = i + 1;
+            }
+            continue;
+        }
+        if (ch == "!") {
+            if (Sq_charAt(source, i + 1) == "=") {
+                tokens.add(Sq_makeToken("NEQ", "!=", i));
+                i = i + 2;
+                continue;
+            }
+        }
+
+        tokens.add(Sq_makeToken("ERROR", ch, i));
+        i = i + 1;
+    }
+
+    tokens.add(Sq_makeToken("EOF", "", len));
+    return tokens;
+}

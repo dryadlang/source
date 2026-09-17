@@ -2,7 +2,8 @@
 
 **Version**: 1.0  
 **Date**: 2026-05-28  
-**Status**: Design Specification
+**Status**: Design Specification  
+**See also**: [LIBRARY_SYSTEM.md](LIBRARY_SYSTEM.md) — user libraries, `.dyd` / `.dyl`, export model, package resolution
 
 ---
 

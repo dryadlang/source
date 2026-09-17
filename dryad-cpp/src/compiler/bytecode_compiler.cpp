@@ -1,4 +1,5 @@
 #include "dryad/compiler/bytecode_compiler.h"
+#include "dryad/compiler/interpreter.h"
 #include "dryad/compiler/program_entry.h"
 #include "dryad/runtime/intrinsics_registry.h"
 #include "dryad/common/utils.h"
@@ -325,12 +326,25 @@ void BytecodeCompiler::compile_expression(Expression* expr) {
             compile_call(static_cast<CallExpression*>(expr));
             break;
 
-        case ASTNodeType::FunctionExpression:
-            throw DryadException(
-                "Bytecode compiler: function expressions require named @compile functions");
+        case ASTNodeType::FunctionExpression: {
+            const uint16_t function_index =
+                compile_lambda(static_cast<FunctionExpression*>(expr));
+            builder_.emit_make_function(function_index);
+            push_stack();
+            break;
+        }
 
-        case ASTNodeType::AwaitExpression:
-            throw DryadException("Bytecode compiler: await is not supported in bytecode mode");
+        case ASTNodeType::AwaitExpression: {
+            auto* await_expr = static_cast<AwaitExpression*>(expr);
+            compile_expression(await_expr->operand.get());
+            uint16_t intrinsic_id = 0;
+            if (!try_resolve_intrinsic_id("runtime.await_promise", intrinsic_id)) {
+                throw DryadException("Bytecode compiler: runtime.await_promise intrinsic not found");
+            }
+            builder_.emit_intrinsic_syscall(intrinsic_id, 1);
+            push_stack();
+            break;
+        }
 
         case ASTNodeType::SuperExpression:
             throw DryadException("Bytecode compiler: super requires interpreter dispatch");
@@ -698,6 +712,57 @@ void BytecodeCompiler::finalize_metadata() {
     metadata_.opcode_count = static_cast<uint32_t>(builder_.code().size());
 }
 
+uint16_t BytecodeCompiler::compile_lambda(FunctionExpression* expr) {
+    if (!expr) {
+        throw DryadException("Bytecode compiler: invalid function expression");
+    }
+
+    FunctionDeclaration* decl = nullptr;
+    if (expr->body) {
+        const std::string name = "__lambda_" + std::to_string(lambda_counter_++);
+        auto owned = std::make_unique<FunctionDeclaration>(
+            name,
+            std::move(expr->parameters),
+            std::move(expr->body),
+            std::move(expr->return_type));
+        owned_lambdas_.push_back(std::move(owned));
+        decl = owned_lambdas_.back().get();
+    } else if (interpreter_) {
+        decl = interpreter_->lookup_lambda_code(expr);
+    }
+    if (!decl || !decl->body) {
+        throw DryadException("Bytecode compiler: invalid function expression");
+    }
+    if (decl->name.empty()) {
+        decl->name = "__lambda_" + std::to_string(lambda_counter_++);
+    }
+
+    const uint16_t index =
+        static_cast<uint16_t>(lambda_base_index_ + lambda_functions_.size());
+
+    BytecodeBuilder saved_builder = std::move(builder_);
+    auto saved_slot_map = slot_map_;
+    auto saved_slot_annotations = slot_annotations_;
+    FunctionMetadata saved_metadata = metadata_;
+    size_t saved_stack_depth = stack_depth_;
+    size_t saved_max_stack_depth = max_stack_depth_;
+    auto saved_loop_stack = loop_stack_;
+    const FunctionProfile* saved_profile = profile_;
+
+    lambda_functions_.push_back(compile_function(decl, nullptr));
+
+    builder_ = std::move(saved_builder);
+    slot_map_ = std::move(saved_slot_map);
+    slot_annotations_ = std::move(saved_slot_annotations);
+    metadata_ = std::move(saved_metadata);
+    stack_depth_ = saved_stack_depth;
+    max_stack_depth_ = saved_max_stack_depth;
+    loop_stack_ = std::move(saved_loop_stack);
+    profile_ = saved_profile;
+
+    return index;
+}
+
 CompiledFunction BytecodeCompiler::compile_function(FunctionDeclaration* fn,
                                                     const FunctionProfile* profile) {
     if (!fn || !fn->body) {
@@ -718,6 +783,38 @@ CompiledFunction BytecodeCompiler::compile_function(FunctionDeclaration* fn,
     max_stack_depth_ = 0;
     loop_stack_.clear();
 
+    for (const auto& param : fn->parameters) {
+        allocate_slot(param.name, param.type_annotation);
+    }
+
+    compile_block(fn->body.get());
+    builder_.emit_halt();
+    finalize_metadata();
+
+    CompiledFunction compiled;
+    compiled.metadata = metadata_;
+    compiled.module = builder_.build();
+    return compiled;
+}
+
+CompiledFunction BytecodeCompiler::compile_instance_method(FunctionDeclaration* fn,
+                                                           const FunctionProfile* profile) {
+    if (!fn || !fn->body) {
+        throw DryadException("Bytecode compiler: invalid method declaration");
+    }
+
+    builder_ = BytecodeBuilder{};
+    slot_map_.clear();
+    slot_annotations_.clear();
+    profile_ = profile;
+    metadata_ = FunctionMetadata{};
+    metadata_.name = fn->name;
+    metadata_.parameter_count = static_cast<uint8_t>(fn->parameters.size());
+    stack_depth_ = 0;
+    max_stack_depth_ = 0;
+    loop_stack_.clear();
+
+    allocate_slot("this");
     for (const auto& param : fn->parameters) {
         allocate_slot(param.name, param.type_annotation);
     }
@@ -772,16 +869,25 @@ CompiledProgram BytecodeCompiler::compile_program(Program* program, const TypePr
         const FunctionProfile script_profile =
             profiler.build_script_function_profile(kScriptEntryFunctionName);
         const FunctionProfile* profile_ptr = script_profile.slots.empty() ? nullptr : &script_profile;
+        lambda_functions_.clear();
+        owned_lambdas_.clear();
+        lambda_counter_ = 0;
+        lambda_base_index_ = result.functions.size();
         try {
-            result.functions.push_back(compile_function(script_entry.get(), profile_ptr));
+            CompiledFunction main_fn = compile_function(script_entry.get(), profile_ptr);
+            result.functions.insert(result.functions.end(), lambda_functions_.begin(),
+                                    lambda_functions_.end());
+            result.functions.push_back(main_fn);
         } catch (const DryadException&) {
-            auto* body = dynamic_cast<BlockStatement*>(script_entry->body.get());
-            if (body) {
-                for (auto& stmt : body->statements) {
-                    program->statements.push_back(std::move(stmt));
-                }
-                body->statements.clear();
+            // Fall through to statement restore below.
+        }
+
+        auto* body = dynamic_cast<BlockStatement*>(script_entry->body.get());
+        if (body) {
+            for (auto& stmt : body->statements) {
+                program->statements.push_back(std::move(stmt));
             }
+            body->statements.clear();
         }
     }
 

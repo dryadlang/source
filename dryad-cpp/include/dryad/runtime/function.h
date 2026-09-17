@@ -47,9 +47,9 @@ public:
           closure_(std::move(closure)),
           home_class_(std::move(home_class)) {}
     
-    Value call(Interpreter* interp, const std::vector<Value>& args) override;
-    Value call_with_receiver(Interpreter* interp, const std::vector<Value>& args,
-                             std::shared_ptr<ClassInstance> receiver);
+    virtual Value call(Interpreter* interp, const std::vector<Value>& args) override;
+    virtual Value call_with_receiver(Interpreter* interp, const std::vector<Value>& args,
+                                     std::shared_ptr<ClassInstance> receiver);
     Value call_interpreted(Interpreter* interp, const std::vector<Value>& args,
                            std::shared_ptr<ClassInstance> receiver = nullptr);
     

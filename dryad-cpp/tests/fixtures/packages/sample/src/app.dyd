@@ -1,0 +1,5 @@
+import { helper } from "./utils";
+import { Vec2 } from "@acme/bundle";
+
+let v = new Vec2(1, 2);
+let ok = helper() == 42 && v.sum() == 3;

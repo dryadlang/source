@@ -1,9 +1,12 @@
 #include "dryad/aot/aot_compiler.h"
+#include "dryad/aot/library_linker.h"
 #include "dryad/aot/llvm_backend.h"
 #include "dryad/aot/micro_ir.h"
 #include "dryad/aot/native_linker.h"
+#include "dryad/compiler/library_compiler.h"
 #include "dryad/compiler/program_entry.h"
 #include "dryad/runtime/bytecode_module.h"
+#include "dryad/runtime/library_module.h"
 #include "dryad/common/utils.h"
 
 namespace dryad {
@@ -45,11 +48,16 @@ AotCompileResult link_compiled_program(const std::string& input_path,
         CompiledProgram program = compile_file_to_bytecode(input_path, options);
         const std::string entry = resolve_entry_function(program, options);
         IrModule ir_module = bytecode_to_micro_ir(program);
+        IrEmitOptions emit_options;
+        if (!options.link_libraries.empty()) {
+            ir_module = link_libraries_into_module(ir_module, options.link_libraries, emit_options);
+        }
 
         const std::string llvm_path = output_path + ".ll";
         const bool wrote_ir = kind == NativeLinkKind::Executable
-                                  ? write_llvm_ir_executable_file(ir_module, llvm_path, entry)
-                                  : write_llvm_ir_file(ir_module, llvm_path);
+                                  ? write_llvm_ir_executable_file(
+                                        ir_module, llvm_path, entry, emit_options)
+                                  : write_llvm_ir_file(ir_module, llvm_path, emit_options);
         if (!wrote_ir) {
             result.message = "Failed to write LLVM IR file: " + llvm_path;
             return result;
@@ -73,6 +81,29 @@ AotCompileResult link_compiled_program(const std::string& input_path,
 }
 
 } // namespace
+
+AotCompileResult compile_to_dyl(const std::string& input_path,
+                                const std::string& output_path,
+                                const CompileOptions& options) {
+    AotCompileResult result;
+    result.output_path = output_path;
+    try {
+        CompiledLibrary library = compile_library_file(input_path, options);
+        if (!save_compiled_library(library, output_path)) {
+            result.message = "Failed to write library file: " + output_path;
+            return result;
+        }
+        result.binary = read_binary_file(output_path);
+        result.success = true;
+        result.message = "Wrote library " + library.package_name + " with " +
+                         std::to_string(library.functions.size()) + " function(s), " +
+                         std::to_string(library.classes.size()) + " class(es), " +
+                         std::to_string(library.values.size()) + " value(s) to " + output_path;
+    } catch (const std::exception& ex) {
+        result.message = ex.what();
+    }
+    return result;
+}
 
 AotCompileResult compile_to_dryadc(const std::string& input_path,
                                    const std::string& output_path,

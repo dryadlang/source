@@ -1,0 +1,5 @@
+name = "@acme/sample"
+version = "0.1.0"
+
+[dependencies]
+"@test/geom" = "../../libs/@test/geom"

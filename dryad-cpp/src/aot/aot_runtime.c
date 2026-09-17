@@ -287,6 +287,38 @@ void dryad_print(void* value) {
     print_box((DryadBox*)value);
 }
 
+static int8_t variant_compare_eq(DryadBox* left, DryadBox* right) {
+    if (!left || !right) {
+        return left == right ? 1 : 0;
+    }
+    if (left->tag != right->tag) {
+        return 0;
+    }
+    switch (left->tag) {
+        case 1:
+            return left->i == right->i ? 1 : 0;
+        case 2:
+            return left->f == right->f ? 1 : 0;
+        case 3:
+            return left->b == right->b ? 1 : 0;
+        case 4: {
+            const char* left_text = left->str_owned ? left->str_owned : "";
+            const char* right_text = right->str_owned ? right->str_owned : "";
+            return strcmp(left_text, right_text) == 0 ? 1 : 0;
+        }
+        default:
+            return 0;
+    }
+}
+
+int8_t dryad_variant_eq(void* left, void* right) {
+    return variant_compare_eq((DryadBox*)left, (DryadBox*)right);
+}
+
+int8_t dryad_variant_neq(void* left, void* right) {
+    return variant_compare_eq((DryadBox*)left, (DryadBox*)right) ? 0 : 1;
+}
+
 void* dryad_intrinsic_slow(uint16_t intrinsic_id, uint8_t argc) {
     (void)intrinsic_id;
     (void)argc;

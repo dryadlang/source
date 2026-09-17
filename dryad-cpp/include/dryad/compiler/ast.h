@@ -201,9 +201,10 @@ public:
     std::string type_annotation;
     std::unique_ptr<Expression> initializer;
     bool is_const;
+    bool is_exported;
     
-    VariableDeclaration(std::string name, std::string type_annotation, std::unique_ptr<Expression> initializer, bool is_const, SourceLocation location = SourceLocation())
-        : Statement(ASTNodeType::VariableDeclaration, location), name(std::move(name)), type_annotation(std::move(type_annotation)), initializer(std::move(initializer)), is_const(is_const) {}
+    VariableDeclaration(std::string name, std::string type_annotation, std::unique_ptr<Expression> initializer, bool is_const, bool is_exported = false, SourceLocation location = SourceLocation())
+        : Statement(ASTNodeType::VariableDeclaration, location), name(std::move(name)), type_annotation(std::move(type_annotation)), initializer(std::move(initializer)), is_const(is_const), is_exported(is_exported) {}
 };
 
 struct Parameter {
@@ -231,11 +232,12 @@ public:
     std::unique_ptr<BlockStatement> body;
     std::string return_type;
     bool is_internal;
+    bool is_exported;
     bool is_async;
     ExecutionMode compile_mode;
     
-    FunctionDeclaration(std::string name, std::vector<Parameter> parameters, std::unique_ptr<BlockStatement> body, std::string return_type = "", bool is_internal = false, bool is_async = false, ExecutionMode compile_mode = ExecutionMode::Inherit, SourceLocation location = SourceLocation())
-        : Statement(ASTNodeType::FunctionDeclaration, location), name(std::move(name)), parameters(std::move(parameters)), body(std::move(body)), return_type(std::move(return_type)), is_internal(is_internal), is_async(is_async), compile_mode(compile_mode) {}
+    FunctionDeclaration(std::string name, std::vector<Parameter> parameters, std::unique_ptr<BlockStatement> body, std::string return_type = "", bool is_internal = false, bool is_exported = false, bool is_async = false, ExecutionMode compile_mode = ExecutionMode::Inherit, SourceLocation location = SourceLocation())
+        : Statement(ASTNodeType::FunctionDeclaration, location), name(std::move(name)), parameters(std::move(parameters)), body(std::move(body)), return_type(std::move(return_type)), is_internal(is_internal), is_exported(is_exported), is_async(is_async), compile_mode(compile_mode) {}
 };
 
 class CompileBlockStatement : public Statement {
@@ -306,14 +308,17 @@ public:
     std::vector<std::unique_ptr<PropertyDeclaration>> properties;
     std::vector<std::unique_ptr<MethodDeclaration>> methods;
     bool is_abstract;
+    bool is_internal;
+    bool is_exported;
     
     ClassDeclaration(std::string name, std::string super_class, std::vector<std::string> interfaces,
                      std::vector<std::unique_ptr<PropertyDeclaration>> properties,
                      std::vector<std::unique_ptr<MethodDeclaration>> methods, bool is_abstract = false,
+                     bool is_internal = false, bool is_exported = false,
                      SourceLocation location = SourceLocation())
         : Statement(ASTNodeType::ClassDeclaration, location), name(std::move(name)), super_class(std::move(super_class)),
           interfaces(std::move(interfaces)), properties(std::move(properties)), methods(std::move(methods)),
-          is_abstract(is_abstract) {}
+          is_abstract(is_abstract), is_internal(is_internal), is_exported(is_exported) {}
 };
 
 class InterfaceDeclaration : public Statement {
@@ -445,6 +450,18 @@ public:
     
     ImportDeclaration(std::vector<std::string> names, std::string module_path, SourceLocation location = SourceLocation())
         : Statement(ASTNodeType::ImportDeclaration, location),
+          names(std::move(names)),
+          module_path(std::move(module_path)) {}
+};
+
+class ExportFromDeclaration : public Statement {
+public:
+    std::vector<std::string> names;
+    std::string module_path;
+
+    ExportFromDeclaration(std::vector<std::string> names, std::string module_path,
+                          SourceLocation location = SourceLocation())
+        : Statement(ASTNodeType::ExportDeclaration, location),
           names(std::move(names)),
           module_path(std::move(module_path)) {}
 };

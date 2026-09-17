@@ -4,6 +4,7 @@
 #include "dryad/compiler/parser.h"
 #include "dryad/compiler/interpreter.h"
 #include "dryad/compiler/bytecode_compiler.h"
+#include "dryad/compiler/program_entry.h"
 #include "dryad/runtime/vm.h"
 #include "dryad/runtime/opcode.h"
 #include "dryad/runtime/intrinsics_registry.h"
@@ -192,7 +193,7 @@ TEST(BytecodeCompilerTest, CallExpressionCompilesAndRuns) {
     auto program = parse_program(source);
     BytecodeCompiler compiler;
     CompiledProgram compiled = compiler.compile_program(program.get(), interp.type_profiler());
-    ASSERT_EQ(compiled.functions.size(), 2u);
+    ASSERT_EQ(compiled.functions.size(), 3u);
     EXPECT_TRUE(code_contains_opcode(compiled.functions[1].module, Opcode::CALL));
 
     VM vm;
@@ -229,8 +230,9 @@ TEST(BytecodeCompilerTest, DryadcRoundTrip) {
     ASSERT_TRUE(load_compiled_program(path, loaded));
     std::remove(path.c_str());
 
-    EXPECT_EQ(loaded.functions.size(), 1u);
+    EXPECT_EQ(loaded.functions.size(), 2u);
     EXPECT_EQ(loaded.functions[0].metadata.name, "compute");
+    EXPECT_EQ(loaded.functions[1].metadata.name, kScriptEntryFunctionName);
     EXPECT_EQ(loaded.functions[0].module.code, compiled.functions[0].module.code);
 
     VM vm;

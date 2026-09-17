@@ -184,7 +184,7 @@ std::unique_ptr<Statement> Parser::parse_declaration() {
                 if (!is_async_fn) {
                     consume(TokenType::KeywordFunction, "Expected 'function' after @compile(...)");
                 }
-                auto fn = parse_function_declaration(false, is_async_fn);
+                auto fn = parse_function_declaration(false, false, is_async_fn);
                 static_cast<FunctionDeclaration*>(fn.get())->compile_mode = mode;
                 return fn;
             }
@@ -199,8 +199,15 @@ std::unique_ptr<Statement> Parser::parse_declaration() {
         throw DryadException("Unknown decorator '@" + decorator.lexeme + "'");
     }
     
+    bool is_exported = false;
     bool is_internal = false;
     bool is_abstract = false;
+    if (match(TokenType::KeywordExport)) {
+        if (check(TokenType::LeftBrace)) {
+            return parse_export_from_declaration();
+        }
+        is_exported = true;
+    }
     while (true) {
         if (match(TokenType::KeywordInternal)) {
             is_internal = true;
@@ -212,12 +219,16 @@ std::unique_ptr<Statement> Parser::parse_declaration() {
         }
         break;
     }
+
+    if (is_exported && is_internal) {
+        throw DryadException("Cannot combine 'export' and 'internal' modifiers");
+    }
     
     if (match(TokenType::KeywordLet) || match(TokenType::KeywordConst)) {
         if (is_internal || is_abstract) {
             throw DryadException("'internal' and 'abstract' modifiers cannot be used with variable declarations");
         }
-        return parse_variable_declaration();
+        return parse_variable_declaration(is_exported);
     }
     
     bool is_async = match(TokenType::KeywordAsync);
@@ -225,20 +236,26 @@ std::unique_ptr<Statement> Parser::parse_declaration() {
         if (is_abstract) {
             throw DryadException("'abstract' modifier can only be used with classes");
         }
-        return parse_function_declaration(is_internal, is_async);
+        return parse_function_declaration(is_internal, is_exported, is_async);
     }
     
     if (match(TokenType::KeywordInterface)) {
         if (is_abstract) {
             throw DryadException("'abstract' modifier cannot be used with interfaces");
         }
+        if (is_exported) {
+            throw DryadException("'export' modifier cannot be used with interfaces");
+        }
         return parse_interface_declaration(is_internal);
     }
 
     if (match(TokenType::KeywordClass)) {
-        return parse_class_declaration(is_internal, is_abstract);
+        return parse_class_declaration(is_internal, is_abstract, is_exported);
     }
 
+    if (is_exported) {
+        throw DryadException("'export' modifier can only be used with functions, classes, or variables");
+    }
     if (is_internal) {
         throw DryadException("'internal' modifier can only be used with functions, classes, or interfaces");
     }
@@ -249,7 +266,7 @@ std::unique_ptr<Statement> Parser::parse_declaration() {
     return parse_statement();
 }
 
-std::unique_ptr<Statement> Parser::parse_variable_declaration() {
+std::unique_ptr<Statement> Parser::parse_variable_declaration(bool is_exported) {
     bool is_const = previous().type == TokenType::KeywordConst;
     SourceLocation loc = previous().location;
     
@@ -268,10 +285,10 @@ std::unique_ptr<Statement> Parser::parse_variable_declaration() {
     
     consume(TokenType::Semicolon, "Expected ';' after variable declaration");
     
-    return std::make_unique<VariableDeclaration>(name.lexeme, type_annotation, std::move(initializer), is_const, loc);
+    return std::make_unique<VariableDeclaration>(name.lexeme, type_annotation, std::move(initializer), is_const, is_exported, loc);
 }
 
-std::unique_ptr<Statement> Parser::parse_function_declaration(bool is_internal, bool is_async) {
+std::unique_ptr<Statement> Parser::parse_function_declaration(bool is_internal, bool is_exported, bool is_async) {
     SourceLocation loc = previous().location;
     
     Token name = consume(TokenType::Identifier, "Expected function name");
@@ -293,6 +310,7 @@ std::unique_ptr<Statement> Parser::parse_function_declaration(bool is_internal, 
         std::unique_ptr<BlockStatement>(static_cast<BlockStatement*>(body.release())),
         return_type,
         is_internal,
+        is_exported,
         is_async,
         ExecutionMode::Inherit,
         loc
@@ -428,7 +446,7 @@ std::unique_ptr<Statement> Parser::parse_for_statement() {
             consume(TokenType::Equal, "Expected '=' in for-loop initializer");
             auto init_expr = parse_expression();
             initializer = std::make_unique<VariableDeclaration>(
-                name.lexeme, type_annotation, std::move(init_expr), is_const, name.location);
+                name.lexeme, type_annotation, std::move(init_expr), is_const, false, name.location);
         } else {
             auto expr = parse_expression();
             initializer = std::make_unique<ExpressionStatement>(std::move(expr), loc);
@@ -806,9 +824,8 @@ std::unique_ptr<MethodDeclaration> Parser::parse_method_declaration(bool is_abst
         method_name.lexeme, std::move(parameters), std::move(body), is_constructor, is_abstract, is_getter, is_setter);
 }
 
-std::unique_ptr<Statement> Parser::parse_class_declaration(bool is_internal, bool is_abstract) {
+std::unique_ptr<Statement> Parser::parse_class_declaration(bool is_internal, bool is_abstract, bool is_exported) {
     SourceLocation loc = previous().location;
-    (void)is_internal;
 
     Token name = consume(TokenType::Identifier, "Expected class name");
 
@@ -899,7 +916,8 @@ std::unique_ptr<Statement> Parser::parse_class_declaration(bool is_internal, boo
     consume(TokenType::RightBrace, "Expected '}' after class body");
 
     return std::make_unique<ClassDeclaration>(
-        name.lexeme, super_class, std::move(interfaces), std::move(properties), std::move(methods), is_abstract, loc);
+        name.lexeme, super_class, std::move(interfaces), std::move(properties), std::move(methods),
+        is_abstract, is_internal, is_exported, loc);
 }
 
 std::unique_ptr<Statement> Parser::parse_interface_declaration(bool is_internal) {
@@ -1027,26 +1045,45 @@ std::string Parser::parse_return_type() {
     return return_type;
 }
 
-std::unique_ptr<Statement> Parser::parse_import_declaration() {
-    SourceLocation loc = previous().location;
-
-    consume(TokenType::LeftBrace, "Expected '{' after import");
+std::unique_ptr<ImportDeclaration> Parser::parse_named_import_list(const std::string& closing_error) {
+    consume(TokenType::LeftBrace, "Expected '{' after import/export");
     std::vector<std::string> names;
 
     if (!check(TokenType::RightBrace)) {
         do {
-            Token name = consume(TokenType::Identifier, "Expected imported symbol name");
+            Token name = consume(TokenType::Identifier, "Expected symbol name");
             names.push_back(name.lexeme);
         } while (match(TokenType::Comma));
     }
 
-    consume(TokenType::RightBrace, "Expected '}' after import list");
-    consume(TokenType::KeywordFrom, "Expected 'from' after import list");
+    consume(TokenType::RightBrace, closing_error);
+    return std::make_unique<ImportDeclaration>(std::move(names), "", SourceLocation());
+}
 
+std::unique_ptr<Statement> Parser::parse_import_declaration() {
+    SourceLocation loc = previous().location;
+    auto list_stmt = parse_named_import_list("Expected '}' after import list");
+    auto* import_stmt = static_cast<ImportDeclaration*>(list_stmt.get());
+    std::vector<std::string> names = std::move(import_stmt->names);
+
+    consume(TokenType::KeywordFrom, "Expected 'from' after import list");
     Token module_token = consume(TokenType::StringLiteral, "Expected module path string");
     consume(TokenType::Semicolon, "Expected ';' after import declaration");
 
     return std::make_unique<ImportDeclaration>(std::move(names), module_token.lexeme, loc);
+}
+
+std::unique_ptr<Statement> Parser::parse_export_from_declaration() {
+    SourceLocation loc = previous().location;
+    auto list_stmt = parse_named_import_list("Expected '}' after export list");
+    auto* export_stmt = static_cast<ImportDeclaration*>(list_stmt.get());
+    std::vector<std::string> names = std::move(export_stmt->names);
+
+    consume(TokenType::KeywordFrom, "Expected 'from' after export list");
+    Token module_token = consume(TokenType::StringLiteral, "Expected module path string");
+    consume(TokenType::Semicolon, "Expected ';' after export declaration");
+
+    return std::make_unique<ExportFromDeclaration>(std::move(names), module_token.lexeme, loc);
 }
 
 } // namespace dryad

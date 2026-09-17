@@ -57,6 +57,7 @@ enum class Opcode : uint8_t {
     LOAD_FAST   = 0x60,
     STORE_FAST  = 0x61,
     LOAD_GLOBAL = 0x62,
+    MAKE_FUNCTION = 0x63,
 
     // Array / object / class (0x80–0x88)
     NEW_ARRAY           = 0x80,

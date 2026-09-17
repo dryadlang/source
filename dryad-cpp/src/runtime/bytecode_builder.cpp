@@ -60,6 +60,10 @@ void BytecodeBuilder::emit_load_global(uint16_t name_const) {
     emit_u16(Opcode::LOAD_GLOBAL, name_const);
 }
 
+void BytecodeBuilder::emit_make_function(uint16_t function_index) {
+    emit_u16(Opcode::MAKE_FUNCTION, function_index);
+}
+
 void BytecodeBuilder::emit_intrinsic_syscall(uint16_t intrinsic_id, uint8_t argc) {
     emit(Opcode::INTRINSIC_SYSCALL);
     code_.push_back(static_cast<uint8_t>((intrinsic_id >> 8) & 0xFF));

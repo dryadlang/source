@@ -5,6 +5,7 @@
 #include "dryad/compiler/type_profiler.h"
 #include "dryad/runtime/bytecode_module.h"
 #include "dryad/runtime/bytecode_builder.h"
+#include <memory>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -16,10 +17,16 @@ struct LoopCompileContext {
     std::vector<size_t> continue_jump_patches;
 };
 
+class Interpreter;
+
 class BytecodeCompiler {
 public:
+    void set_interpreter(Interpreter* interpreter) { interpreter_ = interpreter; }
+
     CompiledFunction compile_function(FunctionDeclaration* fn,
                                       const FunctionProfile* profile = nullptr);
+    CompiledFunction compile_instance_method(FunctionDeclaration* fn,
+                                             const FunctionProfile* profile = nullptr);
     CompiledProgram compile_program(Program* program,
                                     const TypeProfiler& profiler);
 
@@ -33,8 +40,14 @@ private:
     size_t stack_depth_ = 0;
     size_t max_stack_depth_ = 0;
     std::vector<LoopCompileContext> loop_stack_;
+    std::vector<CompiledFunction> lambda_functions_;
+    std::vector<std::unique_ptr<FunctionDeclaration>> owned_lambdas_;
+    size_t lambda_counter_ = 0;
+    size_t lambda_base_index_ = 0;
+    Interpreter* interpreter_ = nullptr;
 
     uint16_t allocate_slot(const std::string& name, const std::string& annotation = "");
+    uint16_t compile_lambda(FunctionExpression* expr);
     uint16_t slot_index(const std::string& name) const;
     SlotProfile slot_profile(const std::string& name) const;
 

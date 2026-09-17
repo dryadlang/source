@@ -19,6 +19,10 @@ AotCompileResult compile_to_dryadc(const std::string& input_path,
                                    const std::string& output_path,
                                    const CompileOptions& options);
 
+AotCompileResult compile_to_dyl(const std::string& input_path,
+                                const std::string& output_path,
+                                const CompileOptions& options);
+
 AotCompileResult compile_to_llvm_ir(const std::string& input_path,
                                     const std::string& output_path,
                                     const CompileOptions& options);

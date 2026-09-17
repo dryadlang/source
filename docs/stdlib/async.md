@@ -57,4 +57,4 @@ Promise_await(result); // or rely on CLI pump at script end
 - Worker threads use isolated interpreters — no shared mutable Dryad state
 - `catch`/`finally` reserved in statement position — use `.catch()` / `.finally()` on promises
 
-See [Phase 5 plan](../../../docs/plans/2026-09-16-async-runtime.md).
+See [Phase 5 plan](../implementation/plans/2026-09-16-async-runtime.md).

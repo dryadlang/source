@@ -1,0 +1,127 @@
+@startuml dryad_01_architecture
+title Dryad Language — Architecture Overview
+skinparam backgroundColor #FEFEFE
+skinparam packageStyle rectangle
+skinparam shadowing false
+skinparam defaultFontSize 11
+skinparam ArrowColor #555555
+skinparam NoteBackgroundColor #FFFDE7
+skinparam NoteBorderColor #F9A825
+
+legend top left
+  |= Layer |= Responsibility |
+  | **Source** | .dryad scripts, .dyd library sources |
+  | **Frontend** | Lexer → Parser → AST |
+  | **Analysis** | Semantic analysis, validation, import cycles |
+  | **Profiling** | Interpreter observation run (TypeProfiler) |
+  | **Bytecode** | BytecodeCompiler → .dryadc / VM |
+  | **AOT** | Micro-IR → LLVM IR → native .so / executable |
+  | **Runtime** | Values, OOP, intrinsics, event loop |
+  | **Stdlib** | @std/* pure-Dryad APIs over intrinsics |
+endlegend
+
+package "Source Artifacts" as SRC #E3F2FD {
+  artifact ".dryad" as A_DRYAD : Script source
+  artifact ".dyd" as A_DYD : Library source
+  artifact "dryad.toml" as A_TOML : Package manifest
+}
+
+package "Compiled Artifacts" as ART #E8F5E9 {
+  artifact ".dryadc" as A_DRYADC : Bytecode (magic DRYADC v2)
+  artifact ".dyl" as A_DYL : Library binary (magic DRYADYL v1)
+  artifact ".ll" as A_LL : LLVM IR
+  artifact ".so" as A_SO : Native shared object
+  artifact "executable" as A_EXE : Linked native binary
+}
+
+package "Frontend" as FE #FFF3E0 {
+  [Lexer] as Lexer
+  [Parser] as Parser
+  [AST] as AST
+}
+
+package "Static Analysis" as SA #F3E5F5 {
+  [SemanticAnalyzer] as Semantic
+  [ProgramValidator] as Validator
+  [ImportCycleDetector] as CycleDet
+}
+
+package "Execution Tiers" as EXEC #E0F7FA {
+  [Interpreter] as Interp : Tree-walk
+  [BytecodeCompiler] as BCComp
+  [VM] as VM : Opcode dispatch
+  [JitCompiler] as JIT : Hot-loop JIT
+  [AOT Compiler] as AOT
+  [NativeModule] as Native : dlopen .so
+}
+
+package "Runtime Core" as RT #FCE4EC {
+  [Value Model] as Value
+  [Environment] as Env
+  [ModuleLoader] as ModLoad
+  [IntrinsicsRegistry] as Intrinsics
+  [EventLoop] as EvLoop
+}
+
+package "Standard Library" as STD #E8EAF6 {
+  [@std/core] as STD_CORE
+  [@std/buffers] as STD_BUF
+  [@std/collections] as STD_COLL
+  [@std/io] as STD_IO
+  [@std/async] as STD_ASYNC
+  [@std/net] as STD_NET
+}
+
+' --- Data flow ---
+A_DRYAD --> Lexer
+A_DYD --> Lexer
+Lexer --> Parser --> AST
+
+AST --> Semantic
+AST --> Validator
+AST --> CycleDet
+
+AST --> Interp : profile run
+Interp --> BCComp : TypeProfiler data
+BCComp --> A_DRYADC
+BCComp --> VM
+
+A_DRYADC --> VM
+A_DRYADC --> AOT
+AOT --> A_LL --> A_SO
+AOT --> A_EXE
+
+A_DYD --> A_DYL : compile --lib
+
+VM --> Value
+Interp --> Value
+Native --> Value
+
+ModLoad --> A_DYD
+ModLoad --> A_DYL
+
+Intrinsics --> STD_BUF
+Intrinsics --> STD_IO
+Intrinsics --> STD_NET
+Intrinsics --> STD_ASYNC
+
+STD_CORE <-- STD_COLL
+STD_BUF <-- STD_IO
+STD_BUF <-- STD_NET
+STD_IO <-- STD_NET
+STD_ASYNC <-- STD_IO
+STD_ASYNC <-- STD_NET
+
+note bottom of EXEC
+  **Triple Execution Model**
+  Per-function or per-block mode via @compile("interpreter"|"bytecode"|"AOT")
+  Default: Interpreter
+  Async functions always use interpreter path
+end note
+
+note bottom of ART
+  Resolution: .dyd → .dryad (source)
+  DRYAD_LIBRARY_PATH + dryad_modules/ for packages
+end note
+
+@enduml

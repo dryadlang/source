@@ -30,6 +30,11 @@ IrModule link_libraries_into_module(const IrModule& app_module,
 AotCompileResult compile_library_to_llvm_ir(const std::string& dyl_path,
                                              const std::string& llvm_output_path);
 
+AotCompileResult compile_library_to_native(const std::string& dyl_path,
+                                            const std::string& output_path,
+                                            const std::string& aot_runtime_source,
+                                            const std::string& include_dir);
+
 } // namespace dryad
 
 #endif // DRYAD_AOT_LIBRARY_LINKER_H

@@ -1,0 +1,3 @@
+import { b_value } from "@cycle/b";
+
+export let a_value = b_value + 1;

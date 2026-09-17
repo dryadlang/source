@@ -69,6 +69,14 @@ Triple coverage gate (phase 6.15): all examples must pass interpreter, `--vm`, a
 | `http_parse.dryad` | HTTP URL/response parsing (no network) |
 | `tcp_client.dryad` | TCP echo client (`--allow-net`, optional) |
 
+### 08 — Libraries
+
+| File | Feature |
+|------|---------|
+| `library_usage.dyd` | Import `Vec2` from `@test/geom` via `DRYAD_LIBRARY_PATH` |
+
+See [08-libraries/README.md](08-libraries/README.md).
+
 ### DryadSquare — Turing benchmark
 
 | File | Feature |

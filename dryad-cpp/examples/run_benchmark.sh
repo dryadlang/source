@@ -62,11 +62,22 @@ print_header() {
     fi
 }
 
+apply_example_env() {
+    local env_json="$1"
+    [[ -z "$env_json" || "$env_json" == "{}" ]] && return
+    while IFS='=' read -r key value; do
+        [[ -n "$key" ]] && export "$key=$value"
+    done < <(python3 -c "import json,sys,os; d=json.loads(sys.argv[1]); root=sys.argv[2]; [print(f'{k}={os.path.abspath(os.path.join(root,v))}' if k=='DRYAD_LIBRARY_PATH' and not os.path.isabs(v) else f'{k}={v}') for k,v in d.items()]" "$env_json" "$ROOT_DIR")
+}
+
 run_mode() {
     local mode="$1"
     local flags="$2"
     local full="$3"
     local out_bin="${4:-}"
+    local env_json="${5:-}"
+
+    apply_example_env "$env_json"
 
     local cmd=("$BINARY")
     if [[ -n "$flags" ]]; then
@@ -95,6 +106,7 @@ run_example_triple() {
     local path="$2"
     local flags="${3:-}"
     local optional="${4:-false}"
+    local env_json="${5:-}"
     local full="$SCRIPT_DIR/$path"
 
     TRIPLE_TOTAL=$((TRIPLE_TOTAL + 3))
@@ -124,7 +136,7 @@ run_example_triple() {
     local s_interp="FAIL" s_vm="FAIL" s_aot="FAIL"
     start=$(date +%s%3N)
 
-    if run_mode "interp" "$flags" "$full"; then
+    if run_mode "interp" "$flags" "$full" "" "$env_json"; then
         s_interp="PASS"
         TRIPLE_PASS=$((TRIPLE_PASS + 1))
     else
@@ -140,7 +152,7 @@ run_example_triple() {
     if [[ -n "$flags" ]]; then
         vm_flags="--vm $flags"
     fi
-    if run_mode "vm" "$vm_flags" "$full"; then
+    if run_mode "vm" "$vm_flags" "$full" "" "$env_json"; then
         s_vm="PASS"
         TRIPLE_PASS=$((TRIPLE_PASS + 1))
     else
@@ -153,7 +165,7 @@ run_example_triple() {
     fi
 
     local aot_tmp="$TMPDIR/dryad_triple_${id}"
-    if run_mode "aot" "" "$full" "$aot_tmp"; then
+    if run_mode "aot" "" "$full" "$aot_tmp" "$env_json"; then
         s_aot="PASS"
         TRIPLE_PASS=$((TRIPLE_PASS + 1))
     else
@@ -275,9 +287,9 @@ echo "Stdlib: $STDLIB"
 
 print_header
 
-while IFS='|' read -r id path flags optional; do
+while IFS='|' read -r id path flags optional env_json; do
     if [[ $TRIPLE -eq 1 ]]; then
-        run_example_triple "$id" "$path" "$flags" "$optional"
+        run_example_triple "$id" "$path" "$flags" "$optional" "$env_json"
     else
         run_example "$id" "$path" "$flags" "$optional"
     fi
@@ -288,7 +300,8 @@ with open(sys.argv[1]) as f:
 for ex in data["examples"]:
     flags = " ".join(ex.get("flags", []))
     optional = "true" if ex.get("optional") else "false"
-    print(f"{ex['id']}|{ex['path']}|{flags}|{optional}")
+    env = json.dumps(ex.get("env", {}))
+    print(f"{ex['id']}|{ex['path']}|{flags}|{optional}|{env}")
 PY
 )
 

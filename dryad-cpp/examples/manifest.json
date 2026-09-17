@@ -117,6 +117,16 @@
       "flags": []
     },
     {
+      "id": "libraries-usage",
+      "path": "08-libraries/library_usage.dyd",
+      "category": "libraries",
+      "description": "Import Vec2 from @test/geom via DRYAD_LIBRARY_PATH",
+      "flags": [],
+      "env": {
+        "DRYAD_LIBRARY_PATH": "tests/fixtures/libs"
+      }
+    },
+    {
       "id": "turing-dryadsquare",
       "path": "dryadsquare/dryadsquare.dryad",
       "category": "tooling",

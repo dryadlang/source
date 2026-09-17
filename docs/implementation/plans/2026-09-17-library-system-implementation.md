@@ -1,7 +1,7 @@
 # Library System — Implementation Plan (L1–L4)
 
 **Date**: 2026-09-17  
-**Status**: L4 in progress (scalar AOT linking done)  
+**Status**: L4 complete (scalar + class AOT, hybrid .dyl+.so)  
 **Architecture**: [LIBRARY_SYSTEM.md](../architecture/LIBRARY_SYSTEM.md)
 
 ---
@@ -128,15 +128,20 @@ Build `@test/geom.dyl`, delete `geom.dyd`, app still imports `Vec2`.
 - [x] `tests/fixtures/packages/sample/`
 - [x] `tests/unit/package_test.cpp` (4 tests)
 
-### Deferred
+### L3.7 Static circular-import detection
 
-- [ ] L3.5 Static circular-import detection (compile-time warning)
+- [x] `import_cycle_detector.cpp` — compile-time cycle detection
+- [x] `tests/fixtures/libs/@cycle/` + `import_cycle_test.cpp`
+
+### L3.8 Documentation
+
+- [x] [DRYAD_TOML.md](../tooling/DRYAD_TOML.md)
 
 ---
 
-## L4 — AOT libraries (in progress)
+## L4 — AOT libraries (complete)
 
-### L4.1 Scalar library linking (complete)
+### L4.1 Scalar library linking
 
 - [x] `library_linker.cpp` — `.dyl` → LLVM IR (`library_to_ir_module`)
 - [x] `compile_library_to_llvm_ir()` / `dryad link lib.dyl [-o out.ll] [--shared]`
@@ -144,13 +149,23 @@ Build `@test/geom.dyl`, delete `geom.dyd`, app still imports `Vec2`.
 - [x] Direct `CALL_GLOBAL` → linked library symbol in LLVM backend
 - [x] `tests/fixtures/libs/@test/math.dyd` + `library_aot_test.cpp`
 
-**Gate**: `dryad compile app.dyd --aot --link --executable --link-lib math.dyl` links `add()` from `.dyl`.
+### L4.2 Class-aware native ABI
 
-### L4.2 Class-aware native ABI (deferred)
+- [x] Class ctor/method IR emission from `.dyl`
+- [x] `dryad_instance_*` runtime helpers in `aot_runtime.c`
+- [x] `NEW_INSTANCE` / `METHOD_CALL` / `GET_PROPERTY` / `SET_PROPERTY` native dispatch
+- [x] `LibraryAotTest.LinksExecutableAgainstDylClassLibrary` (Vec2.sum gate)
 
-- [ ] Native ABI for exported classes in `.dyl`
-- [ ] Method dispatch without `dryad_intrinsic_slow`
-- [ ] Hybrid `.dyl` + `.so` distribution
+### L4.3 Hybrid `.dyl` + `.so` distribution
+
+- [x] `compile_library_to_native()` + `library_native_companion_path()`
+- [x] `dryad compile --lib --native`
+- [x] `dryad install` emits `.so` companion when clang is available
+- [x] `LibraryAotTest.EmitsNativeCompanionForDylLibrary`
+
+### Examples
+
+- [x] `examples/08-libraries/library_usage.dyd`
 
 ---
 

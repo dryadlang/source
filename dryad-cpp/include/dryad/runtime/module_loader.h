@@ -30,6 +30,7 @@ public:
     void execute_export_from(ExportFromDeclaration* stmt, Interpreter* interpreter);
     std::shared_ptr<Environment> load_module(const std::string& specifier, Interpreter* interpreter);
     const ModuleMetadata* module_metadata(const std::string& specifier) const;
+    std::string resolve_specifier(const std::string& specifier) const;
     
 private:
     std::string stdlib_root_;
@@ -45,7 +46,6 @@ private:
     std::unordered_map<std::string, std::string> module_source_paths_;
     
     std::string import_context_path() const;
-    std::string resolve_specifier(const std::string& specifier) const;
     std::string resolve_cache_key(const std::string& specifier) const;
     std::string module_cache_key(const std::string& specifier, const std::string& resolved_path) const;
     std::string resolve_module_path(const std::string& specifier) const;

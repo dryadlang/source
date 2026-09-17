@@ -31,11 +31,17 @@ dryad check <file>
 
 | Topic | Path |
 |-------|------|
-| Docs index | [docs/README.md](../docs/README.md) |
-| Build guide | [docs/getting-started/building.md](../docs/getting-started/building.md) |
-| Language spec | [dryad_theory/](../dryad_theory/) |
+| **Docs hub** | [docs/README.md](../docs/README.md) |
+| Quick start | [docs/getting-started/quick-start.md](../docs/getting-started/quick-start.md) |
+| Language reference | [docs/language/](../docs/language/README.md) |
+| Standard library | [docs/stdlib/](../docs/stdlib/README.md) |
+| User libraries | [docs/libraries/](../docs/libraries/README.md) |
+| CLI reference | [docs/tooling/cli.md](../docs/tooling/cli.md) |
+| Implementation | [docs/implementation/](../docs/implementation/README.md) |
+| Diagrams (PlantUML) | [docs/language/diagrams.md](../docs/language/diagrams.md) |
+| Full sitemap | [docs/SITEMAP.md](../docs/SITEMAP.md) |
 | Examples | [examples/README.md](examples/README.md) |
-| Stdlib guides | [docs/stdlib/](../docs/stdlib/) |
+| Language spec (PDF) | [dryad_theory/](../dryad_theory/) |
 
 ## Project layout
 

@@ -100,4 +100,4 @@ cmake --build build
 
 ## Architecture
 
-See `docs/plans/2026-09-16-net-architecture.md` for syscall mapping, test strategy, and phase roadmap.
+See [net architecture plan](../implementation/plans/2026-09-16-net-architecture.md) for syscall mapping, test strategy, and phase roadmap.

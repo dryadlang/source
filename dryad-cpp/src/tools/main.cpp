@@ -49,6 +49,7 @@ void print_help() {
     std::cout << "  --executable    Link to native ELF executable (requires --aot --link)\n";
     std::cout << "  --entry <fn>    Entry function for --executable (default: first function)\n";
     std::cout << "  --lib           Compile Dryad library to .dyl (importable binary)\n";
+    std::cout << "  --native        With --lib, also emit native .so companion\n";
     std::cout << "  --link-lib      Link a compiled .dyl when using --aot/--link/--executable\n\n";
     std::cout << "Environment:\n";
     std::cout << "  DRYAD_STDLIB_DIR      Override stdlib path (default: "
@@ -222,6 +223,7 @@ int run_compile_command(int argc, char** argv) {
     bool run_profiler = true;
     bool aot = false;
     bool compile_lib = false;
+    bool compile_lib_native = false;
     bool link_native = false;
     bool link_executable = false;
     std::string output_path;
@@ -240,6 +242,10 @@ int run_compile_command(int argc, char** argv) {
         }
         if (token == "--lib") {
             compile_lib = true;
+            continue;
+        }
+        if (token == "--native") {
+            compile_lib_native = true;
             continue;
         }
         if (token == "--aot") {
@@ -276,6 +282,10 @@ int run_compile_command(int argc, char** argv) {
         std::cerr << "Error: --lib cannot be combined with --aot/--link/--executable\n";
         return 1;
     }
+    if (compile_lib_native && !compile_lib) {
+        std::cerr << "Error: --native requires --lib\n";
+        return 1;
+    }
     if (link_executable && !aot) {
         std::cerr << "Error: --executable requires --aot\n";
         return 1;
@@ -309,6 +319,16 @@ int run_compile_command(int argc, char** argv) {
         dryad::AotCompileResult result;
         if (compile_lib) {
             result = dryad::compile_to_dyl(input_path, output_path, options);
+            if (result.success && compile_lib_native) {
+                const std::string native_path = dryad::library_native_companion_path(output_path);
+                auto native_result = dryad::compile_library_to_native(
+                    output_path, native_path, DRYAD_AOT_RUNTIME_SRC, DRYAD_INCLUDE_DIR);
+                if (!native_result.success) {
+                    std::cerr << "Error: " << native_result.message << "\n";
+                    return 1;
+                }
+                std::cout << native_result.message << "\n";
+            }
         } else if (link_executable) {
             result = dryad::compile_to_native_executable(
                 input_path, output_path, options, DRYAD_AOT_RUNTIME_SRC, DRYAD_INCLUDE_DIR);

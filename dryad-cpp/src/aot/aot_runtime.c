@@ -20,6 +20,17 @@ typedef struct DryadArray {
     size_t capacity;
 } DryadArray;
 
+typedef struct DryadInstanceField {
+    char* name;
+    void* value;
+    struct DryadInstanceField* next;
+} DryadInstanceField;
+
+typedef struct DryadInstance {
+    char* class_name;
+    DryadInstanceField* fields;
+} DryadInstance;
+
 static DryadBox g_box;
 
 /* Bump arena: one allocation per process, no per-box heap churn (embedded-friendly). */
@@ -319,6 +330,71 @@ int8_t dryad_variant_neq(void* left, void* right) {
     return variant_compare_eq((DryadBox*)left, (DryadBox*)right) ? 0 : 1;
 }
 
+static DryadInstance* instance_from_box(DryadBox* box) {
+    if (!box || box->tag != 6 || !box->heap_ptr) {
+        return NULL;
+    }
+    return (DryadInstance*)box->heap_ptr;
+}
+
+static DryadBox* box_instance(DryadInstance* instance) {
+    DryadBox* box = box_alloc();
+    if (!box) {
+        return (DryadBox*)box_null();
+    }
+    box->tag = 6;
+    box->heap_ptr = instance;
+    return box;
+}
+
+void* dryad_instance_new(const char* class_name) {
+    DryadInstance* instance = (DryadInstance*)calloc(1, sizeof(DryadInstance));
+    if (!instance) {
+        return box_null();
+    }
+    instance->class_name = class_name ? strdup(class_name) : NULL;
+    return box_instance(instance);
+}
+
+void* dryad_instance_set_field(void* instance_value, const char* field_name, void* field_value) {
+    DryadInstance* instance = instance_from_box((DryadBox*)instance_value);
+    if (!instance || !field_name) {
+        return instance_value;
+    }
+    DryadInstanceField* field = instance->fields;
+    while (field) {
+        if (field->name && strcmp(field->name, field_name) == 0) {
+            field->value = field_value;
+            return instance_value;
+        }
+        field = field->next;
+    }
+    DryadInstanceField* new_field = (DryadInstanceField*)calloc(1, sizeof(DryadInstanceField));
+    if (!new_field) {
+        return instance_value;
+    }
+    new_field->name = strdup(field_name);
+    new_field->value = field_value;
+    new_field->next = instance->fields;
+    instance->fields = new_field;
+    return instance_value;
+}
+
+void* dryad_instance_get_field(void* instance_value, const char* field_name) {
+    DryadInstance* instance = instance_from_box((DryadBox*)instance_value);
+    if (!instance || !field_name) {
+        return box_null();
+    }
+    DryadInstanceField* field = instance->fields;
+    while (field) {
+        if (field->name && strcmp(field->name, field_name) == 0) {
+            return field->value ? field->value : box_null();
+        }
+        field = field->next;
+    }
+    return box_null();
+}
+
 void* dryad_intrinsic_slow(uint16_t intrinsic_id, uint8_t argc) {
     (void)intrinsic_id;
     (void)argc;
@@ -343,6 +419,14 @@ void* dryad_box_cstring(const char* text) {
     box->tag = 4;
     box->str_owned = text ? strdup(text) : NULL;
     return box;
+}
+
+void* dryad_instance_class_name(void* instance_value) {
+    DryadInstance* instance = instance_from_box((DryadBox*)instance_value);
+    if (!instance || !instance->class_name) {
+        return box_null();
+    }
+    return dryad_box_cstring(instance->class_name);
 }
 
 void* dryad_argv_box_cstring(char** argv, int32_t index) {

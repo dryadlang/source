@@ -2,7 +2,7 @@
 
 **Version**: 0.1 (draft)  
 **Date**: 2026-09-17  
-**Status**: L1 + L2 implemented — L3 (packages) next  
+**Status**: L1–L4 implemented  
 **Related**: [STDLIB_ARCHITECTURE.md](STDLIB_ARCHITECTURE.md), triple-execution model, `.dryadc` / `.so` companions
 
 ---
@@ -392,10 +392,11 @@ Phased rollout with feature flag `DRYAD_ISOLATED_MODULES=1` for testing.
 | L3.4 | Relative imports `./foo` |
 | L3.5 | `dryad publish` (registry — future) |
 
-### Phase L4 — AOT libraries (stretch)
+### Phase L4 — AOT libraries (complete)
 
-- Class-aware native ABI for `.dyl` + `.so` hybrid.
-- Link app AOT against precompiled `.dyl` LLVM IR slice.
+- Scalar + class native ABI for linked `.dyl` libraries.
+- `dryad link`, `dryad compile --link-lib`, `dryad compile --lib --native`.
+- See [DRYAD_TOML.md](../tooling/DRYAD_TOML.md) for package manifests.
 
 ---
 

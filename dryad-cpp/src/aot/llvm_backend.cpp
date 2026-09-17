@@ -61,7 +61,11 @@ void emit_runtime_declarations(std::ostringstream& out) {
     out << "declare double @dryad_unbox_f64(i8*)\n";
     out << "declare i1 @dryad_unbox_bool(i8*)\n";
     out << "declare i8* @dryad_box_cstring(i8*)\n";
-    out << "declare i8* @dryad_box_lit_cstring(i8*)\n\n";
+    out << "declare i8* @dryad_box_lit_cstring(i8*)\n";
+    out << "declare i8* @dryad_instance_new(i8*)\n";
+    out << "declare i8* @dryad_instance_set_field(i8*, i8*, i8*)\n";
+    out << "declare i8* @dryad_instance_get_field(i8*, i8*)\n";
+    out << "declare i8* @dryad_instance_class_name(i8*)\n\n";
 }
 
 std::string block_label(uint32_t id) { return "bb" + std::to_string(id); }
@@ -87,6 +91,52 @@ std::string box_argument(std::ostringstream& out,
         return boxed;
     }
     return as_i8_ptr(out, reg, next_temp);
+}
+
+std::string property_literal_ref(const IrFunction& function, uint16_t const_string_id) {
+    const std::string& literal = function.string_literals.at(const_string_id);
+    const std::string symbol = sanitize_symbol(function.name);
+    return "getelementptr inbounds ([" + std::to_string(literal.size() + 1) + " x i8], [" +
+           std::to_string(literal.size() + 1) + " x i8]* @dryad_lit_" + symbol + "_" +
+           std::to_string(const_string_id) + ", i64 0, i64 0)";
+}
+
+bool emit_linked_method_call(std::ostringstream& out,
+                             const IrFunction& function,
+                             const IrInstruction& inst,
+                             const std::string& symbol,
+                             int& next_temp) {
+    const std::string receiver = as_i8_ptr(out, inst.lhs, next_temp);
+    std::vector<std::string> boxed_args;
+    boxed_args.push_back(receiver);
+    if (inst.intrinsic_argc == 1) {
+        boxed_args.push_back(
+            box_argument(out, inst.rhs, IrType::I32, next_temp, std::to_string(inst.result) + "_0"));
+    }
+
+    const std::string ret = "%lm_ret" + std::to_string(inst.result);
+    out << "  " << ret << " = call i8* @" << symbol << "(";
+    for (size_t i = 0; i < boxed_args.size(); ++i) {
+        if (i > 0) {
+            out << ", ";
+        }
+        out << "i8* " << boxed_args[i];
+    }
+    out << ")\n";
+
+    if (inst.result_type == IrType::I32) {
+        out << "  " << reg_name(inst.result) << " = call i32 @dryad_unbox_i32(i8* " << ret
+            << ")\n";
+    } else if (inst.result_type == IrType::F64) {
+        out << "  " << reg_name(inst.result) << " = call double @dryad_unbox_f64(i8* " << ret
+            << ")\n";
+    } else if (inst.result_type == IrType::Bool) {
+        out << "  " << reg_name(inst.result) << " = call i1 @dryad_unbox_bool(i8* " << ret
+            << ")\n";
+    } else {
+        out << "  " << reg_name(inst.result) << " = bitcast i8* " << ret << " to i8*\n";
+    }
+    return true;
 }
 
 bool emit_linked_global_call(std::ostringstream& out,
@@ -187,6 +237,111 @@ bool emit_intrinsic_call(std::ostringstream& out,
         case Opcode::MAKE_FUNCTION:
             out << "  " << reg_name(inst.result) << " = inttoptr i64 0 to i8*\n";
             return true;
+        case Opcode::GET_PROPERTY:
+            if (inst.const_string_id < function.string_literals.size()) {
+                const std::string receiver = as_i8_ptr(out, inst.lhs, next_temp);
+                const std::string prop_lit =
+                    property_literal_ref(function, inst.const_string_id);
+                const std::string prop_box = "%prop_lit" + std::to_string(inst.result);
+                out << "  " << prop_box << " = call i8* @dryad_box_lit_cstring(i8* " << prop_lit
+                    << ")\n";
+                const std::string field_box = "%field_box" + std::to_string(inst.result);
+                out << "  " << field_box << " = call i8* @dryad_instance_get_field(i8* "
+                    << receiver << ", i8* " << prop_box << ")\n";
+                if (inst.result_type == IrType::I32) {
+                    out << "  " << reg_name(inst.result)
+                        << " = call i32 @dryad_unbox_i32(i8* " << field_box << ")\n";
+                } else {
+                    out << "  " << reg_name(inst.result) << " = bitcast i8* " << field_box
+                        << " to i8*\n";
+                }
+                return true;
+            }
+            break;
+        case Opcode::SET_PROPERTY:
+            if (inst.const_string_id < function.string_literals.size()) {
+                const std::string receiver = as_i8_ptr(out, inst.lhs, next_temp);
+                std::string value = reg_name(inst.rhs);
+                if (inst.result_type == IrType::I32) {
+                    const std::string boxed = "%set_box" + std::to_string(inst.result);
+                    out << "  " << boxed << " = call i8* @dryad_box_i32(i32 " << value << ")\n";
+                    value = boxed;
+                }
+                const std::string prop_lit =
+                    property_literal_ref(function, inst.const_string_id);
+                const std::string prop_box = "%prop_lit" + std::to_string(inst.result);
+                out << "  " << prop_box << " = call i8* @dryad_box_lit_cstring(i8* " << prop_lit
+                    << ")\n";
+                out << "  " << reg_name(inst.result)
+                    << " = call i8* @dryad_instance_set_field(i8* " << receiver << ", i8* "
+                    << prop_box << ", i8* " << value << ")\n";
+                return true;
+            }
+            break;
+        case Opcode::NEW_INSTANCE:
+            if (inst.const_string_id < function.string_literals.size()) {
+                const std::string& class_name =
+                    function.string_literals[inst.const_string_id];
+                const auto ctor_it = options.linked_class_ctors.find(class_name);
+                if (ctor_it != options.linked_class_ctors.end()) {
+                    const std::string class_lit =
+                        property_literal_ref(function, inst.const_string_id);
+                    const std::string class_box = "%cls_lit" + std::to_string(inst.result);
+                    out << "  " << class_box << " = call i8* @dryad_box_lit_cstring(i8* "
+                        << class_lit << ")\n";
+                    const std::string instance = "%new_inst" + std::to_string(inst.result);
+                    out << "  " << instance << " = call i8* @dryad_instance_new(i8* " << class_box
+                        << ")\n";
+                    std::vector<std::string> ctor_args;
+                    ctor_args.push_back(instance);
+                    if (inst.intrinsic_argc >= 2) {
+                        ctor_args.push_back(inst.rhs_type == IrType::I32
+                                                ? box_argument(out,
+                                                               inst.rhs,
+                                                               IrType::I32,
+                                                               next_temp,
+                                                               std::to_string(inst.result) + "_0")
+                                                : as_i8_ptr(out, inst.rhs, next_temp));
+                        ctor_args.push_back(inst.lhs_type == IrType::I32
+                                                ? box_argument(out,
+                                                               inst.lhs,
+                                                               IrType::I32,
+                                                               next_temp,
+                                                               std::to_string(inst.result) + "_1")
+                                                : as_i8_ptr(out, inst.lhs, next_temp));
+                    } else if (inst.intrinsic_argc == 1) {
+                        ctor_args.push_back(inst.rhs_type == IrType::I32
+                                                ? box_argument(out,
+                                                               inst.rhs,
+                                                               inst.rhs_type,
+                                                               next_temp,
+                                                               std::to_string(inst.result) + "_0")
+                                                : as_i8_ptr(out, inst.rhs, next_temp));
+                    }
+                    out << "  call i8* @" << ctor_it->second << "(";
+                    for (size_t i = 0; i < ctor_args.size(); ++i) {
+                        if (i > 0) {
+                            out << ", ";
+                        }
+                        out << "i8* " << ctor_args[i];
+                    }
+                    out << ")\n";
+                    out << "  " << reg_name(inst.result) << " = bitcast i8* " << instance
+                        << " to i8*\n";
+                    return true;
+                }
+            }
+            break;
+        case Opcode::METHOD_CALL:
+            if (inst.const_string_id < function.string_literals.size()) {
+                const std::string& method_name =
+                    function.string_literals[inst.const_string_id];
+                const auto method_it = options.linked_class_methods.find(method_name);
+                if (method_it != options.linked_class_methods.end()) {
+                    return emit_linked_method_call(out, function, inst, method_it->second, next_temp);
+                }
+            }
+            break;
         case Opcode::CALL_GLOBAL:
             if (inst.const_string_id < function.string_literals.size()) {
                 const std::string& global_name = function.string_literals[inst.const_string_id];

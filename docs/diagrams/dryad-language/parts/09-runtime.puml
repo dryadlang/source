@@ -1,0 +1,127 @@
+@startuml dryad_09_runtime
+title Dryad Language — Runtime Components
+skinparam backgroundColor #FEFEFE
+skinparam shadowing false
+skinparam defaultFontSize 10
+
+package "Interpreter Subsystems" as INTERP #E3F2FD {
+  class ExpressionEvaluator {
+    Evaluates all Expression AST nodes
+    Binary, Call, Member, New, Await, etc.
+  }
+  class StatementExecutor {
+    Executes all Statement AST nodes
+    If, While, For, Return, CompileBlock, etc.
+  }
+}
+
+package "Scoping" as SCOPE #FFF3E0 {
+  class Environment {
+    + parent: Environment*
+    + define(name, value)
+    + get(name): Value
+    + set(name, value)
+    + assign(name, value)
+    + has(name): bool
+  }
+}
+
+package "Callable Objects" as CALL #E8F5E9 {
+  abstract class Function
+  class NativeFunction {
+    + callback: std::function
+  }
+  class DryadFunction {
+    + declaration: FunctionDeclaration
+    + closure: Environment
+    + home_class: DryadClass*
+    + call_interpreted()
+    + call_bytecode()
+  }
+  Function <|-- NativeFunction
+  Function <|-- DryadFunction
+}
+
+package "Object-Oriented" as OOP #F3E5F5 {
+  class DryadClass {
+    + name, super_class
+    + methods, getters, setters
+    + properties, readonly_properties
+    + abstract_methods
+    + constructor: DryadFunction
+    + is_abstract, is_interface
+  }
+  class ClassInstance {
+    + klass: DryadClass
+    + fields: map<string, Value>
+  }
+  DryadClass --> ClassInstance : new
+}
+
+package "Bytecode Runtime" as BC_RT #E0F7FA {
+  class VM {
+    + stack, slots, frames
+    + dispatch_opcode()
+    + VmRuntimeDelegate
+  }
+  class VmRuntimeDelegate {
+    + get_global, set_global
+    + get_property, set_property
+    + invoke_global, new_instance
+    + method_call
+  }
+  class BytecodeModuleCache
+  class NativeModule { dlopen AOT .so }
+  class BytecodeBuilder { emit opcodes }
+}
+
+package "Async & Concurrency" as ASYNC #FCE4EC {
+  class EventLoop {
+    + schedule_microtask()
+    + pump_all() / run_turn()
+    + pending_count()
+    + IoPoller integration
+  }
+  class PromiseRuntime {
+    + resolve / reject
+    + then / catch handlers
+  }
+  class ThreadManager {
+    + spawn / join
+    + spawn_async
+  }
+  class ThreadPool {
+    + create / submit / wait / destroy
+  }
+  class IoPoller {
+    + register_fd / unregister_fd
+    + poll_once
+  }
+}
+
+package "Control-Flow Exceptions" as CF #FFF9C4 {
+  class BreakException
+  class ContinueException
+  class ReturnException
+}
+
+Interpreter --> ExpressionEvaluator
+Interpreter --> StatementExecutor
+Interpreter --> Environment
+DryadFunction --> Environment
+VM --> VmRuntimeDelegate
+EventLoop --> PromiseRuntime
+EventLoop --> IoPoller
+
+note bottom of OOP
+  AOT instance ABI: dryad_instance_*
+  in aot_runtime.c (tag 6)
+end note
+
+note bottom of ASYNC
+  Async/await bridges via
+  __runtime_await_promise
+  and EventLoop microtasks
+end note
+
+@enduml

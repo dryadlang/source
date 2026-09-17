@@ -1,0 +1,110 @@
+@startuml dryad_07_bytecode
+title Dryad Language — Bytecode Opcodes & Micro-IR
+skinparam backgroundColor #FEFEFE
+skinparam shadowing false
+skinparam defaultFontSize 9
+
+package "VM Opcodes (Opcode : uint8_t)" as VM_OPS #E3F2FD {
+
+  together {
+    package "Stack 0x00–0x08" {
+      enum StackOps {
+        PUSH_NULL, PUSH_TRUE, PUSH_FALSE
+        PUSH_INT, PUSH_FLOAT, PUSH_CONST
+        POP, DUP, SWAP
+      }
+    }
+    package "Arithmetic 0x10–0x1C" {
+      enum ArithOps {
+        ADD, SUB, MUL, DIV, MOD
+        ADD_F64, SUB_F64, MUL_F64, DIV_F64
+        ADD_I32, SUB_I32, MUL_I32, DIV_I32
+      }
+    }
+    package "Logical 0x20" {
+      enum LogicOps { NOT }
+    }
+    package "Comparison 0x40–0x45" {
+      enum CmpOps {
+        EQ, NEQ, LT, LTE, GT, GTE
+      }
+    }
+    package "Control Flow 0x50–0x55" {
+      enum CtrlOps {
+        JUMP, JUMP_IF_FALSE, JUMP_IF_TRUE
+        HALT, CALL, RET
+      }
+    }
+    package "Variables 0x60–0x63" {
+      enum VarOps {
+        LOAD_FAST, STORE_FAST
+        LOAD_GLOBAL, MAKE_FUNCTION
+      }
+    }
+    package "Collections / OOP 0x80–0x89" {
+      enum OOops {
+        NEW_ARRAY, ARRAY_PUSH, SET_ELEMENT
+        GET_PROPERTY, SET_PROPERTY
+        GET_ELEMENT, GET_ELEMENT_F64
+        METHOD_CALL, NEW_INSTANCE, CALL_GLOBAL
+      }
+    }
+    package "Intrinsics 0xFF" {
+      enum IntrOps { INTRINSIC_SYSCALL }
+    }
+  }
+}
+
+package "Micro-IR (AOT lowering)" as IR #FFF3E0 {
+
+  enum IrType {
+    Void, I32, F64, Bool, Ptr, Variant
+  }
+
+  enum IrOpcode {
+    ConstI32, ConstF64, ConstBool, ConstString
+    LoadFast, StoreFast
+    AddI32, AddF64, SubI32, SubF64
+    MulI32, MulF64, DivF64
+    CmpEqI32, CmpNeI32, CmpLtI32
+    CmpLeI32, CmpGtI32, CmpGeI32
+    GenericAdd, GenericGetElement
+    UnboxI32, UnboxBool, NotBool
+    IntrinsicSlow
+    Phi, Br, BrCond, Return
+  }
+
+  class IrInstruction {
+    + op: IrOpcode
+    + result_type: IrType
+    + lhs, rhs, slot, intrinsic_id
+    + branch_target, phi_incomings[]
+  }
+  class IrBasicBlock { + id, bytecode_pc, instructions[] }
+  class IrFunction { + metadata, blocks[], constants[] }
+  class IrModule { + functions[] }
+}
+
+package "Lowering Pipeline" as LOWER #E8F5E9 {
+  [CompiledProgram / .dryadc] as CP
+  [bytecode_to_micro_ir()] as TO_IR
+  [flatten_ir_function()] as FLAT
+  [link_libraries_into_module()] as LINK
+  [emit_llvm_ir()] as LLVM
+  [aot_runtime.c] as RT_C
+}
+
+CP --> TO_IR --> IrModule
+IrModule --> FLAT --> LINK --> LLVM --> RT_C
+
+note bottom of VM_OPS
+  Profiler-guided specialization selects
+  generic vs I32/F64 fast paths
+end note
+
+note bottom of IR
+  AnalyzePass reports FastPath vs SlowPath
+  per function for AOT diagnostics
+end note
+
+@enduml

@@ -39,6 +39,26 @@ std::string mangle_library_export(const std::string& package_name, const std::st
            sanitize_export_symbol(export_name);
 }
 
+std::string mangle_library_class_ctor(const std::string& package_name, const std::string& class_name) {
+    return "dryad_lib_" + sanitize_package_symbol(package_name) + "_" +
+           sanitize_export_symbol(class_name) + "_constructor";
+}
+
+std::string mangle_library_class_method(const std::string& package_name,
+                                        const std::string& class_name,
+                                        const std::string& method_name) {
+    return "dryad_lib_" + sanitize_package_symbol(package_name) + "_" +
+           sanitize_export_symbol(class_name) + "_" + sanitize_export_symbol(method_name);
+}
+
+std::string library_native_companion_path(const std::string& dyl_path) {
+    const auto dot = dyl_path.rfind('.');
+    if (dot == std::string::npos) {
+        return dyl_path + default_shared_extension();
+    }
+    return dyl_path.substr(0, dot) + default_shared_extension();
+}
+
 IrModule library_to_ir_module(const CompiledLibrary& library) {
     IrModule module;
     for (const auto& export_entry : library.functions) {
@@ -49,6 +69,25 @@ IrModule library_to_ir_module(const CompiledLibrary& library) {
             bytecode_function_to_micro_ir(library.program.functions[export_entry.function_index]);
         function.name = mangle_library_export(library.package_name, export_entry.name);
         module.functions.push_back(std::move(function));
+    }
+
+    for (const auto& class_export : library.classes) {
+        if (class_export.constructor_index < library.program.functions.size()) {
+            IrFunction ctor =
+                bytecode_function_to_micro_ir(library.program.functions[class_export.constructor_index]);
+            ctor.name = mangle_library_class_ctor(library.package_name, class_export.name);
+            module.functions.push_back(std::move(ctor));
+        }
+        for (const auto& method : class_export.methods) {
+            if (method.function_index >= library.program.functions.size()) {
+                continue;
+            }
+            IrFunction method_fn =
+                bytecode_function_to_micro_ir(library.program.functions[method.function_index]);
+            method_fn.name =
+                mangle_library_class_method(library.package_name, class_export.name, method.name);
+            module.functions.push_back(std::move(method_fn));
+        }
     }
     return module;
 }
@@ -66,6 +105,22 @@ std::unordered_map<std::string, std::string> build_linked_export_map(const Compi
             mangle_library_export(library.package_name, export_entry.name);
     }
     return exports;
+}
+
+void build_linked_class_maps(const CompiledLibrary& library, IrEmitOptions& emit_options) {
+    for (const auto& class_export : library.classes) {
+        const std::string ctor_symbol =
+            mangle_library_class_ctor(library.package_name, class_export.name);
+        emit_options.linked_class_ctors[class_export.name] = ctor_symbol;
+        for (const auto& method : class_export.methods) {
+            const std::string method_symbol =
+                mangle_library_class_method(library.package_name, class_export.name, method.name);
+            emit_options.linked_class_methods[class_export.name + "." + method.name] = method_symbol;
+            if (emit_options.linked_class_methods.count(method.name) == 0) {
+                emit_options.linked_class_methods[method.name] = method_symbol;
+            }
+        }
+    }
 }
 
 void merge_linked_export_maps(std::unordered_map<std::string, std::string>& target,
@@ -102,6 +157,7 @@ IrModule link_libraries_into_module(const IrModule& app_module,
         }
         merge_ir_modules(merged, library_to_ir_module(library));
         merge_linked_export_maps(emit_options.linked_exports, build_linked_export_map(library));
+        build_linked_class_maps(library, emit_options);
     }
     return merged;
 }
@@ -126,8 +182,41 @@ AotCompileResult compile_library_to_llvm_ir(const std::string& dyl_path,
         result.binary = read_binary_file(llvm_output_path);
         result.success = true;
         result.message = "Wrote LLVM IR for " + std::to_string(module.functions.size()) +
-                         " exported function(s) from " + library.package_name + " to " +
+                         " exported symbol(s) from " + library.package_name + " to " +
                          llvm_output_path;
+    } catch (const std::exception& ex) {
+        result.message = ex.what();
+    }
+    return result;
+}
+
+AotCompileResult compile_library_to_native(const std::string& dyl_path,
+                                            const std::string& output_path,
+                                            const std::string& aot_runtime_source,
+                                            const std::string& include_dir) {
+    AotCompileResult result;
+    result.output_path = output_path;
+    try {
+        const std::string llvm_path = output_path + ".ll";
+        auto ir_result = compile_library_to_llvm_ir(dyl_path, llvm_path);
+        if (!ir_result.success) {
+            result.message = ir_result.message;
+            return result;
+        }
+
+        NativeLinkResult link_result = link_native_binary(NativeLinkKind::SharedObject,
+                                                          llvm_path,
+                                                          output_path,
+                                                          aot_runtime_source,
+                                                          include_dir);
+        if (!link_result.success) {
+            result.message = link_result.message;
+            return result;
+        }
+
+        result.binary = std::move(link_result.binary);
+        result.success = true;
+        result.message = "Linked native companion for " + dyl_path + " to " + output_path;
     } catch (const std::exception& ex) {
         result.message = ex.what();
     }

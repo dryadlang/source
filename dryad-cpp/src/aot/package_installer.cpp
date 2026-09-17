@@ -1,5 +1,7 @@
 #include "dryad/runtime/package_installer.h"
 #include "dryad/aot/aot_compiler.h"
+#include "dryad/aot/library_linker.h"
+#include "dryad/aot/native_linker.h"
 #include "dryad/runtime/package_manifest.h"
 #include "dryad/common/utils.h"
 #include <cstdlib>
@@ -68,6 +70,13 @@ void install_dependency(const PackageDependency& dependency,
     if (!compile_result.success) {
         throw DryadException("Failed to compile dependency '" + dependency.name +
                              "': " + compile_result.message);
+    }
+
+    const char* runtime_env = std::getenv("DRYAD_AOT_RUNTIME_SRC");
+    const char* include_env = std::getenv("DRYAD_INCLUDE_DIR");
+    if (clang_available() && runtime_env && include_env) {
+        const std::string native_path = library_native_companion_path(dyl_path);
+        compile_library_to_native(dyl_path, native_path, runtime_env, include_env);
     }
 }
 

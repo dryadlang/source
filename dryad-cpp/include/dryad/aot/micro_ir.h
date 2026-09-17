@@ -60,6 +60,8 @@ struct IrInstruction {
     int result = -1;
     int lhs = -1;
     int rhs = -1;
+    IrType lhs_type = IrType::Variant;
+    IrType rhs_type = IrType::Variant;
     int64_t const_i32 = 0;
     double const_f64 = 0.0;
     bool const_bool = false;

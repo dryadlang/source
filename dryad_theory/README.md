@@ -2,6 +2,9 @@
 
 This directory contains the complete theoretical specification and architectural design documents for the Dryad programming language.
 
+**Practical docs (implementation-aligned):** [docs/README.md](../docs/README.md)  
+**Full documentation inventory:** [docs/SITEMAP.md](../docs/SITEMAP.md)
+
 ---
 
 ## 📁 Directory Structure

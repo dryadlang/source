@@ -751,18 +751,31 @@ private:
             }
             case Opcode::GET_PROPERTY: {
                 inst.lhs = pop();
+                const uint16_t name_index = read_u16(pc + 1);
+                if (name_index < function_.module.constants.size() &&
+                    function_.module.constants[name_index].is_string()) {
+                    inst.const_string_id =
+                        intern_string(function_.module.constants[name_index].as_string());
+                }
                 inst.op = IrOpcode::IntrinsicSlow;
                 inst.intrinsic_id = static_cast<uint16_t>(0xFF00u | static_cast<uint8_t>(op));
                 inst.intrinsic_argc = 1;
-                inst.result = fresh_reg(IrType::Variant);
+                inst.result_type = IrType::I32;
+                inst.result = fresh_reg(IrType::I32);
                 block.instructions.push_back(inst);
-                push(inst.result, IrType::Variant);
+                push(inst.result, IrType::I32);
                 pc += 3;
                 break;
             }
             case Opcode::SET_PROPERTY: {
                 inst.rhs = pop();
                 inst.lhs = pop();
+                const uint16_t name_index = read_u16(pc + 1);
+                if (name_index < function_.module.constants.size() &&
+                    function_.module.constants[name_index].is_string()) {
+                    inst.const_string_id =
+                        intern_string(function_.module.constants[name_index].as_string());
+                }
                 inst.op = IrOpcode::IntrinsicSlow;
                 inst.intrinsic_id = static_cast<uint16_t>(0xFF00u | static_cast<uint8_t>(op));
                 inst.intrinsic_argc = 2;
@@ -794,16 +807,33 @@ private:
                 inst.intrinsic_argc = argc;
                 if (!args.empty()) {
                     inst.rhs = args.back();
+                    inst.rhs_type = arg_types.back();
                     inst.result_type = arg_types.back();
                 }
                 if (args.size() > 1) {
                     inst.lhs = args[args.size() - 2];
+                    inst.lhs_type = arg_types[args.size() - 2];
                 }
                 if (op == Opcode::METHOD_CALL) {
                     inst.lhs = pop();
                 }
                 IrType call_result_type = IrType::Variant;
-                if (op == Opcode::CALL_GLOBAL && !arg_types.empty()) {
+                if (op == Opcode::METHOD_CALL) {
+                    if (arg_types.empty()) {
+                        call_result_type = IrType::I32;
+                    } else {
+                        bool all_i32 = true;
+                        for (IrType arg_type : arg_types) {
+                            if (arg_type != IrType::I32) {
+                                all_i32 = false;
+                                break;
+                            }
+                        }
+                        if (all_i32) {
+                            call_result_type = IrType::I32;
+                        }
+                    }
+                } else if (op == Opcode::CALL_GLOBAL && !arg_types.empty()) {
                     bool all_i32 = true;
                     for (IrType arg_type : arg_types) {
                         if (arg_type != IrType::I32) {
@@ -815,6 +845,7 @@ private:
                         call_result_type = IrType::I32;
                     }
                 }
+                inst.result_type = call_result_type;
                 inst.result = fresh_reg(call_result_type);
                 block.instructions.push_back(inst);
                 push(inst.result, call_result_type);

@@ -1,0 +1,112 @@
+@startuml dryad_08_modules
+title Dryad Language — Modules & Libraries
+skinparam backgroundColor #FEFEFE
+skinparam shadowing false
+skinparam defaultFontSize 10
+
+package "Source & Artifacts" as ART #E3F2FD {
+  artifact ".dryad" as SRC_SCRIPT
+  artifact ".dyd" as SRC_LIB
+  artifact ".dryadc" as BC : DRYADC v2
+  artifact ".dyl" as DYL : DRYADYL v1
+  artifact ".so" as SO : AOT native library
+  artifact "dryad.toml" as TOML
+}
+
+package "Resolution" as RES #FFF3E0 {
+  class ModuleLoader {
+    + library_paths: string[]
+    + stdlib_root: string
+    + resolve(module_path): path
+    + load(module_path): Environment
+    + cache: map<key, module>
+  }
+
+  card ResolutionOrder {
+    1. Relative import ./path
+    2. @scope/name package path
+    3. .dyd source (preferred)
+    4. .dryad fallback
+    5. .dyl binary (no source)
+    --
+    DRYAD_LIBRARY_PATH env
+    dryad_modules/ install dir
+  }
+}
+
+package "Export Model" as EXP #E8F5E9 {
+  enum LibraryExportKind {
+    Function
+    Class
+    Value
+  }
+
+  class ModuleMetadata {
+    + exports: ExportEntry[]
+    + internal_symbols: string[]
+    + has_explicit_exports: bool
+  }
+
+  class CompiledLibrary {
+    + package_name, package_version
+    + source_path, metadata
+    + program: CompiledProgram
+    + functions[], classes[], values[]
+  }
+
+  class LibraryMaterialization {
+    + environment: Environment
+    + library: CompiledLibrary
+    + runtime_delegate
+  }
+}
+
+package "Package System" as PKG #F3E5F5 {
+  class PackageManifest {
+    + name, version, entry
+    + dependencies: PackageDependency[]
+  }
+  class PackageDependency {
+    + name, version, path
+  }
+  [package_installer] as Installer
+  folder "dryad_modules/" as MOD_DIR
+}
+
+package "AOT Library Linking" as AOT_LINK #E0F7FA {
+  class LibraryLinker {
+    + mangle_library_export()
+    + mangle_library_class_ctor()
+    + mangle_library_class_method()
+    + link_libraries_into_module()
+    + compile_library_to_llvm_ir()
+    + compile_library_to_native()
+  }
+}
+
+package "CLI Commands" as CLI #FCE4EC {
+  card Commands {
+    dryad compile --lib → .dyl
+    dryad compile --lib --native → .so
+    dryad link --shared → .so
+    dryad install → dryad_modules/
+    dryad compile --link-lib → AOT with libs
+  }
+}
+
+ModuleLoader --> RES
+ModuleLoader --> SRC_LIB
+ModuleLoader --> DYL
+TOML --> Installer --> MOD_DIR
+SRC_LIB --> DYL : LibraryCompiler
+DYL --> LibraryMaterialization
+AOT_LINK --> SO
+CompiledLibrary --> DYL
+
+note as N_CYCLE
+  ImportCycleDetector
+  Static analysis of import graph
+  Reports cycle path on failure
+end note
+
+@enduml

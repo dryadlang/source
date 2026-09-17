@@ -1,0 +1,58 @@
+@startuml dryad_05_compiler
+title Dryad Language — Compiler Pipeline
+skinparam backgroundColor #FEFEFE
+skinparam shadowing false
+skinparam defaultFontSize 10
+skinparam ActivityBackgroundColor #E3F2FD
+skinparam ActivityBorderColor #1976D2
+
+|Source|
+start
+:Read .dryad / .dyd file;
+
+|Frontend|
+:Lexer::tokenize()\n→ vector<Token>;
+:Parser::parse()\n→ unique_ptr<Program>;
+
+|Static Analysis|
+if (validate mode?) then (yes)
+  :SemanticAnalyzer;
+  :ProgramValidator\n→ DiagnosticResult;
+else (compile mode)
+endif
+:ImportCycleDetector\n→ ImportCycleReport;
+
+|Profiling (optional)|
+if (run_profiler?) then (yes)
+  :Interpreter::execute()\nTypeProfiler observes slots/branches/calls;
+else (no)
+endif
+
+|Bytecode|
+:BytecodeCompiler::compile_program()\n→ CompiledProgram;
+note right
+  Uses profiler data for
+  specialized opcodes
+  Script entry: __dryad_main
+end note
+
+|Output|
+if (target?) then (.dryadc)
+  :save_bytecode_module()\nDRYADC v2;
+elseif (.dyl library)
+  :LibraryCompiler\n→ collect_module_metadata()\n→ CompiledLibrary\nDRYADYL v1;
+elseif (AOT)
+  |AOT|
+  :bytecode_to_micro_ir()\n→ IrModule;
+  :link_libraries_into_module()\n--link-lib;
+  :emit_llvm_ir()\n→ .ll;
+  if (native?) then (yes)
+    :link_native_binary()\n→ .so / executable;
+  endif
+else (interpret / VM)
+  :ExecutionEngine::execute_program();
+endif
+
+stop
+
+@enduml

@@ -53,4 +53,4 @@ cd dryad-cpp
 ./examples/run_benchmark.sh
 ```
 
-See [examples/README.md](../../dryad-cpp/examples/README.md) for the full catalog.
+See [examples catalog](../examples/README.md) and [dryad-cpp/examples/README.md](../../dryad-cpp/examples/README.md) for the full list.

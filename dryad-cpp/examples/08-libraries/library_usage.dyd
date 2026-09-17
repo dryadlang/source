@@ -1,0 +1,14 @@
+// Import from a user library via DRYAD_LIBRARY_PATH.
+import { Vec2, makeVec2, ORIGIN_X } from "@test/geom";
+
+function verify_library() {
+    let v = new Vec2(3, 4);
+    let ok = v.x == 3 && v.y == 4 && v.sum() == 7;
+
+    let v2 = makeVec2(1, 2);
+    let ok2 = ORIGIN_X == 0 && v2.x == 1;
+
+    return ok && ok2;
+}
+
+print(verify_library());

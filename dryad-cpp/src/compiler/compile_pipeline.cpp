@@ -1,6 +1,8 @@
 #include "dryad/compiler/compile_pipeline.h"
 #include "dryad/compiler/bytecode_compiler.h"
+#include "dryad/compiler/import_cycle_detector.h"
 #include "dryad/compiler/interpreter.h"
+#include "dryad/runtime/module_loader.h"
 #include "dryad/compiler/lexer.h"
 #include "dryad/compiler/parser.h"
 #include "dryad/common/utils.h"
@@ -29,6 +31,22 @@ std::unique_ptr<Program> parse_file(const std::string& path) {
 
 CompiledProgram compile_file_to_bytecode(const std::string& path, const CompileOptions& options) {
     auto program = parse_file(path);
+
+    ModuleLoader cycle_loader(options.stdlib_root.empty() ? "stdlib" : options.stdlib_root);
+    if (!options.library_paths.empty()) {
+        cycle_loader.set_library_paths(options.library_paths);
+    }
+    cycle_loader.push_import_context(path);
+    const ImportCycleReport cycle_report = detect_import_cycles(path, cycle_loader);
+    cycle_loader.pop_import_context();
+    if (cycle_report.has_cycle) {
+        std::string message = "Circular import detected:";
+        for (const auto& node : cycle_report.cycle) {
+            message += " -> " + node;
+        }
+        throw DryadException(message);
+    }
+
     Interpreter interpreter;
     if (!options.stdlib_root.empty()) {
         interpreter.set_stdlib_root(options.stdlib_root);

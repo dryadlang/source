@@ -100,12 +100,19 @@ Set `DRYAD_STDLIB_DIR` if the stdlib is not at the default install path.
 
 ## Documentation
 
-All documentation is consolidated under [`docs/`](docs/README.md):
+All documentation is consolidated under [`docs/`](docs/README.md). Full inventory: [`docs/SITEMAP.md`](docs/SITEMAP.md).
 
-- **Specification**: `dryad_theory/dryad_theoretical_foundation_v2.pdf` (canonical, v2.0)
-- **Implementation**: phases, architecture, plans → `docs/implementation/`
-- **Standard library**: `docs/stdlib/`
-- **Examples catalog**: `dryad-cpp/examples/README.md`
+| Section | Path |
+|---------|------|
+| Quick start | [docs/getting-started/quick-start.md](docs/getting-started/quick-start.md) |
+| Language reference | [docs/language/](docs/language/README.md) |
+| Specification (PDF) | [dryad_theory/](dryad_theory/dryad_theoretical_foundation_v2.pdf) |
+| Standard library | [docs/stdlib/](docs/stdlib/README.md) |
+| User libraries | [docs/libraries/](docs/libraries/README.md) |
+| CLI & tooling | [docs/tooling/](docs/tooling/README.md) |
+| Implementation | [docs/implementation/](docs/implementation/README.md) |
+| Diagrams (PlantUML) | [docs/diagrams/](docs/language/diagrams.md) |
+| Examples | [dryad-cpp/examples/README.md](dryad-cpp/examples/README.md) |
 
 ## Contributing
 

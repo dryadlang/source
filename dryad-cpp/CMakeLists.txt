@@ -123,6 +123,7 @@ add_library(dryad_compiler STATIC
     src/compiler/execution_engine.cpp
     src/compiler/compile_pipeline.cpp
     src/compiler/library_compiler.cpp
+    src/compiler/import_cycle_detector.cpp
     src/compiler/program_entry.cpp
 )
 target_include_directories(dryad_compiler PUBLIC include)
@@ -232,6 +233,8 @@ if(DRYAD_BUILD_TESTS)
         tests/unit/import_test.cpp
         tests/unit/library_test.cpp
         tests/unit/library_aot_test.cpp
+        tests/unit/import_cycle_test.cpp
+        tests/unit/library_triple_test.cpp
         tests/unit/package_test.cpp
     )
     target_link_libraries(unit_tests PRIVATE 

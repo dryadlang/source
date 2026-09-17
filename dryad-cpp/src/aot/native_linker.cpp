@@ -1,4 +1,5 @@
 #include "dryad/aot/native_linker.h"
+#include <cstdlib>
 #include <fstream>
 #include <iterator>
 
@@ -29,6 +30,21 @@ std::string platform_link_libraries() {
     return "";
 #else
     return "-ldl -pthread";
+#endif
+}
+
+std::string target_cpu_flags() {
+#if defined(__x86_64__) || defined(_M_X64)
+    const char* march = std::getenv("DRYAD_AOT_MARCH");
+    if (march != nullptr && march[0] != '\0') {
+        return std::string("-march=") + march;
+    }
+    // Portable default: avoid x86-64-v3/v4 binaries that fail on common CPUs.
+    return "-march=x86-64-v2";
+#elif defined(__aarch64__)
+    return "";
+#else
+    return "";
 #endif
 }
 
@@ -104,7 +120,11 @@ NativeLinkResult link_native_binary(NativeLinkKind kind,
     }
 
     const std::string kind_flags = platform_link_flags(kind);
+    const std::string cpu_flags = target_cpu_flags();
     std::string command = "clang -O2";
+    if (!cpu_flags.empty()) {
+        command += " " + cpu_flags;
+    }
     if (!kind_flags.empty()) {
         command += " " + kind_flags;
     }

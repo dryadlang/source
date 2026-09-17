@@ -22,7 +22,9 @@ package "VM Opcodes (Opcode : uint8_t)" as VM_OPS #E3F2FD {
       }
     }
     package "Logical 0x20" {
-      enum LogicOps { NOT }
+      enum LogicOps {
+        NOT
+      }
     }
     package "Comparison 0x40–0x45" {
       enum CmpOps {
@@ -50,7 +52,9 @@ package "VM Opcodes (Opcode : uint8_t)" as VM_OPS #E3F2FD {
       }
     }
     package "Intrinsics 0xFF" {
-      enum IntrOps { INTRINSIC_SYSCALL }
+      enum IntrOps {
+        INTRINSIC_SYSCALL
+      }
     }
   }
 }
@@ -78,24 +82,34 @@ package "Micro-IR (AOT lowering)" as IR #FFF3E0 {
     + op: IrOpcode
     + result_type: IrType
     + lhs, rhs, slot, intrinsic_id
-    + branch_target, phi_incomings[]
+    + branch_target, phi_incomings array
   }
-  class IrBasicBlock { + id, bytecode_pc, instructions[] }
-  class IrFunction { + metadata, blocks[], constants[] }
-  class IrModule { + functions[] }
+  class IrBasicBlock {
+    + id, bytecode_pc, instructions array
+  }
+  class IrFunction {
+    + metadata, blocks array, constants array
+  }
+  class IrModule {
+    + functions array
+  }
 }
 
 package "Lowering Pipeline" as LOWER #E8F5E9 {
-  [CompiledProgram / .dryadc] as CP
-  [bytecode_to_micro_ir()] as TO_IR
-  [flatten_ir_function()] as FLAT
-  [link_libraries_into_module()] as LINK
-  [emit_llvm_ir()] as LLVM
-  [aot_runtime.c] as RT_C
+  class "CompiledProgram / .dryadc" as CP
+  class "bytecode_to_micro_ir()" as TO_IR
+  class "flatten_ir_function()" as FLAT
+  class "link_libraries_into_module()" as LINK
+  class "emit_llvm_ir()" as LLVM
+  class "aot_runtime.c" as RT_C
 }
 
-CP --> TO_IR --> IrModule
-IrModule --> FLAT --> LINK --> LLVM --> RT_C
+CP --> TO_IR
+TO_IR --> IrModule
+IrModule --> FLAT
+FLAT --> LINK
+LINK --> LLVM
+LLVM --> RT_C
 
 note bottom of VM_OPS
   Profiler-guided specialization selects

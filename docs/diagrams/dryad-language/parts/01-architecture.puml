@@ -21,61 +21,62 @@ legend top left
 endlegend
 
 package "Source Artifacts" as SRC #E3F2FD {
-  artifact ".dryad" as A_DRYAD : Script source
-  artifact ".dyd" as A_DYD : Library source
-  artifact "dryad.toml" as A_TOML : Package manifest
+  class ".dryad\nScript source" as A_DRYAD
+  class ".dyd\nLibrary source" as A_DYD
+  class "dryad.toml\nPackage manifest" as A_TOML
 }
 
 package "Compiled Artifacts" as ART #E8F5E9 {
-  artifact ".dryadc" as A_DRYADC : Bytecode (magic DRYADC v2)
-  artifact ".dyl" as A_DYL : Library binary (magic DRYADYL v1)
-  artifact ".ll" as A_LL : LLVM IR
-  artifact ".so" as A_SO : Native shared object
-  artifact "executable" as A_EXE : Linked native binary
+  class ".dryadc\nBytecode (magic DRYADC v2)" as A_DRYADC
+  class ".dyl\nLibrary binary (magic DRYADYL v1)" as A_DYL
+  class ".ll\nLLVM IR" as A_LL
+  class ".so\nNative shared object" as A_SO
+  class "executable\nLinked native binary" as A_EXE
 }
 
 package "Frontend" as FE #FFF3E0 {
-  [Lexer] as Lexer
-  [Parser] as Parser
-  [AST] as AST
+  class "Lexer" as Lexer
+  class "Parser" as Parser
+  class "AST" as AST
 }
 
 package "Static Analysis" as SA #F3E5F5 {
-  [SemanticAnalyzer] as Semantic
-  [ProgramValidator] as Validator
-  [ImportCycleDetector] as CycleDet
+  class "SemanticAnalyzer" as Semantic
+  class "ProgramValidator" as Validator
+  class "ImportCycleDetector" as CycleDet
 }
 
 package "Execution Tiers" as EXEC #E0F7FA {
-  [Interpreter] as Interp : Tree-walk
-  [BytecodeCompiler] as BCComp
-  [VM] as VM : Opcode dispatch
-  [JitCompiler] as JIT : Hot-loop JIT
-  [AOT Compiler] as AOT
-  [NativeModule] as Native : dlopen .so
+  class "Interpreter\nTree-walk" as Interp
+  class "BytecodeCompiler" as BCComp
+  class "VM\nOpcode dispatch" as VM
+  class "JitCompiler\nHot-loop JIT" as JIT
+  class "AOT Compiler" as AOT
+  class "NativeModule\ndlopen .so" as Native
 }
 
 package "Runtime Core" as RT #FCE4EC {
-  [Value Model] as Value
-  [Environment] as Env
-  [ModuleLoader] as ModLoad
-  [IntrinsicsRegistry] as Intrinsics
-  [EventLoop] as EvLoop
+  class "Value Model" as Value
+  class "Environment" as Env
+  class "ModuleLoader" as ModLoad
+  class "IntrinsicsRegistry" as Intrinsics
+  class "EventLoop" as EvLoop
 }
 
 package "Standard Library" as STD #E8EAF6 {
-  [@std/core] as STD_CORE
-  [@std/buffers] as STD_BUF
-  [@std/collections] as STD_COLL
-  [@std/io] as STD_IO
-  [@std/async] as STD_ASYNC
-  [@std/net] as STD_NET
+  class "@std/core" as STD_CORE
+  class "@std/buffers" as STD_BUF
+  class "@std/collections" as STD_COLL
+  class "@std/io" as STD_IO
+  class "@std/async" as STD_ASYNC
+  class "@std/net" as STD_NET
 }
 
 ' --- Data flow ---
 A_DRYAD --> Lexer
 A_DYD --> Lexer
-Lexer --> Parser --> AST
+Lexer --> Parser
+Parser --> AST
 
 AST --> Semantic
 AST --> Validator
@@ -88,7 +89,8 @@ BCComp --> VM
 
 A_DRYADC --> VM
 A_DRYADC --> AOT
-AOT --> A_LL --> A_SO
+AOT --> A_LL
+A_LL --> A_SO
 AOT --> A_EXE
 
 A_DYD --> A_DYL : compile --lib

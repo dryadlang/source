@@ -67,7 +67,8 @@ package "Token Categories" as TOK #E3F2FD {
 
 package "Reserved Keywords (37)" as KW #FFF3E0 {
   together {
-    card "Declarations" as KW_DECL {
+    card KW_DECL [
+      **Declarations**
       let, const
       function, return
       class, interface
@@ -75,29 +76,34 @@ package "Reserved Keywords (37)" as KW #FFF3E0 {
       readonly, get, set, delete
       new, this, super
       export, internal, extern
-    }
-    card "Control Flow" as KW_CTRL {
+    ]
+    card KW_CTRL [
+      **Control Flow**
       if, else
       while, for
       break, continue
-    }
-    card "Modules" as KW_MOD {
+    ]
+    card KW_MOD [
+      **Modules**
       import, export, from, as
-    }
-    card "Async" as KW_ASYNC {
+    ]
+    card KW_ASYNC [
+      **Async**
       async, await
-    }
-    card "Literals" as KW_LIT {
+    ]
+    card KW_LIT [
+      **Literals**
       true, false, null
-    }
-    card "Reserved (lexed, not parsed)" as KW_RES {
+    ]
+    card KW_RES [
+      **Reserved (lexed, not parsed)**
       try, catch, finally, throw
-    }
+    ]
   }
 }
 
 package "Declaration Modifiers" as MOD #E8F5E9 {
-  card Modifiers {
+  card Modifiers [
     **export** — public module symbol
     **internal** — package-private
     **abstract** — class/method/property
@@ -107,11 +113,11 @@ package "Declaration Modifiers" as MOD #E8F5E9 {
     **extends** / **implements** — inheritance
     **get** / **set** / **delete** — property accessors
     **extern** — intrinsic function binding
-  }
+  ]
 }
 
 package "Decorators" as DEC #F3E5F5 {
-  card CompileDecorator {
+  card CompileDecorator [
     @compile("interpreter")
     @compile("bytecode")
     @compile("AOT")
@@ -119,27 +125,27 @@ package "Decorators" as DEC #F3E5F5 {
     Applies to:
     • function / async function
     • compile block { ... }
-  }
-  card IntrinsicDecorator {
+  ]
+  card IntrinsicDecorator [
     @intrinsic("syscall.name")
     extern function foo(...)
     --
     Binds to runtime IntrinsicsRegistry
     Dispatched as INTRINSIC_SYSCALL in VM
-  }
+  ]
 }
 
 package "Module Syntax" as MSYN #E0F7FA {
-  card ImportSyntax {
+  card ImportSyntax [
     import { sym1, sym2 } from "@scope/module";
     import { sym } from "./relative/path";
-  }
-  card ExportSyntax {
+  ]
+  card ExportSyntax [
     export function foo() { }
     export class Bar { }
     export let x = 1;
     export { sym1, sym2 } from "other/module";
-  }
+  ]
 }
 
 note bottom of KW_RES

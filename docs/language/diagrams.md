@@ -24,8 +24,8 @@ docs/diagrams/dryad-language/
 ## Render
 
 ```bash
-# All diagrams (requires PlantUML)
-plantuml docs/diagrams/dryad-language/dryad-language.puml
+# All diagrams (requires PlantUML + Graphviz)
+plantuml docs/diagrams/dryad-language/parts/*.puml
 
 # Single diagram
 plantuml docs/diagrams/dryad-language/parts/03-ast.puml

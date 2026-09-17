@@ -71,8 +71,12 @@ package "Bytecode Runtime" as BC_RT #E0F7FA {
     + method_call
   }
   class BytecodeModuleCache
-  class NativeModule { dlopen AOT .so }
-  class BytecodeBuilder { emit opcodes }
+  class NativeModule {
+    dlopen AOT .so
+  }
+  class BytecodeBuilder {
+    emit opcodes
+  }
 }
 
 package "Async & Concurrency" as ASYNC #FCE4EC {

@@ -44,10 +44,20 @@ package "Compile-Time Profiling" as PROF #FFF3E0 {
     Any
   }
 
-  class SlotProfile { + type, confidence, observation_count }
-  class BranchProfile { + taken, not_taken }
-  class CallSiteProfile { + callee_name, call_count }
-  class FunctionProfile { + name, slots[], branches[], call_sites[] }
+  class SlotProfile {
+
+    + type, confidence, observation_count
+
+  }
+  class BranchProfile {
+    + taken, not_taken
+  }
+  class CallSiteProfile {
+    + callee_name, call_count
+  }
+  class FunctionProfile {
+    + name, slots array, branches array, call_sites array
+  }
   class TypeProfiler {
     + observe_slot()
     + observe_branch()
@@ -64,9 +74,15 @@ package "Semantic Annotations" as SEM #E8F5E9 {
     + infer_binary_type()
     + is_assignable()
   }
-  class Scope { + symbols: SymbolInfo[] }
-  class SymbolInfo { + name, type, used }
-  class FunctionSignature { + param_types[], return_type }
+  class Scope {
+    + symbols: SymbolInfo array
+  }
+  class SymbolInfo {
+    + name, type, used
+  }
+  class FunctionSignature {
+    + param_types array, return_type
+  }
 }
 
 package "Bytecode Slot Metadata" as BC_META #F3E5F5 {
@@ -76,7 +92,7 @@ package "Bytecode Slot Metadata" as BC_META #F3E5F5 {
     + confidence: TypeConfidence
   }
   class FunctionMetadata {
-    + name, slots[]
+    + name, slots array
     + parameter_count, stack_depth, opcode_count
   }
 }

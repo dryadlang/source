@@ -64,7 +64,9 @@ package "@std" as STD #E8EAF6 {
   ' =========================================================================
   package "collections" as COLL #E8F5E9 {
     package "collections.dryad **barrel**" as COLL_BARREL {
-      note "Re-exports: List, Map, Set, Queue"
+      note as _n1
+        Re-exports: List, Map, Set, Queue
+      end note
     }
     package "list" {
       class List implements IEnumerable {
@@ -106,49 +108,74 @@ package "@std" as STD #E8EAF6 {
         read, write, seek, flush
         close, dispose
       }
-      object SeekOrigin { Begin, Current, End }
+      class SeekOrigin {
+        Begin
+        Current
+        End
+      }
+      card _api1 [
       Stream_isStream, Stream_isError
+      ]
     }
     package "path" {
       object Path {
+        card _api2 [
         join, dirname, basename
         extension, ensureDirectory
         ensureParentForFile
+        ]
       }
     }
     package "io_errors" {
+      card _api3 [
       InvalidPathError, FileNotFoundError
       DirectoryNotFoundError, AccessDeniedError
       FileAlreadyExistsError, InvalidOperationError
       NormalizePath, ValidatePath
+      ]
     }
     package "vfs" as IO_VFS {
-      protocol FileSystemBackend
-      class VFS { readFile, writeFile, listDirectory\nremoveFile, exists, mkdir, dispose }
+      interface FileSystemBackend
+      class VFS {
+        readFile, writeFile, listDirectory\nremoveFile, exists, mkdir, dispose
+      }
       class MemoryBackend
       class NativeBackend
     }
     package "file" as IO_FILE {
+      card _api4 [
       readFile, writeFile, exists
       removeFile, listDirectory, mkdir
       setVFSBackend
       readFileAsync, writeFileAsync, ...
+      ]
     }
     package "filestream" {
-      object FileMode { Read, Write, ReadWrite, Append }
+      class FileMode {
+        Read
+        Write
+        ReadWrite
+        Append
+      }
       class FileStream extends Stream
+      card _api5 [
       File_open, File_exists, File_delete
       File_readAllText, File_writeAllText
+      ]
     }
     package "memory_stream" {
       class MemoryStream extends Stream
+      card _api6 [
       MemoryStream_new, MemoryStream_fromString
       MemoryStream_fromBuffer, MemoryStream_toString
       MemoryStream_getBuffer
+      ]
     }
     package "filehandle" {
       class FileHandle
+      card _api7 [
       FileHandle_read/write/close/dispose
+      ]
     }
     package "io_concurrency" {
       class FileLock
@@ -159,35 +186,51 @@ package "@std" as STD #E8EAF6 {
   ' =========================================================================
   package "async" as ASYNC #E0F7FA {
     package "async.dryad **barrel**" as ASYNC_BARREL {
-      note "Re-exports: Promise_*, Thread_*, ThreadPool_*, EventLoop_*"
+      note as _n2
+        Re-exports: Promise_*, Thread_*, ThreadPool_*, EventLoop_*
+      end note
     }
     package "promise" as ASYNC_PROMISE {
       class Promise {
         then, catch/catchError
         finally/finallyDo
       }
+      card _api8 [
       Promise_resolve, Promise_reject, Promise_wrap
       Promise_all, Promise_race, Promise_flush
       Promise_await
+      ]
     }
     package "event_loop" as ASYNC_EVLOOP {
+      card _api9 [
       EventLoop_schedule
       EventLoop_pendingCount
       EventLoop_pump, EventLoop_runTurn
+      ]
     }
     package "threading" {
       package "thread" as ASYNC_THREAD {
-        class Thread { start, join, isStarted }
+        class Thread {
+          start, join, isStarted
+        }
+        card _api10 [
         Thread_parallel, Thread_sleepMs
         Thread_hardwareConcurrency
         Thread_startAsync
+        ]
       }
       package "thread_pool" {
-        class ThreadPool { submit, wait, run\nsubmitAsync, destroy }
+        class ThreadPool {
+          submit, wait, run\nsubmitAsync, destroy
+        }
+        card _api11 [
         ThreadPool_map
+        ]
       }
       package "threading.dryad **barrel**" {
-        note "Re-exports thread + thread_pool"
+        note as _n3
+          Re-exports thread + thread_pool
+        end note
       }
     }
   }
@@ -195,20 +238,36 @@ package "@std" as STD #E8EAF6 {
   ' =========================================================================
   package "net" as NET #FCE4EC {
     package "net.dryad **barrel**" as NET_BARREL {
-      note "Re-exports: Socket*, Tcp*, Udp*, Dns, Tls*, HttpClient*"
+      note as _n4
+        Re-exports: Socket*, Tcp*, Udp*, Dns, Tls*, HttpClient*
+      end note
     }
     package "constants" {
-      object SocketDomain { IPv4, IPv6 }
-      object SocketType { Stream, Datagram }
-      object Shutdown { Read, Write, Both }
+      class SocketDomain {
+        IPv4
+        IPv6
+      }
+      class SocketType {
+        Stream
+        Datagram
+      }
+      class Shutdown {
+        Read
+        Write
+        Both
+      }
     }
     package "net_errors" {
+      card _api12 [
       Net_validatePort, Net_validateConnectHost
       Net_normalizeBindHost, Net_socketError
+      ]
     }
     package "dns" {
+      card _api13 [
       Net_resolveHost
       Net_resolveHostOrError
+      ]
     }
     package "socket" as NET_SOCKET {
       class Socket implements IDisposable {
@@ -216,45 +275,83 @@ package "@std" as STD #E8EAF6 {
         send, receive, sendTo, receiveFrom
         shutdown, close, dispose
       }
+      card _api14 [
       Socket_isSocket, Socket_fromFd
+      ]
     }
     package "network_stream" {
       class NetworkStream extends Stream
+      card _api15 [
       NetworkStream_fromSocket
+      ]
     }
     package "tcp_client" as NET_TCP {
       class TcpClient implements IDisposable {
         getStream, send, receive
         close, dispose
       }
+      card _api16 [
       TcpClient_connect, TcpClient_wrap
+      ]
     }
     package "tcp_listener" {
-      class TcpListener { start, accept, stop }
+      class TcpListener {
+        start, accept, stop
+      }
     }
     package "udp_client" {
-      class UdpClient { sendTo, receiveFrom }
+      class UdpClient {
+        sendTo, receiveFrom
+      }
+      card _api17 [
       UdpClient_create
+      ]
     }
     package "tls_stream" as NET_TLS {
       class TlsStream extends Stream
+      card _api18 [
       TlsStream_isAvailable, TlsStream_connect
+      ]
     }
     package "socket_async" as NET_SOCK_ASYNC {
-      note "Not in net barrel"
+      note as _n5
+        Not in net barrel
+      end note
+      card _api19 [
       Socket_connectAsync, Socket_sendAsync
       Socket_receiveAsync
       TcpClient_connectAsync
+      ]
     }
     package "http" {
-      package "http_string" { Http_charAt, Http_trim, ... }
-      package "http_headers" { class HttpHeaders }
-      package "http_url" { Http_parseUrl }
-      package "http_request" { class HttpRequest, HttpRequest_buildWire }
-      package "http_response" { class HttpResponse, HttpResponse_parse }
+      package "http_string" {
+        card _http_string [
+          Http_charAt, Http_trim, ...
+        ]
+      }
+      package "http_headers" {
+        class HttpHeaders
+      }
+      package "http_url" {
+        card _http_url [
+          Http_parseUrl
+        ]
+      }
+      package "http_request" {
+        class HttpRequest
+        class HttpRequest_buildWire
+      }
+      package "http_response" {
+        class HttpResponse
+        class HttpResponse_parse
+      }
       package "http_client" as NET_HTTP {
-        class HttpClient { send, get, post\ngetAsync, postAsync }
+        class HttpClient {
+          send, get, post\ngetAsync, postAsync
+        }
+        card _api20 [
         HttpClient_create
+        ]
       }
     }
   }
@@ -295,13 +392,31 @@ NET_TLS <-- NET_HTTP : HTTPS
 ' Stdlib → Core intrinsics layer
 ' =============================================================================
 
-package "Compiler Intrinsics (__*)" as INTR #FFF9C4 {
-  card Memory { __alloc_bytes, __free_bytes\n__buffer_get/set }
-  card FS { __open_read/write, __read_buffer\n__exists, __mkdir, __readdir }
-  card Net { __socket, __connect, __send_buffer\n__resolve_host }
-  card TLS { __tls_client_handshake\n__tls_send_buffer }
-  card Thread { __thread_spawn, __thread_pool_* }
-  card Runtime { __runtime_schedule_microtask\n__runtime_await_promise\n__runtime_object_* }
+package "Compiler Intrinsics" as INTR #FFF9C4 {
+  class Memory {
+    __alloc_bytes, __free_bytes
+    __buffer_get/set
+  }
+  class FS {
+    __open_read/write, __read_buffer
+    __exists, __mkdir, __readdir
+  }
+  class Net {
+    __socket, __connect, __send_buffer
+    __resolve_host
+  }
+  class TLS {
+    __tls_client_handshake
+    __tls_send_buffer
+  }
+  class Thread {
+    __thread_spawn, __thread_pool_*
+  }
+  class Runtime {
+    __runtime_schedule_microtask
+    __runtime_await_promise
+    __runtime_object_*
+  }
 }
 
 BUFFERS_BUF ..> INTR.Memory

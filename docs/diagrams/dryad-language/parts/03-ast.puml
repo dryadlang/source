@@ -14,33 +14,64 @@ abstract class Expression
 abstract class Statement
 
 class Program {
-  + statements: Statement[]
+  + statements: Statement array
 }
 
 ' --- Literals ---
-class IntegerLiteral { + value: int64 }
-class FloatLiteral { + value: double }
-class StringLiteral { + value: string }
-class BooleanLiteral { + value: bool }
+class IntegerLiteral {
+  + value: int64
+}
+class FloatLiteral {
+  + value: double
+}
+class StringLiteral {
+  + value: string
+}
+class BooleanLiteral {
+  + value: bool
+}
 class NullLiteral
 
 ' --- Expressions ---
-class Identifier { + name: string }
-class BinaryExpression { + op, left, right }
-class UnaryExpression { + op, operand }
-class AssignmentExpression { + name, value }
-class CallExpression { + callee, args[] }
-class MemberExpression { + object, property, computed }
-class ArrayExpression { + elements[] }
-class NewExpression { + class_name, args[] }
-class FunctionExpression { + params, body }
+class Identifier {
+  + name: string
+}
+class BinaryExpression {
+  + op, left, right
+}
+class UnaryExpression {
+  + op, operand
+}
+class AssignmentExpression {
+  + name, value
+}
+class CallExpression {
+  + callee, args array
+}
+class MemberExpression {
+  + object, property, computed
+}
+class ArrayExpression {
+  + elements array
+}
+class NewExpression {
+  + class_name, args array
+}
+class FunctionExpression {
+  + params, body
+}
 class ThisExpression
 class SuperExpression
-class AwaitExpression { + expression }
-class ErrorExpression { + message }
-
+class AwaitExpression {
+  + expression
+}
+class ErrorExpression {
+  + message
+}
 ' --- Declarations ---
-class VariableDeclaration { + name, initializer, is_const }
+class VariableDeclaration {
+  + name, initializer, is_const
+}
 class FunctionDeclaration {
   + name, params, body
   + is_async, is_exported, is_internal
@@ -48,32 +79,52 @@ class FunctionDeclaration {
 }
 class ClassDeclaration {
   + name, super_class, interfaces
-  + methods[], properties[]
+  + methods array, properties array
   + is_abstract, is_exported, is_internal
 }
-class InterfaceDeclaration { + name, methods[], properties[] }
+class InterfaceDeclaration {
+  + name, methods array, properties array
+}
 class IntrinsicDeclaration {
   + intrinsic_name, function_name
-  + params[], return_type
+  + params array, return_type
 }
 
 ' --- Statements ---
-class BlockStatement { + statements[] }
-class ExpressionStatement { + expression }
-class ReturnStatement { + value }
-class IfStatement { + condition, then, else }
-class WhileStatement { + condition, body }
-class ForStatement { + init, condition, update, body }
+class BlockStatement {
+  + statements array
+}
+class ExpressionStatement {
+  + expression
+}
+class ReturnStatement {
+  + value
+}
+class IfStatement {
+  + condition, then, else
+}
+class WhileStatement {
+  + condition, body
+}
+class ForStatement {
+  + init, condition, update, body
+}
 class BreakStatement
 class ContinueStatement
-class CompileBlockStatement { + mode: ExecutionMode, body }
-
+class CompileBlockStatement {
+  + mode: ExecutionMode, body
+}
 ' --- Modules ---
-class ImportDeclaration { + symbols[], module_path }
-class ExportFromDeclaration { + symbols[], module_path }
-
+class ImportDeclaration {
+  + symbols array, module_path
+}
+class ExportFromDeclaration {
+  + symbols array, module_path
+}
 ' --- Supporting structs ---
-class Parameter { + name, type_annotation, default_value }
+class Parameter {
+  + name, type_annotation, default_value
+}
 class MethodDeclaration {
   + name, params, body
   + is_constructor, is_abstract

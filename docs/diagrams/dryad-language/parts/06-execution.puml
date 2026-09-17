@@ -72,19 +72,19 @@ note as N_SCRIPT
 end note
 
 package "invoke_function() dispatch" as DISPATCH #FFF3E0 {
-  card InterpreterPath {
+  card InterpreterPath [
     DryadFunction::call_interpreted()
     ExpressionEvaluator + StatementExecutor
-  }
-  card BytecodePath {
+  ]
+  card BytecodePath [
     VM::execute()
     via invoke_bytecode_program()
-  }
-  card AOTPath {
+  ]
+  card AOTPath [
     NativeModule::invoke()
     → fallback .dryadc
     → fallback live bytecode compile
-  }
+  ]
 }
 
 ExecutionEngine ..> DISPATCH

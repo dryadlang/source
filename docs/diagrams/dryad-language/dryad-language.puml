@@ -6,7 +6,7 @@
 ' Canonical spec:  dryad_theory/dryad_theoretical_foundation_v2.pdf
 '
 ' Render all diagrams:
-'   plantuml docs/diagrams/dryad-language/dryad-language.puml
+'   plantuml docs/diagrams/dryad-language/parts/*.puml
 '
 ' Render a single diagram (by name):
 '   plantuml -DPLANTUML_LIMIT_SIZE=16384 docs/diagrams/dryad-language/parts/03-ast.puml

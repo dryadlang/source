@@ -1,0 +1,10 @@
+{
+  "plantuml.render": "Local",
+  "plantuml.commandArgs": [
+    "-DPLANTUML_LIMIT_SIZE=16384"
+  ],
+  "plantuml.previewAutoUpdate": true,
+  "[plantuml]": {
+    "editor.wordWrap": "on"
+  }
+}

@@ -1,4 +1,5 @@
-@startuml dryad_04_types
+@startuml
+!pragma layout smetana dryad_04_types
 title Dryad Language — Type System
 skinparam backgroundColor #FEFEFE
 skinparam shadowing false

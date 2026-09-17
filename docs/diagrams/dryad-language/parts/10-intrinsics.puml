@@ -1,4 +1,5 @@
-@startuml dryad_10_intrinsics
+@startuml
+!pragma layout smetana dryad_10_intrinsics
 title Dryad Language — Intrinsics Registry
 skinparam backgroundColor #FEFEFE
 skinparam shadowing false

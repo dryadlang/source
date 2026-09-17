@@ -1,4 +1,5 @@
-@startuml dryad_11_stdlib
+@startuml
+!pragma layout smetana dryad_11_stdlib
 title Dryad Standard Library (@std/*)
 skinparam backgroundColor #FEFEFE
 skinparam packageStyle rectangle
@@ -118,13 +119,12 @@ package "@std" as STD #E8EAF6 {
       ]
     }
     package "path" {
-      object Path {
-        card _api2 [
+      class Path
+      card _api2 [
         join, dirname, basename
         extension, ensureDirectory
         ensureParentForFile
-        ]
-      }
+      ]
     }
     package "io_errors" {
       card _api3 [

@@ -1,4 +1,5 @@
-@startuml dryad_07_bytecode
+@startuml
+!pragma layout smetana dryad_07_bytecode
 title Dryad Language — Bytecode Opcodes & Micro-IR
 skinparam backgroundColor #FEFEFE
 skinparam shadowing false
@@ -23,7 +24,7 @@ package "VM Opcodes (Opcode : uint8_t)" as VM_OPS #E3F2FD {
     }
     package "Logical 0x20" {
       enum LogicOps {
-        NOT
+        NOT_OP
       }
     }
     package "Comparison 0x40–0x45" {

@@ -1,4 +1,5 @@
-@startuml dryad_08_modules
+@startuml
+!pragma layout smetana dryad_08_modules
 title Dryad Language — Modules & Libraries
 skinparam backgroundColor #FEFEFE
 skinparam shadowing false

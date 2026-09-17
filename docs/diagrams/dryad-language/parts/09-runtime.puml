@@ -1,4 +1,5 @@
-@startuml dryad_09_runtime
+@startuml
+!pragma layout smetana dryad_09_runtime
 title Dryad Language — Runtime Components
 skinparam backgroundColor #FEFEFE
 skinparam shadowing false

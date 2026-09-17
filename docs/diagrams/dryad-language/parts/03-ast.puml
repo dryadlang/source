@@ -1,4 +1,5 @@
-@startuml dryad_03_ast
+@startuml
+!pragma layout smetana dryad_03_ast
 title Dryad Language — Abstract Syntax Tree (AST)
 skinparam backgroundColor #FEFEFE
 skinparam shadowing false

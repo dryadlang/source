@@ -1,4 +1,5 @@
-@startuml dryad_01_architecture
+@startuml
+!pragma layout smetana dryad_01_architecture
 title Dryad Language — Architecture Overview
 skinparam backgroundColor #FEFEFE
 skinparam packageStyle rectangle

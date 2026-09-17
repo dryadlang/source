@@ -1,4 +1,5 @@
-@startuml dryad_02_lexical
+@startuml
+!pragma layout smetana dryad_02_lexical
 title Dryad Language — Lexical & Surface Syntax
 skinparam backgroundColor #FEFEFE
 skinparam shadowing false
@@ -19,48 +20,48 @@ package "Token Categories" as TOK #E3F2FD {
 
   package "Arithmetic Operators" {
     enum ArithOps {
-      +  // Plus
-      -  // Minus
-      *  // Star
-      /  // Slash
-      %  // Percent
+      PLUS    // +
+      MINUS   // -
+      STAR    // *
+      SLASH   // /
+      PERCENT // %
     }
   }
 
   package "Comparison Operators" {
     enum CmpOps {
-      ==  // EqualEqual
-      !=  // BangEqual
-      <   // Less
-      <=  // LessEqual
-      >   // Greater
-      >=  // GreaterEqual
+      EQ  // ==
+      NEQ // !=
+      LT  // <
+      LTE // <=
+      GT  // >
+      GTE // >=
     }
   }
 
   package "Compound Assignment" {
     enum CompoundAssign {
-      +=  // PlusEqual
-      -=  // MinusEqual
-      *=  // StarEqual
-      /=  // SlashEqual
+      PLUSEQ  // +=
+      MINUSEQ // -=
+      STAREQ  // *=
+      SLASHEQ // /=
     }
   }
 
   package "Logical Operators" {
     enum LogicOps {
-      !   // Bang (unary not)
-      &&  // AmpersandAmpersand
-      ||  // PipePipe
+      BANG // ! (unary not)
+      AND  // &&
+      OR   // ||
     }
   }
 
   package "Delimiters & Punctuation" {
     enum Delimiters {
-      ( ) { } [ ]
-      , . : ; -> ?
-      @   // decorator prefix
-      #   // reserved (module/intrinsic names)
+      LPAREN RPAREN LBRACE RBRACE LBRACKET RBRACKET
+      COMMA DOT COLON SEMICOLON ARROW QUESTION
+      AT   // decorator prefix
+      HASH // reserved (module/intrinsic names)
     }
   }
 }

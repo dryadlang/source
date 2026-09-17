@@ -1,4 +1,5 @@
-@startuml dryad_06_execution
+@startuml
+!pragma layout smetana dryad_06_execution
 title Dryad Language — Triple Execution Model
 skinparam backgroundColor #FEFEFE
 skinparam shadowing false

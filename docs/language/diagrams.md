@@ -23,15 +23,21 @@ docs/diagrams/dryad-language/
 
 ## Render
 
+Install (Arch/CachyOS):
+
 ```bash
-# All diagrams (requires PlantUML + Graphviz)
+sudo pacman -S plantuml graphviz   # graphviz optional; diagrams use smetana layout
+```
+
+```bash
+# All diagrams
 plantuml docs/diagrams/dryad-language/parts/*.puml
 
 # Single diagram
 plantuml docs/diagrams/dryad-language/parts/03-ast.puml
 ```
 
-In Cursor/VS Code, install the PlantUML extension and open any `.puml` file for preview.
+In Cursor/VS Code, install the **PlantUML** extension (`jebbs.plantuml`) and open a file under `parts/` for preview. The master file `dryad-language.puml` shows an index card; individual diagrams live in `parts/*.puml`.
 
 ## Diagram index
 

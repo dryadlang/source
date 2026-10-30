@@ -70,6 +70,6 @@ All notable changes to this project are documented in this file.
 - Dryad `&&` does not short-circuit — use nested `if` in tests/scripts.
 
 ### Tests
-- **344 unit + 18 integration tests passing (100%)**
+- **435 unit + 19 integration tests**
 - New suites: collections, filestream, memory_stream, path, enumerable, list/map/set/queue, network, socket, udp, http_client, promise, threading, language_features.
 - Integration: collections workflow, file I/O workflow, net echo, HTTP smoke, UDP echo, HTTP client.

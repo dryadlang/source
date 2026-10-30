@@ -6,7 +6,7 @@ Dryad keeps the runtime small by exposing a tiny set of intrinsic syscalls (~50)
 
 ## Status
 
-Early implementation. The C++ interpreter (Phase 0–3) is functional, the standard library is growing (Buffer plus VFS I/O), and the test suite is **223/223 passing** on Linux. The CLI runs `.dryad` scripts with `import` support (`dryad script.dryad`); REPL is not implemented yet. See [CHANGELOG](CHANGELOG) and the phase reports under `src/` for details.
+Early implementation. The C++ interpreter (Phase 0–3) is functional, the standard library is growing (Buffer plus VFS I/O), and the test suite covers **454 tests (435 unit + 19 integration)** on Linux. The CLI runs `.dryad` scripts with `import` support (`dryad script.dryad`); REPL is not implemented yet. See [CHANGELOG](CHANGELOG) and the phase reports under `src/` for details.
 
 ## Architecture
 

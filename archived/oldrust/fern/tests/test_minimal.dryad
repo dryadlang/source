@@ -1,3 +1,0 @@
-import * as math from "../src/math/arrays.dryad";
-print("Calling test_func...");
-math.test_func();

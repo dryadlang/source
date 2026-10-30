@@ -1,8 +1,0 @@
-
-function main() {
-    println("Testing for loop with let");
-    for (let i = 0; i < 3; i++) {
-        println(i);
-    }
-}
-main();

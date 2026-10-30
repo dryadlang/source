@@ -1,7 +1,0 @@
-#<console_io>
-
-function main() {
-    println("Hello from test");
-}
-
-main();

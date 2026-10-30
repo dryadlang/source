@@ -35,7 +35,7 @@ All notable changes to this project are documented in this file.
 - `--allow-net` CLI flag and `DRYAD_ALLOW_NET=1` env gate for network access.
 - `@std/net`: `Socket`, `NetworkStream`, `TcpClient`, `TcpListener`, `net_errors`.
 - Example: `examples/net_echo_client.dryad`.
-- Architecture plan: `docs/plans/2026-09-16-net-architecture.md`.
+- Architecture plan: `docs/implementation/plans/2026-09-16-net-architecture.md`.
 
 #### Phase 4.5 — Async, UDP, DNS, TLS, HTTP
 - `@std/async/promise.dryad` — `Promise<T>` with deferred `then()` callback queues, `Promise_all`, `Promise_race`, `catchError`, `finallyDo`.
@@ -47,6 +47,11 @@ All notable changes to this project are documented in this file.
 - HTTP client: `@std/net/http/*` (`http_url`, `http_headers`, `http_request`, `http_response`, `http_client`).
 - `@std/net/socket_async.dryad` — Promise wrappers over blocking socket I/O.
 - Utils: `syscall.int_to_string`, `runtime.value_kind`.
+
+### Changed
+- Repository split into modules: the implementation now lives in `src/`; documentation, runnable examples and the language specification live in the `docs` submodule (`github.com/dryadlang/docs`).
+- The superseded Rust-era `archived/` tree was removed.
+- Example-based tests read scripts from `docs/examples` (with a local `src/examples` fallback).
 
 ### Fixed
 - POSIX compatibility for MSYS2/Windows builds (intrinsic handle width and file open flags).

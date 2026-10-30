@@ -6,7 +6,7 @@ Dryad keeps the runtime small by exposing a tiny set of intrinsic syscalls (~50)
 
 ## Status
 
-Early implementation. The C++ interpreter (Phase 0–3) is functional, the standard library is growing (Buffer plus VFS I/O), and the test suite is **223/223 passing** on Linux. The CLI runs `.dryad` scripts with `import` support (`dryad script.dryad`); REPL is not implemented yet. See [CHANGELOG](CHANGELOG) and the phase reports under `dryad-cpp/` for details.
+Early implementation. The C++ interpreter (Phase 0–3) is functional, the standard library is growing (Buffer plus VFS I/O), and the test suite is **223/223 passing** on Linux. The CLI runs `.dryad` scripts with `import` support (`dryad script.dryad`); REPL is not implemented yet. See [CHANGELOG](CHANGELOG) and the phase reports under `src/` for details.
 
 ## Architecture
 
@@ -29,30 +29,35 @@ Layer 1: C++ Micro-Kernel Runtime
 
 ## Repository layout
 
-| Path | Contents |
-|------|----------|
-| `dryad_theory/` | Language specification (PDF + LaTeX) and architecture design documents |
-| `dryad-cpp/` | C++ interpreter implementation, standard library, tests, examples |
-| `docs/` | **Central documentation** (phases, plans, stdlib guides) |
-| `archived/` | Superseded material |
-| `CHANGELOG` | Notable changes per release |
+The project is split into two repositories, assembled as modules:
+
+| Path | Repository | Contents |
+|------|------------|----------|
+| `src/` | source (this repo) | C++ interpreter, standard library, tests |
+| `docs/` | [dryadlang/docs](https://github.com/dryadlang/docs) | Documentation, examples, language specification |
+| `CHANGELOG` | source | Notable changes per release |
+
+`docs/` is registered as a git submodule, so a full checkout is:
+
+```bash
+git clone --recurse-submodules https://gitlab.com/dryadlang/source.git
+```
 
 ## Building
 
 Requirements: C++17 compiler (MSVC or GCC/Clang with MSYS2), CMake 3.15+.
 
 ```bash
-mkdir build && cd build
-cmake -DCMAKE_BUILD_TYPE=Release ..
-cmake --build .
+cmake -S src -B src/build -DCMAKE_BUILD_TYPE=Release
+cmake --build src/build
 ```
 
-The `dryad` binary is produced at `build/bin/dryad`.
+The `dryad` binary is produced at `src/build/bin/dryad`.
 
 ## Testing
 
 ```bash
-cd build
+cd src/build
 ctest --output-on-failure
 ```
 
@@ -67,7 +72,7 @@ Tests are built with `-Wall -Wextra -Werror`.
 
 ## Example
 
-`dryad-cpp/examples/02-buffers/buffer_usage.dryad` — UTF-8 string ↔ buffer conversion, slicing, and byte editing:
+`docs/examples/02-buffers/buffer_usage.dryad` — UTF-8 string ↔ buffer conversion, slicing, and byte editing:
 
 ```dryad
 let text = "Olá, mundo!";
@@ -87,13 +92,12 @@ Buffer_Dispose(buf);
 Run examples with the CLI:
 
 ```bash
-cd build
-./bin/dryad ../dryad-cpp/examples/02-buffers/buffer_usage.dryad
-./bin/dryad ../dryad-cpp/examples/04-io/file_io_usage.dryad
-./bin/dryad ../dryad-cpp/examples/04-io/io_examples.dryad
+src/build/bin/dryad docs/examples/02-buffers/buffer_usage.dryad
+src/build/bin/dryad docs/examples/04-io/file_io_usage.dryad
+src/build/bin/dryad docs/examples/04-io/io_examples.dryad
 
 # Run all examples with timing
-cd ../dryad-cpp && ./examples/run_benchmark.sh
+./docs/examples/run_benchmark.sh
 ```
 
 Set `DRYAD_STDLIB_DIR` if the stdlib is not at the default install path.
@@ -106,17 +110,17 @@ All documentation is consolidated under [`docs/`](docs/README.md). Full inventor
 |---------|------|
 | Quick start | [docs/getting-started/quick-start.md](docs/getting-started/quick-start.md) |
 | Language reference | [docs/language/](docs/language/README.md) |
-| Specification (PDF) | [dryad_theory/](dryad_theory/dryad_theoretical_foundation_v2.pdf) |
+| Specification (PDF) | [docs/specification/theory/](docs/specification/theory/) |
 | Standard library | [docs/stdlib/](docs/stdlib/README.md) |
 | User libraries | [docs/libraries/](docs/libraries/README.md) |
 | CLI & tooling | [docs/tooling/](docs/tooling/README.md) |
 | Implementation | [docs/implementation/](docs/implementation/README.md) |
 | Diagrams (PlantUML) | [docs/diagrams/](docs/language/diagrams.md) |
-| Examples | [dryad-cpp/examples/README.md](dryad-cpp/examples/README.md) |
+| Examples | [docs/examples/README.md](docs/examples/README.md) |
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). In short: tests come first (TDD), commits are small and focused, and the whole suite must stay green.
+See [CONTRIBUTING.md](CONTRIBUTING.md). In short: tests come first (TDD), commits are small and focused, and the whole suite must stay green. Documentation contributions go to the [docs module repository](https://github.com/dryadlang/docs).
 
 ## License
 

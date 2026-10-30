@@ -8,9 +8,9 @@ Thanks for considering a contribution. This project is small and opinionated —
 
 Write the failing test before the implementation:
 
-1. Add a test under `dryad-cpp/tests/` that describes the desired behavior.
+1. Add a test under `src/tests/` that describes the desired behavior.
 2. Run it and confirm it fails for the right reason.
-3. Implement the feature in `dryad-cpp/src/`.
+3. Implement the feature in `src/src/`.
 4. Re-run the test until green, then run the full suite.
 
 Targets: >90% coverage, no memory leaks (sanitizers are available via `-DDRYAD_ENABLE_SANITIZERS=ON`).
@@ -32,7 +32,7 @@ Targets: >90% coverage, no memory leaks (sanitizers are available via `-DDRYAD_E
 ### 3. Keep the suite green
 
 ```bash
-cd build
+cd src/build
 cmake --build .
 ctest --output-on-failure
 ```
@@ -68,11 +68,12 @@ The full suite must stay green before merging. Run `ctest --output-on-failure` a
 
 ## Submitting changes
 
-This project lives on GitLab: `https://gitlab.com/dryadlang/source`.
+This project lives on GitLab: `https://gitlab.com/dryadlang/source`, mirrored on GitHub: `https://github.com/dryadlang/source`.
 
 - Push your branch and open a merge request, or if you have push access, commit directly to `main` per the workflow above.
 - Reference any relevant issue in the merge request description.
-- The specification lives in `dryad_theory/` (PDF + LaTeX). If a change contradicts the spec, update the spec or explain the deviation in the merge request.
+- The specification lives in the `docs` module (`docs/specification/theory/`, PDF + LaTeX). If a change contradicts the spec, update the spec or explain the deviation in the merge request.
+- Documentation changes belong in the docs repository: `https://github.com/dryadlang/docs`.
 
 ## Reporting issues
 

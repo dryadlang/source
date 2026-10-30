@@ -3,7 +3,8 @@
 #
 # 1. Aborts if there are uncommitted changes.
 # 2. Pulls from the primary remote (gitlab), fast-forward only.
-# 3. Pushes to every remote, reporting the result of each.
+# 3. Syncs the docs submodule to the pulled commit.
+# 4. Pushes to every remote, reporting the result of each.
 set -euo pipefail
 
 PRIMARY="gitlab"
@@ -28,7 +29,10 @@ fi
 echo "Pulling $BRANCH from $PRIMARY..."
 git pull --ff-only "$PRIMARY" "$BRANCH"
 
-# 3. Push to every remote; try all of them even if one fails.
+# 3. Keep the docs module in sync with the pulled commit.
+git submodule update --init --recursive
+
+# 4. Push to every remote; try all of them even if one fails.
 status=0
 for remote in "${REMOTES[@]}"; do
     echo "Pushing $BRANCH to $remote..."

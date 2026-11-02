@@ -2,7 +2,7 @@
 // Byte operations over @std/buffers Buffer. Buffer is the only byte container.
 
 import { ArgumentNullException, ArgumentOutOfRangeException } from "@std/core/exceptions";
-import { Buffer_Len, Buffer_GetActualHandle, Buffer_GetOffset } from "@std/buffers/buffer";
+import { Buffer_New, Buffer_Len, Buffer_Slice, Buffer_Dispose, Buffer_GetActualHandle, Buffer_GetOffset } from "@std/buffers/buffer";
 
 function Bytes_ValidateRange(buf, offset, count) {
     if (buf == null) {
@@ -193,4 +193,125 @@ function Bytes_EndsWith(buf, suffix) {
         return [false, null];
     }
     return [Bytes_MatchesAt(buf, start, suffix), null];
+}
+
+function Bytes_Concat(a, b) {
+    let errA = Bytes_ValidateRange(a, 0, 0);
+    if (errA != null) {
+        return [null, errA];
+    }
+    let errB = Bytes_ValidateRange(b, 0, 0);
+    if (errB != null) {
+        return [null, errB];
+    }
+    let lenA = Buffer_Len(a);
+    let lenB = Buffer_Len(b);
+    let out = Buffer_New(lenA + lenB);
+    if (__runtime_value_kind(out) == "string") {
+        return [null, out];
+    }
+    let err = Bytes_Copy(out, 0, a, 0, lenA);
+    if (err == null) {
+        err = Bytes_Copy(out, lenA, b, 0, lenB);
+    }
+    if (err != null) {
+        Buffer_Dispose(out);
+        return [null, err];
+    }
+    return [out, null];
+}
+
+function Bytes_Repeat(buf, count) {
+    let err = Bytes_ValidateRange(buf, 0, 0);
+    if (err != null) {
+        return [null, err];
+    }
+    if (count < 0) {
+        return [null, ArgumentOutOfRangeException("Repeat count must not be negative")];
+    }
+    let len = Buffer_Len(buf);
+    if (count > 0) {
+        if (len > 9223372036854775807 / count) {
+            return [null, ArgumentOutOfRangeException("Repeat size too large")];
+        }
+    }
+    let out = Buffer_New(len * count);
+    if (__runtime_value_kind(out) == "string") {
+        return [null, out];
+    }
+    for (let i = 0; i < count; i = i + 1) {
+        err = Bytes_Copy(out, i * len, buf, 0, len);
+        if (err != null) {
+            Buffer_Dispose(out);
+            return [null, err];
+        }
+    }
+    return [out, null];
+}
+
+// Trim, TrimStart and TrimEnd return a non-owning, zero-copy view of buf:
+// the parent buffer must outlive the result. Whitespace is 0x20, 0x09, 0x0A, 0x0D.
+function Bytes_IsWhitespace(b) {
+    return b == 32 || b == 9 || b == 10 || b == 13;
+}
+
+function Bytes_FirstNonWhitespace(buf, len) {
+    let handle = Buffer_GetActualHandle(buf);
+    let base = Buffer_GetOffset(buf);
+    for (let i = 0; i < len; i = i + 1) {
+        if (!Bytes_IsWhitespace(__buffer_get(handle, base + i))) {
+            return i;
+        }
+    }
+    return len;
+}
+
+function Bytes_LastNonWhitespace(buf, len) {
+    let handle = Buffer_GetActualHandle(buf);
+    let base = Buffer_GetOffset(buf);
+    for (let i = len - 1; i >= 0; i = i - 1) {
+        if (!Bytes_IsWhitespace(__buffer_get(handle, base + i))) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+function Bytes_SliceResult(buf, start, end) {
+    let r = Buffer_Slice(buf, start, end);
+    if (__runtime_value_kind(r) == "string") {
+        return [null, r];
+    }
+    return [r, null];
+}
+
+function Bytes_Trim(buf) {
+    let err = Bytes_ValidateRange(buf, 0, 0);
+    if (err != null) {
+        return [null, err];
+    }
+    let len = Buffer_Len(buf);
+    let first = Bytes_FirstNonWhitespace(buf, len);
+    if (first == len) {
+        return Bytes_SliceResult(buf, 0, 0);
+    }
+    return Bytes_SliceResult(buf, first, Bytes_LastNonWhitespace(buf, len) + 1);
+}
+
+function Bytes_TrimStart(buf) {
+    let err = Bytes_ValidateRange(buf, 0, 0);
+    if (err != null) {
+        return [null, err];
+    }
+    let len = Buffer_Len(buf);
+    return Bytes_SliceResult(buf, Bytes_FirstNonWhitespace(buf, len), len);
+}
+
+function Bytes_TrimEnd(buf) {
+    let err = Bytes_ValidateRange(buf, 0, 0);
+    if (err != null) {
+        return [null, err];
+    }
+    let len = Buffer_Len(buf);
+    return Bytes_SliceResult(buf, 0, Bytes_LastNonWhitespace(buf, len) + 1);
 }

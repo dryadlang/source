@@ -66,3 +66,8 @@ TEST(BytesTest, StartsEndsWith) { EXPECT_TRUE(run_bytes_test("bytes_test_starts_
 TEST(BytesTest, SearchFromSlice) { EXPECT_TRUE(run_bytes_test("bytes_test_search_from_slice").is_truthy()); }
 TEST(BytesTest, SearchRejectsBadByte) { EXPECT_TRUE(run_bytes_test("bytes_test_search_rejects_bad_byte").is_truthy()); }
 TEST(BytesTest, StartsEndsEmptyAffix) { EXPECT_TRUE(run_bytes_test("bytes_test_starts_ends_empty_affix").is_truthy()); }
+TEST(BytesTest, Concat) { EXPECT_TRUE(run_bytes_test("bytes_test_concat").is_truthy()); }
+TEST(BytesTest, ConcatUsesSliceView) { EXPECT_TRUE(run_bytes_test("bytes_test_concat_uses_slice_view").is_truthy()); }
+TEST(BytesTest, Repeat) { EXPECT_TRUE(run_bytes_test("bytes_test_repeat").is_truthy()); }
+TEST(BytesTest, Trim) { EXPECT_TRUE(run_bytes_test("bytes_test_trim").is_truthy()); }
+TEST(BytesTest, TrimAllWhitespace) { EXPECT_TRUE(run_bytes_test("bytes_test_trim_all_whitespace").is_truthy()); }

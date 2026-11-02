@@ -9,11 +9,17 @@ import {
     Bytes_LastIndexOf,
     Bytes_Contains,
     Bytes_StartsWith,
-    Bytes_EndsWith
+    Bytes_EndsWith,
+    Bytes_Concat,
+    Bytes_Repeat,
+    Bytes_Trim,
+    Bytes_TrimStart,
+    Bytes_TrimEnd
 } from "@std/bytes/bytes";
 
 import {
     Buffer_New,
+    Buffer_Len,
     Buffer_Read,
     Buffer_Write,
     Buffer_Slice,
@@ -298,6 +304,96 @@ function bytes_test_starts_ends_empty_affix() {
     let e = Bytes_EndsWith(buf, empty);
     let ok = s[1] == null && s[0] && e[1] == null && e[0];
     Buffer_Dispose(empty);
+    Buffer_Dispose(buf);
+    return ok;
+}
+
+function bytes_test_concat() {
+    let a = Buffer_New(2);
+    Buffer_Write(a, 0, 1);
+    Buffer_Write(a, 1, 2);
+    let b = Buffer_New(2);
+    Buffer_Write(b, 0, 3);
+    Buffer_Write(b, 1, 4);
+    let r = Bytes_Concat(a, b);
+    let out = r[0];
+    let ok = r[1] == null &&
+             Buffer_Len(out) == 4 &&
+             Buffer_Read(out, 0) == 1 &&
+             Buffer_Read(out, 1) == 2 &&
+             Buffer_Read(out, 2) == 3 &&
+             Buffer_Read(out, 3) == 4;
+    Buffer_Dispose(out);
+    Buffer_Dispose(a);
+    Buffer_Dispose(b);
+    return ok;
+}
+
+function bytes_test_concat_uses_slice_view() {
+    let parent = Buffer_New(4);
+    Buffer_Write(parent, 2, 55);
+    Buffer_Write(parent, 3, 66);
+    let slice = Buffer_Slice(parent, 2, 4);
+    let other = Buffer_New(1);
+    Buffer_Write(other, 0, 77);
+    let r = Bytes_Concat(slice, other);
+    let out = r[0];
+    let ok = r[1] == null &&
+             Buffer_Len(out) == 3 &&
+             Buffer_Read(out, 0) == 55 &&
+             Buffer_Read(out, 1) == 66 &&
+             Buffer_Read(out, 2) == 77;
+    Buffer_Dispose(out);
+    Buffer_Dispose(other);
+    Buffer_Dispose(parent);
+    return ok;
+}
+
+function bytes_test_repeat() {
+    let buf = Buffer_New(2);
+    Buffer_Write(buf, 0, 7);
+    Buffer_Write(buf, 1, 8);
+    let r = Bytes_Repeat(buf, 3);
+    let out = r[0];
+    let ok = r[1] == null &&
+             Buffer_Len(out) == 6 &&
+             Buffer_Read(out, 0) == 7 &&
+             Buffer_Read(out, 1) == 8 &&
+             Buffer_Read(out, 2) == 7 &&
+             Buffer_Read(out, 5) == 8;
+    let empty = Bytes_Repeat(buf, 0);
+    let ok2 = empty[1] == null && Buffer_Len(empty[0]) == 0;
+    Buffer_Dispose(empty[0]);
+    Buffer_Dispose(out);
+    Buffer_Dispose(buf);
+    return ok && ok2;
+}
+
+function bytes_test_trim() {
+    let buf = Buffer_New(5);
+    Buffer_Write(buf, 0, 32);
+    Buffer_Write(buf, 1, 9);
+    Buffer_Write(buf, 2, 65);
+    Buffer_Write(buf, 3, 10);
+    Buffer_Write(buf, 4, 32);
+    let all = Bytes_Trim(buf);
+    let start = Bytes_TrimStart(buf);
+    let end = Bytes_TrimEnd(buf);
+    // TrimStart keeps the trailing whitespace: [65, 10, 32].
+    // TrimEnd keeps the leading whitespace: [32, 9, 65].
+    let ok = all[1] == null && Buffer_Len(all[0]) == 1 && Buffer_Read(all[0], 0) == 65 &&
+             start[1] == null && Buffer_Len(start[0]) == 3 && Buffer_Read(start[0], 0) == 65 &&
+             end[1] == null && Buffer_Len(end[0]) == 3 && Buffer_Read(end[0], 0) == 32;
+    Buffer_Dispose(buf);
+    return ok;
+}
+
+function bytes_test_trim_all_whitespace() {
+    let buf = Buffer_New(2);
+    Buffer_Write(buf, 0, 32);
+    Buffer_Write(buf, 1, 10);
+    let r = Bytes_Trim(buf);
+    let ok = r[1] == null && Buffer_Len(r[0]) == 0;
     Buffer_Dispose(buf);
     return ok;
 }

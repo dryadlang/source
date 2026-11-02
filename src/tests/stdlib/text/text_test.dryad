@@ -1,0 +1,126 @@
+// @std/text behavior tests, loaded by tests/unit/text_test.cpp.
+
+import {
+    Text_Length, Text_CharAt, Text_CodePointAt, Text_FromCodePoint,
+    Text_Slice, Text_Substring, Text_IndexOf, Text_LastIndexOf,
+    Text_Includes, Text_StartsWith, Text_EndsWith, Text_Equals, Text_Compare,
+    Text_CodePoints, Text_CharCount
+} from "@std/text/text";
+
+function text_test_length_is_bytes() {
+    let ascii = Text_Length("abc");
+    let utf8 = Text_Length("é");
+    return ascii[1] == null && ascii[0] == 3 &&
+           utf8[1] == null && utf8[0] == 2;
+}
+
+function text_test_char_at_uses_byte_indexes() {
+    let first = Text_CharAt("é", 0);
+    let second = Text_CharAt("é", 1);
+    let bad = Text_CharAt("é", 2);
+    return first[1] == null && Text_Length(first[0])[0] == 1 &&
+           second[1] == null && Text_Length(second[0])[0] == 1 &&
+           bad[1] != null;
+}
+
+function text_test_code_point_at() {
+    let e = Text_CodePointAt("é", 0);
+    let euro = Text_CodePointAt("€", 0);
+    let emoji = Text_CodePointAt("😀", 0);
+    return e[1] == null && e[0] == 233 &&
+           euro[1] == null && euro[0] == 8364 &&
+           emoji[1] == null && emoji[0] == 128512;
+}
+
+function text_test_code_point_at_rejects_continuation_byte() {
+    let r = Text_CodePointAt("é", 1);
+    return r[1] != null;
+}
+
+function text_test_from_code_point() {
+    let e = Text_FromCodePoint(233);
+    let euro = Text_FromCodePoint(8364);
+    let emoji = Text_FromCodePoint(128512);
+    let bad = Text_FromCodePoint(1114112);
+    let surrogate = Text_FromCodePoint(55296);
+    return e[1] == null && e[0] == "é" &&
+           euro[1] == null && euro[0] == "€" &&
+           emoji[1] == null && emoji[0] == "😀" &&
+           bad[1] != null && surrogate[1] != null;
+}
+
+function text_test_slice_and_substring() {
+    let s = Text_Slice("abcdef", 1, 4);
+    let sub = Text_Substring("abcdef", 1, 3);
+    let empty = Text_Slice("abcdef", 2, 2);
+    let bad = Text_Slice("abcdef", 4, 2);
+    return s[1] == null && s[0] == "bcd" &&
+           sub[1] == null && sub[0] == "bcd" &&
+           empty[1] == null && empty[0] == "" &&
+           bad[1] != null;
+}
+
+function text_test_index_of_and_last_index_of() {
+    let first = Text_IndexOf("abcabc", "bc");
+    let last = Text_LastIndexOf("abcabc", "bc");
+    let missing = Text_IndexOf("abcabc", "zz");
+    let empty = Text_IndexOf("abc", "");
+    let ok = first[1] == null && first[0] == 1 &&
+             last[1] == null && last[0] == 4 &&
+             missing[1] == null && missing[0] == -1 &&
+             empty[1] == null && empty[0] == 0;
+    return ok;
+}
+
+function text_test_includes_and_affixes() {
+    let yes = Text_Includes("hello", "ell");
+    let no = Text_Includes("hello", "zz");
+    let starts = Text_StartsWith("hello", "he");
+    let ends = Text_EndsWith("hello", "lo");
+    let longer = Text_StartsWith("he", "hello");
+    let ok = yes[1] == null && yes[0] &&
+             no[1] == null && no[0] == false &&
+             starts[1] == null && starts[0] &&
+             ends[1] == null && ends[0] &&
+             longer[1] == null && longer[0] == false;
+    return ok;
+}
+
+function text_test_equals_and_compare() {
+    let eq = Text_Equals("abc", "abc");
+    let ne = Text_Equals("abc", "abd");
+    let lt = Text_Compare("abc", "abd");
+    let gt = Text_Compare("abd", "abc");
+    let same = Text_Compare("abc", "abc");
+    let ok = eq[1] == null && eq[0] &&
+             ne[1] == null && ne[0] == false &&
+             lt[1] == null && lt[0] == -1 &&
+             gt[1] == null && gt[0] == 1 &&
+             same[1] == null && same[0] == 0;
+    return ok;
+}
+
+function text_test_code_points_and_char_count() {
+    let points = Text_CodePoints("aé€");
+    let count = Text_CharCount("aé€");
+    let asciiCount = Text_CharCount("abc");
+    let empty = Text_CodePoints("");
+    let ok = points[1] == null && __runtime_array_length(points[0]) == 3 &&
+             points[0][0] == 97 && points[0][1] == 233 && points[0][2] == 8364 &&
+             count[1] == null && count[0] == 3 &&
+             asciiCount[1] == null && asciiCount[0] == 3 &&
+             empty[1] == null && __runtime_array_length(empty[0]) == 0;
+    return ok;
+}
+
+function text_test_empty_strings() {
+    let len = Text_Length("");
+    let slice = Text_Slice("", 0, 0);
+    let idx = Text_IndexOf("", "x");
+    let starts = Text_StartsWith("", "");
+    let ok = len[1] == null && len[0] == 0 &&
+             slice[1] == null && slice[0] == "" &&
+             idx[1] == null && idx[0] == -1 &&
+             starts[1] == null && starts[0];
+    return ok;
+}

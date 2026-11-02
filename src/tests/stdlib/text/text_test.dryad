@@ -11,6 +11,7 @@ import {
     Text_ParseInt, Text_FormatInt, Text_ParseFloat, Text_FormatFloat,
     StringBuilder
 } from "@std/text/text";
+import { Buffer_New, Buffer_Write, Buffer_Slice, Buffer_Dispose } from "@std/buffers/buffer";
 
 function text_test_length_is_bytes() {
     let ascii = Text_Length("abc");
@@ -367,5 +368,20 @@ function text_test_string_builder_growth() {
     let ok = sb.length() == 10000 && Text_Length(out)[0] == 10000 &&
              Text_CharAt(out, 0)[0] == "0" &&
              Text_CharAt(out, 9999)[0] == "9";
+    return ok;
+}
+
+function text_test_string_builder_append_buffer_slice() {
+    let parent = Buffer_New(4);
+    Buffer_Write(parent, 2, 65);
+    Buffer_Write(parent, 3, 66);
+    let slice = Buffer_Slice(parent, 2, 4);
+    let sb = new StringBuilder(1);
+    let err = sb.appendBuffer(slice);
+    let text = sb.toString();
+    let bad = sb.appendBuffer(__runtime_create_object());
+    let ok = err == null && text == "AB" && sb.length() == 2 &&
+             bad != null;
+    Buffer_Dispose(parent);
     return ok;
 }

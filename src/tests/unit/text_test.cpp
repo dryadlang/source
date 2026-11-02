@@ -74,3 +74,4 @@ TEST(TextTest, NumericEdges) { EXPECT_TRUE(run_text_test("text_test_numeric_edge
 TEST(TextTest, FormatFloatNegativeZeroAndPrecision) { EXPECT_TRUE(run_text_test("text_test_format_float_negative_zero_and_precision").is_truthy()); }
 TEST(TextTest, StringBuilder) { EXPECT_TRUE(run_text_test("text_test_string_builder").is_truthy()); }
 TEST(TextTest, StringBuilderGrowth) { EXPECT_TRUE(run_text_test("text_test_string_builder_growth").is_truthy()); }
+TEST(TextTest, StringBuilderAppendBufferSlice) { EXPECT_TRUE(run_text_test("text_test_string_builder_append_buffer_slice").is_truthy()); }

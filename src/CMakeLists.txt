@@ -202,6 +202,7 @@ if(DRYAD_BUILD_TESTS)
         tests/unit/buffer_intrinsics_test.cpp
         tests/unit/buffer_test.cpp
         tests/unit/bytes_test.cpp
+        tests/unit/stdlib_layers_test.cpp
         tests/unit/vfs_test.cpp
         tests/unit/io_functions_test.cpp
         tests/unit/filehandle_test.cpp

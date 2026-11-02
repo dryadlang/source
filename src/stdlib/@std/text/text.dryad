@@ -165,6 +165,9 @@ function Text_FindBytes(buf, needleBuf, fromIndex, lastOccurrence) {
 // ---------------------------------------------------------------------------
 
 function Text_Length(text) {
+    if (text == null) {
+        return [0, ArgumentNullException("text")];
+    }
     if (__runtime_value_kind(text) != "string") {
         return [0, ArgumentOutOfRangeException("text must be a string")];
     }
@@ -483,11 +486,11 @@ function Text_Compare(a, b) {
 
 function Text_CodePoints(text) {
     if (__runtime_value_kind(text) != "string") {
-        return [null, ArgumentOutOfRangeException("text must be a string")];
+        return [[], ArgumentOutOfRangeException("text must be a string")];
     }
     let buf = Text_ToBuffer(text);
     if (__runtime_value_kind(buf) == "string") {
-        return [null, buf];
+        return [[], buf];
     }
     let len = Buffer_Len(buf);
     let out = [];
@@ -496,7 +499,7 @@ function Text_CodePoints(text) {
         let r = Text_DecodeCodePoint(buf, i);
         if (r[1] != null) {
             Buffer_Dispose(buf);
-            return [null, r[1]];
+            return [[], r[1]];
         }
         __runtime_array_push(out, r[0]);
         let b0 = Buffer_Read(buf, i);
@@ -1118,8 +1121,7 @@ function Text_ParseInt(text, base) {
             error = ArgumentOutOfRangeException("No digits");
         } else if (negative) {
             // Accumulate negatively so -9223372036854775808 is representable.
-            // The guard compares a difference to zero: the '<'/'<' operators
-            // promote integers to doubles, which is not exact near 2^63.
+            // The guard is exact: integer comparisons are int64-exact.
             let value = 0;
             while (i < len && error == null) {
                 let d = Text_DigitValue(Buffer_Read(buf, i));
@@ -1296,27 +1298,39 @@ function Text_ParseFloat(text) {
         }
         if (error == null) {
             let value = __int_to_float(mantissa);
-            if (exp10 > 0) {
-                if (exp10 > 308) {
-                    exp10 = 308;
-                }
+            if (mantissa == 0) {
+                // Zero times any power of ten is still zero; a huge exponent
+                // must not become infinity or an error.
+                exp10 = 0;
+            }
+            if (exp10 > 400) {
+                error = ArgumentOutOfRangeException("Float overflow");
+            } else if (exp10 < -400) {
+                // Underflow: the magnitude is smaller than the smallest
+                // subnormal, so the result is zero (strtod behaviour).
+                value = 0.0;
+                exp10 = 0;
+            }
+            if (error == null) {
                 while (exp10 > 0) {
                     value = value * 10.0;
                     exp10 = exp10 - 1;
-                }
-            } else if (exp10 < 0) {
-                if (exp10 < -308) {
-                    exp10 = -308;
                 }
                 while (exp10 < 0) {
                     value = value / 10.0;
                     exp10 = exp10 + 1;
                 }
+                // 2 * inf == inf; finite non-zero values change when doubled.
+                if (value * 2.0 == value && value != 0.0) {
+                    error = ArgumentOutOfRangeException("Float overflow");
+                }
             }
-            if (negative) {
-                value = -value;
+            if (error == null) {
+                if (negative) {
+                    value = -value;
+                }
+                result = value;
             }
-            result = value;
         }
     }
     Buffer_Dispose(buf);

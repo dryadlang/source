@@ -433,3 +433,48 @@ function text_test_string_builder_dispose() {
     let after = sb.append("c");
     return first == null && again == null && after != null;
 }
+
+function text_test_parse_float_exponent_bounds() {
+    let big = Text_ParseFloat("1e309");
+    let huge = Text_ParseFloat("1e1000");
+    let tiny = Text_ParseFloat("1e-400");
+    let zeroExp = Text_ParseFloat("0e999");
+    let scaled = Text_ParseFloat("9223372036854775807e308");
+    let ok = big[1] != null && huge[1] != null && scaled[1] != null &&
+             tiny[1] == null && tiny[0] == 0.0 &&
+             zeroExp[1] == null && zeroExp[0] == 0.0;
+    return ok;
+}
+
+function text_test_format_float_magnitude_limit() {
+    let big = Text_FormatFloat(10000000000000000000.0, 0);
+    return big[1] != null;
+}
+
+function text_test_last_index_of_empty_needle_nonempty() {
+    let r = Text_LastIndexOf("abc", "");
+    return r[1] == null && r[0] == 3;
+}
+
+function text_test_text_view_invalid_construction() {
+    let buf = Buffer_FromString("abc");
+    let nullBuffer = new TextView(null, 0, 1);
+    let negOffset = new TextView(buf, -1, 1);
+    let tooLong = new TextView(buf, 2, 5);
+    let missing = new TextView(buf, 4, -1);
+    let ok = __runtime_value_kind(nullBuffer.length()) == "string" &&
+             __runtime_value_kind(negOffset.length()) == "string" &&
+             __runtime_value_kind(tooLong.length()) == "string" &&
+             __runtime_value_kind(missing.toString()) == "string";
+    Buffer_Dispose(buf);
+    return ok;
+}
+
+function text_test_string_builder_append_buffer_after_dispose() {
+    let sb = new StringBuilder(2);
+    let src = Buffer_FromString("x");
+    sb.dispose();
+    let r = sb.appendBuffer(src);
+    Buffer_Dispose(src);
+    return r != null;
+}

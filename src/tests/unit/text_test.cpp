@@ -79,3 +79,8 @@ TEST(TextTest, TextView) { EXPECT_TRUE(run_text_test("text_test_text_view").is_t
 TEST(TextTest, TextViewBounds) { EXPECT_TRUE(run_text_test("text_test_text_view_bounds").is_truthy()); }
 TEST(TextTest, TextViewRejectsCrossBoundaryCodePoint) { EXPECT_TRUE(run_text_test("text_test_text_view_rejects_cross_boundary_code_point").is_truthy()); }
 TEST(TextTest, StringBuilderDispose) { EXPECT_TRUE(run_text_test("text_test_string_builder_dispose").is_truthy()); }
+TEST(TextTest, ParseFloatExponentBounds) { EXPECT_TRUE(run_text_test("text_test_parse_float_exponent_bounds").is_truthy()); }
+TEST(TextTest, FormatFloatMagnitudeLimit) { EXPECT_TRUE(run_text_test("text_test_format_float_magnitude_limit").is_truthy()); }
+TEST(TextTest, LastIndexOfEmptyNeedleNonempty) { EXPECT_TRUE(run_text_test("text_test_last_index_of_empty_needle_nonempty").is_truthy()); }
+TEST(TextTest, TextViewInvalidConstruction) { EXPECT_TRUE(run_text_test("text_test_text_view_invalid_construction").is_truthy()); }
+TEST(TextTest, StringBuilderAppendBufferAfterDispose) { EXPECT_TRUE(run_text_test("text_test_string_builder_append_buffer_after_dispose").is_truthy()); }

@@ -296,8 +296,9 @@ endif()
 # Benchmarks
 # =============================================================================
 if(DRYAD_BUILD_BENCHMARKS)
-    # TODO: Add Google Benchmark integration
-    message(STATUS "Benchmarks enabled (not yet implemented)")
+    add_executable(bytes_bench benchmarks/bytes_bench.cpp)
+    target_link_libraries(bytes_bench PRIVATE dryad_runtime)
+    message(STATUS "Benchmarks enabled")
 endif()
 
 # =============================================================================

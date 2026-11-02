@@ -56,3 +56,6 @@ TEST(TextTest, EqualsAndCompare) { EXPECT_TRUE(run_text_test("text_test_equals_a
 TEST(TextTest, CodePointsAndCharCount) { EXPECT_TRUE(run_text_test("text_test_code_points_and_char_count").is_truthy()); }
 TEST(TextTest, EmptyStrings) { EXPECT_TRUE(run_text_test("text_test_empty_strings").is_truthy()); }
 TEST(TextTest, Utf8Rejections) { EXPECT_TRUE(run_text_test("text_test_utf8_rejections").is_truthy()); }
+TEST(TextTest, AsciiCase) { EXPECT_TRUE(run_text_test("text_test_ascii_case").is_truthy()); }
+TEST(TextTest, TrimOnlyAsciiWhitespace) { EXPECT_TRUE(run_text_test("text_test_trim_only_ascii_whitespace").is_truthy()); }
+TEST(TextTest, RepeatAndPad) { EXPECT_TRUE(run_text_test("text_test_repeat_and_pad").is_truthy()); }

@@ -4,7 +4,9 @@ import {
     Text_Length, Text_CharAt, Text_CodePointAt, Text_FromCodePoint,
     Text_Slice, Text_Substring, Text_IndexOf, Text_LastIndexOf,
     Text_Includes, Text_StartsWith, Text_EndsWith, Text_Equals, Text_Compare,
-    Text_CodePoints, Text_CharCount
+    Text_CodePoints, Text_CharCount,
+    Text_ToLowerAscii, Text_ToUpperAscii, Text_Trim, Text_TrimStart, Text_TrimEnd,
+    Text_Repeat, Text_PadStart, Text_PadEnd
 } from "@std/text/text";
 
 function text_test_length_is_bytes() {
@@ -136,5 +138,45 @@ function text_test_utf8_rejections() {
              surrogate[1] != null &&
              lastEmpty[1] == null && lastEmpty[0] == 0 &&
              firstEmpty[1] == null && firstEmpty[0] == 0;
+    return ok;
+}
+
+function text_test_ascii_case() {
+    let lower = Text_ToLowerAscii("AbC");
+    let upper = Text_ToUpperAscii("aBc");
+    let keep = Text_ToLowerAscii("éA");
+    let ok = lower[1] == null && lower[0] == "abc" &&
+             upper[1] == null && upper[0] == "ABC" &&
+             keep[1] == null && Text_Length(keep[0])[0] == 3 &&
+             Text_CharAt(keep[0], 0)[0] == Text_CharAt("é", 0)[0];
+    return ok;
+}
+
+function text_test_trim_only_ascii_whitespace() {
+    let all = Text_Trim("  \t\nabc\r ");
+    let start = Text_TrimStart("  abc ");
+    let end = Text_TrimEnd(" abc  ");
+    let nbspChar = Text_FromCodePoint(160);
+    let nbsp = Text_Trim(nbspChar[0] + "abc");
+    let ok = all[1] == null && all[0] == "abc" &&
+             start[1] == null && start[0] == "abc " &&
+             end[1] == null && end[0] == " abc" &&
+             nbsp[1] == null && Text_Length(nbsp[0])[0] == 5;
+    return ok;
+}
+
+function text_test_repeat_and_pad() {
+    let rep = Text_Repeat("ab", 3);
+    let zero = Text_Repeat("ab", 0);
+    let neg = Text_Repeat("ab", -1);
+    let padStart = Text_PadStart("7", 3, "0");
+    let padEnd = Text_PadEnd("7", 3, "0");
+    let wide = Text_PadStart("abcd", 2, "0");
+    let ok = rep[1] == null && rep[0] == "ababab" &&
+             zero[1] == null && zero[0] == "" &&
+             neg[1] != null &&
+             padStart[1] == null && padStart[0] == "007" &&
+             padEnd[1] == null && padEnd[0] == "700" &&
+             wide[1] == null && wide[0] == "abcd";
     return ok;
 }

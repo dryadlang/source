@@ -4,7 +4,7 @@
 
 import { ArgumentNullException, ArgumentOutOfRangeException, Exception } from "@std/core/exceptions";
 import { Buffer_New, Buffer_FromString, Buffer_AsString, Buffer_Read, Buffer_Write, Buffer_Len, Buffer_Slice, Buffer_Dispose } from "@std/buffers/buffer";
-import { Bytes_Compare } from "@std/bytes/bytes";
+import { Bytes_Compare, Bytes_Copy } from "@std/bytes/bytes";
 
 // ---------------------------------------------------------------------------
 // Module-level helpers (reused by later tasks and TextView).
@@ -529,4 +529,267 @@ function Text_CharCount(text) {
     }
     Buffer_Dispose(buf);
     return [count, null];
+}
+
+// ---------------------------------------------------------------------------
+// ASCII case conversion, trim, repeat and padding.
+// ---------------------------------------------------------------------------
+
+// ASCII whitespace is exactly 0x20, 0x09, 0x0A, 0x0D.
+function Text_IsWhitespace(b) {
+    return b == 32 || b == 9 || b == 10 || b == 13;
+}
+
+// Maps ASCII letters A..Z <-> a..z; every other byte is copied unchanged.
+function Text_ConvertAsciiCase(text, toUpper) {
+    if (__runtime_value_kind(text) != "string") {
+        return ["", ArgumentOutOfRangeException("text must be a string")];
+    }
+    let buf = Text_ToBuffer(text);
+    if (__runtime_value_kind(buf) == "string") {
+        return ["", buf];
+    }
+    let len = Buffer_Len(buf);
+    let out = Buffer_New(len);
+    if (__runtime_value_kind(out) == "string") {
+        Buffer_Dispose(buf);
+        return ["", out];
+    }
+    let i = 0;
+    while (i < len) {
+        let b = Buffer_Read(buf, i);
+        if (toUpper) {
+            if (b >= 97 && b <= 122) {
+                b = b - 32;
+            }
+        } else {
+            if (b >= 65 && b <= 90) {
+                b = b + 32;
+            }
+        }
+        Buffer_Write(out, i, b);
+        i = i + 1;
+    }
+    let result = Buffer_AsString(out);
+    if (__runtime_value_kind(result) != "string") {
+        Buffer_Dispose(buf);
+        Buffer_Dispose(out);
+        return ["", result];
+    }
+    Buffer_Dispose(buf);
+    Buffer_Dispose(out);
+    return [result, null];
+}
+
+function Text_ToLowerAscii(text) {
+    return Text_ConvertAsciiCase(text, false);
+}
+
+function Text_ToUpperAscii(text) {
+    return Text_ConvertAsciiCase(text, true);
+}
+
+function Text_TrimStart(text) {
+    if (__runtime_value_kind(text) != "string") {
+        return ["", ArgumentOutOfRangeException("text must be a string")];
+    }
+    let buf = Text_ToBuffer(text);
+    if (__runtime_value_kind(buf) == "string") {
+        return ["", buf];
+    }
+    let len = Buffer_Len(buf);
+    let start = 0;
+    while (start < len && Text_IsWhitespace(Buffer_Read(buf, start))) {
+        start = start + 1;
+    }
+    let s = Text_StringSlice(buf, start, len);
+    Buffer_Dispose(buf);
+    if (s[1] != null) {
+        return ["", s[1]];
+    }
+    return [s[0], null];
+}
+
+function Text_TrimEnd(text) {
+    if (__runtime_value_kind(text) != "string") {
+        return ["", ArgumentOutOfRangeException("text must be a string")];
+    }
+    let buf = Text_ToBuffer(text);
+    if (__runtime_value_kind(buf) == "string") {
+        return ["", buf];
+    }
+    let len = Buffer_Len(buf);
+    let end = len;
+    while (end > 0 && Text_IsWhitespace(Buffer_Read(buf, end - 1))) {
+        end = end - 1;
+    }
+    let s = Text_StringSlice(buf, 0, end);
+    Buffer_Dispose(buf);
+    if (s[1] != null) {
+        return ["", s[1]];
+    }
+    return [s[0], null];
+}
+
+function Text_Trim(text) {
+    if (__runtime_value_kind(text) != "string") {
+        return ["", ArgumentOutOfRangeException("text must be a string")];
+    }
+    let buf = Text_ToBuffer(text);
+    if (__runtime_value_kind(buf) == "string") {
+        return ["", buf];
+    }
+    let len = Buffer_Len(buf);
+    let start = 0;
+    while (start < len && Text_IsWhitespace(Buffer_Read(buf, start))) {
+        start = start + 1;
+    }
+    let end = len;
+    while (end > start && Text_IsWhitespace(Buffer_Read(buf, end - 1))) {
+        end = end - 1;
+    }
+    let s = Text_StringSlice(buf, start, end);
+    Buffer_Dispose(buf);
+    if (s[1] != null) {
+        return ["", s[1]];
+    }
+    return [s[0], null];
+}
+
+function Text_Repeat(text, count) {
+    if (__runtime_value_kind(text) != "string") {
+        return ["", ArgumentOutOfRangeException("text must be a string")];
+    }
+    if (__runtime_value_kind(count) != "integer") {
+        return ["", ArgumentOutOfRangeException("count must be an integer")];
+    }
+    if (count < 0) {
+        return ["", ArgumentOutOfRangeException("count must not be negative")];
+    }
+    let buf = Text_ToBuffer(text);
+    if (__runtime_value_kind(buf) == "string") {
+        return ["", buf];
+    }
+    let len = Buffer_Len(buf);
+    if (len == 0 || count == 0) {
+        Buffer_Dispose(buf);
+        return ["", null];
+    }
+    if (count > 0 && len > 9223372036854775807 / count) {
+        Buffer_Dispose(buf);
+        return ["", ArgumentOutOfRangeException("Repeat size too large")];
+    }
+    let total = len * count;
+    let out = Buffer_New(total);
+    if (__runtime_value_kind(out) == "string") {
+        Buffer_Dispose(buf);
+        return ["", out];
+    }
+    let i = 0;
+    while (i < count) {
+        let err = Bytes_Copy(out, i * len, buf, 0, len);
+        if (err != null) {
+            Buffer_Dispose(buf);
+            Buffer_Dispose(out);
+            return ["", err];
+        }
+        i = i + 1;
+    }
+    let result = Buffer_AsString(out);
+    if (__runtime_value_kind(result) != "string") {
+        Buffer_Dispose(buf);
+        Buffer_Dispose(out);
+        return ["", result];
+    }
+    Buffer_Dispose(buf);
+    Buffer_Dispose(out);
+    return [result, null];
+}
+
+// Shared padding implementation. `atEnd` selects PadEnd (text first) vs PadStart
+// (padding first). Operates on bytes, not code points.
+function Text_Pad(text, length, pad, atEnd) {
+    if (__runtime_value_kind(text) != "string") {
+        return ["", ArgumentOutOfRangeException("text must be a string")];
+    }
+    if (__runtime_value_kind(length) != "integer") {
+        return ["", ArgumentOutOfRangeException("length must be an integer")];
+    }
+    if (__runtime_value_kind(pad) != "string") {
+        return ["", ArgumentOutOfRangeException("pad must be a string")];
+    }
+    if (__string_length(pad) == 0) {
+        return ["", ArgumentOutOfRangeException("pad must not be empty")];
+    }
+    let len = __string_length(text);
+    if (length <= len) {
+        return [text, null];
+    }
+    let buf = Text_ToBuffer(text);
+    if (__runtime_value_kind(buf) == "string") {
+        return ["", buf];
+    }
+    let pbuf = Text_ToBuffer(pad);
+    if (__runtime_value_kind(pbuf) == "string") {
+        Buffer_Dispose(buf);
+        return ["", pbuf];
+    }
+    let padLen = Buffer_Len(pbuf);
+    let needed = length - len;
+    let out = Buffer_New(length);
+    if (__runtime_value_kind(out) == "string") {
+        Buffer_Dispose(buf);
+        Buffer_Dispose(pbuf);
+        return ["", out];
+    }
+    let textOffset = 0;
+    let padOffset = 0;
+    if (atEnd) {
+        textOffset = 0;
+        padOffset = len;
+    } else {
+        textOffset = needed;
+        padOffset = 0;
+    }
+    let written = 0;
+    while (written < needed) {
+        let chunk = padLen;
+        if (chunk > needed - written) {
+            chunk = needed - written;
+        }
+        let err = Bytes_Copy(out, padOffset + written, pbuf, 0, chunk);
+        if (err != null) {
+            Buffer_Dispose(buf);
+            Buffer_Dispose(pbuf);
+            Buffer_Dispose(out);
+            return ["", err];
+        }
+        written = written + chunk;
+    }
+    let err = Bytes_Copy(out, textOffset, buf, 0, len);
+    if (err != null) {
+        Buffer_Dispose(buf);
+        Buffer_Dispose(pbuf);
+        Buffer_Dispose(out);
+        return ["", err];
+    }
+    let result = Buffer_AsString(out);
+    if (__runtime_value_kind(result) != "string") {
+        Buffer_Dispose(buf);
+        Buffer_Dispose(pbuf);
+        Buffer_Dispose(out);
+        return ["", result];
+    }
+    Buffer_Dispose(buf);
+    Buffer_Dispose(pbuf);
+    Buffer_Dispose(out);
+    return [result, null];
+}
+
+function Text_PadStart(text, length, pad) {
+    return Text_Pad(text, length, pad, false);
+}
+
+function Text_PadEnd(text, length, pad) {
+    return Text_Pad(text, length, pad, true);
 }

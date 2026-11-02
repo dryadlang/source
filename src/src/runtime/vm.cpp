@@ -474,6 +474,20 @@ void VM::dispatch_opcode(Opcode op) {
                 if (!left.is_number() || !right.is_number()) {
                     throw DryadException("Comparison requires numeric operands");
                 }
+                if (left.is_integer() && right.is_integer()) {
+                    const int64_t li = left.as_integer();
+                    const int64_t ri = right.as_integer();
+                    switch (op) {
+                        case Opcode::LT:  result = li < ri; break;
+                        case Opcode::LTE: result = li <= ri; break;
+                        case Opcode::GT:  result = li > ri; break;
+                        case Opcode::GTE: result = li >= ri; break;
+                        default: break;
+                    }
+                    stack_.push_back(Value(result));
+                    advance(1);
+                    break;
+                }
                 double l = as_f64(left);
                 double r = as_f64(right);
                 switch (op) {

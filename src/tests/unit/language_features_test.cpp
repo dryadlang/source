@@ -193,3 +193,12 @@ TEST(LanguageFeaturesTest, BitwiseRejectsFloats) {
     EXPECT_THROW(run_source("let result = 1 | 2.5;"), DryadException);
     EXPECT_THROW(run_source("let result = ~1.5;"), DryadException);
 }
+
+TEST(LanguageFeaturesTest, LargeIntegerComparisonsAreExact) {
+    const std::string source = R"(
+        let a = 9007199254740993;
+        let b = 9007199254740992;
+        let result = a > b && b < a && a != b && (a <= b) == false;
+    )";
+    EXPECT_TRUE(run_source(source).is_truthy());
+}

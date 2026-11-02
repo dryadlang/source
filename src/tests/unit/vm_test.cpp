@@ -303,3 +303,15 @@ TEST_F(VMTest, BitwiseNotRejectsNonInteger) {
     vm.load(builder.build());
     EXPECT_THROW(vm.execute(), dryad::DryadException);
 }
+
+TEST_F(VMTest, LargeIntegerComparisonsAreExact) {
+    BytecodeBuilder builder;
+    builder.emit_push_int(9007199254740993LL);
+    builder.emit_push_int(9007199254740992LL);
+    builder.emit(Opcode::GT);
+    builder.emit_halt();
+    vm.load(builder.build());
+    vm.execute();
+
+    EXPECT_TRUE(vm.get_stack_top().as_boolean());
+}

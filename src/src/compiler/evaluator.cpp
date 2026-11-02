@@ -193,7 +193,21 @@ Value ExpressionEvaluator::evaluate_comparison(TokenType op, const Value& left, 
     if (!left.is_number() || !right.is_number()) {
         throw DryadException("Comparison requires numeric operands");
     }
-    
+
+    // Compare integers as int64_t: converting to double loses precision above
+    // 2^53 and would make distinct large integers compare equal.
+    if (left.is_integer() && right.is_integer()) {
+        const int64_t l = left.as_integer();
+        const int64_t r = right.as_integer();
+        switch (op) {
+            case TokenType::Less:         return Value(l < r);
+            case TokenType::LessEqual:    return Value(l <= r);
+            case TokenType::Greater:      return Value(l > r);
+            case TokenType::GreaterEqual: return Value(l >= r);
+            default: throw DryadException("Unknown comparison operator");
+        }
+    }
+
     double l = left.as_float();
     double r = right.as_float();
     

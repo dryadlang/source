@@ -59,3 +59,7 @@ TEST(TextTest, Utf8Rejections) { EXPECT_TRUE(run_text_test("text_test_utf8_rejec
 TEST(TextTest, AsciiCase) { EXPECT_TRUE(run_text_test("text_test_ascii_case").is_truthy()); }
 TEST(TextTest, TrimOnlyAsciiWhitespace) { EXPECT_TRUE(run_text_test("text_test_trim_only_ascii_whitespace").is_truthy()); }
 TEST(TextTest, RepeatAndPad) { EXPECT_TRUE(run_text_test("text_test_repeat_and_pad").is_truthy()); }
+TEST(TextTest, Split) { EXPECT_TRUE(run_text_test("text_test_split").is_truthy()); }
+TEST(TextTest, SplitRejectsEmptySeparator) { EXPECT_TRUE(run_text_test("text_test_split_rejects_empty_separator").is_truthy()); }
+TEST(TextTest, Join) { EXPECT_TRUE(run_text_test("text_test_join").is_truthy()); }
+TEST(TextTest, Replace) { EXPECT_TRUE(run_text_test("text_test_replace").is_truthy()); }

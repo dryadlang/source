@@ -793,3 +793,264 @@ function Text_PadStart(text, length, pad) {
 function Text_PadEnd(text, length, pad) {
     return Text_Pad(text, length, pad, true);
 }
+
+// ---------------------------------------------------------------------------
+// Split, join and replace.
+// ---------------------------------------------------------------------------
+
+// Splits `text` on non-overlapping occurrences of `separator`, returning
+// [[string], error]. An empty separator is rejected. `""` yields `[""]`, and a
+// trailing separator yields a trailing empty part.
+function Text_Split(text, separator) {
+    if (__runtime_value_kind(text) != "string") {
+        return [[], ArgumentOutOfRangeException("text must be a string")];
+    }
+    if (__runtime_value_kind(separator) != "string") {
+        return [[], ArgumentOutOfRangeException("separator must be a string")];
+    }
+    if (__string_length(separator) == 0) {
+        return [[], ArgumentOutOfRangeException("separator must not be empty")];
+    }
+    let buf = Text_ToBuffer(text);
+    if (__runtime_value_kind(buf) == "string") {
+        return [[], buf];
+    }
+    let sep = Text_ToBuffer(separator);
+    if (__runtime_value_kind(sep) == "string") {
+        Buffer_Dispose(buf);
+        return [[], sep];
+    }
+    let len = Buffer_Len(buf);
+    let sepLen = Buffer_Len(sep);
+    let parts = [];
+    let start = 0;
+    while (start <= len) {
+        let idx = Text_FindBytes(buf, sep, start, false);
+        if (idx < 0) {
+            break;
+        }
+        let s = Text_StringSlice(buf, start, idx);
+        if (s[1] != null) {
+            Buffer_Dispose(buf);
+            Buffer_Dispose(sep);
+            return [[], s[1]];
+        }
+        __runtime_array_push(parts, s[0]);
+        start = idx + sepLen;
+    }
+    let tail = Text_StringSlice(buf, start, len);
+    if (tail[1] != null) {
+        Buffer_Dispose(buf);
+        Buffer_Dispose(sep);
+        return [[], tail[1]];
+    }
+    __runtime_array_push(parts, tail[0]);
+    Buffer_Dispose(buf);
+    Buffer_Dispose(sep);
+    return [parts, null];
+}
+
+// Joins an array of strings with `separator`, returning [string, error].
+// Every element must be a string. `[]` yields `""`. The result is built in a
+// single buffer sized to the total byte length to avoid quadratic copying.
+function Text_Join(parts, separator) {
+    if (__runtime_value_kind(parts) != "array") {
+        return ["", ArgumentOutOfRangeException("parts must be an array")];
+    }
+    if (__runtime_value_kind(separator) != "string") {
+        return ["", ArgumentOutOfRangeException("separator must be a string")];
+    }
+    let sep = Text_ToBuffer(separator);
+    if (__runtime_value_kind(sep) == "string") {
+        return ["", sep];
+    }
+    let sepLen = Buffer_Len(sep);
+    let n = __runtime_array_length(parts);
+    let total = 0;
+    let i = 0;
+    while (i < n) {
+        if (__runtime_value_kind(parts[i]) != "string") {
+            Buffer_Dispose(sep);
+            return ["", ArgumentOutOfRangeException("parts must contain only strings")];
+        }
+        let partLen = __string_length(parts[i]);
+        if (partLen > 9223372036854775807 - total) {
+            Buffer_Dispose(sep);
+            return ["", ArgumentOutOfRangeException("Join size too large")];
+        }
+        total = total + partLen;
+        if (i < n - 1) {
+            if (sepLen > 9223372036854775807 - total) {
+                Buffer_Dispose(sep);
+                return ["", ArgumentOutOfRangeException("Join size too large")];
+            }
+            total = total + sepLen;
+        }
+        i = i + 1;
+    }
+    let out = Buffer_New(total);
+    if (__runtime_value_kind(out) == "string") {
+        Buffer_Dispose(sep);
+        return ["", out];
+    }
+    let offset = 0;
+    i = 0;
+    while (i < n) {
+        let partBuf = Buffer_FromString(parts[i]);
+        if (__runtime_value_kind(partBuf) == "string") {
+            Buffer_Dispose(sep);
+            Buffer_Dispose(out);
+            return ["", partBuf];
+        }
+        let partLen = Buffer_Len(partBuf);
+        let err = Bytes_Copy(out, offset, partBuf, 0, partLen);
+        Buffer_Dispose(partBuf);
+        if (err != null) {
+            Buffer_Dispose(sep);
+            Buffer_Dispose(out);
+            return ["", err];
+        }
+        offset = offset + partLen;
+        if (i < n - 1) {
+            err = Bytes_Copy(out, offset, sep, 0, sepLen);
+            if (err != null) {
+                Buffer_Dispose(sep);
+                Buffer_Dispose(out);
+                return ["", err];
+            }
+            offset = offset + sepLen;
+        }
+        i = i + 1;
+    }
+    let result = Buffer_AsString(out);
+    Buffer_Dispose(sep);
+    Buffer_Dispose(out);
+    if (__runtime_value_kind(result) != "string") {
+        return ["", result];
+    }
+    return [result, null];
+}
+
+// Shared replacement implementation. `replaceAll` selects whether every
+// non-overlapping occurrence is replaced or just the first. Occurrences are
+// located before any output is produced, so replacement text is never rescanned.
+function Text_ReplaceInternal(text, needle, replacement, replaceAll) {
+    if (__runtime_value_kind(text) != "string") {
+        return ["", ArgumentOutOfRangeException("text must be a string")];
+    }
+    if (__runtime_value_kind(needle) != "string") {
+        return ["", ArgumentOutOfRangeException("needle must be a string")];
+    }
+    if (__runtime_value_kind(replacement) != "string") {
+        return ["", ArgumentOutOfRangeException("replacement must be a string")];
+    }
+    if (__string_length(needle) == 0) {
+        return ["", ArgumentOutOfRangeException("needle must not be empty")];
+    }
+    let buf = Text_ToBuffer(text);
+    if (__runtime_value_kind(buf) == "string") {
+        return ["", buf];
+    }
+    let nbuf = Text_ToBuffer(needle);
+    if (__runtime_value_kind(nbuf) == "string") {
+        Buffer_Dispose(buf);
+        return ["", nbuf];
+    }
+    let rbuf = Text_ToBuffer(replacement);
+    if (__runtime_value_kind(rbuf) == "string") {
+        Buffer_Dispose(buf);
+        Buffer_Dispose(nbuf);
+        return ["", rbuf];
+    }
+    let len = Buffer_Len(buf);
+    let needleLen = Buffer_Len(nbuf);
+    let replLen = Buffer_Len(rbuf);
+    let matches = [];
+    let idx = Text_FindBytes(buf, nbuf, 0, false);
+    while (idx >= 0) {
+        __runtime_array_push(matches, idx);
+        if (!replaceAll) {
+            break;
+        }
+        idx = Text_FindBytes(buf, nbuf, idx + needleLen, false);
+    }
+    let matchCount = __runtime_array_length(matches);
+    if (matchCount == 0) {
+        Buffer_Dispose(buf);
+        Buffer_Dispose(nbuf);
+        Buffer_Dispose(rbuf);
+        return [text, null];
+    }
+    let total = len + (replLen - needleLen) * matchCount;
+    if (total < 0) {
+        Buffer_Dispose(buf);
+        Buffer_Dispose(nbuf);
+        Buffer_Dispose(rbuf);
+        return ["", ArgumentOutOfRangeException("Replacement size too large")];
+    }
+    let out = Buffer_New(total);
+    if (__runtime_value_kind(out) == "string") {
+        Buffer_Dispose(buf);
+        Buffer_Dispose(nbuf);
+        Buffer_Dispose(rbuf);
+        return ["", out];
+    }
+    let srcPos = 0;
+    let dstPos = 0;
+    let m = 0;
+    while (m < matchCount) {
+        let matchStart = matches[m];
+        if (matchStart > srcPos) {
+            let err = Bytes_Copy(out, dstPos, buf, srcPos, matchStart - srcPos);
+            if (err != null) {
+                Buffer_Dispose(buf);
+                Buffer_Dispose(nbuf);
+                Buffer_Dispose(rbuf);
+                Buffer_Dispose(out);
+                return ["", err];
+            }
+            dstPos = dstPos + (matchStart - srcPos);
+        }
+        if (replLen > 0) {
+            let err = Bytes_Copy(out, dstPos, rbuf, 0, replLen);
+            if (err != null) {
+                Buffer_Dispose(buf);
+                Buffer_Dispose(nbuf);
+                Buffer_Dispose(rbuf);
+                Buffer_Dispose(out);
+                return ["", err];
+            }
+            dstPos = dstPos + replLen;
+        }
+        srcPos = matchStart + needleLen;
+        m = m + 1;
+    }
+    if (srcPos < len) {
+        let err = Bytes_Copy(out, dstPos, buf, srcPos, len - srcPos);
+        if (err != null) {
+            Buffer_Dispose(buf);
+            Buffer_Dispose(nbuf);
+            Buffer_Dispose(rbuf);
+            Buffer_Dispose(out);
+            return ["", err];
+        }
+        dstPos = dstPos + (len - srcPos);
+    }
+    let result = Buffer_AsString(out);
+    Buffer_Dispose(buf);
+    Buffer_Dispose(nbuf);
+    Buffer_Dispose(rbuf);
+    Buffer_Dispose(out);
+    if (__runtime_value_kind(result) != "string") {
+        return ["", result];
+    }
+    return [result, null];
+}
+
+function Text_Replace(text, needle, replacement) {
+    return Text_ReplaceInternal(text, needle, replacement, false);
+}
+
+function Text_ReplaceAll(text, needle, replacement) {
+    return Text_ReplaceInternal(text, needle, replacement, true);
+}

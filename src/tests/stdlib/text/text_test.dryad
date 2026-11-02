@@ -6,7 +6,8 @@ import {
     Text_Includes, Text_StartsWith, Text_EndsWith, Text_Equals, Text_Compare,
     Text_CodePoints, Text_CharCount,
     Text_ToLowerAscii, Text_ToUpperAscii, Text_Trim, Text_TrimStart, Text_TrimEnd,
-    Text_Repeat, Text_PadStart, Text_PadEnd
+    Text_Repeat, Text_PadStart, Text_PadEnd,
+    Text_Split, Text_Join, Text_Replace, Text_ReplaceAll
 } from "@std/text/text";
 
 function text_test_length_is_bytes() {
@@ -178,5 +179,46 @@ function text_test_repeat_and_pad() {
              padStart[1] == null && padStart[0] == "007" &&
              padEnd[1] == null && padEnd[0] == "700" &&
              wide[1] == null && wide[0] == "abcd";
+    return ok;
+}
+
+function text_test_split() {
+    let parts = Text_Split("a,b,,c", ",");
+    let empty = Text_Split("", ",");
+    let trailing = Text_Split("a,", ",");
+    let missing = Text_Split("abc", ",");
+    let ok = parts[1] == null && __runtime_array_length(parts[0]) == 4 &&
+             parts[0][2] == "" &&
+             empty[1] == null && __runtime_array_length(empty[0]) == 1 && empty[0][0] == "" &&
+             trailing[1] == null && __runtime_array_length(trailing[0]) == 2 && trailing[0][1] == "" &&
+             missing[1] == null && __runtime_array_length(missing[0]) == 1 && missing[0][0] == "abc";
+    return ok;
+}
+
+function text_test_split_rejects_empty_separator() {
+    let r = Text_Split("abc", "");
+    return r[1] != null;
+}
+
+function text_test_join() {
+    let parts = ["a", "b", "c"];
+    let joined = Text_Join(parts, "-");
+    let single = Text_Join(["a"], "-");
+    let none = Text_Join([], "-");
+    let ok = joined[1] == null && joined[0] == "a-b-c" &&
+             single[1] == null && single[0] == "a" &&
+             none[1] == null && none[0] == "";
+    return ok;
+}
+
+function text_test_replace() {
+    let first = Text_Replace("aaa", "a", "b");
+    let all = Text_ReplaceAll("aaa", "a", "b");
+    let none = Text_ReplaceAll("aaa", "z", "b");
+    let emptyNeedle = Text_Replace("aaa", "", "b");
+    let ok = first[1] == null && first[0] == "baa" &&
+             all[1] == null && all[0] == "bbb" &&
+             none[1] == null && none[0] == "aaa" &&
+             emptyNeedle[1] != null;
     return ok;
 }

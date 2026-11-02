@@ -563,13 +563,22 @@ TEST(AotTest, MicroIrLowersBitwiseOpcodes) {
     IrModule ir = bytecode_to_micro_ir(program);
     EXPECT_FALSE(ir.functions.empty());
 
+    const IrFunction* bits_fn = nullptr;
+    for (const auto& fn : ir.functions) {
+        if (fn.name == "bits") {
+            bits_fn = &fn;
+            break;
+        }
+    }
+    ASSERT_NE(bits_fn, nullptr);
+
     int slow_sites = 0;
-    for (const auto& inst : ir.functions[0].instructions) {
+    for (const auto& inst : bits_fn->instructions) {
         if (inst.op == IrOpcode::IntrinsicSlow) {
             ++slow_sites;
         }
     }
-    EXPECT_GE(slow_sites, 5);
+    EXPECT_EQ(slow_sites, 9);
 
     std::remove(input.c_str());
 }

@@ -369,3 +369,25 @@ TEST(BytecodeCompilerTest, IntrinsicSyscallEmission) {
     vm.execute();
     EXPECT_EQ(vm.get_stack_top().as_integer(), 2);
 }
+
+TEST(BytecodeCompilerTest, EmitsBitwiseOpcodes) {
+    const std::string source = R"(
+        function f(a, b) {
+            let x = a & b;
+            let y = a | b;
+            let z = a ^ b;
+            let n = ~a;
+            let l = a << b;
+            let r = a >> b;
+            return x + y + z + n + l + r;
+        }
+    )";
+
+    auto fn = compile_named_function(source, "f", nullptr);
+    EXPECT_TRUE(code_contains_opcode(fn.module, Opcode::BIT_AND));
+    EXPECT_TRUE(code_contains_opcode(fn.module, Opcode::BIT_OR));
+    EXPECT_TRUE(code_contains_opcode(fn.module, Opcode::BIT_XOR));
+    EXPECT_TRUE(code_contains_opcode(fn.module, Opcode::BIT_NOT));
+    EXPECT_TRUE(code_contains_opcode(fn.module, Opcode::SHL));
+    EXPECT_TRUE(code_contains_opcode(fn.module, Opcode::SHR));
+}

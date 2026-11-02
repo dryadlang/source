@@ -542,3 +542,43 @@ TEST(AotTest, ScriptEntryUsesDryadMainSymbol) {
     EXPECT_EQ(entry->name, kScriptEntryFunctionName);
     EXPECT_TRUE(program->statements.empty());
 }
+
+TEST(AotTest, MicroIrLowersBitwiseOpcodes) {
+    const std::string source = R"(
+        function bits(a, b) {
+            return (a & b) | (a ^ b) | (a << b) | (a >> b) | ~a;
+        }
+        bits(6, 3);
+    )";
+
+    const std::string input = "/tmp/dryad_micro_ir_bitwise.dryad";
+    {
+        std::ofstream file(input);
+        file << source;
+    }
+
+    CompileOptions options;
+    options.run_profiler = true;
+    CompiledProgram program = compile_file_to_bytecode(input, options);
+    IrModule ir = bytecode_to_micro_ir(program);
+    EXPECT_FALSE(ir.functions.empty());
+
+    const IrFunction* bits_fn = nullptr;
+    for (const auto& fn : ir.functions) {
+        if (fn.name == "bits") {
+            bits_fn = &fn;
+            break;
+        }
+    }
+    ASSERT_NE(bits_fn, nullptr);
+
+    int slow_sites = 0;
+    for (const auto& inst : bits_fn->instructions) {
+        if (inst.op == IrOpcode::IntrinsicSlow) {
+            ++slow_sites;
+        }
+    }
+    EXPECT_EQ(slow_sites, 9);
+
+    std::remove(input.c_str());
+}

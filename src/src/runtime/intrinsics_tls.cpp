@@ -113,6 +113,7 @@ void IntrinsicsRegistry::register_tls_intrinsics() {
 
         return MemoryManager::io_buffer(
             args[1].as_integer(), args[2].as_integer(), args[3].as_integer(),
+            IoBufferMode::Write,
             [ssl](uint8_t* data, size_t count) -> int64_t {
                 int n = SSL_write(ssl, data, static_cast<int>(count));
                 return static_cast<int64_t>(n);
@@ -133,6 +134,7 @@ void IntrinsicsRegistry::register_tls_intrinsics() {
 
         return MemoryManager::io_buffer(
             args[1].as_integer(), args[2].as_integer(), args[3].as_integer(),
+            IoBufferMode::Read,
             [ssl](uint8_t* data, size_t count) -> int64_t {
                 int n = SSL_read(ssl, data, static_cast<int>(count));
                 return static_cast<int64_t>(n);

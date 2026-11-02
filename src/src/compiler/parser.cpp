@@ -513,9 +513,45 @@ std::unique_ptr<Expression> Parser::parse_logical_or() {
 }
 
 std::unique_ptr<Expression> Parser::parse_logical_and() {
-    auto expr = parse_equality();
+    auto expr = parse_bitwise_or();
     
     while (match(TokenType::AmpersandAmpersand)) {
+        TokenType op = previous().type;
+        auto right = parse_bitwise_or();
+        expr = std::make_unique<BinaryExpression>(op, std::move(expr), std::move(right), previous().location);
+    }
+    
+    return expr;
+}
+
+std::unique_ptr<Expression> Parser::parse_bitwise_or() {
+    auto expr = parse_bitwise_xor();
+    
+    while (match(TokenType::Pipe)) {
+        TokenType op = previous().type;
+        auto right = parse_bitwise_xor();
+        expr = std::make_unique<BinaryExpression>(op, std::move(expr), std::move(right), previous().location);
+    }
+    
+    return expr;
+}
+
+std::unique_ptr<Expression> Parser::parse_bitwise_xor() {
+    auto expr = parse_bitwise_and();
+    
+    while (match(TokenType::Caret)) {
+        TokenType op = previous().type;
+        auto right = parse_bitwise_and();
+        expr = std::make_unique<BinaryExpression>(op, std::move(expr), std::move(right), previous().location);
+    }
+    
+    return expr;
+}
+
+std::unique_ptr<Expression> Parser::parse_bitwise_and() {
+    auto expr = parse_equality();
+    
+    while (match(TokenType::Ampersand)) {
         TokenType op = previous().type;
         auto right = parse_equality();
         expr = std::make_unique<BinaryExpression>(op, std::move(expr), std::move(right), previous().location);
@@ -537,9 +573,21 @@ std::unique_ptr<Expression> Parser::parse_equality() {
 }
 
 std::unique_ptr<Expression> Parser::parse_comparison() {
-    auto expr = parse_addition();
+    auto expr = parse_shift();
     
     while (match({TokenType::Less, TokenType::LessEqual, TokenType::Greater, TokenType::GreaterEqual})) {
+        TokenType op = previous().type;
+        auto right = parse_shift();
+        expr = std::make_unique<BinaryExpression>(op, std::move(expr), std::move(right), previous().location);
+    }
+    
+    return expr;
+}
+
+std::unique_ptr<Expression> Parser::parse_shift() {
+    auto expr = parse_addition();
+    
+    while (match({TokenType::LessLess, TokenType::GreaterGreater})) {
         TokenType op = previous().type;
         auto right = parse_addition();
         expr = std::make_unique<BinaryExpression>(op, std::move(expr), std::move(right), previous().location);
@@ -579,7 +627,7 @@ std::unique_ptr<Expression> Parser::parse_unary() {
         return std::make_unique<AwaitExpression>(std::move(operand), loc);
     }
 
-    if (match({TokenType::Bang, TokenType::Minus})) {
+    if (match({TokenType::Bang, TokenType::Minus, TokenType::Tilde})) {
         TokenType op = previous().type;
         auto operand = parse_unary();
         return std::make_unique<UnaryExpression>(op, std::move(operand), previous().location);

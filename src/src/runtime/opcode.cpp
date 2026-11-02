@@ -27,6 +27,12 @@ const char* opcode_name(Opcode op) {
         case Opcode::MUL_I32:          return "MUL_I32";
         case Opcode::DIV_I32:          return "DIV_I32";
         case Opcode::NOT:              return "NOT";
+        case Opcode::BIT_AND:          return "BIT_AND";
+        case Opcode::BIT_OR:           return "BIT_OR";
+        case Opcode::BIT_XOR:          return "BIT_XOR";
+        case Opcode::BIT_NOT:          return "BIT_NOT";
+        case Opcode::SHL:              return "SHL";
+        case Opcode::SHR:              return "SHR";
         case Opcode::EQ:               return "EQ";
         case Opcode::NEQ:              return "NEQ";
         case Opcode::LT:               return "LT";

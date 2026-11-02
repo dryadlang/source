@@ -202,3 +202,116 @@ TEST_F(VMTest, GenericAddStringConcat) {
 
     EXPECT_EQ(vm.get_stack_top().as_string(), "hello world");
 }
+
+TEST_F(VMTest, BitwiseOpcodes) {
+    BytecodeBuilder builder;
+    builder.emit_push_int(6);
+    builder.emit_push_int(3);
+    builder.emit(Opcode::BIT_AND);
+    builder.emit_halt();
+    vm.load(builder.build());
+    vm.execute();
+    EXPECT_EQ(vm.get_stack_top().as_integer(), 2);
+}
+
+TEST_F(VMTest, BitwiseOrXorAndMaskedShiftRight) {
+    auto run = [](int64_t lhs, int64_t rhs, Opcode op) {
+        BytecodeBuilder builder;
+        builder.emit_push_int(lhs);
+        builder.emit_push_int(rhs);
+        builder.emit(op);
+        builder.emit_halt();
+        VM local;
+        local.load(builder.build());
+        local.execute();
+        return local.get_stack_top().as_integer();
+    };
+    EXPECT_EQ(run(6, 3, Opcode::BIT_OR), 7);
+    EXPECT_EQ(run(6, 3, Opcode::BIT_XOR), 5);
+    EXPECT_EQ(run(16, 64, Opcode::SHR), 16);
+}
+
+TEST_F(VMTest, ShiftCountsAreMasked) {
+    BytecodeBuilder builder;
+    builder.emit_push_int(1);
+    builder.emit_push_int(64);
+    builder.emit(Opcode::SHL);
+    builder.emit_halt();
+    vm.load(builder.build());
+    vm.execute();
+    EXPECT_EQ(vm.get_stack_top().as_integer(), 1);
+}
+
+TEST_F(VMTest, LeftShiftWraps) {
+    BytecodeBuilder builder;
+    builder.emit_push_int(1);
+    builder.emit_push_int(63);
+    builder.emit(Opcode::SHL);
+    builder.emit_halt();
+    vm.load(builder.build());
+    vm.execute();
+    EXPECT_EQ(vm.get_stack_top().as_integer(), -9223372036854775807LL - 1);
+}
+
+TEST_F(VMTest, ArithmeticRightShiftKeepsSign) {
+    BytecodeBuilder builder;
+    builder.emit_push_int(-16);
+    builder.emit_push_int(2);
+    builder.emit(Opcode::SHR);
+    builder.emit_halt();
+    vm.load(builder.build());
+    vm.execute();
+    EXPECT_EQ(vm.get_stack_top().as_integer(), -4);
+}
+
+TEST_F(VMTest, BitwiseNotOfZeroIsMinusOne) {
+    BytecodeBuilder builder;
+    builder.emit_push_int(0);
+    builder.emit(Opcode::BIT_NOT);
+    builder.emit_halt();
+    vm.load(builder.build());
+    vm.execute();
+    EXPECT_EQ(vm.get_stack_top().as_integer(), -1);
+}
+
+TEST_F(VMTest, NegativeShiftCountIsMasked) {
+    BytecodeBuilder builder;
+    builder.emit_push_int(1);
+    builder.emit_push_int(-1);
+    builder.emit(Opcode::SHL);
+    builder.emit_halt();
+    vm.load(builder.build());
+    vm.execute();
+    EXPECT_EQ(vm.get_stack_top().as_integer(), -9223372036854775807LL - 1);
+}
+
+TEST_F(VMTest, BitwiseBinaryRejectsNonInteger) {
+    BytecodeBuilder builder;
+    builder.emit_push_float(1.5);
+    builder.emit_push_int(1);
+    builder.emit(Opcode::BIT_AND);
+    builder.emit_halt();
+    vm.load(builder.build());
+    EXPECT_THROW(vm.execute(), dryad::DryadException);
+}
+
+TEST_F(VMTest, BitwiseNotRejectsNonInteger) {
+    BytecodeBuilder builder;
+    builder.emit_push_float(1.5);
+    builder.emit(Opcode::BIT_NOT);
+    builder.emit_halt();
+    vm.load(builder.build());
+    EXPECT_THROW(vm.execute(), dryad::DryadException);
+}
+
+TEST_F(VMTest, LargeIntegerComparisonsAreExact) {
+    BytecodeBuilder builder;
+    builder.emit_push_int(9007199254740993LL);
+    builder.emit_push_int(9007199254740992LL);
+    builder.emit(Opcode::GT);
+    builder.emit_halt();
+    vm.load(builder.build());
+    vm.execute();
+
+    EXPECT_TRUE(vm.get_stack_top().as_boolean());
+}

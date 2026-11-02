@@ -1,0 +1,1786 @@
+// @std/text/text.dryad
+// Byte-indexed UTF-8 text operations over @std/bytes. Buffer is the only
+// byte container; strings are converted once per operation.
+
+import { ArgumentNullException, ArgumentOutOfRangeException, Exception } from "@std/core/exceptions";
+import { Buffer_New, Buffer_FromString, Buffer_AsString, Buffer_Read, Buffer_Write, Buffer_Len, Buffer_Slice, Buffer_Resize, Buffer_Dispose } from "@std/buffers/buffer";
+import { Bytes_Compare, Bytes_Copy } from "@std/bytes/bytes";
+
+// ---------------------------------------------------------------------------
+// Module-level helpers (reused by later tasks and TextView).
+// ---------------------------------------------------------------------------
+
+// Returns a Buffer for `text`, or an error string (null check + conversion).
+// Callers distinguish with __runtime_value_kind(value) == "string".
+function Text_ToBuffer(text) {
+    if (text == null) {
+        return ArgumentNullException("text");
+    }
+    return Buffer_FromString(text);
+}
+
+// Slices [start, end) and converts back to a string; returns [string, error].
+// Callers must validate the range first.
+function Text_StringSlice(buf, start, end) {
+    let slice = Buffer_Slice(buf, start, end);
+    if (__runtime_value_kind(slice) == "string") {
+        return ["", slice];
+    }
+    let text = Buffer_AsString(slice);
+    if (__runtime_value_kind(text) != "string") {
+        return ["", Exception("Failed to read string from buffer")];
+    }
+    return [text, null];
+}
+
+// Number of bytes encoded by a UTF-8 lead byte (1-4). Only meaningful for a
+// valid lead byte; used by Text_CodePoints/Text_CharCount to advance.
+function Text_CodePointLength(leadByte) {
+    if (leadByte < 128) {
+        return 1;
+    }
+    if (leadByte < 224) {
+        return 2;
+    }
+    if (leadByte < 240) {
+        return 3;
+    }
+    return 4;
+}
+
+// Decodes the code point at `byteIndex`, validating UTF-8. Returns
+// [codePoint, error]; error is null on success. Rejects continuation lead
+// bytes, truncation, overlong forms, surrogates and values above 0x10FFFF.
+function Text_DecodeCodePoint(buf, byteIndex) {
+    let len = Buffer_Len(buf);
+    if (byteIndex < 0 || byteIndex >= len) {
+        return [0, ArgumentOutOfRangeException("Byte index out of range")];
+    }
+    let b0 = Buffer_Read(buf, byteIndex);
+    if (b0 < 128) {
+        return [b0, null];
+    }
+    let n = 0;
+    let cp = 0;
+    let min = 0;
+    if (b0 >= 194 && b0 <= 223) {
+        n = 2;
+        cp = b0 & 31;
+        min = 128;
+    } else if (b0 >= 224 && b0 <= 239) {
+        n = 3;
+        cp = b0 & 15;
+        min = 2048;
+    } else if (b0 >= 240 && b0 <= 244) {
+        n = 4;
+        cp = b0 & 7;
+        min = 65536;
+    } else {
+        return [0, Exception("Invalid UTF-8 leading byte")];
+    }
+    if (byteIndex + n > len) {
+        return [0, Exception("Truncated UTF-8 sequence")];
+    }
+    let i = 1;
+    while (i < n) {
+        let b = Buffer_Read(buf, byteIndex + i);
+        if ((b & 192) != 128) {
+            return [0, Exception("Invalid UTF-8 continuation byte")];
+        }
+        cp = (cp << 6) | (b & 63);
+        i = i + 1;
+    }
+    if (cp < min) {
+        return [0, Exception("Overlong UTF-8 encoding")];
+    }
+    if (cp > 1114111) {
+        return [0, Exception("Code point out of range")];
+    }
+    if (cp >= 55296 && cp <= 57343) {
+        return [0, Exception("Invalid UTF-8 surrogate code point")];
+    }
+    return [cp, null];
+}
+
+// Compares the bytes of buf at `pos` against needleBuf.
+function Text_MatchesAt(buf, pos, needleBuf) {
+    let n = Buffer_Len(needleBuf);
+    let i = 0;
+    while (i < n) {
+        if (Buffer_Read(buf, pos + i) != Buffer_Read(needleBuf, i)) {
+            return false;
+        }
+        i = i + 1;
+    }
+    return true;
+}
+
+// Internal byte search. Forward search starts at `from`; backward search scans
+// from the end. Empty needle returns hayLen when lastOccurrence, else `from`
+// (clamped). Absent needle returns -1.
+function Text_FindBytes(buf, needleBuf, fromIndex, lastOccurrence) {
+    let hayLen = Buffer_Len(buf);
+    let needleLen = Buffer_Len(needleBuf);
+    if (needleLen == 0) {
+        if (lastOccurrence) {
+            return hayLen;
+        }
+        if (fromIndex < 0) {
+            return 0;
+        }
+        if (fromIndex > hayLen) {
+            return hayLen;
+        }
+        return fromIndex;
+    }
+    if (needleLen > hayLen) {
+        return -1;
+    }
+    if (lastOccurrence) {
+        let i = hayLen - needleLen;
+        while (i >= 0) {
+            if (Text_MatchesAt(buf, i, needleBuf)) {
+                return i;
+            }
+            i = i - 1;
+        }
+        return -1;
+    }
+    let i = fromIndex;
+    if (i < 0) {
+        i = 0;
+    }
+    let lastStart = hayLen - needleLen;
+    while (i <= lastStart) {
+        if (Text_MatchesAt(buf, i, needleBuf)) {
+            return i;
+        }
+        i = i + 1;
+    }
+    return -1;
+}
+
+// ---------------------------------------------------------------------------
+// Public API.
+// ---------------------------------------------------------------------------
+
+function Text_Length(text) {
+    if (text == null) {
+        return [0, ArgumentNullException("text")];
+    }
+    if (__runtime_value_kind(text) != "string") {
+        return [0, ArgumentOutOfRangeException("text must be a string")];
+    }
+    return [__string_length(text), null];
+}
+
+function Text_CharAt(text, index) {
+    if (text == null) {
+        return ["", ArgumentNullException("text")];
+    }
+    if (__runtime_value_kind(text) != "string") {
+        return ["", ArgumentOutOfRangeException("text must be a string")];
+    }
+    let buf = Text_ToBuffer(text);
+    if (__runtime_value_kind(buf) == "string") {
+        return ["", buf];
+    }
+    let len = Buffer_Len(buf);
+    if (__runtime_value_kind(index) != "integer") {
+        Buffer_Dispose(buf);
+        return ["", ArgumentOutOfRangeException("Byte index must be an integer")];
+    }
+    if (index < 0 || index >= len) {
+        Buffer_Dispose(buf);
+        return ["", ArgumentOutOfRangeException("Byte index out of range")];
+    }
+    let s = Text_StringSlice(buf, index, index + 1);
+    if (s[1] != null) {
+        Buffer_Dispose(buf);
+        return ["", s[1]];
+    }
+    Buffer_Dispose(buf);
+    return [s[0], null];
+}
+
+function Text_CodePointAt(text, byteIndex) {
+    if (text == null) {
+        return [0, ArgumentNullException("text")];
+    }
+    if (__runtime_value_kind(text) != "string") {
+        return [0, ArgumentOutOfRangeException("text must be a string")];
+    }
+    let buf = Text_ToBuffer(text);
+    if (__runtime_value_kind(buf) == "string") {
+        return [0, buf];
+    }
+    if (__runtime_value_kind(byteIndex) != "integer") {
+        Buffer_Dispose(buf);
+        return [0, ArgumentOutOfRangeException("byteIndex must be an integer")];
+    }
+    let r = Text_DecodeCodePoint(buf, byteIndex);
+    Buffer_Dispose(buf);
+    return r;
+}
+
+function Text_FromCodePoint(codePoint) {
+    if (__runtime_value_kind(codePoint) != "integer") {
+        return ["", ArgumentOutOfRangeException("Code point must be an integer")];
+    }
+    if (codePoint < 0 || codePoint > 1114111 || (codePoint >= 55296 && codePoint <= 57343)) {
+        return ["", ArgumentOutOfRangeException("Code point out of range")];
+    }
+    let n = 1;
+    if (codePoint >= 128) {
+        n = 2;
+    }
+    if (codePoint >= 2048) {
+        n = 3;
+    }
+    if (codePoint >= 65536) {
+        n = 4;
+    }
+    let buf = Buffer_New(n);
+    if (__runtime_value_kind(buf) == "string") {
+        return ["", buf];
+    }
+    if (n == 1) {
+        Buffer_Write(buf, 0, codePoint);
+    } else if (n == 2) {
+        Buffer_Write(buf, 0, 192 | (codePoint >> 6));
+        Buffer_Write(buf, 1, 128 | (codePoint & 63));
+    } else if (n == 3) {
+        Buffer_Write(buf, 0, 224 | (codePoint >> 12));
+        Buffer_Write(buf, 1, 128 | ((codePoint >> 6) & 63));
+        Buffer_Write(buf, 2, 128 | (codePoint & 63));
+    } else {
+        Buffer_Write(buf, 0, 240 | (codePoint >> 18));
+        Buffer_Write(buf, 1, 128 | ((codePoint >> 12) & 63));
+        Buffer_Write(buf, 2, 128 | ((codePoint >> 6) & 63));
+        Buffer_Write(buf, 3, 128 | (codePoint & 63));
+    }
+    let text = Buffer_AsString(buf);
+    if (__runtime_value_kind(text) != "string" || __string_length(text) != n) {
+        Buffer_Dispose(buf);
+        return ["", Exception("Failed to encode code point")];
+    }
+    Buffer_Dispose(buf);
+    return [text, null];
+}
+
+function Text_Slice(text, start, end) {
+    if (text == null) {
+        return ["", ArgumentNullException("text")];
+    }
+    if (__runtime_value_kind(text) != "string") {
+        return ["", ArgumentOutOfRangeException("text must be a string")];
+    }
+    let buf = Text_ToBuffer(text);
+    if (__runtime_value_kind(buf) == "string") {
+        return ["", buf];
+    }
+    let len = Buffer_Len(buf);
+    if (__runtime_value_kind(start) != "integer") {
+        Buffer_Dispose(buf);
+        return ["", ArgumentOutOfRangeException("start must be an integer")];
+    }
+    if (__runtime_value_kind(end) != "integer") {
+        Buffer_Dispose(buf);
+        return ["", ArgumentOutOfRangeException("end must be an integer")];
+    }
+    if (start < 0 || end < start || end > len) {
+        Buffer_Dispose(buf);
+        return ["", ArgumentOutOfRangeException("Slice range out of bounds")];
+    }
+    let s = Text_StringSlice(buf, start, end);
+    if (s[1] != null) {
+        Buffer_Dispose(buf);
+        return ["", s[1]];
+    }
+    Buffer_Dispose(buf);
+    return [s[0], null];
+}
+
+function Text_Substring(text, start, count) {
+    if (text == null) {
+        return ["", ArgumentNullException("text")];
+    }
+    if (__runtime_value_kind(text) != "string") {
+        return ["", ArgumentOutOfRangeException("text must be a string")];
+    }
+    let buf = Text_ToBuffer(text);
+    if (__runtime_value_kind(buf) == "string") {
+        return ["", buf];
+    }
+    let len = Buffer_Len(buf);
+    if (__runtime_value_kind(start) != "integer") {
+        Buffer_Dispose(buf);
+        return ["", ArgumentOutOfRangeException("start must be an integer")];
+    }
+    if (__runtime_value_kind(count) != "integer") {
+        Buffer_Dispose(buf);
+        return ["", ArgumentOutOfRangeException("count must be an integer")];
+    }
+    if (start < 0 || count < 0 || count > len - start) {
+        Buffer_Dispose(buf);
+        return ["", ArgumentOutOfRangeException("Substring range out of bounds")];
+    }
+    let s = Text_StringSlice(buf, start, start + count);
+    if (s[1] != null) {
+        Buffer_Dispose(buf);
+        return ["", s[1]];
+    }
+    Buffer_Dispose(buf);
+    return [s[0], null];
+}
+
+function Text_IndexOf(text, needle) {
+    if (text == null) {
+        return [-1, ArgumentNullException("text")];
+    }
+    if (__runtime_value_kind(text) != "string") {
+        return [-1, ArgumentOutOfRangeException("text must be a string")];
+    }
+    if (needle == null) {
+        return [-1, ArgumentNullException("needle")];
+    }
+    if (__runtime_value_kind(needle) != "string") {
+        return [-1, ArgumentOutOfRangeException("needle must be a string")];
+    }
+    let buf = Text_ToBuffer(text);
+    if (__runtime_value_kind(buf) == "string") {
+        return [-1, buf];
+    }
+    let nbuf = Text_ToBuffer(needle);
+    if (__runtime_value_kind(nbuf) == "string") {
+        Buffer_Dispose(buf);
+        return [-1, nbuf];
+    }
+    let idx = Text_FindBytes(buf, nbuf, 0, false);
+    Buffer_Dispose(buf);
+    Buffer_Dispose(nbuf);
+    return [idx, null];
+}
+
+function Text_LastIndexOf(text, needle) {
+    if (text == null) {
+        return [-1, ArgumentNullException("text")];
+    }
+    if (__runtime_value_kind(text) != "string") {
+        return [-1, ArgumentOutOfRangeException("text must be a string")];
+    }
+    if (needle == null) {
+        return [-1, ArgumentNullException("needle")];
+    }
+    if (__runtime_value_kind(needle) != "string") {
+        return [-1, ArgumentOutOfRangeException("needle must be a string")];
+    }
+    let buf = Text_ToBuffer(text);
+    if (__runtime_value_kind(buf) == "string") {
+        return [-1, buf];
+    }
+    let nbuf = Text_ToBuffer(needle);
+    if (__runtime_value_kind(nbuf) == "string") {
+        Buffer_Dispose(buf);
+        return [-1, nbuf];
+    }
+    let idx = Text_FindBytes(buf, nbuf, 0, true);
+    Buffer_Dispose(buf);
+    Buffer_Dispose(nbuf);
+    return [idx, null];
+}
+
+function Text_Includes(text, needle) {
+    let r = Text_IndexOf(text, needle);
+    if (r[1] != null) {
+        return [false, r[1]];
+    }
+    return [r[0] >= 0, null];
+}
+
+function Text_StartsWith(text, prefix) {
+    if (text == null) {
+        return [false, ArgumentNullException("text")];
+    }
+    if (__runtime_value_kind(text) != "string") {
+        return [false, ArgumentOutOfRangeException("text must be a string")];
+    }
+    if (prefix == null) {
+        return [false, ArgumentNullException("prefix")];
+    }
+    if (__runtime_value_kind(prefix) != "string") {
+        return [false, ArgumentOutOfRangeException("prefix must be a string")];
+    }
+    let buf = Text_ToBuffer(text);
+    if (__runtime_value_kind(buf) == "string") {
+        return [false, buf];
+    }
+    let pbuf = Text_ToBuffer(prefix);
+    if (__runtime_value_kind(pbuf) == "string") {
+        Buffer_Dispose(buf);
+        return [false, pbuf];
+    }
+    let ok = false;
+    if (Buffer_Len(pbuf) > Buffer_Len(buf)) {
+        ok = false;
+    } else {
+        ok = Text_MatchesAt(buf, 0, pbuf);
+    }
+    Buffer_Dispose(buf);
+    Buffer_Dispose(pbuf);
+    return [ok, null];
+}
+
+function Text_EndsWith(text, suffix) {
+    if (text == null) {
+        return [false, ArgumentNullException("text")];
+    }
+    if (__runtime_value_kind(text) != "string") {
+        return [false, ArgumentOutOfRangeException("text must be a string")];
+    }
+    if (suffix == null) {
+        return [false, ArgumentNullException("suffix")];
+    }
+    if (__runtime_value_kind(suffix) != "string") {
+        return [false, ArgumentOutOfRangeException("suffix must be a string")];
+    }
+    let buf = Text_ToBuffer(text);
+    if (__runtime_value_kind(buf) == "string") {
+        return [false, buf];
+    }
+    let sbuf = Text_ToBuffer(suffix);
+    if (__runtime_value_kind(sbuf) == "string") {
+        Buffer_Dispose(buf);
+        return [false, sbuf];
+    }
+    let start = Buffer_Len(buf) - Buffer_Len(sbuf);
+    let ok = false;
+    if (start < 0) {
+        ok = false;
+    } else {
+        ok = Text_MatchesAt(buf, start, sbuf);
+    }
+    Buffer_Dispose(buf);
+    Buffer_Dispose(sbuf);
+    return [ok, null];
+}
+
+function Text_Equals(a, b) {
+    if (a == null) {
+        return [false, ArgumentNullException("a")];
+    }
+    if (__runtime_value_kind(a) != "string") {
+        return [false, ArgumentOutOfRangeException("a must be a string")];
+    }
+    if (b == null) {
+        return [false, ArgumentNullException("b")];
+    }
+    if (__runtime_value_kind(b) != "string") {
+        return [false, ArgumentOutOfRangeException("b must be a string")];
+    }
+    let ba = Text_ToBuffer(a);
+    if (__runtime_value_kind(ba) == "string") {
+        return [false, ba];
+    }
+    let bb = Text_ToBuffer(b);
+    if (__runtime_value_kind(bb) == "string") {
+        Buffer_Dispose(ba);
+        return [false, bb];
+    }
+    let eq = false;
+    if (Buffer_Len(ba) != Buffer_Len(bb)) {
+        eq = false;
+    } else {
+        let cmp = Bytes_Compare(ba, bb);
+        if (cmp[1] != null) {
+            Buffer_Dispose(ba);
+            Buffer_Dispose(bb);
+            return [false, cmp[1]];
+        }
+        eq = cmp[0] == 0;
+    }
+    Buffer_Dispose(ba);
+    Buffer_Dispose(bb);
+    return [eq, null];
+}
+
+function Text_Compare(a, b) {
+    if (a == null) {
+        return [0, ArgumentNullException("a")];
+    }
+    if (__runtime_value_kind(a) != "string") {
+        return [0, ArgumentOutOfRangeException("a must be a string")];
+    }
+    if (b == null) {
+        return [0, ArgumentNullException("b")];
+    }
+    if (__runtime_value_kind(b) != "string") {
+        return [0, ArgumentOutOfRangeException("b must be a string")];
+    }
+    let ba = Text_ToBuffer(a);
+    if (__runtime_value_kind(ba) == "string") {
+        return [0, ba];
+    }
+    let bb = Text_ToBuffer(b);
+    if (__runtime_value_kind(bb) == "string") {
+        Buffer_Dispose(ba);
+        return [0, bb];
+    }
+    let cmp = Bytes_Compare(ba, bb);
+    Buffer_Dispose(ba);
+    Buffer_Dispose(bb);
+    return cmp;
+}
+
+function Text_CodePoints(text) {
+    if (text == null) {
+        return [[], ArgumentNullException("text")];
+    }
+    if (__runtime_value_kind(text) != "string") {
+        return [[], ArgumentOutOfRangeException("text must be a string")];
+    }
+    let buf = Text_ToBuffer(text);
+    if (__runtime_value_kind(buf) == "string") {
+        return [[], buf];
+    }
+    let len = Buffer_Len(buf);
+    let out = [];
+    let i = 0;
+    while (i < len) {
+        let r = Text_DecodeCodePoint(buf, i);
+        if (r[1] != null) {
+            Buffer_Dispose(buf);
+            return [[], r[1]];
+        }
+        __runtime_array_push(out, r[0]);
+        let b0 = Buffer_Read(buf, i);
+        i = i + Text_CodePointLength(b0);
+    }
+    Buffer_Dispose(buf);
+    return [out, null];
+}
+
+function Text_CharCount(text) {
+    if (text == null) {
+        return [0, ArgumentNullException("text")];
+    }
+    if (__runtime_value_kind(text) != "string") {
+        return [0, ArgumentOutOfRangeException("text must be a string")];
+    }
+    let buf = Text_ToBuffer(text);
+    if (__runtime_value_kind(buf) == "string") {
+        return [0, buf];
+    }
+    let len = Buffer_Len(buf);
+    let count = 0;
+    let i = 0;
+    while (i < len) {
+        let r = Text_DecodeCodePoint(buf, i);
+        if (r[1] != null) {
+            Buffer_Dispose(buf);
+            return [0, r[1]];
+        }
+        count = count + 1;
+        let b0 = Buffer_Read(buf, i);
+        i = i + Text_CodePointLength(b0);
+    }
+    Buffer_Dispose(buf);
+    return [count, null];
+}
+
+// ---------------------------------------------------------------------------
+// ASCII case conversion, trim, repeat and padding.
+// ---------------------------------------------------------------------------
+
+// ASCII whitespace is exactly 0x20, 0x09, 0x0A, 0x0D.
+function Text_IsWhitespace(b) {
+    return b == 32 || b == 9 || b == 10 || b == 13;
+}
+
+// Maps ASCII letters A..Z <-> a..z; every other byte is copied unchanged.
+function Text_ConvertAsciiCase(text, toUpper) {
+    if (text == null) {
+        return ["", ArgumentNullException("text")];
+    }
+    if (__runtime_value_kind(text) != "string") {
+        return ["", ArgumentOutOfRangeException("text must be a string")];
+    }
+    let buf = Text_ToBuffer(text);
+    if (__runtime_value_kind(buf) == "string") {
+        return ["", buf];
+    }
+    let len = Buffer_Len(buf);
+    let out = Buffer_New(len);
+    if (__runtime_value_kind(out) == "string") {
+        Buffer_Dispose(buf);
+        return ["", out];
+    }
+    let i = 0;
+    while (i < len) {
+        let b = Buffer_Read(buf, i);
+        if (toUpper) {
+            if (b >= 97 && b <= 122) {
+                b = b - 32;
+            }
+        } else {
+            if (b >= 65 && b <= 90) {
+                b = b + 32;
+            }
+        }
+        Buffer_Write(out, i, b);
+        i = i + 1;
+    }
+    let result = Buffer_AsString(out);
+    if (__runtime_value_kind(result) != "string") {
+        Buffer_Dispose(buf);
+        Buffer_Dispose(out);
+        return ["", result];
+    }
+    Buffer_Dispose(buf);
+    Buffer_Dispose(out);
+    return [result, null];
+}
+
+function Text_ToLowerAscii(text) {
+    return Text_ConvertAsciiCase(text, false);
+}
+
+function Text_ToUpperAscii(text) {
+    return Text_ConvertAsciiCase(text, true);
+}
+
+function Text_TrimStart(text) {
+    if (text == null) {
+        return ["", ArgumentNullException("text")];
+    }
+    if (__runtime_value_kind(text) != "string") {
+        return ["", ArgumentOutOfRangeException("text must be a string")];
+    }
+    let buf = Text_ToBuffer(text);
+    if (__runtime_value_kind(buf) == "string") {
+        return ["", buf];
+    }
+    let len = Buffer_Len(buf);
+    let start = 0;
+    while (start < len && Text_IsWhitespace(Buffer_Read(buf, start))) {
+        start = start + 1;
+    }
+    let s = Text_StringSlice(buf, start, len);
+    Buffer_Dispose(buf);
+    if (s[1] != null) {
+        return ["", s[1]];
+    }
+    return [s[0], null];
+}
+
+function Text_TrimEnd(text) {
+    if (text == null) {
+        return ["", ArgumentNullException("text")];
+    }
+    if (__runtime_value_kind(text) != "string") {
+        return ["", ArgumentOutOfRangeException("text must be a string")];
+    }
+    let buf = Text_ToBuffer(text);
+    if (__runtime_value_kind(buf) == "string") {
+        return ["", buf];
+    }
+    let len = Buffer_Len(buf);
+    let end = len;
+    while (end > 0 && Text_IsWhitespace(Buffer_Read(buf, end - 1))) {
+        end = end - 1;
+    }
+    let s = Text_StringSlice(buf, 0, end);
+    Buffer_Dispose(buf);
+    if (s[1] != null) {
+        return ["", s[1]];
+    }
+    return [s[0], null];
+}
+
+function Text_Trim(text) {
+    if (text == null) {
+        return ["", ArgumentNullException("text")];
+    }
+    if (__runtime_value_kind(text) != "string") {
+        return ["", ArgumentOutOfRangeException("text must be a string")];
+    }
+    let buf = Text_ToBuffer(text);
+    if (__runtime_value_kind(buf) == "string") {
+        return ["", buf];
+    }
+    let len = Buffer_Len(buf);
+    let start = 0;
+    while (start < len && Text_IsWhitespace(Buffer_Read(buf, start))) {
+        start = start + 1;
+    }
+    let end = len;
+    while (end > start && Text_IsWhitespace(Buffer_Read(buf, end - 1))) {
+        end = end - 1;
+    }
+    let s = Text_StringSlice(buf, start, end);
+    Buffer_Dispose(buf);
+    if (s[1] != null) {
+        return ["", s[1]];
+    }
+    return [s[0], null];
+}
+
+function Text_Repeat(text, count) {
+    if (text == null) {
+        return ["", ArgumentNullException("text")];
+    }
+    if (__runtime_value_kind(text) != "string") {
+        return ["", ArgumentOutOfRangeException("text must be a string")];
+    }
+    if (__runtime_value_kind(count) != "integer") {
+        return ["", ArgumentOutOfRangeException("count must be an integer")];
+    }
+    if (count < 0) {
+        return ["", ArgumentOutOfRangeException("count must not be negative")];
+    }
+    let buf = Text_ToBuffer(text);
+    if (__runtime_value_kind(buf) == "string") {
+        return ["", buf];
+    }
+    let len = Buffer_Len(buf);
+    if (len == 0 || count == 0) {
+        Buffer_Dispose(buf);
+        return ["", null];
+    }
+    if (count > 0 && len > 9223372036854775807 / count) {
+        Buffer_Dispose(buf);
+        return ["", ArgumentOutOfRangeException("Repeat size too large")];
+    }
+    let total = len * count;
+    let out = Buffer_New(total);
+    if (__runtime_value_kind(out) == "string") {
+        Buffer_Dispose(buf);
+        return ["", out];
+    }
+    let i = 0;
+    while (i < count) {
+        let err = Bytes_Copy(out, i * len, buf, 0, len);
+        if (err != null) {
+            Buffer_Dispose(buf);
+            Buffer_Dispose(out);
+            return ["", err];
+        }
+        i = i + 1;
+    }
+    let result = Buffer_AsString(out);
+    if (__runtime_value_kind(result) != "string") {
+        Buffer_Dispose(buf);
+        Buffer_Dispose(out);
+        return ["", result];
+    }
+    Buffer_Dispose(buf);
+    Buffer_Dispose(out);
+    return [result, null];
+}
+
+// Shared padding implementation. `atEnd` selects PadEnd (text first) vs PadStart
+// (padding first). Operates on bytes, not code points.
+function Text_Pad(text, length, pad, atEnd) {
+    if (text == null) {
+        return ["", ArgumentNullException("text")];
+    }
+    if (__runtime_value_kind(text) != "string") {
+        return ["", ArgumentOutOfRangeException("text must be a string")];
+    }
+    if (__runtime_value_kind(length) != "integer") {
+        return ["", ArgumentOutOfRangeException("length must be an integer")];
+    }
+    if (pad == null) {
+        return ["", ArgumentNullException("pad")];
+    }
+    if (__runtime_value_kind(pad) != "string") {
+        return ["", ArgumentOutOfRangeException("pad must be a string")];
+    }
+    if (__string_length(pad) == 0) {
+        return ["", ArgumentOutOfRangeException("pad must not be empty")];
+    }
+    let len = __string_length(text);
+    if (length <= len) {
+        return [text, null];
+    }
+    let buf = Text_ToBuffer(text);
+    if (__runtime_value_kind(buf) == "string") {
+        return ["", buf];
+    }
+    let pbuf = Text_ToBuffer(pad);
+    if (__runtime_value_kind(pbuf) == "string") {
+        Buffer_Dispose(buf);
+        return ["", pbuf];
+    }
+    let padLen = Buffer_Len(pbuf);
+    let needed = length - len;
+    let out = Buffer_New(length);
+    if (__runtime_value_kind(out) == "string") {
+        Buffer_Dispose(buf);
+        Buffer_Dispose(pbuf);
+        return ["", out];
+    }
+    let textOffset = 0;
+    let padOffset = 0;
+    if (atEnd) {
+        textOffset = 0;
+        padOffset = len;
+    } else {
+        textOffset = needed;
+        padOffset = 0;
+    }
+    let written = 0;
+    while (written < needed) {
+        let chunk = padLen;
+        if (chunk > needed - written) {
+            chunk = needed - written;
+        }
+        let err = Bytes_Copy(out, padOffset + written, pbuf, 0, chunk);
+        if (err != null) {
+            Buffer_Dispose(buf);
+            Buffer_Dispose(pbuf);
+            Buffer_Dispose(out);
+            return ["", err];
+        }
+        written = written + chunk;
+    }
+    let err = Bytes_Copy(out, textOffset, buf, 0, len);
+    if (err != null) {
+        Buffer_Dispose(buf);
+        Buffer_Dispose(pbuf);
+        Buffer_Dispose(out);
+        return ["", err];
+    }
+    let result = Buffer_AsString(out);
+    if (__runtime_value_kind(result) != "string") {
+        Buffer_Dispose(buf);
+        Buffer_Dispose(pbuf);
+        Buffer_Dispose(out);
+        return ["", result];
+    }
+    Buffer_Dispose(buf);
+    Buffer_Dispose(pbuf);
+    Buffer_Dispose(out);
+    return [result, null];
+}
+
+function Text_PadStart(text, length, pad) {
+    return Text_Pad(text, length, pad, false);
+}
+
+function Text_PadEnd(text, length, pad) {
+    return Text_Pad(text, length, pad, true);
+}
+
+// ---------------------------------------------------------------------------
+// Split, join and replace.
+// ---------------------------------------------------------------------------
+
+// Splits `text` on non-overlapping occurrences of `separator`, returning
+// [[string], error]. An empty separator is rejected. `""` yields `[""]`, and a
+// trailing separator yields a trailing empty part.
+function Text_Split(text, separator) {
+    if (text == null) {
+        return [[], ArgumentNullException("text")];
+    }
+    if (__runtime_value_kind(text) != "string") {
+        return [[], ArgumentOutOfRangeException("text must be a string")];
+    }
+    if (separator == null) {
+        return [[], ArgumentNullException("separator")];
+    }
+    if (__runtime_value_kind(separator) != "string") {
+        return [[], ArgumentOutOfRangeException("separator must be a string")];
+    }
+    if (__string_length(separator) == 0) {
+        return [[], ArgumentOutOfRangeException("separator must not be empty")];
+    }
+    let buf = Text_ToBuffer(text);
+    if (__runtime_value_kind(buf) == "string") {
+        return [[], buf];
+    }
+    let sep = Text_ToBuffer(separator);
+    if (__runtime_value_kind(sep) == "string") {
+        Buffer_Dispose(buf);
+        return [[], sep];
+    }
+    let len = Buffer_Len(buf);
+    let sepLen = Buffer_Len(sep);
+    let parts = [];
+    let start = 0;
+    while (start <= len) {
+        let idx = Text_FindBytes(buf, sep, start, false);
+        if (idx < 0) {
+            break;
+        }
+        let s = Text_StringSlice(buf, start, idx);
+        if (s[1] != null) {
+            Buffer_Dispose(buf);
+            Buffer_Dispose(sep);
+            return [[], s[1]];
+        }
+        __runtime_array_push(parts, s[0]);
+        start = idx + sepLen;
+    }
+    let tail = Text_StringSlice(buf, start, len);
+    if (tail[1] != null) {
+        Buffer_Dispose(buf);
+        Buffer_Dispose(sep);
+        return [[], tail[1]];
+    }
+    __runtime_array_push(parts, tail[0]);
+    Buffer_Dispose(buf);
+    Buffer_Dispose(sep);
+    return [parts, null];
+}
+
+// Joins an array of strings with `separator`, returning [string, error].
+// Every element must be a string. `[]` yields `""`. The result is built in a
+// single buffer sized to the total byte length to avoid quadratic copying.
+function Text_Join(parts, separator) {
+    if (parts == null) {
+        return ["", ArgumentNullException("parts")];
+    }
+    if (__runtime_value_kind(parts) != "array") {
+        return ["", ArgumentOutOfRangeException("parts must be an array")];
+    }
+    if (separator == null) {
+        return ["", ArgumentNullException("separator")];
+    }
+    if (__runtime_value_kind(separator) != "string") {
+        return ["", ArgumentOutOfRangeException("separator must be a string")];
+    }
+    let sep = Text_ToBuffer(separator);
+    if (__runtime_value_kind(sep) == "string") {
+        return ["", sep];
+    }
+    let sepLen = Buffer_Len(sep);
+    let n = __runtime_array_length(parts);
+    let total = 0;
+    let i = 0;
+    while (i < n) {
+        if (__runtime_value_kind(parts[i]) != "string") {
+            Buffer_Dispose(sep);
+            return ["", ArgumentOutOfRangeException("parts must contain only strings")];
+        }
+        let partLen = __string_length(parts[i]);
+        if (partLen > 9223372036854775807 - total) {
+            Buffer_Dispose(sep);
+            return ["", ArgumentOutOfRangeException("Join size too large")];
+        }
+        total = total + partLen;
+        if (i < n - 1) {
+            if (sepLen > 9223372036854775807 - total) {
+                Buffer_Dispose(sep);
+                return ["", ArgumentOutOfRangeException("Join size too large")];
+            }
+            total = total + sepLen;
+        }
+        i = i + 1;
+    }
+    let out = Buffer_New(total);
+    if (__runtime_value_kind(out) == "string") {
+        Buffer_Dispose(sep);
+        return ["", out];
+    }
+    let offset = 0;
+    i = 0;
+    while (i < n) {
+        let partBuf = Buffer_FromString(parts[i]);
+        if (__runtime_value_kind(partBuf) == "string") {
+            Buffer_Dispose(sep);
+            Buffer_Dispose(out);
+            return ["", partBuf];
+        }
+        let partLen = Buffer_Len(partBuf);
+        let err = Bytes_Copy(out, offset, partBuf, 0, partLen);
+        Buffer_Dispose(partBuf);
+        if (err != null) {
+            Buffer_Dispose(sep);
+            Buffer_Dispose(out);
+            return ["", err];
+        }
+        offset = offset + partLen;
+        if (i < n - 1) {
+            err = Bytes_Copy(out, offset, sep, 0, sepLen);
+            if (err != null) {
+                Buffer_Dispose(sep);
+                Buffer_Dispose(out);
+                return ["", err];
+            }
+            offset = offset + sepLen;
+        }
+        i = i + 1;
+    }
+    let result = Buffer_AsString(out);
+    Buffer_Dispose(sep);
+    Buffer_Dispose(out);
+    if (__runtime_value_kind(result) != "string") {
+        return ["", result];
+    }
+    return [result, null];
+}
+
+// Shared replacement implementation. `replaceAll` selects whether every
+// non-overlapping occurrence is replaced or just the first. Occurrences are
+// located before any output is produced, so replacement text is never rescanned.
+function Text_ReplaceInternal(text, needle, replacement, replaceAll) {
+    if (text == null) {
+        return ["", ArgumentNullException("text")];
+    }
+    if (__runtime_value_kind(text) != "string") {
+        return ["", ArgumentOutOfRangeException("text must be a string")];
+    }
+    if (needle == null) {
+        return ["", ArgumentNullException("needle")];
+    }
+    if (__runtime_value_kind(needle) != "string") {
+        return ["", ArgumentOutOfRangeException("needle must be a string")];
+    }
+    if (replacement == null) {
+        return ["", ArgumentNullException("replacement")];
+    }
+    if (__runtime_value_kind(replacement) != "string") {
+        return ["", ArgumentOutOfRangeException("replacement must be a string")];
+    }
+    if (__string_length(needle) == 0) {
+        return ["", ArgumentOutOfRangeException("needle must not be empty")];
+    }
+    let buf = Text_ToBuffer(text);
+    if (__runtime_value_kind(buf) == "string") {
+        return ["", buf];
+    }
+    let nbuf = Text_ToBuffer(needle);
+    if (__runtime_value_kind(nbuf) == "string") {
+        Buffer_Dispose(buf);
+        return ["", nbuf];
+    }
+    let rbuf = Text_ToBuffer(replacement);
+    if (__runtime_value_kind(rbuf) == "string") {
+        Buffer_Dispose(buf);
+        Buffer_Dispose(nbuf);
+        return ["", rbuf];
+    }
+    let len = Buffer_Len(buf);
+    let needleLen = Buffer_Len(nbuf);
+    let replLen = Buffer_Len(rbuf);
+    let matches = [];
+    let idx = Text_FindBytes(buf, nbuf, 0, false);
+    while (idx >= 0) {
+        __runtime_array_push(matches, idx);
+        if (!replaceAll) {
+            break;
+        }
+        idx = Text_FindBytes(buf, nbuf, idx + needleLen, false);
+    }
+    let matchCount = __runtime_array_length(matches);
+    if (matchCount == 0) {
+        Buffer_Dispose(buf);
+        Buffer_Dispose(nbuf);
+        Buffer_Dispose(rbuf);
+        return [text, null];
+    }
+    if (replLen > needleLen && matchCount > 0) {
+        if (replLen - needleLen > (9223372036854775807 - len) / matchCount) {
+            Buffer_Dispose(buf);
+            Buffer_Dispose(nbuf);
+            Buffer_Dispose(rbuf);
+            return ["", ArgumentOutOfRangeException("Replacement result too large")];
+        }
+    }
+    let total = len + (replLen - needleLen) * matchCount;
+    if (total < 0) {
+        Buffer_Dispose(buf);
+        Buffer_Dispose(nbuf);
+        Buffer_Dispose(rbuf);
+        return ["", ArgumentOutOfRangeException("Replacement size too large")];
+    }
+    let out = Buffer_New(total);
+    if (__runtime_value_kind(out) == "string") {
+        Buffer_Dispose(buf);
+        Buffer_Dispose(nbuf);
+        Buffer_Dispose(rbuf);
+        return ["", out];
+    }
+    let srcPos = 0;
+    let dstPos = 0;
+    let m = 0;
+    while (m < matchCount) {
+        let matchStart = matches[m];
+        if (matchStart > srcPos) {
+            let err = Bytes_Copy(out, dstPos, buf, srcPos, matchStart - srcPos);
+            if (err != null) {
+                Buffer_Dispose(buf);
+                Buffer_Dispose(nbuf);
+                Buffer_Dispose(rbuf);
+                Buffer_Dispose(out);
+                return ["", err];
+            }
+            dstPos = dstPos + (matchStart - srcPos);
+        }
+        if (replLen > 0) {
+            let err = Bytes_Copy(out, dstPos, rbuf, 0, replLen);
+            if (err != null) {
+                Buffer_Dispose(buf);
+                Buffer_Dispose(nbuf);
+                Buffer_Dispose(rbuf);
+                Buffer_Dispose(out);
+                return ["", err];
+            }
+            dstPos = dstPos + replLen;
+        }
+        srcPos = matchStart + needleLen;
+        m = m + 1;
+    }
+    if (srcPos < len) {
+        let err = Bytes_Copy(out, dstPos, buf, srcPos, len - srcPos);
+        if (err != null) {
+            Buffer_Dispose(buf);
+            Buffer_Dispose(nbuf);
+            Buffer_Dispose(rbuf);
+            Buffer_Dispose(out);
+            return ["", err];
+        }
+        dstPos = dstPos + (len - srcPos);
+    }
+    let result = Buffer_AsString(out);
+    Buffer_Dispose(buf);
+    Buffer_Dispose(nbuf);
+    Buffer_Dispose(rbuf);
+    Buffer_Dispose(out);
+    if (__runtime_value_kind(result) != "string") {
+        return ["", result];
+    }
+    return [result, null];
+}
+
+function Text_Replace(text, needle, replacement) {
+    return Text_ReplaceInternal(text, needle, replacement, false);
+}
+
+function Text_ReplaceAll(text, needle, replacement) {
+    return Text_ReplaceInternal(text, needle, replacement, true);
+}
+
+// ---------------------------------------------------------------------------
+// Numeric parse and format.
+// ---------------------------------------------------------------------------
+
+// Numeric value of an ASCII digit byte (0-9, a-f, A-F), or -1 if not a digit.
+function Text_DigitValue(b) {
+    if (b >= 48 && b <= 57) {
+        return b - 48;
+    }
+    if (b >= 97 && b <= 102) {
+        return b - 87;
+    }
+    if (b >= 65 && b <= 70) {
+        return b - 55;
+    }
+    return -1;
+}
+
+// Parses `text` as a signed integer in base 2, 8, 10 or 16. Returns [int, error].
+// Accepts an optional single leading '+'/'-', then one or more digits. No
+// whitespace, underscores or '0x' prefix. Overflow is rejected, except that
+// -9223372036854775808 is representable.
+function Text_ParseInt(text, base) {
+    if (text == null) {
+        return [0, ArgumentNullException("text")];
+    }
+    if (__runtime_value_kind(text) != "string") {
+        return [0, ArgumentOutOfRangeException("text must be a string")];
+    }
+    if (__runtime_value_kind(base) != "integer") {
+        return [0, ArgumentOutOfRangeException("base must be an integer")];
+    }
+    if (base != 2 && base != 8 && base != 10 && base != 16) {
+        return [0, ArgumentOutOfRangeException("base must be 2, 8, 10 or 16")];
+    }
+    let buf = Text_ToBuffer(text);
+    if (__runtime_value_kind(buf) == "string") {
+        return [0, buf];
+    }
+    let len = Buffer_Len(buf);
+    let result = 0;
+    let error = null;
+    if (len == 0) {
+        error = ArgumentOutOfRangeException("No digits");
+    } else {
+        let i = 0;
+        let negative = false;
+        let b0 = Buffer_Read(buf, 0);
+        if (b0 == 43) {
+            i = 1;
+        } else if (b0 == 45) {
+            negative = true;
+            i = 1;
+        }
+        if (i == len) {
+            error = ArgumentOutOfRangeException("No digits");
+        } else if (negative) {
+            // Accumulate negatively so -9223372036854775808 is representable.
+            // The guard is exact: integer comparisons are int64-exact.
+            let value = 0;
+            while (i < len && error == null) {
+                let d = Text_DigitValue(Buffer_Read(buf, i));
+                if (d < 0 || d >= base) {
+                    error = ArgumentOutOfRangeException("Invalid digit");
+                } else if (value - (-9223372036854775807 - 1 + d) / base < 0) {
+                    error = ArgumentOutOfRangeException("Integer overflow");
+                } else {
+                    value = value * base - d;
+                    i = i + 1;
+                }
+            }
+            result = value;
+        } else {
+            let value = 0;
+            while (i < len && error == null) {
+                let d = Text_DigitValue(Buffer_Read(buf, i));
+                if (d < 0 || d >= base) {
+                    error = ArgumentOutOfRangeException("Invalid digit");
+                } else if (value - (9223372036854775807 - d) / base > 0) {
+                    error = ArgumentOutOfRangeException("Integer overflow");
+                } else {
+                    value = value * base + d;
+                    i = i + 1;
+                }
+            }
+            result = value;
+        }
+    }
+    Buffer_Dispose(buf);
+    if (error != null) {
+        return [0, error];
+    }
+    return [result, null];
+}
+
+// Formats an integer in base 2, 8, 10 or 16 with lowercase digits. Returns
+// [string, error]. Zero yields "0"; negative values get a leading '-'. INT64_MIN
+// is handled by accumulating digits from the (negative) remainder so its
+// magnitude is never negated.
+function Text_FormatInt(value, base) {
+    if (__runtime_value_kind(value) != "integer") {
+        return ["", ArgumentOutOfRangeException("value must be an integer")];
+    }
+    if (__runtime_value_kind(base) != "integer") {
+        return ["", ArgumentOutOfRangeException("base must be an integer")];
+    }
+    if (base != 2 && base != 8 && base != 10 && base != 16) {
+        return ["", ArgumentOutOfRangeException("base must be 2, 8, 10 or 16")];
+    }
+    if (value == 0) {
+        return ["0", null];
+    }
+    let negative = value < 0;
+    let mag = value;
+    let digits = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"];
+    let out = "";
+    while (mag != 0) {
+        let d = mag % base;
+        if (d < 0) {
+            d = -d;
+        }
+        out = digits[d] + out;
+        mag = mag / base;
+    }
+    if (negative) {
+        out = "-" + out;
+    }
+    return [out, null];
+}
+
+// Parses `text` as a decimal floating-point number. Returns [float, error].
+// Accepts an optional sign, one or more mantissa digits with at most one '.',
+// and an optional 'e'/'E' exponent with optional sign and at least one digit.
+// No whitespace. Digits are accumulated into a 64-bit mantissa plus a decimal
+// exponent, then combined with __int_to_float.
+function Text_ParseFloat(text) {
+    if (text == null) {
+        return [0.0, ArgumentNullException("text")];
+    }
+    if (__runtime_value_kind(text) != "string") {
+        return [0.0, ArgumentOutOfRangeException("text must be a string")];
+    }
+    let buf = Text_ToBuffer(text);
+    if (__runtime_value_kind(buf) == "string") {
+        return [0.0, buf];
+    }
+    let len = Buffer_Len(buf);
+    let error = null;
+    let result = 0.0;
+    if (len == 0) {
+        error = ArgumentOutOfRangeException("No digits");
+    } else {
+        let i = 0;
+        let negative = false;
+        let b0 = Buffer_Read(buf, 0);
+        if (b0 == 43) {
+            i = 1;
+        } else if (b0 == 45) {
+            negative = true;
+            i = 1;
+        }
+        let mantissa = 0;
+        let exp10 = 0;
+        let sawDigit = false;
+        while (i < len) {
+            let b = Buffer_Read(buf, i);
+            if (b < 48 || b > 57) {
+                break;
+            }
+            let d = b - 48;
+            if (mantissa - (9223372036854775807 - d) / 10 <= 0) {
+                mantissa = mantissa * 10 + d;
+            } else {
+                exp10 = exp10 + 1;
+            }
+            sawDigit = true;
+            i = i + 1;
+        }
+        if (i < len && Buffer_Read(buf, i) == 46) {
+            i = i + 1;
+            while (i < len) {
+                let b = Buffer_Read(buf, i);
+                if (b < 48 || b > 57) {
+                    break;
+                }
+                let d = b - 48;
+                if (mantissa - (9223372036854775807 - d) / 10 <= 0) {
+                    mantissa = mantissa * 10 + d;
+                    exp10 = exp10 - 1;
+                }
+                sawDigit = true;
+                i = i + 1;
+            }
+        }
+        if (!sawDigit) {
+            error = ArgumentOutOfRangeException("No digits");
+        } else if (i < len) {
+            let b = Buffer_Read(buf, i);
+            if (b == 101 || b == 69) {
+                i = i + 1;
+                let expNeg = false;
+                if (i < len) {
+                    let c = Buffer_Read(buf, i);
+                    if (c == 43) {
+                        i = i + 1;
+                    } else if (c == 45) {
+                        expNeg = true;
+                        i = i + 1;
+                    }
+                }
+                let expDigits = 0;
+                let exp = 0;
+                while (i < len) {
+                    let b2 = Buffer_Read(buf, i);
+                    if (b2 < 48 || b2 > 57) {
+                        break;
+                    }
+                    let d2 = b2 - 48;
+                    if (exp < 100000) {
+                        exp = exp * 10 + d2;
+                    }
+                    expDigits = expDigits + 1;
+                    i = i + 1;
+                }
+                if (expDigits == 0) {
+                    error = ArgumentOutOfRangeException("Exponent requires digits");
+                } else if (expNeg) {
+                    exp10 = exp10 - exp;
+                } else {
+                    exp10 = exp10 + exp;
+                }
+            }
+            if (error == null && i != len) {
+                error = ArgumentOutOfRangeException("Unexpected trailing characters");
+            }
+        }
+        if (error == null) {
+            let value = __int_to_float(mantissa);
+            if (mantissa == 0) {
+                // Zero times any power of ten is still zero; a huge exponent
+                // must not become infinity or an error.
+                exp10 = 0;
+            }
+            if (exp10 > 400) {
+                error = ArgumentOutOfRangeException("Float overflow");
+            } else if (exp10 < -400) {
+                // Underflow: the magnitude is smaller than the smallest
+                // subnormal, so the result is zero (strtod behaviour).
+                value = 0.0;
+                exp10 = 0;
+            }
+            if (error == null) {
+                while (exp10 > 0) {
+                    value = value * 10.0;
+                    exp10 = exp10 - 1;
+                }
+                while (exp10 < 0) {
+                    value = value / 10.0;
+                    exp10 = exp10 + 1;
+                }
+                // 2 * inf == inf; finite non-zero values change when doubled.
+                if (value * 2.0 == value && value != 0.0) {
+                    error = ArgumentOutOfRangeException("Float overflow");
+                }
+            }
+            if (error == null) {
+                if (negative) {
+                    value = -value;
+                }
+                result = value;
+            }
+        }
+    }
+    Buffer_Dispose(buf);
+    if (error != null) {
+        return [0.0, error];
+    }
+    return [result, null];
+}
+
+// Formats a float with a fixed number of decimal places (0..15). Returns
+// [string, error]. Non-finite values are rejected. Rounding is half away from
+// zero. Zero produces "0" plus optional fraction zeros.
+function Text_FormatFloat(value, decimals) {
+    if (__runtime_value_kind(value) != "float") {
+        return ["", ArgumentOutOfRangeException("value must be a float")];
+    }
+    if (__runtime_value_kind(decimals) != "integer") {
+        return ["", ArgumentOutOfRangeException("decimals must be an integer")];
+    }
+    if (decimals < 0 || decimals > 15) {
+        return ["", ArgumentOutOfRangeException("decimals must be between 0 and 15")];
+    }
+    let inf = 1.0 / 0.0;
+    if (value != value || value == inf || value == -inf) {
+        return ["", ArgumentOutOfRangeException("value must be finite")];
+    }
+    let negative = value < 0.0;
+    let a = value;
+    if (a < 0.0) {
+        a = -a;
+    }
+    let scale = 1.0;
+    let k = 0;
+    while (k < decimals) {
+        scale = scale * 10.0;
+        k = k + 1;
+    }
+    let rounded = __float_to_int(a * scale + 0.5);
+    if (rounded == null) {
+        return ["", ArgumentOutOfRangeException("value out of range")];
+    }
+    let digits = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
+    let mag = rounded;
+    let ds = "";
+    if (mag == 0) {
+        ds = "0";
+    } else {
+        while (mag != 0) {
+            let d = mag % 10;
+            ds = digits[d] + ds;
+            mag = mag / 10;
+        }
+    }
+    let out = "";
+    if (decimals == 0) {
+        out = ds;
+    } else {
+        let dlen = __string_length(ds);
+        if (dlen <= decimals) {
+            let zeros = "";
+            let j = 0;
+            while (j < decimals - dlen) {
+                zeros = zeros + "0";
+                j = j + 1;
+            }
+            out = "0." + zeros + ds;
+        } else {
+            let intPart = Text_Substring(ds, 0, dlen - decimals);
+            let fracPart = Text_Substring(ds, dlen - decimals, decimals);
+            out = intPart[0] + "." + fracPart[0];
+        }
+    }
+    if (negative) {
+        out = "-" + out;
+    }
+    return [out, null];
+}
+
+// ---------------------------------------------------------------------------
+// StringBuilder.
+// ---------------------------------------------------------------------------
+
+// Grows an owned buffer with a logical length kept in `_length`. Capacity is
+// doubled until it fits `needed`; the doubling is guarded against 64-bit
+// overflow by falling back to `needed` once the next doubling would exceed
+// the representable range.
+class StringBuilder {
+    constructor(initialCapacity = 16) {
+        if (__runtime_value_kind(initialCapacity) != "integer") {
+            initialCapacity = 16;
+        }
+        if (initialCapacity < 1) {
+            initialCapacity = 1;
+        }
+        this._buffer = Buffer_New(initialCapacity);
+        this._capacity = initialCapacity;
+        this._length = 0;
+    }
+
+    _ensureCapacity(needed) {
+        let cap = this._capacity;
+        if (cap >= needed) {
+            return null;
+        }
+        let newCap = cap;
+        if (newCap < 1) {
+            newCap = 1;
+        }
+        while (newCap < needed) {
+            if (newCap > (9223372036854775807 - needed) / 2) {
+                newCap = needed;
+            } else {
+                newCap = newCap * 2;
+            }
+        }
+        let err = Buffer_Resize(this._buffer, newCap);
+        if (__runtime_value_kind(err) == "string") {
+            return err;
+        }
+        this._capacity = newCap;
+        return null;
+    }
+
+    append(text) {
+        if (__runtime_value_kind(text) != "string") {
+            return ArgumentOutOfRangeException("text must be a string");
+        }
+        let src = Buffer_FromString(text);
+        if (__runtime_value_kind(src) == "string") {
+            return src;
+        }
+        let textLen = Buffer_Len(src);
+        let err = this._ensureCapacity(this._length + textLen);
+        if (err != null) {
+            Buffer_Dispose(src);
+            return err;
+        }
+        err = Bytes_Copy(this._buffer, this._length, src, 0, textLen);
+        if (err != null) {
+            Buffer_Dispose(src);
+            return err;
+        }
+        this._length = this._length + textLen;
+        Buffer_Dispose(src);
+        return null;
+    }
+
+    appendChar(ch) {
+        if (__runtime_value_kind(ch) != "string") {
+            return ArgumentOutOfRangeException("ch must be a string");
+        }
+        let src = Buffer_FromString(ch);
+        if (__runtime_value_kind(src) == "string") {
+            return src;
+        }
+        let len = Buffer_Len(src);
+        if (len != 1) {
+            Buffer_Dispose(src);
+            return ArgumentOutOfRangeException("ch must be a single byte");
+        }
+        let err = this._ensureCapacity(this._length + 1);
+        if (err != null) {
+            Buffer_Dispose(src);
+            return err;
+        }
+        let byte = Buffer_Read(src, 0);
+        err = Buffer_Write(this._buffer, this._length, byte);
+        if (err != null) {
+            Buffer_Dispose(src);
+            return err;
+        }
+        this._length = this._length + 1;
+        Buffer_Dispose(src);
+        return null;
+    }
+
+    appendBuffer(buf) {
+        if (buf == null) {
+            return ArgumentNullException("buf");
+        }
+        if (__runtime_value_kind(buf) != "object") {
+            return ArgumentOutOfRangeException("buf must be a Buffer");
+        }
+        let srcLen = Buffer_Len(buf);
+        if (srcLen == null) {
+            return ArgumentOutOfRangeException("buf must be a Buffer");
+        }
+        if (__runtime_value_kind(srcLen) != "integer") {
+            return srcLen;
+        }
+        let err = this._ensureCapacity(this._length + srcLen);
+        if (err != null) {
+            return err;
+        }
+        err = Bytes_Copy(this._buffer, this._length, buf, 0, srcLen);
+        if (err != null) {
+            return err;
+        }
+        this._length = this._length + srcLen;
+        return null;
+    }
+
+    toString() {
+        if (this._length == 0) {
+            return "";
+        }
+        let slice = Buffer_Slice(this._buffer, 0, this._length);
+        return Buffer_AsString(slice);
+    }
+
+    clear() {
+        this._length = 0;
+        return null;
+    }
+
+    length() {
+        return this._length;
+    }
+
+    dispose() {
+        if (__runtime_value_kind(this._buffer) != "string") {
+            Buffer_Dispose(this._buffer);
+        }
+        this._capacity = 0;
+        this._length = 0;
+        return null;
+    }
+}
+
+// ---------------------------------------------------------------------------
+// TextView.
+// ---------------------------------------------------------------------------
+
+// Resolves and validates the constructor arguments, returning
+// [resolvedLength, error]. A length of -1 means "to the end of the buffer".
+function TextView_Resolve(buffer, offset, length) {
+    if (buffer == null) {
+        return [0, ArgumentNullException("buffer")];
+    }
+    if (__runtime_value_kind(buffer) != "object") {
+        return [0, ArgumentOutOfRangeException("buffer must be a Buffer")];
+    }
+    let bufLen = Buffer_Len(buffer);
+    if (bufLen == null) {
+        return [0, ArgumentOutOfRangeException("buffer must be a Buffer")];
+    }
+    if (__runtime_value_kind(bufLen) != "integer") {
+        return [0, bufLen];
+    }
+    if (__runtime_value_kind(offset) != "integer") {
+        return [0, ArgumentOutOfRangeException("offset must be an integer")];
+    }
+    if (__runtime_value_kind(length) != "integer") {
+        return [0, ArgumentOutOfRangeException("length must be an integer")];
+    }
+    if (offset < 0) {
+        return [0, ArgumentOutOfRangeException("offset must not be negative")];
+    }
+    if (offset > bufLen) {
+        return [0, ArgumentOutOfRangeException("offset out of range")];
+    }
+    let resolved = length;
+    if (resolved == -1) {
+        resolved = bufLen - offset;
+    }
+    if (resolved < 0) {
+        return [0, ArgumentOutOfRangeException("length must not be negative")];
+    }
+    if (resolved > bufLen - offset) {
+        return [0, ArgumentOutOfRangeException("length out of range")];
+    }
+    return [resolved, null];
+}
+
+// A non-owning view over a caller-provided Buffer. The view never disposes the
+// buffer; the caller must keep it alive for as long as the view is used.
+class TextView {
+    constructor(buffer, offset = 0, length = -1) {
+        this._buffer = buffer;
+        this._offset = offset;
+        this._length = 0;
+        this._error = null;
+        let r = TextView_Resolve(buffer, offset, length);
+        this._length = r[0];
+        this._error = r[1];
+    }
+
+    length() {
+        if (this._error != null) {
+            return this._error;
+        }
+        return this._length;
+    }
+
+    slice(start, end) {
+        if (this._error != null) {
+            return this._error;
+        }
+        if (__runtime_value_kind(start) != "integer") {
+            return ArgumentOutOfRangeException("start must be an integer");
+        }
+        if (__runtime_value_kind(end) != "integer") {
+            return ArgumentOutOfRangeException("end must be an integer");
+        }
+        if (start < 0 || end < start || end > this._length) {
+            return ArgumentOutOfRangeException("Slice range out of bounds");
+        }
+        return new TextView(this._buffer, this._offset + start, end - start);
+    }
+
+    codePointAt(byteIndex) {
+        if (this._error != null) {
+            return [0, this._error];
+        }
+        if (__runtime_value_kind(byteIndex) != "integer") {
+            return [0, ArgumentOutOfRangeException("byteIndex must be an integer")];
+        }
+        if (byteIndex < 0 || byteIndex >= this._length) {
+            return [0, ArgumentOutOfRangeException("Byte index out of range")];
+        }
+        let lead = Buffer_Read(this._buffer, this._offset + byteIndex);
+        let encodedLength = 0;
+        if (lead < 128) {
+            encodedLength = 1;
+        } else if (lead >= 194 && lead <= 223) {
+            encodedLength = 2;
+        } else if (lead >= 224 && lead <= 239) {
+            encodedLength = 3;
+        } else if (lead >= 240 && lead <= 244) {
+            encodedLength = 4;
+        }
+        if (encodedLength != 0 && byteIndex + encodedLength > this._length) {
+            return [0, Exception("Truncated UTF-8 sequence in view")];
+        }
+        return Text_DecodeCodePoint(this._buffer, this._offset + byteIndex);
+    }
+
+    toString() {
+        if (this._error != null) {
+            return this._error;
+        }
+        if (this._length == 0) {
+            return "";
+        }
+        let r = Text_StringSlice(this._buffer, this._offset, this._offset + this._length);
+        if (r[1] != null) {
+            return r[1];
+        }
+        return r[0];
+    }
+}

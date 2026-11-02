@@ -8,6 +8,11 @@
 
 namespace dryad {
 
+enum class IoBufferMode {
+    Read,
+    Write
+};
+
 class MemoryManager {
 private:
     struct AllocationMetadata {
@@ -29,6 +34,8 @@ public:
     static Value realloc(int64_t handle, int64_t new_size);
     
     static Value memcpy(int64_t dest_handle, int64_t src_handle, int64_t count);
+    static Value memmove(int64_t dest_handle, int64_t dest_offset,
+                         int64_t src_handle, int64_t src_offset, int64_t count);
     static Value memset(int64_t handle, int64_t value, int64_t count);
     static Value buffer_get(int64_t handle, int64_t index);
     static Value buffer_set(int64_t handle, int64_t index, int64_t value);
@@ -40,6 +47,7 @@ public:
                                const std::string& host, int64_t port);
     static Value recvfrom_buffer(int64_t fd, int64_t handle, int64_t offset, int64_t count);
     static Value io_buffer(int64_t handle, int64_t offset, int64_t count,
+                           IoBufferMode mode,
                            const std::function<ssize_t(uint8_t*, size_t)>& io);
 };
 
@@ -57,6 +65,8 @@ public:
     Value free_bytes(int64_t handle);
     Value realloc(int64_t handle, int64_t new_size);
     Value memcpy(int64_t dest_handle, int64_t src_handle, int64_t count);
+    Value memmove(int64_t dest_handle, int64_t dest_offset,
+                  int64_t src_handle, int64_t src_offset, int64_t count);
     Value memset(int64_t handle, int64_t value, int64_t count);
     Value buffer_get(int64_t handle, int64_t index);
     Value buffer_set(int64_t handle, int64_t index, int64_t value);

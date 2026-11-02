@@ -1,0 +1,531 @@
+// @std/bytes behavior tests, loaded by tests/unit/bytes_test.cpp.
+
+import {
+    Bytes_Copy,
+    Bytes_Fill,
+    Bytes_Compare,
+    Bytes_Equals,
+    Bytes_IndexOf,
+    Bytes_LastIndexOf,
+    Bytes_Contains,
+    Bytes_StartsWith,
+    Bytes_EndsWith,
+    Bytes_Concat,
+    Bytes_Repeat,
+    Bytes_Trim,
+    Bytes_TrimStart,
+    Bytes_TrimEnd,
+    Bytes_ToHex,
+    Bytes_FromHex
+} from "@std/bytes/bytes";
+
+import {
+    Buffer_New,
+    Buffer_Len,
+    Buffer_Read,
+    Buffer_Write,
+    Buffer_Slice,
+    Buffer_Dispose
+} from "@std/buffers/buffer";
+
+function bytes_test_copy_roundtrip() {
+    let src = Buffer_New(4);
+    Buffer_Write(src, 0, 10);
+    Buffer_Write(src, 1, 20);
+    Buffer_Write(src, 2, 30);
+    Buffer_Write(src, 3, 40);
+    let dst = Buffer_New(4);
+    let err = Bytes_Copy(dst, 0, src, 0, 4);
+    let ok = err == null &&
+             Buffer_Read(dst, 0) == 10 &&
+             Buffer_Read(dst, 1) == 20 &&
+             Buffer_Read(dst, 2) == 30 &&
+             Buffer_Read(dst, 3) == 40;
+    Buffer_Dispose(dst);
+    Buffer_Dispose(src);
+    return ok;
+}
+
+function bytes_test_copy_offsets() {
+    let src = Buffer_New(4);
+    Buffer_Write(src, 1, 7);
+    Buffer_Write(src, 2, 8);
+    let dst = Buffer_New(4);
+    let err = Bytes_Copy(dst, 2, src, 1, 2);
+    let ok = err == null &&
+             Buffer_Read(dst, 1) == 0 &&
+             Buffer_Read(dst, 2) == 7 &&
+             Buffer_Read(dst, 3) == 8;
+    Buffer_Dispose(dst);
+    Buffer_Dispose(src);
+    return ok;
+}
+
+function bytes_test_copy_zero_length_at_end() {
+    let src = Buffer_New(2);
+    let dst = Buffer_New(2);
+    let err = Bytes_Copy(dst, 2, src, 2, 0);
+    let ok = err == null;
+    Buffer_Dispose(dst);
+    Buffer_Dispose(src);
+    return ok;
+}
+
+function bytes_test_copy_rejects_bad_range() {
+    let src = Buffer_New(2);
+    let dst = Buffer_New(2);
+    let e1 = Bytes_Copy(dst, 0, src, 0, 3);
+    let e2 = Bytes_Copy(dst, 1, src, 0, 2);
+    let e3 = Bytes_Copy(dst, 0, src, -1, 1);
+    let ok = e1 != null && e2 != null && e3 != null;
+    Buffer_Dispose(dst);
+    Buffer_Dispose(src);
+    return ok;
+}
+
+function bytes_test_fill() {
+    let buf = Buffer_New(4);
+    let err = Bytes_Fill(buf, 1, 2, 255);
+    let ok = err == null &&
+             Buffer_Read(buf, 0) == 0 &&
+             Buffer_Read(buf, 1) == 255 &&
+             Buffer_Read(buf, 2) == 255 &&
+             Buffer_Read(buf, 3) == 0;
+    Buffer_Dispose(buf);
+    return ok;
+}
+
+function bytes_test_compare_equal() {
+    let a = Buffer_New(2);
+    let b = Buffer_New(2);
+    Buffer_Write(a, 0, 5);
+    Buffer_Write(a, 1, 6);
+    Buffer_Write(b, 0, 5);
+    Buffer_Write(b, 1, 6);
+    let r = Bytes_Compare(a, b);
+    let ok = r[1] == null && r[0] == 0;
+    Buffer_Dispose(a);
+    Buffer_Dispose(b);
+    return ok;
+}
+
+function bytes_test_compare_orders() {
+    let a = Buffer_New(2);
+    let b = Buffer_New(2);
+    Buffer_Write(a, 0, 1);
+    Buffer_Write(b, 0, 2);
+    let r1 = Bytes_Compare(a, b);
+    let r2 = Bytes_Compare(b, a);
+    let ok = r1[1] == null && r1[0] == -1 && r2[1] == null && r2[0] == 1;
+    Buffer_Dispose(a);
+    Buffer_Dispose(b);
+    return ok;
+}
+
+function bytes_test_equals_length_mismatch() {
+    let a = Buffer_New(2);
+    let b = Buffer_New(3);
+    let r = Bytes_Equals(a, b);
+    let ok = r[1] == null && r[0] == false;
+    Buffer_Dispose(a);
+    Buffer_Dispose(b);
+    return ok;
+}
+
+function bytes_test_validate_rejects_disposed() {
+    let buf = Buffer_New(2);
+    Buffer_Dispose(buf);
+    let r1 = Bytes_Compare(buf, buf);
+    let r2 = Bytes_Equals(buf, buf);
+    return r1[1] != null && r2[1] != null;
+}
+
+function bytes_test_copy_from_slice() {
+    let parent = Buffer_New(4);
+    Buffer_Write(parent, 2, 11);
+    Buffer_Write(parent, 3, 22);
+    let slice = Buffer_Slice(parent, 2, 4);
+    let dst = Buffer_New(2);
+    let err = Bytes_Copy(dst, 0, slice, 0, 2);
+    let ok = err == null && Buffer_Read(dst, 0) == 11 && Buffer_Read(dst, 1) == 22;
+    Buffer_Dispose(dst);
+    Buffer_Dispose(parent);
+    return ok;
+}
+
+function bytes_test_fill_from_slice() {
+    let parent = Buffer_New(4);
+    let slice = Buffer_Slice(parent, 2, 4);
+    let err = Bytes_Fill(slice, 0, 2, 7);
+    let ok = err == null && Buffer_Read(parent, 0) == 0 &&
+             Buffer_Read(parent, 2) == 7 && Buffer_Read(parent, 3) == 7;
+    Buffer_Dispose(parent);
+    return ok;
+}
+
+function bytes_test_compare_from_slices() {
+    let a = Buffer_New(4);
+    Buffer_Write(a, 1, 5);
+    let b = Buffer_New(3);
+    Buffer_Write(b, 2, 5);
+    let sa = Buffer_Slice(a, 1, 2);
+    let sb = Buffer_Slice(b, 2, 3);
+    let r = Bytes_Compare(sa, sb);
+    let ok = r[1] == null && r[0] == 0;
+    Buffer_Dispose(a);
+    Buffer_Dispose(b);
+    return ok;
+}
+
+function bytes_test_copy_overlap() {
+    let buf = Buffer_New(4);
+    Buffer_Write(buf, 0, 1);
+    Buffer_Write(buf, 1, 2);
+    Buffer_Write(buf, 2, 3);
+    let err = Bytes_Copy(buf, 1, buf, 0, 3);
+    let ok = err == null && Buffer_Read(buf, 0) == 1 &&
+             Buffer_Read(buf, 1) == 1 && Buffer_Read(buf, 2) == 2 && Buffer_Read(buf, 3) == 3;
+    Buffer_Dispose(buf);
+    return ok;
+}
+
+function bytes_test_fill_rejects_value() {
+    let buf = Buffer_New(1);
+    let e1 = Bytes_Fill(buf, 0, 1, 256);
+    let e2 = Bytes_Fill(buf, 0, 1, -1);
+    let ok = e1 != null && e2 != null && Buffer_Read(buf, 0) == 0;
+    Buffer_Dispose(buf);
+    return ok;
+}
+
+function bytes_test_equals_true_and_length_order() {
+    let a = Buffer_New(2);
+    let b = Buffer_New(2);
+    Buffer_Write(a, 0, 9);
+    Buffer_Write(b, 0, 9);
+    let eq = Bytes_Equals(a, b);
+    let c = Buffer_New(1);
+    let cmp = Bytes_Compare(a, c);
+    let ok = eq[1] == null && eq[0] && cmp[1] == null && cmp[0] == 1;
+    Buffer_Dispose(a);
+    Buffer_Dispose(b);
+    Buffer_Dispose(c);
+    return ok;
+}
+
+function bytes_test_validate_rejects_overflowing_range() {
+    let buf = Buffer_New(2);
+    let err = Bytes_Copy(buf, 1, buf, 0, 9223372036854775807);
+    let ok = err != null;
+    Buffer_Dispose(buf);
+    return ok;
+}
+
+function bytes_test_index_of() {
+    let buf = Buffer_New(4);
+    Buffer_Write(buf, 1, 9);
+    Buffer_Write(buf, 3, 9);
+    let first = Bytes_IndexOf(buf, 9);
+    let last = Bytes_LastIndexOf(buf, 9);
+    let missing = Bytes_IndexOf(buf, 7);
+    let ok = first[1] == null && first[0] == 1 &&
+             last[1] == null && last[0] == 3 &&
+             missing[1] == null && missing[0] == -1;
+    Buffer_Dispose(buf);
+    return ok;
+}
+
+function bytes_test_contains() {
+    let buf = Buffer_New(2);
+    Buffer_Write(buf, 0, 42);
+    let yes = Bytes_Contains(buf, 42);
+    let no = Bytes_Contains(buf, 43);
+    let ok = yes[1] == null && yes[0] && no[1] == null && no[0] == false;
+    Buffer_Dispose(buf);
+    return ok;
+}
+
+function bytes_test_starts_ends_with() {
+    let buf = Buffer_New(4);
+    Buffer_Write(buf, 0, 1);
+    Buffer_Write(buf, 1, 2);
+    Buffer_Write(buf, 2, 3);
+    Buffer_Write(buf, 3, 4);
+    let prefix = Buffer_New(2);
+    Buffer_Write(prefix, 0, 1);
+    Buffer_Write(prefix, 1, 2);
+    let suffix = Buffer_New(2);
+    Buffer_Write(suffix, 0, 3);
+    Buffer_Write(suffix, 1, 4);
+    let longer = Buffer_New(5);
+    let s1 = Bytes_StartsWith(buf, prefix);
+    let s2 = Bytes_EndsWith(buf, suffix);
+    let s3 = Bytes_StartsWith(buf, longer);
+    let ok = s1[1] == null && s1[0] &&
+             s2[1] == null && s2[0] &&
+             s3[1] == null && s3[0] == false;
+    Buffer_Dispose(buf);
+    Buffer_Dispose(prefix);
+    Buffer_Dispose(suffix);
+    Buffer_Dispose(longer);
+    return ok;
+}
+
+function bytes_test_search_from_slice() {
+    let parent = Buffer_New(4);
+    Buffer_Write(parent, 2, 9);
+    let slice = Buffer_Slice(parent, 2, 4);
+    let first = Bytes_IndexOf(slice, 9);
+    let contains = Bytes_Contains(slice, 9);
+    let prefix = Buffer_New(1);
+    Buffer_Write(prefix, 0, 9);
+    let starts = Bytes_StartsWith(slice, prefix);
+    let ok = first[1] == null && first[0] == 0 &&
+             contains[1] == null && contains[0] &&
+             starts[1] == null && starts[0];
+    Buffer_Dispose(prefix);
+    Buffer_Dispose(parent);
+    return ok;
+}
+
+function bytes_test_search_rejects_bad_byte() {
+    let buf = Buffer_New(1);
+    let e1 = Bytes_IndexOf(buf, 256);
+    let e2 = Bytes_IndexOf(buf, -1);
+    let e3 = Bytes_LastIndexOf(buf, 300);
+    let e4 = Bytes_Contains(buf, 999);
+    let ok = e1[1] != null && e2[1] != null && e3[1] != null && e4[1] != null;
+    Buffer_Dispose(buf);
+    return ok;
+}
+
+function bytes_test_starts_ends_empty_affix() {
+    let buf = Buffer_New(2);
+    let empty = Buffer_New(0);
+    let s = Bytes_StartsWith(buf, empty);
+    let e = Bytes_EndsWith(buf, empty);
+    let ok = s[1] == null && s[0] && e[1] == null && e[0];
+    Buffer_Dispose(empty);
+    Buffer_Dispose(buf);
+    return ok;
+}
+
+function bytes_test_concat() {
+    let a = Buffer_New(2);
+    Buffer_Write(a, 0, 1);
+    Buffer_Write(a, 1, 2);
+    let b = Buffer_New(2);
+    Buffer_Write(b, 0, 3);
+    Buffer_Write(b, 1, 4);
+    let r = Bytes_Concat(a, b);
+    let out = r[0];
+    let ok = r[1] == null &&
+             Buffer_Len(out) == 4 &&
+             Buffer_Read(out, 0) == 1 &&
+             Buffer_Read(out, 1) == 2 &&
+             Buffer_Read(out, 2) == 3 &&
+             Buffer_Read(out, 3) == 4;
+    Buffer_Dispose(out);
+    Buffer_Dispose(a);
+    Buffer_Dispose(b);
+    return ok;
+}
+
+function bytes_test_concat_uses_slice_view() {
+    let parent = Buffer_New(4);
+    Buffer_Write(parent, 2, 55);
+    Buffer_Write(parent, 3, 66);
+    let slice = Buffer_Slice(parent, 2, 4);
+    let other = Buffer_New(1);
+    Buffer_Write(other, 0, 77);
+    let r = Bytes_Concat(slice, other);
+    let out = r[0];
+    let ok = r[1] == null &&
+             Buffer_Len(out) == 3 &&
+             Buffer_Read(out, 0) == 55 &&
+             Buffer_Read(out, 1) == 66 &&
+             Buffer_Read(out, 2) == 77;
+    Buffer_Dispose(out);
+    Buffer_Dispose(other);
+    Buffer_Dispose(parent);
+    return ok;
+}
+
+function bytes_test_repeat() {
+    let buf = Buffer_New(2);
+    Buffer_Write(buf, 0, 7);
+    Buffer_Write(buf, 1, 8);
+    let r = Bytes_Repeat(buf, 3);
+    let out = r[0];
+    let ok = r[1] == null &&
+             Buffer_Len(out) == 6 &&
+             Buffer_Read(out, 0) == 7 &&
+             Buffer_Read(out, 1) == 8 &&
+             Buffer_Read(out, 2) == 7 &&
+             Buffer_Read(out, 5) == 8;
+    let empty = Bytes_Repeat(buf, 0);
+    let ok2 = empty[1] == null && Buffer_Len(empty[0]) == 0;
+    Buffer_Dispose(empty[0]);
+    Buffer_Dispose(out);
+    Buffer_Dispose(buf);
+    return ok && ok2;
+}
+
+function bytes_test_trim() {
+    let buf = Buffer_New(5);
+    Buffer_Write(buf, 0, 32);
+    Buffer_Write(buf, 1, 9);
+    Buffer_Write(buf, 2, 65);
+    Buffer_Write(buf, 3, 10);
+    Buffer_Write(buf, 4, 32);
+    let all = Bytes_Trim(buf);
+    let start = Bytes_TrimStart(buf);
+    let end = Bytes_TrimEnd(buf);
+    // TrimStart keeps the trailing whitespace: [65, 10, 32].
+    // TrimEnd keeps the leading whitespace: [32, 9, 65].
+    let ok = all[1] == null && Buffer_Len(all[0]) == 1 && Buffer_Read(all[0], 0) == 65 &&
+             start[1] == null && Buffer_Len(start[0]) == 3 && Buffer_Read(start[0], 0) == 65 && Buffer_Read(start[0], 2) == 32 &&
+             end[1] == null && Buffer_Len(end[0]) == 3 && Buffer_Read(end[0], 0) == 32 && Buffer_Read(end[0], 2) == 65;
+    Buffer_Dispose(buf);
+    return ok;
+}
+
+function bytes_test_trim_all_whitespace() {
+    let buf = Buffer_New(2);
+    Buffer_Write(buf, 0, 32);
+    Buffer_Write(buf, 1, 10);
+    let r = Bytes_Trim(buf);
+    let ok = r[1] == null && Buffer_Len(r[0]) == 0;
+    Buffer_Dispose(buf);
+    return ok;
+}
+
+function bytes_test_repeat_rejects_bad_count() {
+    let buf = Buffer_New(1);
+    let neg = Bytes_Repeat(buf, -1);
+    let huge = Bytes_Repeat(buf, 9223372036854775807);
+    let bad = Bytes_Repeat(buf, null);
+    let ok = neg[1] != null && huge[1] != null && bad[1] != null;
+    Buffer_Dispose(buf);
+    return ok;
+}
+
+function bytes_test_repeat_empty_source_huge_count() {
+    let empty = Buffer_New(0);
+    let r = Bytes_Repeat(empty, 9223372036854775807);
+    let ok = r[1] == null && Buffer_Len(r[0]) == 0;
+    Buffer_Dispose(r[0]);
+    Buffer_Dispose(empty);
+    return ok;
+}
+
+function bytes_test_trim_all_whitespace_variants() {
+    let buf = Buffer_New(2);
+    Buffer_Write(buf, 0, 32);
+    Buffer_Write(buf, 1, 10);
+    let s = Bytes_TrimStart(buf);
+    let e = Bytes_TrimEnd(buf);
+    let ok = s[1] == null && Buffer_Len(s[0]) == 0 &&
+             e[1] == null && Buffer_Len(e[0]) == 0;
+    Buffer_Dispose(buf);
+    return ok;
+}
+
+function bytes_test_trim_empty_and_slice() {
+    let empty = Buffer_New(0);
+    let t = Bytes_Trim(empty);
+    let ts = Bytes_TrimStart(empty);
+    let te = Bytes_TrimEnd(empty);
+    let parent = Buffer_New(4);
+    Buffer_Write(parent, 1, 32);
+    Buffer_Write(parent, 2, 65);
+    let slice = Buffer_Slice(parent, 1, 3);
+    let tv = Bytes_Trim(slice);
+    let ok = t[1] == null && Buffer_Len(t[0]) == 0 &&
+             ts[1] == null && Buffer_Len(ts[0]) == 0 &&
+             te[1] == null && Buffer_Len(te[0]) == 0 &&
+             tv[1] == null && Buffer_Len(tv[0]) == 1 && Buffer_Read(tv[0], 0) == 65;
+    Buffer_Dispose(empty);
+    Buffer_Dispose(parent);
+    return ok;
+}
+
+function bytes_test_to_hex_known_vector() {
+    let buf = Buffer_New(4);
+    Buffer_Write(buf, 0, 0);
+    Buffer_Write(buf, 1, 15);
+    Buffer_Write(buf, 2, 165);
+    Buffer_Write(buf, 3, 255);
+    let r = Bytes_ToHex(buf);
+    let ok = r[1] == null && r[0] == "000fa5ff";
+    Buffer_Dispose(buf);
+    return ok;
+}
+
+function bytes_test_from_hex_roundtrip() {
+    let lower = Bytes_FromHex("000fa5ff");
+    let upper = Bytes_FromHex("000FA5FF");
+    let ok = lower[1] == null && upper[1] == null &&
+             Buffer_Len(lower[0]) == 4 &&
+             Buffer_Read(lower[0], 2) == 165 &&
+             Buffer_Read(upper[0], 2) == 165 &&
+             Buffer_Read(upper[0], 3) == 255;
+    Buffer_Dispose(lower[0]);
+    Buffer_Dispose(upper[0]);
+    return ok;
+}
+
+function bytes_test_from_hex_rejects_odd_length() {
+    let r = Bytes_FromHex("abc");
+    return r[1] != null && r[0] == null;
+}
+
+function bytes_test_from_hex_rejects_non_hex() {
+    let r = Bytes_FromHex("zz");
+    return r[1] != null && r[0] == null;
+}
+
+function bytes_test_from_hex_empty() {
+    let r = Bytes_FromHex("");
+    let ok = r[1] == null && Buffer_Len(r[0]) == 0;
+    Buffer_Dispose(r[0]);
+    return ok;
+}
+
+function bytes_test_hex_edge_cases() {
+    let empty = Buffer_New(0);
+    let emptyHex = Bytes_ToHex(empty);
+    let badInput = Bytes_FromHex(42);
+    let badSecond = Bytes_FromHex("0z");
+    let nullHex = Bytes_ToHex(null);
+    let nullInput = Bytes_FromHex(null);
+    let buf = Buffer_New(2);
+    let badIndex = Bytes_IndexOf(buf, null);
+    let badLast = Bytes_LastIndexOf(buf, "a");
+    let badFill = Bytes_Fill(buf, 0, 1, null);
+    Buffer_Dispose(buf);
+    let ok = emptyHex[1] == null && emptyHex[0] == "" &&
+             badInput[1] != null &&
+             badSecond[1] != null &&
+             nullHex[1] != null &&
+             nullInput[1] != null &&
+             badIndex[1] != null &&
+             badLast[1] != null &&
+             badFill != null;
+    Buffer_Dispose(empty);
+    return ok;
+}
+
+function bytes_test_hex_mixed_case_and_slice() {
+    let mixed = Bytes_FromHex("aF");
+    let parent = Buffer_New(2);
+    Buffer_Write(parent, 0, 0);
+    Buffer_Write(parent, 1, 15);
+    let slice = Buffer_Slice(parent, 1, 2);
+    let hex = Bytes_ToHex(slice);
+    let ok = mixed[1] == null && Buffer_Len(mixed[0]) == 1 && Buffer_Read(mixed[0], 0) == 175 &&
+             hex[1] == null && hex[0] == "0f";
+    Buffer_Dispose(mixed[0]);
+    Buffer_Dispose(parent);
+    return ok;
+}

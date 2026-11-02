@@ -1,7 +1,9 @@
 #include "dryad/runtime/intrinsics.h"
 #include <unistd.h>
+#include <algorithm>
 #include <vector>
 #include <cstring>
+#include <new>
 #include <stdexcept>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -37,10 +39,16 @@ Value MemoryManager::alloc_bytes(int64_t size) {
     
     std::lock_guard<std::mutex> lock(allocation_mutex);
     
-    AllocationMetadata* meta = new AllocationMetadata();
+    AllocationMetadata* meta = nullptr;
+    try {
+        meta = new AllocationMetadata();
+        meta->data = new uint8_t[static_cast<size_t>(size)]{};
+    } catch (const std::bad_alloc&) {
+        delete meta;
+        return Value();
+    }
     meta->size = static_cast<size_t>(size);
     meta->is_freed = false;
-    meta->data = new uint8_t[size]{};
     meta->next = allocations;
     allocations = meta;
     
@@ -74,7 +82,12 @@ Value MemoryManager::realloc(int64_t handle, int64_t new_size) {
         return Value();
     }
     
-    uint8_t* new_data = new uint8_t[new_size]{};
+    uint8_t* new_data = nullptr;
+    try {
+        new_data = new uint8_t[static_cast<size_t>(new_size)]{};
+    } catch (const std::bad_alloc&) {
+        return Value();
+    }
     size_t copy_size = std::min(meta->size, static_cast<size_t>(new_size));
     std::memcpy(new_data, meta->data, copy_size);
     
@@ -83,6 +96,38 @@ Value MemoryManager::realloc(int64_t handle, int64_t new_size) {
     meta->size = static_cast<size_t>(new_size);
     
     return Value(handle);
+}
+
+Value MemoryManager::memmove(int64_t dest_handle, int64_t dest_offset,
+                              int64_t src_handle, int64_t src_offset, int64_t count) {
+    if (count <= 0) {
+        return Value();
+    }
+
+    std::lock_guard<std::mutex> lock(allocation_mutex);
+
+    AllocationMetadata* dest_meta = get_metadata(dest_handle);
+    AllocationMetadata* src_meta = get_metadata(src_handle);
+
+    if (!dest_meta || dest_meta->is_freed || !src_meta || src_meta->is_freed) {
+        return Value();
+    }
+
+    if (dest_offset < 0 || src_offset < 0) {
+        return Value();
+    }
+
+    const int64_t dest_size = static_cast<int64_t>(dest_meta->size);
+    const int64_t src_size = static_cast<int64_t>(src_meta->size);
+    if (dest_offset > dest_size || src_offset > src_size ||
+        count > dest_size - dest_offset || count > src_size - src_offset) {
+        return Value();
+    }
+
+    std::memmove(dest_meta->data + dest_offset, src_meta->data + src_offset,
+                 static_cast<size_t>(count));
+
+    return Value();
 }
 
 Value MemoryManager::memcpy(int64_t dest_handle, int64_t src_handle, int64_t count) {
@@ -179,16 +224,34 @@ Value MemoryManager::read_fd_to_buffer(int64_t fd, int64_t handle, int64_t offse
         return Value(static_cast<int64_t>(-1));
     }
 
-    std::lock_guard<std::mutex> lock(allocation_mutex);
-    AllocationMetadata* meta = get_metadata(handle);
-    if (!meta || meta->is_freed) {
-        return Value(static_cast<int64_t>(-1));
-    }
-    if (offset + count > static_cast<int64_t>(meta->size)) {
-        return Value(static_cast<int64_t>(-1));
+    AllocationMetadata* meta = nullptr;
+    {
+        std::lock_guard<std::mutex> lock(allocation_mutex);
+        meta = get_metadata(handle);
+        if (!meta || meta->is_freed || !meta->data) {
+            return Value(static_cast<int64_t>(-1));
+        }
+        const int64_t size = static_cast<int64_t>(meta->size);
+        if (offset > size || count > size - offset) {
+            return Value(static_cast<int64_t>(-1));
+        }
     }
 
-    ssize_t nbytes = ::read(static_cast<int>(fd), meta->data + offset, static_cast<size_t>(count));
+    std::vector<uint8_t> staging(static_cast<size_t>(count), 0);
+    ssize_t nbytes = ::read(static_cast<int>(fd), staging.data(), staging.size());
+    if (nbytes > 0) {
+        std::lock_guard<std::mutex> lock(allocation_mutex);
+        // The buffer may have been freed or resized while the call was
+        // unlocked. The bytes are already consumed from the descriptor, so
+        // report the call as failed rather than writing into a stale region.
+        // realloc keeps this node but may have shrunk the allocation.
+        if (meta->is_freed || !meta->data ||
+            offset + static_cast<int64_t>(nbytes) > static_cast<int64_t>(meta->size)) {
+            return Value(static_cast<int64_t>(-1));
+        }
+        std::memcpy(meta->data + offset, staging.data(),
+                    std::min(static_cast<size_t>(nbytes), staging.size()));
+    }
     return Value(static_cast<int64_t>(nbytes));
 }
 
@@ -197,35 +260,64 @@ Value MemoryManager::write_fd_from_buffer(int64_t fd, int64_t handle, int64_t of
         return Value(static_cast<int64_t>(-1));
     }
 
-    std::lock_guard<std::mutex> lock(allocation_mutex);
-    AllocationMetadata* meta = get_metadata(handle);
-    if (!meta || meta->is_freed) {
-        return Value(static_cast<int64_t>(-1));
-    }
-    if (offset + count > static_cast<int64_t>(meta->size)) {
-        return Value(static_cast<int64_t>(-1));
+    std::vector<uint8_t> staging;
+    {
+        std::lock_guard<std::mutex> lock(allocation_mutex);
+        AllocationMetadata* meta = get_metadata(handle);
+        if (!meta || meta->is_freed || !meta->data) {
+            return Value(static_cast<int64_t>(-1));
+        }
+        const int64_t size = static_cast<int64_t>(meta->size);
+        if (offset > size || count > size - offset) {
+            return Value(static_cast<int64_t>(-1));
+        }
+        staging.assign(meta->data + offset, meta->data + offset + count);
     }
 
-    ssize_t nbytes = ::write(static_cast<int>(fd), meta->data + offset, static_cast<size_t>(count));
+    ssize_t nbytes = ::write(static_cast<int>(fd), staging.data(), staging.size());
     return Value(static_cast<int64_t>(nbytes));
 }
 
 Value MemoryManager::io_buffer(int64_t handle, int64_t offset, int64_t count,
+                             IoBufferMode mode,
                              const std::function<ssize_t(uint8_t*, size_t)>& io) {
     if (count < 0 || offset < 0) {
         return Value(static_cast<int64_t>(-1));
     }
 
-    std::lock_guard<std::mutex> lock(allocation_mutex);
-    AllocationMetadata* meta = get_metadata(handle);
-    if (!meta || meta->is_freed) {
-        return Value(static_cast<int64_t>(-1));
-    }
-    if (offset + count > static_cast<int64_t>(meta->size)) {
-        return Value(static_cast<int64_t>(-1));
+    AllocationMetadata* meta = nullptr;
+    std::vector<uint8_t> staging;
+    {
+        std::lock_guard<std::mutex> lock(allocation_mutex);
+        meta = get_metadata(handle);
+        if (!meta || meta->is_freed || !meta->data) {
+            return Value(static_cast<int64_t>(-1));
+        }
+        const int64_t size = static_cast<int64_t>(meta->size);
+        if (offset > size || count > size - offset) {
+            return Value(static_cast<int64_t>(-1));
+        }
+        if (mode == IoBufferMode::Write) {
+            staging.assign(meta->data + offset, meta->data + offset + count);
+        } else {
+            staging.assign(static_cast<size_t>(count), 0);
+        }
     }
 
-    ssize_t nbytes = io(meta->data + offset, static_cast<size_t>(count));
+    ssize_t nbytes = io(staging.data(), staging.size());
+    if (mode == IoBufferMode::Read && nbytes > 0) {
+        std::lock_guard<std::mutex> lock(allocation_mutex);
+        // The buffer may have been freed or resized while the call was
+        // unlocked. The bytes are already consumed from the descriptor, so
+        // report the call as failed rather than writing into a stale region.
+        // realloc keeps this node but may have shrunk the allocation.
+        if (meta->is_freed || !meta->data ||
+            offset + static_cast<int64_t>(nbytes) > static_cast<int64_t>(meta->size)) {
+            return Value(static_cast<int64_t>(-1));
+        }
+        std::memcpy(meta->data + offset, staging.data(),
+                    std::min(static_cast<size_t>(nbytes), staging.size()));
+    }
     return Value(static_cast<int64_t>(nbytes));
 }
 
@@ -243,17 +335,22 @@ Value MemoryManager::sendto_buffer(int64_t fd, int64_t handle, int64_t offset, i
         return Value(static_cast<int64_t>(-1));
     }
 
-    std::lock_guard<std::mutex> lock(allocation_mutex);
-    AllocationMetadata* meta = get_metadata(handle);
-    if (!meta || meta->is_freed) {
-        return Value(static_cast<int64_t>(-1));
-    }
-    if (offset + count > static_cast<int64_t>(meta->size)) {
-        return Value(static_cast<int64_t>(-1));
+    std::vector<uint8_t> staging;
+    {
+        std::lock_guard<std::mutex> lock(allocation_mutex);
+        AllocationMetadata* meta = get_metadata(handle);
+        if (!meta || meta->is_freed || !meta->data) {
+            return Value(static_cast<int64_t>(-1));
+        }
+        const int64_t size = static_cast<int64_t>(meta->size);
+        if (offset > size || count > size - offset) {
+            return Value(static_cast<int64_t>(-1));
+        }
+        staging.assign(meta->data + offset, meta->data + offset + count);
     }
 
-    ssize_t nbytes = ::sendto(static_cast<int>(fd), meta->data + offset,
-                              static_cast<size_t>(count), 0,
+    ssize_t nbytes = ::sendto(static_cast<int>(fd), staging.data(),
+                              staging.size(), 0,
                               reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr));
     return Value(static_cast<int64_t>(nbytes));
 }
@@ -275,20 +372,38 @@ Value MemoryManager::recvfrom_buffer(int64_t fd, int64_t handle, int64_t offset,
     socklen_t addrlen = sizeof(addr);
     std::memset(&addr, 0, sizeof(addr));
 
-    std::lock_guard<std::mutex> lock(allocation_mutex);
-    AllocationMetadata* meta = get_metadata(handle);
-    if (!meta || meta->is_freed) {
-        return make_result(-1, "", 0);
-    }
-    if (offset + count > static_cast<int64_t>(meta->size)) {
-        return make_result(-1, "", 0);
+    AllocationMetadata* meta = nullptr;
+    {
+        std::lock_guard<std::mutex> lock(allocation_mutex);
+        meta = get_metadata(handle);
+        if (!meta || meta->is_freed || !meta->data) {
+            return make_result(-1, "", 0);
+        }
+        const int64_t size = static_cast<int64_t>(meta->size);
+        if (offset > size || count > size - offset) {
+            return make_result(-1, "", 0);
+        }
     }
 
-    ssize_t nbytes = ::recvfrom(static_cast<int>(fd), meta->data + offset,
-                               static_cast<size_t>(count), 0,
+    std::vector<uint8_t> staging(static_cast<size_t>(count), 0);
+    ssize_t nbytes = ::recvfrom(static_cast<int>(fd), staging.data(),
+                               staging.size(), 0,
                                reinterpret_cast<struct sockaddr*>(&addr), &addrlen);
     if (nbytes < 0) {
         return make_result(-1, "", 0);
+    }
+    if (nbytes > 0) {
+        std::lock_guard<std::mutex> lock(allocation_mutex);
+        // The buffer may have been freed or resized while the call was
+        // unlocked. The bytes are already consumed from the descriptor, so
+        // report the call as failed rather than writing into a stale region.
+        // realloc keeps this node but may have shrunk the allocation.
+        if (meta->is_freed || !meta->data ||
+            offset + static_cast<int64_t>(nbytes) > static_cast<int64_t>(meta->size)) {
+            return make_result(-1, "", 0);
+        }
+        std::memcpy(meta->data + offset, staging.data(),
+                    std::min(static_cast<size_t>(nbytes), staging.size()));
     }
 
     char host_buf[INET_ADDRSTRLEN] = {};
@@ -354,6 +469,11 @@ Value Intrinsics::realloc(int64_t handle, int64_t new_size) {
 
 Value Intrinsics::memcpy(int64_t dest_handle, int64_t src_handle, int64_t count) {
     return MemoryManager::memcpy(dest_handle, src_handle, count);
+}
+
+Value Intrinsics::memmove(int64_t dest_handle, int64_t dest_offset,
+                          int64_t src_handle, int64_t src_offset, int64_t count) {
+    return MemoryManager::memmove(dest_handle, dest_offset, src_handle, src_offset, count);
 }
 
 Value Intrinsics::memset(int64_t handle, int64_t value, int64_t count) {

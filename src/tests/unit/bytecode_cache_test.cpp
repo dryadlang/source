@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 #include <fstream>
 #include "dryad/aot/aot_compiler.h"
+#include "dryad/compiler/program_entry.h"
 #include "dryad/runtime/bytecode_cache.h"
 #include "dryad/runtime/bytecode_module.h"
 
@@ -39,8 +40,9 @@ TEST(BytecodeCacheTest, LoadCompanionDryadc) {
     BytecodeModuleCache cache;
     cache.set_source_path(input);
     EXPECT_TRUE(cache.try_load_companion());
-    EXPECT_EQ(cache.program().functions.size(), 1u);
+    EXPECT_EQ(cache.program().functions.size(), 2u);
     EXPECT_EQ(cache.program().functions[0].metadata.name, "compute");
+    EXPECT_EQ(cache.program().functions[1].metadata.name, kScriptEntryFunctionName);
 
     std::remove(input.c_str());
     std::remove(dryadc.c_str());

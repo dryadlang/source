@@ -1,5 +1,12 @@
 #include <gtest/gtest.h>
 #include "dryad/runtime/intrinsics.h"
+#include <atomic>
+#include <chrono>
+#include <thread>
+#include <sys/socket.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <cstring>
 
 using namespace dryad;
 
@@ -135,4 +142,176 @@ TEST(MemoryIntrinsicsTest, DoubleFreeDetection) {
     // Second free should fail gracefully (return null)
     Value second_free = intr.free_bytes(handle);
     EXPECT_TRUE(second_free.is_null());
+}
+
+TEST(MemoryIntrinsicsTest, MemmoveWithOffsets) {
+    Intrinsics intr;
+    Value src = intr.alloc_bytes(8);
+    Value dst = intr.alloc_bytes(8);
+    for (int i = 0; i < 4; ++i) {
+        intr.buffer_set(src.as_integer(), i, 10 + i);
+    }
+
+    Value moved = intr.memmove(dst.as_integer(), 2, src.as_integer(), 1, 3);
+    EXPECT_TRUE(moved.is_null());
+    EXPECT_EQ(intr.buffer_get(dst.as_integer(), 1).as_integer(), 0);
+    EXPECT_EQ(intr.buffer_get(dst.as_integer(), 2).as_integer(), 11);
+    EXPECT_EQ(intr.buffer_get(dst.as_integer(), 3).as_integer(), 12);
+    EXPECT_EQ(intr.buffer_get(dst.as_integer(), 4).as_integer(), 13);
+
+    intr.free_bytes(src.as_integer());
+    intr.free_bytes(dst.as_integer());
+}
+
+TEST(MemoryIntrinsicsTest, MemmoveOverlapForward) {
+    Intrinsics intr;
+    Value buf = intr.alloc_bytes(6);
+    for (int i = 0; i < 5; ++i) {
+        intr.buffer_set(buf.as_integer(), i, i + 1);
+    }
+
+    Value moved = intr.memmove(buf.as_integer(), 1, buf.as_integer(), 0, 4);
+    EXPECT_TRUE(moved.is_null());
+    EXPECT_EQ(intr.buffer_get(buf.as_integer(), 0).as_integer(), 1);
+    EXPECT_EQ(intr.buffer_get(buf.as_integer(), 1).as_integer(), 1);
+    EXPECT_EQ(intr.buffer_get(buf.as_integer(), 2).as_integer(), 2);
+    EXPECT_EQ(intr.buffer_get(buf.as_integer(), 3).as_integer(), 3);
+    EXPECT_EQ(intr.buffer_get(buf.as_integer(), 4).as_integer(), 4);
+
+    intr.free_bytes(buf.as_integer());
+}
+
+TEST(MemoryIntrinsicsTest, MemmoveRejectsOverflowingOffsets) {
+    Intrinsics intr;
+    Value src = intr.alloc_bytes(4);
+    Value dst = intr.alloc_bytes(4);
+    const int64_t huge = 9223372036854775807LL;
+
+    EXPECT_TRUE(intr.memmove(dst.as_integer(), huge, src.as_integer(), 0, 1).is_null());
+    EXPECT_TRUE(intr.memmove(dst.as_integer(), 0, src.as_integer(), huge, 1).is_null());
+    EXPECT_EQ(intr.buffer_get(dst.as_integer(), 0).as_integer(), 0);
+
+    intr.free_bytes(src.as_integer());
+    intr.free_bytes(dst.as_integer());
+}
+
+TEST(MemoryIntrinsicsTest, MemmoveRejectsOutOfBounds) {
+    Intrinsics intr;
+    Value src = intr.alloc_bytes(4);
+    Value dst = intr.alloc_bytes(4);
+
+    EXPECT_TRUE(intr.memmove(dst.as_integer(), 2, src.as_integer(), 0, 3).is_null());
+    EXPECT_EQ(intr.buffer_get(dst.as_integer(), 2).as_integer(), 0);
+    EXPECT_TRUE(intr.memmove(dst.as_integer(), -1, src.as_integer(), 0, 1).is_null());
+    EXPECT_TRUE(intr.memmove(dst.as_integer(), 0, src.as_integer(), 0, -1).is_null());
+    EXPECT_EQ(intr.buffer_get(dst.as_integer(), 2).as_integer(), 0);
+
+    intr.free_bytes(src.as_integer());
+    intr.free_bytes(dst.as_integer());
+}
+
+TEST(MemoryIntrinsicsTest, MemmoveZeroCountIsNoOp) {
+    Intrinsics intr;
+    Value src = intr.alloc_bytes(4);
+    Value dst = intr.alloc_bytes(4);
+    intr.buffer_set(dst.as_integer(), 0, 77);
+
+    EXPECT_TRUE(intr.memmove(dst.as_integer(), 0, src.as_integer(), 0, 0).is_null());
+    EXPECT_EQ(intr.buffer_get(dst.as_integer(), 0).as_integer(), 77);
+
+    intr.free_bytes(src.as_integer());
+    intr.free_bytes(dst.as_integer());
+}
+
+TEST(MemoryIntrinsicsTest, MemmoveRejectsFreedHandle) {
+    Intrinsics intr;
+    Value src = intr.alloc_bytes(4);
+    Value dst = intr.alloc_bytes(4);
+    intr.buffer_set(src.as_integer(), 0, 5);
+    intr.free_bytes(dst.as_integer());
+
+    EXPECT_TRUE(intr.memmove(dst.as_integer(), 0, src.as_integer(), 0, 1).is_null());
+    EXPECT_EQ(intr.buffer_get(src.as_integer(), 0).as_integer(), 5);
+    EXPECT_TRUE(intr.memmove(0, 0, src.as_integer(), 0, 1).is_null());
+    EXPECT_EQ(intr.buffer_get(src.as_integer(), 0).as_integer(), 5);
+
+    intr.free_bytes(src.as_integer());
+}
+
+TEST(MemoryIntrinsicsTest, BlockingReadDoesNotHoldAllocationLock) {
+    int fds[2];
+    ASSERT_EQ(::socketpair(AF_UNIX, SOCK_STREAM, 0, fds), 0);
+
+    Value rx = MemoryManager::alloc_bytes(8);
+    Value tx = MemoryManager::alloc_bytes(8);
+    for (int i = 0; i < 4; ++i) {
+        MemoryManager::buffer_set(tx.as_integer(), i, i + 1);
+    }
+
+    std::atomic<bool> read_done{false};
+    std::thread reader([&]() {
+        MemoryManager::read_fd_to_buffer(fds[0], rx.as_integer(), 0, 4);
+        read_done = true;
+    });
+
+    // Let the reader take the allocation lock and block inside read().
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    EXPECT_FALSE(read_done.load());
+
+    std::atomic<bool> write_done{false};
+    std::thread writer([&]() {
+        MemoryManager::write_fd_from_buffer(fds[1], tx.as_integer(), 0, 4);
+        write_done = true;
+    });
+
+    for (int i = 0; i < 200 && !write_done.load(); ++i) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    EXPECT_TRUE(write_done.load());
+
+    // Unblock the reader whether or not the assertion held.
+    ::shutdown(fds[1], SHUT_RDWR);
+    reader.join();
+    writer.join();
+    EXPECT_EQ(MemoryManager::buffer_get(rx.as_integer(), 0).as_integer(), 1);
+
+    MemoryManager::free_bytes(rx.as_integer());
+    MemoryManager::free_bytes(tx.as_integer());
+    ::close(fds[0]);
+    ::close(fds[1]);
+}
+
+TEST(MemoryIntrinsicsTest, IoBufferWriteDoesNotModifyBuffer) {
+    Value buf = MemoryManager::alloc_bytes(8);
+    for (int i = 0; i < 4; ++i) {
+        MemoryManager::buffer_set(buf.as_integer(), i, i + 1);
+    }
+    Value r = MemoryManager::io_buffer(buf.as_integer(), 0, 4, IoBufferMode::Write,
+        [](uint8_t* p, size_t n) { std::memset(p, 0xFF, n); return static_cast<ssize_t>(n); });
+    EXPECT_EQ(r.as_integer(), 4);
+    for (int i = 0; i < 4; ++i) {
+        EXPECT_EQ(MemoryManager::buffer_get(buf.as_integer(), i).as_integer(), i + 1);
+    }
+    MemoryManager::free_bytes(buf.as_integer());
+}
+
+TEST(MemoryIntrinsicsTest, IoBufferReadWritesResult) {
+    Value buf = MemoryManager::alloc_bytes(8);
+    Value r = MemoryManager::io_buffer(buf.as_integer(), 0, 4, IoBufferMode::Read,
+        [](uint8_t* p, size_t n) { std::memset(p, 7, n); return static_cast<ssize_t>(n); });
+    EXPECT_EQ(r.as_integer(), 4);
+    for (int i = 0; i < 4; ++i) {
+        EXPECT_EQ(MemoryManager::buffer_get(buf.as_integer(), i).as_integer(), 7);
+    }
+    MemoryManager::free_bytes(buf.as_integer());
+}
+
+TEST(MemoryIntrinsicsTest, WriteRejectsOverflowingRange) {
+    Value buf = MemoryManager::alloc_bytes(8);
+    int fd = ::open("/dev/null", O_WRONLY);
+    ASSERT_GE(fd, 0);
+    Value r = MemoryManager::write_fd_from_buffer(fd, buf.as_integer(), 1, 9223372036854775807LL);
+    EXPECT_EQ(r.as_integer(), -1);
+    ::close(fd);
+    MemoryManager::free_bytes(buf.as_integer());
 }

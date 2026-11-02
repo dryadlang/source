@@ -201,6 +201,9 @@ if(DRYAD_BUILD_TESTS)
         tests/unit/lsp_foundation_test.cpp
         tests/unit/buffer_intrinsics_test.cpp
         tests/unit/buffer_test.cpp
+        tests/unit/bytes_test.cpp
+        tests/unit/text_test.cpp
+        tests/unit/stdlib_layers_test.cpp
         tests/unit/vfs_test.cpp
         tests/unit/io_functions_test.cpp
         tests/unit/filehandle_test.cpp
@@ -294,8 +297,9 @@ endif()
 # Benchmarks
 # =============================================================================
 if(DRYAD_BUILD_BENCHMARKS)
-    # TODO: Add Google Benchmark integration
-    message(STATUS "Benchmarks enabled (not yet implemented)")
+    add_executable(bytes_bench benchmarks/bytes_bench.cpp)
+    target_link_libraries(bytes_bench PRIVATE dryad_runtime)
+    message(STATUS "Benchmarks enabled")
 endif()
 
 # =============================================================================

@@ -167,3 +167,11 @@ TEST(BufferTest, AsStringDisposed) {
 TEST(BufferTest, StringViaSlice) {
     EXPECT_TRUE(run_buffer_test("test_buffer_string_via_slice").is_truthy());
 }
+
+TEST(BufferTest, CopyToOverlappingSameBuffer) {
+    EXPECT_TRUE(run_buffer_test("test_buffer_copy_to_overlap_same_buffer").is_truthy());
+}
+
+TEST(BufferTest, CopyToFromSlice) {
+    EXPECT_TRUE(run_buffer_test("test_buffer_copy_to_from_slice").is_truthy());
+}

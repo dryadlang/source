@@ -6,6 +6,7 @@
 #include "dryad/runtime/package_installer.h"
 #include "dryad/runtime/package_manifest.h"
 #include <filesystem>
+#include <random>
 #include <fstream>
 
 using namespace dryad;
@@ -16,8 +17,15 @@ std::string packages_fixture_root() {
     return std::string(DRYAD_TEST_DIR) + "/fixtures/packages";
 }
 
+// Unique per process: ctest registers each gtest case separately, so parallel
+// runs would otherwise race on one shared install directory.
 std::string temp_modules_dir() {
-    return std::string(DRYAD_TEST_DIR) + "/fixtures/packages/sample/dryad_modules_test";
+    static const std::string dir = [] {
+        std::random_device rd;
+        return std::string(DRYAD_TEST_DIR) +
+               "/fixtures/packages/sample/dryad_modules_test_" + std::to_string(rd());
+    }();
+    return dir;
 }
 
 void cleanup_modules_dir() {

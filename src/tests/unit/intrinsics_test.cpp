@@ -7,6 +7,11 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <fstream>
+#include <atomic>
+#include <cstdint>
+#include <limits>
+#include <thread>
+#include <vector>
 
 using namespace dryad;
 
@@ -233,4 +238,67 @@ TEST_F(IntrinsicsTest, RuntimeObjectIntrinsics) {
     
     auto success = run_dryad(code, "success");
     EXPECT_TRUE(success.is_truthy());
+}
+
+TEST(IntrinsicsRegistryThreadSafetyTest, ConcurrentRegistrationIsIdempotent) {
+    auto& registry = IntrinsicsRegistry::instance();
+    registry.register_all();
+    const uint16_t expected = registry.get_id("syscall.memmove");
+
+    // Every Interpreter construction calls register_all(); worker threads do
+    // this concurrently. IDs must stay stable and the maps must survive it.
+    std::atomic<bool> stable{true};
+    std::vector<std::thread> workers;
+    for (int t = 0; t < 8; ++t) {
+        workers.emplace_back([&registry, expected, &stable]() {
+            for (int i = 0; i < 50; ++i) {
+                registry.register_all();
+                if (registry.get_id("syscall.memmove") != expected) {
+                    stable = false;
+                }
+            }
+        });
+    }
+    for (auto& worker : workers) {
+        worker.join();
+    }
+
+    EXPECT_TRUE(stable.load());
+    EXPECT_EQ(registry.get_id("syscall.memmove"), expected);
+}
+
+TEST_F(IntrinsicsTest, FloatToIntTruncatesTowardZero) {
+    auto& registry = IntrinsicsRegistry::instance();
+    EXPECT_EQ(registry.call("syscall.float_to_int", {Value(3.9)}).as_integer(), 3);
+    EXPECT_EQ(registry.call("syscall.float_to_int", {Value(-3.9)}).as_integer(), -3);
+    EXPECT_EQ(registry.call("syscall.float_to_int", {Value(0.0)}).as_integer(), 0);
+}
+
+TEST_F(IntrinsicsTest, FloatToIntPassesIntegersThroughExactly) {
+    auto& registry = IntrinsicsRegistry::instance();
+    EXPECT_EQ(registry.call("syscall.float_to_int",
+                            {Value(int64_t(9007199254740993LL))}).as_integer(),
+              9007199254740993LL);
+}
+
+TEST_F(IntrinsicsTest, FloatToIntRejectsOutOfRangeAndNonFinite) {
+    auto& registry = IntrinsicsRegistry::instance();
+    EXPECT_TRUE(registry.call("syscall.float_to_int",
+                              {Value(9223372036854775808.0)}).is_null());
+    EXPECT_TRUE(registry.call("syscall.float_to_int",
+                              {Value(-9223372036854775808.0 * 2.0)}).is_null());
+    EXPECT_TRUE(registry.call("syscall.float_to_int",
+                              {Value(std::numeric_limits<double>::infinity())}).is_null());
+    EXPECT_TRUE(registry.call("syscall.float_to_int",
+                              {Value(std::numeric_limits<double>::quiet_NaN())}).is_null());
+}
+
+TEST_F(IntrinsicsTest, IntToFloatConverts) {
+    auto& registry = IntrinsicsRegistry::instance();
+    EXPECT_DOUBLE_EQ(registry.call("syscall.int_to_float", {Value(int64_t(42))}).as_float(), 42.0);
+    EXPECT_DOUBLE_EQ(registry.call("syscall.int_to_float", {Value(int64_t(-7))}).as_float(), -7.0);
+    // 2^53 + 1 is not representable as a double; it must round to 2^53.
+    EXPECT_DOUBLE_EQ(
+        registry.call("syscall.int_to_float", {Value(int64_t(9007199254740993LL))}).as_float(),
+        9007199254740992.0);
 }

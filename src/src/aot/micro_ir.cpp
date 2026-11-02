@@ -587,12 +587,28 @@ private:
             case Opcode::SUB:
             case Opcode::MUL:
             case Opcode::DIV:
-            case Opcode::MOD: {
+            case Opcode::MOD:
+            case Opcode::BIT_AND:
+            case Opcode::BIT_OR:
+            case Opcode::BIT_XOR:
+            case Opcode::SHL:
+            case Opcode::SHR: {
                 inst.rhs = pop();
                 inst.lhs = pop();
                 inst.op = IrOpcode::IntrinsicSlow;
                 inst.intrinsic_id = static_cast<uint16_t>(0xFF00u | static_cast<uint8_t>(op));
                 inst.intrinsic_argc = 2;
+                inst.result = fresh_reg(IrType::Variant);
+                block.instructions.push_back(inst);
+                push(inst.result, IrType::Variant);
+                pc += 1;
+                break;
+            }
+            case Opcode::BIT_NOT: {
+                inst.lhs = pop();
+                inst.op = IrOpcode::IntrinsicSlow;
+                inst.intrinsic_id = static_cast<uint16_t>(0xFF00u | static_cast<uint8_t>(op));
+                inst.intrinsic_argc = 1;
                 inst.result = fresh_reg(IrType::Variant);
                 block.instructions.push_back(inst);
                 push(inst.result, IrType::Variant);

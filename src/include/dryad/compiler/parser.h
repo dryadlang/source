@@ -77,8 +77,12 @@ private:
     std::unique_ptr<Expression> parse_assignment();
     std::unique_ptr<Expression> parse_logical_or();
     std::unique_ptr<Expression> parse_logical_and();
+    std::unique_ptr<Expression> parse_bitwise_or();
+    std::unique_ptr<Expression> parse_bitwise_xor();
+    std::unique_ptr<Expression> parse_bitwise_and();
     std::unique_ptr<Expression> parse_equality();
     std::unique_ptr<Expression> parse_comparison();
+    std::unique_ptr<Expression> parse_shift();
     std::unique_ptr<Expression> parse_addition();
     std::unique_ptr<Expression> parse_multiplication();
     std::unique_ptr<Expression> parse_unary();

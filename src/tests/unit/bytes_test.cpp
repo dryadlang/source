@@ -1,0 +1,84 @@
+#include <gtest/gtest.h>
+#include "dryad/compiler/lexer.h"
+#include "dryad/compiler/parser.h"
+#include "dryad/compiler/interpreter.h"
+#include <fstream>
+#include <sstream>
+#include <stdexcept>
+
+using namespace dryad;
+
+namespace {
+
+std::string read_file(const std::string& path) {
+    std::ifstream f(path);
+    if (!f) {
+        throw std::runtime_error("Cannot open file: " + path);
+    }
+    std::ostringstream ss;
+    ss << f.rdbuf();
+    return ss.str();
+}
+
+// Loads bytes_test.dryad via the import system, then runs the named test_* function.
+Value run_bytes_test(const std::string& test_fn) {
+    static const std::string tests = read_file(
+        std::string(DRYAD_TEST_DIR) + "/stdlib/bytes/bytes_test.dryad");
+    
+    std::string source = tests + "\nlet __ok = " + test_fn + "();";
+    
+    Lexer lexer(source);
+    auto tokens = lexer.tokenize();
+    Parser parser(std::move(tokens));
+    auto program = parser.parse();
+    if (parser.has_error()) {
+        throw std::runtime_error("Parser error: " + parser.error_message());
+    }
+    
+    Interpreter interpreter;
+    interpreter.set_stdlib_root(DRYAD_STDLIB_DIR);
+    interpreter.execute(program.get());
+    
+    return interpreter.global_env()->get("__ok");
+}
+
+} // namespace
+
+TEST(BytesTest, CopyRoundtrip) { EXPECT_TRUE(run_bytes_test("bytes_test_copy_roundtrip").is_truthy()); }
+TEST(BytesTest, CopyOffsets) { EXPECT_TRUE(run_bytes_test("bytes_test_copy_offsets").is_truthy()); }
+TEST(BytesTest, CopyZeroLengthAtEnd) { EXPECT_TRUE(run_bytes_test("bytes_test_copy_zero_length_at_end").is_truthy()); }
+TEST(BytesTest, CopyRejectsBadRange) { EXPECT_TRUE(run_bytes_test("bytes_test_copy_rejects_bad_range").is_truthy()); }
+TEST(BytesTest, Fill) { EXPECT_TRUE(run_bytes_test("bytes_test_fill").is_truthy()); }
+TEST(BytesTest, CompareEqual) { EXPECT_TRUE(run_bytes_test("bytes_test_compare_equal").is_truthy()); }
+TEST(BytesTest, CompareOrders) { EXPECT_TRUE(run_bytes_test("bytes_test_compare_orders").is_truthy()); }
+TEST(BytesTest, EqualsLengthMismatch) { EXPECT_TRUE(run_bytes_test("bytes_test_equals_length_mismatch").is_truthy()); }
+TEST(BytesTest, ValidateRejectsDisposed) { EXPECT_TRUE(run_bytes_test("bytes_test_validate_rejects_disposed").is_truthy()); }
+TEST(BytesTest, CopyFromSlice) { EXPECT_TRUE(run_bytes_test("bytes_test_copy_from_slice").is_truthy()); }
+TEST(BytesTest, FillFromSlice) { EXPECT_TRUE(run_bytes_test("bytes_test_fill_from_slice").is_truthy()); }
+TEST(BytesTest, CompareFromSlices) { EXPECT_TRUE(run_bytes_test("bytes_test_compare_from_slices").is_truthy()); }
+TEST(BytesTest, CopyOverlap) { EXPECT_TRUE(run_bytes_test("bytes_test_copy_overlap").is_truthy()); }
+TEST(BytesTest, FillRejectsValue) { EXPECT_TRUE(run_bytes_test("bytes_test_fill_rejects_value").is_truthy()); }
+TEST(BytesTest, EqualsTrueAndLengthOrder) { EXPECT_TRUE(run_bytes_test("bytes_test_equals_true_and_length_order").is_truthy()); }
+TEST(BytesTest, ValidateRejectsOverflowingRange) { EXPECT_TRUE(run_bytes_test("bytes_test_validate_rejects_overflowing_range").is_truthy()); }
+TEST(BytesTest, IndexOf) { EXPECT_TRUE(run_bytes_test("bytes_test_index_of").is_truthy()); }
+TEST(BytesTest, Contains) { EXPECT_TRUE(run_bytes_test("bytes_test_contains").is_truthy()); }
+TEST(BytesTest, StartsEndsWith) { EXPECT_TRUE(run_bytes_test("bytes_test_starts_ends_with").is_truthy()); }
+TEST(BytesTest, SearchFromSlice) { EXPECT_TRUE(run_bytes_test("bytes_test_search_from_slice").is_truthy()); }
+TEST(BytesTest, SearchRejectsBadByte) { EXPECT_TRUE(run_bytes_test("bytes_test_search_rejects_bad_byte").is_truthy()); }
+TEST(BytesTest, StartsEndsEmptyAffix) { EXPECT_TRUE(run_bytes_test("bytes_test_starts_ends_empty_affix").is_truthy()); }
+TEST(BytesTest, Concat) { EXPECT_TRUE(run_bytes_test("bytes_test_concat").is_truthy()); }
+TEST(BytesTest, ConcatUsesSliceView) { EXPECT_TRUE(run_bytes_test("bytes_test_concat_uses_slice_view").is_truthy()); }
+TEST(BytesTest, Repeat) { EXPECT_TRUE(run_bytes_test("bytes_test_repeat").is_truthy()); }
+TEST(BytesTest, Trim) { EXPECT_TRUE(run_bytes_test("bytes_test_trim").is_truthy()); }
+TEST(BytesTest, TrimAllWhitespace) { EXPECT_TRUE(run_bytes_test("bytes_test_trim_all_whitespace").is_truthy()); }
+TEST(BytesTest, RepeatRejectsBadCount) { EXPECT_TRUE(run_bytes_test("bytes_test_repeat_rejects_bad_count").is_truthy()); }
+TEST(BytesTest, RepeatEmptySourceHugeCount) { EXPECT_TRUE(run_bytes_test("bytes_test_repeat_empty_source_huge_count").is_truthy()); }
+TEST(BytesTest, TrimAllWhitespaceVariants) { EXPECT_TRUE(run_bytes_test("bytes_test_trim_all_whitespace_variants").is_truthy()); }
+TEST(BytesTest, TrimEmptyAndSlice) { EXPECT_TRUE(run_bytes_test("bytes_test_trim_empty_and_slice").is_truthy()); }
+TEST(BytesTest, ToHexKnownVector) { EXPECT_TRUE(run_bytes_test("bytes_test_to_hex_known_vector").is_truthy()); }
+TEST(BytesTest, FromHexRoundtrip) { EXPECT_TRUE(run_bytes_test("bytes_test_from_hex_roundtrip").is_truthy()); }
+TEST(BytesTest, FromHexRejectsOddLength) { EXPECT_TRUE(run_bytes_test("bytes_test_from_hex_rejects_odd_length").is_truthy()); }
+TEST(BytesTest, FromHexRejectsNonHex) { EXPECT_TRUE(run_bytes_test("bytes_test_from_hex_rejects_non_hex").is_truthy()); }
+TEST(BytesTest, FromHexEmpty) { EXPECT_TRUE(run_bytes_test("bytes_test_from_hex_empty").is_truthy()); }
+TEST(BytesTest, HexEdgeCases) { EXPECT_TRUE(run_bytes_test("bytes_test_hex_edge_cases").is_truthy()); }
+TEST(BytesTest, HexMixedCaseAndSlice) { EXPECT_TRUE(run_bytes_test("bytes_test_hex_mixed_case_and_slice").is_truthy()); }

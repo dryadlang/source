@@ -1,0 +1,499 @@
+// @std/text behavior tests, loaded by tests/unit/text_test.cpp.
+
+import {
+    Text_Length, Text_CharAt, Text_CodePointAt, Text_FromCodePoint,
+    Text_Slice, Text_Substring, Text_IndexOf, Text_LastIndexOf,
+    Text_Includes, Text_StartsWith, Text_EndsWith, Text_Equals, Text_Compare,
+    Text_CodePoints, Text_CharCount,
+    Text_ToLowerAscii, Text_ToUpperAscii, Text_Trim, Text_TrimStart, Text_TrimEnd,
+    Text_Repeat, Text_PadStart, Text_PadEnd,
+    Text_Split, Text_Join, Text_Replace, Text_ReplaceAll,
+    Text_ParseInt, Text_FormatInt, Text_ParseFloat, Text_FormatFloat,
+    StringBuilder, TextView
+} from "@std/text/text";
+import { Buffer_New, Buffer_FromString, Buffer_Write, Buffer_Slice, Buffer_Dispose } from "@std/buffers/buffer";
+
+function text_test_length_is_bytes() {
+    let ascii = Text_Length("abc");
+    let utf8 = Text_Length("é");
+    return ascii[1] == null && ascii[0] == 3 &&
+           utf8[1] == null && utf8[0] == 2;
+}
+
+function text_test_char_at_uses_byte_indexes() {
+    let first = Text_CharAt("é", 0);
+    let second = Text_CharAt("é", 1);
+    let bad = Text_CharAt("é", 2);
+    return first[1] == null && Text_Length(first[0])[0] == 1 &&
+           second[1] == null && Text_Length(second[0])[0] == 1 &&
+           bad[1] != null;
+}
+
+function text_test_code_point_at() {
+    let e = Text_CodePointAt("é", 0);
+    let euro = Text_CodePointAt("€", 0);
+    let emoji = Text_CodePointAt("😀", 0);
+    return e[1] == null && e[0] == 233 &&
+           euro[1] == null && euro[0] == 8364 &&
+           emoji[1] == null && emoji[0] == 128512;
+}
+
+function text_test_code_point_at_rejects_continuation_byte() {
+    let r = Text_CodePointAt("é", 1);
+    return r[1] != null;
+}
+
+function text_test_from_code_point() {
+    let e = Text_FromCodePoint(233);
+    let euro = Text_FromCodePoint(8364);
+    let emoji = Text_FromCodePoint(128512);
+    let bad = Text_FromCodePoint(1114112);
+    let surrogate = Text_FromCodePoint(55296);
+    return e[1] == null && e[0] == "é" &&
+           euro[1] == null && euro[0] == "€" &&
+           emoji[1] == null && emoji[0] == "😀" &&
+           bad[1] != null && surrogate[1] != null;
+}
+
+function text_test_slice_and_substring() {
+    let s = Text_Slice("abcdef", 1, 4);
+    let sub = Text_Substring("abcdef", 1, 3);
+    let empty = Text_Slice("abcdef", 2, 2);
+    let bad = Text_Slice("abcdef", 4, 2);
+    return s[1] == null && s[0] == "bcd" &&
+           sub[1] == null && sub[0] == "bcd" &&
+           empty[1] == null && empty[0] == "" &&
+           bad[1] != null;
+}
+
+function text_test_index_of_and_last_index_of() {
+    let first = Text_IndexOf("abcabc", "bc");
+    let last = Text_LastIndexOf("abcabc", "bc");
+    let missing = Text_IndexOf("abcabc", "zz");
+    let empty = Text_IndexOf("abc", "");
+    let ok = first[1] == null && first[0] == 1 &&
+             last[1] == null && last[0] == 4 &&
+             missing[1] == null && missing[0] == -1 &&
+             empty[1] == null && empty[0] == 0;
+    return ok;
+}
+
+function text_test_includes_and_affixes() {
+    let yes = Text_Includes("hello", "ell");
+    let no = Text_Includes("hello", "zz");
+    let starts = Text_StartsWith("hello", "he");
+    let ends = Text_EndsWith("hello", "lo");
+    let longer = Text_StartsWith("he", "hello");
+    let ok = yes[1] == null && yes[0] &&
+             no[1] == null && no[0] == false &&
+             starts[1] == null && starts[0] &&
+             ends[1] == null && ends[0] &&
+             longer[1] == null && longer[0] == false;
+    return ok;
+}
+
+function text_test_equals_and_compare() {
+    let eq = Text_Equals("abc", "abc");
+    let ne = Text_Equals("abc", "abd");
+    let lt = Text_Compare("abc", "abd");
+    let gt = Text_Compare("abd", "abc");
+    let same = Text_Compare("abc", "abc");
+    let ok = eq[1] == null && eq[0] &&
+             ne[1] == null && ne[0] == false &&
+             lt[1] == null && lt[0] == -1 &&
+             gt[1] == null && gt[0] == 1 &&
+             same[1] == null && same[0] == 0;
+    return ok;
+}
+
+function text_test_code_points_and_char_count() {
+    let points = Text_CodePoints("aé€");
+    let count = Text_CharCount("aé€");
+    let asciiCount = Text_CharCount("abc");
+    let empty = Text_CodePoints("");
+    let ok = points[1] == null && __runtime_array_length(points[0]) == 3 &&
+             points[0][0] == 97 && points[0][1] == 233 && points[0][2] == 8364 &&
+             count[1] == null && count[0] == 3 &&
+             asciiCount[1] == null && asciiCount[0] == 3 &&
+             empty[1] == null && __runtime_array_length(empty[0]) == 0;
+    return ok;
+}
+
+function text_test_empty_strings() {
+    let len = Text_Length("");
+    let slice = Text_Slice("", 0, 0);
+    let idx = Text_IndexOf("", "x");
+    let starts = Text_StartsWith("", "");
+    let ok = len[1] == null && len[0] == 0 &&
+             slice[1] == null && slice[0] == "" &&
+             idx[1] == null && idx[0] == -1 &&
+             starts[1] == null && starts[0];
+    return ok;
+}
+
+function text_test_utf8_rejections() {
+    // Overlong encoding of '/', a surrogate and a value above U+10FFFF, each
+    // built from raw bytes so the source file stays valid UTF-8.
+    let overlong = Text_FromCodePoint(47);       // sanity: valid
+    let surrogate = Text_CodePointAt("é", 1);    // continuation byte
+    let lastEmpty = Text_LastIndexOf("", "");
+    let firstEmpty = Text_IndexOf("", "");
+    let ok = overlong[1] == null && overlong[0] == "/" &&
+             surrogate[1] != null &&
+             lastEmpty[1] == null && lastEmpty[0] == 0 &&
+             firstEmpty[1] == null && firstEmpty[0] == 0;
+    return ok;
+}
+
+function text_test_ascii_case() {
+    let lower = Text_ToLowerAscii("AbC");
+    let upper = Text_ToUpperAscii("aBc");
+    let keep = Text_ToLowerAscii("éA");
+    let ok = lower[1] == null && lower[0] == "abc" &&
+             upper[1] == null && upper[0] == "ABC" &&
+             keep[1] == null && Text_Length(keep[0])[0] == 3 &&
+             Text_CharAt(keep[0], 0)[0] == Text_CharAt("é", 0)[0];
+    return ok;
+}
+
+function text_test_trim_only_ascii_whitespace() {
+    let all = Text_Trim("  \t\nabc\r ");
+    let start = Text_TrimStart("  abc ");
+    let end = Text_TrimEnd(" abc  ");
+    let nbspChar = Text_FromCodePoint(160);
+    let nbsp = Text_Trim(nbspChar[0] + "abc");
+    let ok = all[1] == null && all[0] == "abc" &&
+             start[1] == null && start[0] == "abc " &&
+             end[1] == null && end[0] == " abc" &&
+             nbsp[1] == null && Text_Length(nbsp[0])[0] == 5;
+    return ok;
+}
+
+function text_test_repeat_and_pad() {
+    let rep = Text_Repeat("ab", 3);
+    let zero = Text_Repeat("ab", 0);
+    let neg = Text_Repeat("ab", -1);
+    let padStart = Text_PadStart("7", 3, "0");
+    let padEnd = Text_PadEnd("7", 3, "0");
+    let wide = Text_PadStart("abcd", 2, "0");
+    let ok = rep[1] == null && rep[0] == "ababab" &&
+             zero[1] == null && zero[0] == "" &&
+             neg[1] != null &&
+             padStart[1] == null && padStart[0] == "007" &&
+             padEnd[1] == null && padEnd[0] == "700" &&
+             wide[1] == null && wide[0] == "abcd";
+    return ok;
+}
+
+function text_test_split() {
+    let parts = Text_Split("a,b,,c", ",");
+    let empty = Text_Split("", ",");
+    let trailing = Text_Split("a,", ",");
+    let missing = Text_Split("abc", ",");
+    let ok = parts[1] == null && __runtime_array_length(parts[0]) == 4 &&
+             parts[0][2] == "" &&
+             empty[1] == null && __runtime_array_length(empty[0]) == 1 && empty[0][0] == "" &&
+             trailing[1] == null && __runtime_array_length(trailing[0]) == 2 && trailing[0][1] == "" &&
+             missing[1] == null && __runtime_array_length(missing[0]) == 1 && missing[0][0] == "abc";
+    return ok;
+}
+
+function text_test_split_rejects_empty_separator() {
+    let r = Text_Split("abc", "");
+    return r[1] != null;
+}
+
+function text_test_join() {
+    let parts = ["a", "b", "c"];
+    let joined = Text_Join(parts, "-");
+    let single = Text_Join(["a"], "-");
+    let none = Text_Join([], "-");
+    let ok = joined[1] == null && joined[0] == "a-b-c" &&
+             single[1] == null && single[0] == "a" &&
+             none[1] == null && none[0] == "";
+    return ok;
+}
+
+function text_test_replace() {
+    let first = Text_Replace("aaa", "a", "b");
+    let all = Text_ReplaceAll("aaa", "a", "b");
+    let none = Text_ReplaceAll("aaa", "z", "b");
+    let emptyNeedle = Text_Replace("aaa", "", "b");
+    let ok = first[1] == null && first[0] == "baa" &&
+             all[1] == null && all[0] == "bbb" &&
+             none[1] == null && none[0] == "aaa" &&
+             emptyNeedle[1] != null;
+    return ok;
+}
+
+function text_test_replace_deletes_and_joins_empty_separator() {
+    let deleted = Text_ReplaceAll("abcabc", "b", "");
+    let joined = Text_Join(["a", "b", "c"], "");
+    let withEmpty = Text_Join(["", "a", ""], "-");
+    let badPart = Text_Join(["a", null], "-");
+    let ok = deleted[1] == null && deleted[0] == "acac" &&
+             joined[1] == null && joined[0] == "abc" &&
+             withEmpty[1] == null && withEmpty[0] == "-a-" &&
+             badPart[1] != null;
+    return ok;
+}
+
+function text_test_split_part_contents() {
+    let parts = Text_Split("a,b,,c", ",");
+    let ok = parts[1] == null &&
+             parts[0][0] == "a" && parts[0][1] == "b" &&
+             parts[0][2] == "" && parts[0][3] == "c";
+    return ok;
+}
+
+function text_test_parse_int() {
+    let dec = Text_ParseInt("42", 10);
+    let neg = Text_ParseInt("-17", 10);
+    let hex = Text_ParseInt("ff", 16);
+    let bin = Text_ParseInt("1010", 2);
+    let badBase = Text_ParseInt("10", 3);
+    let badDigit = Text_ParseInt("12", 2);
+    let empty = Text_ParseInt("", 10);
+    let spaces = Text_ParseInt(" 42", 10);
+    let ok = dec[1] == null && dec[0] == 42 &&
+             neg[1] == null && neg[0] == -17 &&
+             hex[1] == null && hex[0] == 255 &&
+             bin[1] == null && bin[0] == 10 &&
+             badBase[1] != null && badDigit[1] != null &&
+             empty[1] != null && spaces[1] != null;
+    return ok;
+}
+
+function text_test_parse_int_rejects_overflow() {
+    let tooBig = Text_ParseInt("9223372036854775808", 10);
+    let minValue = Text_ParseInt("-9223372036854775808", 10);
+    return tooBig[1] != null && minValue[1] == null &&
+           minValue[0] == -9223372036854775807 - 1;
+}
+
+function text_test_format_int() {
+    let dec = Text_FormatInt(42, 10);
+    let neg = Text_FormatInt(-17, 10);
+    let hex = Text_FormatInt(255, 16);
+    let minValue = Text_FormatInt(-9223372036854775807 - 1, 10);
+    let badBase = Text_FormatInt(1, 3);
+    let ok = dec[1] == null && dec[0] == "42" &&
+             neg[1] == null && neg[0] == "-17" &&
+             hex[1] == null && hex[0] == "ff" &&
+             minValue[1] == null && minValue[0] == "-9223372036854775808" &&
+             badBase[1] != null;
+    return ok;
+}
+
+function text_test_parse_float() {
+    let whole = Text_ParseFloat("42");
+    let frac = Text_ParseFloat("-3.5");
+    let exp = Text_ParseFloat("1e3");
+    let bad = Text_ParseFloat("1.2.3");
+    let empty = Text_ParseFloat("");
+    let ok = whole[1] == null && whole[0] == 42.0 &&
+             frac[1] == null && frac[0] == -3.5 &&
+             exp[1] == null && exp[0] == 1000.0 &&
+             bad[1] != null && empty[1] != null;
+    return ok;
+}
+
+function text_test_format_float() {
+    let two = Text_FormatFloat(3.14159, 2);
+    let zero = Text_FormatFloat(3.7, 0);
+    let negHalf = Text_FormatFloat(-0.5, 0);
+    let whole = Text_FormatFloat(42.0, 3);
+    let badPrecision = Text_FormatFloat(1.0, 16);
+    let ok = two[1] == null && two[0] == "3.14" &&
+             zero[1] == null && zero[0] == "4" &&
+             negHalf[1] == null && negHalf[0] == "-1" &&
+             whole[1] == null && whole[0] == "42.000" &&
+             badPrecision[1] != null;
+    return ok;
+}
+
+function text_test_numeric_edges() {
+    let hexUpper = Text_ParseInt("FF", 16);
+    let plus = Text_ParseInt("+42", 10);
+    let binFormat = Text_FormatInt(10, 2);
+    let octFormat = Text_FormatInt(8, 8);
+    let negExp = Text_ParseFloat("2.5e-2");
+    let junk = Text_ParseFloat("1.2x");
+    let nan = Text_ParseFloat("nan");
+    let inf = Text_FormatFloat(1.0 / 0.0, 2);
+    let ok = hexUpper[1] == null && hexUpper[0] == 255 &&
+             plus[1] == null && plus[0] == 42 &&
+             binFormat[1] == null && binFormat[0] == "1010" &&
+             octFormat[1] == null && octFormat[0] == "10" &&
+             negExp[1] == null && negExp[0] == 0.025 &&
+             junk[1] != null &&
+             nan[1] != null &&
+             inf[1] != null;
+    return ok;
+}
+
+function text_test_format_float_negative_zero_and_precision() {
+    let negZero = Text_FormatFloat(-0.4, 0);
+    let maxPrecision = Text_FormatFloat(1.0, 15);
+    let ok = negZero[1] == null && negZero[0] == "-0" &&
+             maxPrecision[1] == null && Text_Length(maxPrecision[0])[0] == 17 &&
+             Text_Slice(maxPrecision[0], 0, 2)[0] == "1.";
+    return ok;
+}
+
+function text_test_string_builder() {
+    let sb = new StringBuilder(4);
+    sb.append("ab");
+    sb.appendChar("c");
+    let mid = sb.toString();
+    let len = sb.length();
+    sb.clear();
+    let cleared = sb.toString();
+    let clearedLen = sb.length();
+    sb.appendBuffer(null);
+    let ok = mid == "abc" && len == 3 &&
+             cleared == "" && clearedLen == 0;
+    return ok;
+}
+
+function text_test_string_builder_growth() {
+    let sb = new StringBuilder(2);
+    let chunk = "0123456789";
+    let i = 0;
+    while (i < 1000) {
+        sb.append(chunk);
+        i = i + 1;
+    }
+    let out = sb.toString();
+    let ok = sb.length() == 10000 && Text_Length(out)[0] == 10000 &&
+             Text_CharAt(out, 0)[0] == "0" &&
+             Text_CharAt(out, 9999)[0] == "9";
+    return ok;
+}
+
+function text_test_string_builder_append_buffer_slice() {
+    let parent = Buffer_New(4);
+    Buffer_Write(parent, 2, 65);
+    Buffer_Write(parent, 3, 66);
+    let slice = Buffer_Slice(parent, 2, 4);
+    let sb = new StringBuilder(1);
+    let err = sb.appendBuffer(slice);
+    let text = sb.toString();
+    let bad = sb.appendBuffer(__runtime_create_object());
+    let ok = err == null && text == "AB" && sb.length() == 2 &&
+             bad != null;
+    Buffer_Dispose(parent);
+    return ok;
+}
+
+function text_test_text_view() {
+    let buf = Buffer_FromString("aé€");
+    let view = new TextView(buf, 0, 6);
+    let len = view.length();
+    let first = view.codePointAt(0);
+    let second = view.codePointAt(1);
+    let sub = view.slice(1, 3);
+    let subText = sub.toString();
+    let whole = view.toString();
+    let ok = len == 6 &&
+             first[1] == null && first[0] == 97 &&
+             second[1] == null && second[0] == 233 &&
+             subText == "é" &&
+             whole == "aé€";
+    Buffer_Dispose(buf);
+    return ok;
+}
+
+function text_test_text_view_bounds() {
+    let buf = Buffer_FromString("abc");
+    let view = new TextView(buf, 1, 2);
+    let text = view.toString();
+    let badSlice = view.slice(0, 3);
+    let ok = text == "bc" && badSlice != null;
+    Buffer_Dispose(buf);
+    return ok;
+}
+
+function text_test_text_view_rejects_cross_boundary_code_point() {
+    let buf = Buffer_FromString("aé");
+    let cut = new TextView(buf, 0, 2);   // 'a' + the first byte of 'é'
+    let inside = cut.codePointAt(0);
+    let crossing = cut.codePointAt(1);
+    let ok = inside[1] == null && inside[0] == 97 &&
+             crossing[1] != null;
+    Buffer_Dispose(buf);
+    return ok;
+}
+
+function text_test_string_builder_dispose() {
+    let sb = new StringBuilder(2);
+    sb.append("ab");
+    let first = sb.dispose();
+    let again = sb.dispose();
+    let after = sb.append("c");
+    return first == null && again == null && after != null;
+}
+
+function text_test_parse_float_exponent_bounds() {
+    let big = Text_ParseFloat("1e309");
+    let huge = Text_ParseFloat("1e1000");
+    let tiny = Text_ParseFloat("1e-400");
+    let zeroExp = Text_ParseFloat("0e999");
+    let scaled = Text_ParseFloat("9223372036854775807e308");
+    let ok = big[1] != null && huge[1] != null && scaled[1] != null &&
+             tiny[1] == null && tiny[0] == 0.0 &&
+             zeroExp[1] == null && zeroExp[0] == 0.0;
+    return ok;
+}
+
+function text_test_format_float_magnitude_limit() {
+    let big = Text_FormatFloat(10000000000000000000.0, 0);
+    return big[1] != null;
+}
+
+function text_test_last_index_of_empty_needle_nonempty() {
+    let r = Text_LastIndexOf("abc", "");
+    return r[1] == null && r[0] == 3;
+}
+
+function text_test_text_view_invalid_construction() {
+    let buf = Buffer_FromString("abc");
+    let nullBuffer = new TextView(null, 0, 1);
+    let negOffset = new TextView(buf, -1, 1);
+    let tooLong = new TextView(buf, 2, 5);
+    let missing = new TextView(buf, 4, -1);
+    let ok = __runtime_value_kind(nullBuffer.length()) == "string" &&
+             __runtime_value_kind(negOffset.length()) == "string" &&
+             __runtime_value_kind(tooLong.length()) == "string" &&
+             __runtime_value_kind(missing.toString()) == "string";
+    Buffer_Dispose(buf);
+    return ok;
+}
+
+function text_test_string_builder_append_buffer_after_dispose() {
+    let sb = new StringBuilder(2);
+    let src = Buffer_FromString("x");
+    sb.dispose();
+    let r = sb.appendBuffer(src);
+    Buffer_Dispose(src);
+    return r != null;
+}
+
+function text_test_null_arguments() {
+    let slice = Text_Slice(null, 0, 1);
+    let starts = Text_StartsWith(null, "a");
+    let join = Text_Join(null, "-");
+    let replace = Text_Replace("abc", null, "x");
+    let ok = slice[1] != null && starts[1] != null &&
+             join[1] != null && replace[1] != null;
+    return ok;
+}
+
+function text_test_null_argument_messages() {
+    // ArgumentNullException("text") renders as "text cannot be null".
+    let slice = Text_Slice(null, 0, 1);
+    let starts = Text_StartsWith(null, "a");
+    let ok = slice[1] == "text cannot be null" &&
+             starts[1] == "text cannot be null";
+    return ok;
+}

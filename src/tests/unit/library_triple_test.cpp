@@ -9,6 +9,7 @@
 #include "dryad/runtime/library_module.h"
 #include "dryad/runtime/value.h"
 #include <filesystem>
+#include <random>
 #include <fstream>
 #include <stdexcept>
 
@@ -18,6 +19,15 @@ namespace {
 
 std::string library_fixture_root() {
     return std::string(DRYAD_TEST_DIR) + "/fixtures/libs";
+}
+
+// Unique per process: parallel ctest cases each build a dyl-only library tree.
+std::string unique_suffix() {
+    static const std::string value = [] {
+        std::random_device rd;
+        return std::to_string(rd());
+    }();
+    return value;
 }
 
 std::string library_usage_source() {
@@ -91,7 +101,7 @@ TEST(LibraryTripleTest, AotCompileWithSourceLibrary) {
 }
 
 TEST(LibraryTripleTest, VmLoadsDylOnlyLibrary) {
-    const std::string dyl_only_root = library_fixture_root() + "/@test/dyl_only_triple";
+    const std::string dyl_only_root = library_fixture_root() + "/@test/dyl_only_triple_" + unique_suffix();
     const std::string dyl_path = dyl_only_root + "/@test/geom.dyl";
     std::filesystem::remove_all(dyl_only_root);
     std::filesystem::create_directories(dyl_only_root + "/@test");
@@ -111,7 +121,7 @@ TEST(LibraryTripleTest, VmLoadsDylOnlyLibrary) {
 }
 
 TEST(LibraryTripleTest, InterpreterLoadsDylOnlyLibrary) {
-    const std::string dyl_only_root = library_fixture_root() + "/@test/dyl_only_triple";
+    const std::string dyl_only_root = library_fixture_root() + "/@test/dyl_only_triple_" + unique_suffix();
     const std::string dyl_path = dyl_only_root + "/@test/geom.dyl";
     std::filesystem::remove_all(dyl_only_root);
     std::filesystem::create_directories(dyl_only_root + "/@test");

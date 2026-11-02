@@ -3,6 +3,7 @@
 #include "dryad/common/utils.h"
 #include <algorithm>
 #include <cerrno>
+#include <cmath>
 #include <ctime>
 #include <fcntl.h>
 #include <string>
@@ -17,33 +18,58 @@ IntrinsicsRegistry& IntrinsicsRegistry::instance() {
 }
 
 void IntrinsicsRegistry::register_intrinsic(const std::string& name, IntrinsicFunction func) {
+    std::unique_lock<std::shared_mutex> lock(mutex_);
+
+    // Registration is idempotent: every Interpreter construction calls
+    // register_all(), including from worker threads. Re-registering must not
+    // allocate new IDs, or compiled bytecode would drift away from the
+    // registry and concurrent interpreters would corrupt the maps.
+    auto existing = name_to_id_.find(name);
+    if (existing != name_to_id_.end()) {
+        intrinsics_[name] = std::move(func);
+        functions_by_id_[existing->second] = intrinsics_[name];
+        return;
+    }
+
+    const uint16_t id = next_id_++;
     intrinsics_[name] = func;
-    functions_by_id_[next_id_] = func;
-    name_to_id_[name] = next_id_;
-    next_id_++;
+    functions_by_id_[id] = std::move(func);
+    name_to_id_[name] = id;
 }
 
 Value IntrinsicsRegistry::call(const std::string& name, const std::vector<Value>& args) {
-    auto it = intrinsics_.find(name);
-    if (it == intrinsics_.end()) {
-        throw DryadException("Unknown intrinsic: " + name);
+    IntrinsicFunction fn;
+    {
+        std::shared_lock<std::shared_mutex> lock(mutex_);
+        auto it = intrinsics_.find(name);
+        if (it == intrinsics_.end()) {
+            throw DryadException("Unknown intrinsic: " + name);
+        }
+        fn = it->second;
     }
-    return it->second(args);
+    return fn(args);
 }
 
 bool IntrinsicsRegistry::has(const std::string& name) const {
+    std::shared_lock<std::shared_mutex> lock(mutex_);
     return intrinsics_.find(name) != intrinsics_.end();
 }
 
 Value IntrinsicsRegistry::call_by_id(uint16_t id, const std::vector<Value>& args) {
-    auto it = functions_by_id_.find(id);
-    if (it == functions_by_id_.end()) {
-        throw DryadException("Unknown intrinsic ID: " + std::to_string(id));
+    IntrinsicFunction fn;
+    {
+        std::shared_lock<std::shared_mutex> lock(mutex_);
+        auto it = functions_by_id_.find(id);
+        if (it == functions_by_id_.end()) {
+            throw DryadException("Unknown intrinsic ID: " + std::to_string(id));
+        }
+        fn = it->second;
     }
-    return it->second(args);
+    return fn(args);
 }
 
 uint16_t IntrinsicsRegistry::get_id(const std::string& name) const {
+    std::shared_lock<std::shared_mutex> lock(mutex_);
     auto it = name_to_id_.find(name);
     if (it == name_to_id_.end()) {
         throw DryadException("Intrinsic not registered: " + name);
@@ -52,6 +78,7 @@ uint16_t IntrinsicsRegistry::get_id(const std::string& name) const {
 }
 
 std::vector<std::pair<uint16_t, std::string>> IntrinsicsRegistry::list_all_intrinsics() const {
+    std::shared_lock<std::shared_mutex> lock(mutex_);
     std::vector<std::pair<uint16_t, std::string>> result;
     for (const auto& pair : name_to_id_) {
         result.emplace_back(pair.second, pair.first);
@@ -439,6 +466,46 @@ void IntrinsicsRegistry::register_all() {
     register_thread_intrinsics();
     register_event_loop_intrinsics();
     register_poller_intrinsics();
+
+    // Appended last on purpose: intrinsic IDs are positional and are stored
+    // in .dryadc companions. Inserting earlier would shift existing IDs.
+    register_intrinsic("syscall.memmove", [](const std::vector<Value>& args) -> Value {
+        if (args.size() < 5) {
+            throw DryadException("syscall.memmove requires 5 integer arguments");
+        }
+        for (size_t i = 0; i < 5; ++i) {
+            if (!args[i].is_integer()) {
+                throw DryadException("syscall.memmove requires 5 integer arguments");
+            }
+        }
+        return MemoryManager::memmove(args[0].as_integer(), args[1].as_integer(),
+                                      args[2].as_integer(), args[3].as_integer(),
+                                      args[4].as_integer());
+    });
+
+    // Appended after memmove for the same reason: IDs are positional and are
+    // stored in .dryadc companions.
+    register_intrinsic("syscall.float_to_int", [](const std::vector<Value>& args) -> Value {
+        if (args.size() < 1 || !args[0].is_number()) {
+            throw DryadException("syscall.float_to_int requires a number");
+        }
+        if (args[0].is_integer()) {
+            return Value(args[0].as_integer());
+        }
+        const double value = args[0].as_float();
+        if (!std::isfinite(value) || value >= 9223372036854775808.0 ||
+            value < -9223372036854775808.0) {
+            return Value();
+        }
+        return Value(static_cast<int64_t>(value));
+    });
+
+    register_intrinsic("syscall.int_to_float", [](const std::vector<Value>& args) -> Value {
+        if (args.size() < 1 || !args[0].is_integer()) {
+            throw DryadException("syscall.int_to_float requires an integer");
+        }
+        return Value(static_cast<double>(args[0].as_integer()));
+    });
 }
 
 } // namespace dryad

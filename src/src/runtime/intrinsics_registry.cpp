@@ -3,6 +3,7 @@
 #include "dryad/common/utils.h"
 #include <algorithm>
 #include <cerrno>
+#include <cmath>
 #include <ctime>
 #include <fcntl.h>
 #include <string>
@@ -480,6 +481,28 @@ void IntrinsicsRegistry::register_all() {
         return MemoryManager::memmove(args[0].as_integer(), args[1].as_integer(),
                                       args[2].as_integer(), args[3].as_integer(),
                                       args[4].as_integer());
+    });
+
+    // Appended after memmove for the same reason: IDs are positional and are
+    // stored in .dryadc companions.
+    register_intrinsic("syscall.float_to_int", [](const std::vector<Value>& args) -> Value {
+        if (args.size() < 1 || !args[0].is_number()) {
+            throw DryadException("syscall.float_to_int requires a number");
+        }
+        const double value = args[0].is_float() ? args[0].as_float()
+                                                : static_cast<double>(args[0].as_integer());
+        if (!std::isfinite(value) || value >= 9223372036854775808.0 ||
+            value < -9223372036854775808.0) {
+            return Value();
+        }
+        return Value(static_cast<int64_t>(value));
+    });
+
+    register_intrinsic("syscall.int_to_float", [](const std::vector<Value>& args) -> Value {
+        if (args.size() < 1 || !args[0].is_integer()) {
+            throw DryadException("syscall.int_to_float requires an integer");
+        }
+        return Value(static_cast<double>(args[0].as_integer()));
     });
 }
 

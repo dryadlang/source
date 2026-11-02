@@ -8,6 +8,8 @@
 #include <unistd.h>
 #include <fstream>
 #include <atomic>
+#include <cstdint>
+#include <limits>
 #include <thread>
 #include <vector>
 
@@ -263,4 +265,29 @@ TEST(IntrinsicsRegistryThreadSafetyTest, ConcurrentRegistrationIsIdempotent) {
 
     EXPECT_TRUE(stable.load());
     EXPECT_EQ(registry.get_id("syscall.memmove"), expected);
+}
+
+TEST_F(IntrinsicsTest, FloatToIntTruncatesTowardZero) {
+    auto& registry = IntrinsicsRegistry::instance();
+    EXPECT_EQ(registry.call("syscall.float_to_int", {Value(3.9)}).as_integer(), 3);
+    EXPECT_EQ(registry.call("syscall.float_to_int", {Value(-3.9)}).as_integer(), -3);
+    EXPECT_EQ(registry.call("syscall.float_to_int", {Value(0.0)}).as_integer(), 0);
+}
+
+TEST_F(IntrinsicsTest, FloatToIntRejectsOutOfRangeAndNonFinite) {
+    auto& registry = IntrinsicsRegistry::instance();
+    EXPECT_TRUE(registry.call("syscall.float_to_int",
+                              {Value(9223372036854775808.0)}).is_null());
+    EXPECT_TRUE(registry.call("syscall.float_to_int",
+                              {Value(-9223372036854775808.0 * 2.0)}).is_null());
+    EXPECT_TRUE(registry.call("syscall.float_to_int",
+                              {Value(std::numeric_limits<double>::infinity())}).is_null());
+    EXPECT_TRUE(registry.call("syscall.float_to_int",
+                              {Value(std::numeric_limits<double>::quiet_NaN())}).is_null());
+}
+
+TEST_F(IntrinsicsTest, IntToFloatConverts) {
+    auto& registry = IntrinsicsRegistry::instance();
+    EXPECT_DOUBLE_EQ(registry.call("syscall.int_to_float", {Value(int64_t(42))}).as_float(), 42.0);
+    EXPECT_DOUBLE_EQ(registry.call("syscall.int_to_float", {Value(int64_t(-7))}).as_float(), -7.0);
 }

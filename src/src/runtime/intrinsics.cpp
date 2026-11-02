@@ -239,7 +239,9 @@ Value MemoryManager::read_fd_to_buffer(int64_t fd, int64_t handle, int64_t offse
     ssize_t nbytes = ::read(static_cast<int>(fd), staging.data(), staging.size());
     if (nbytes > 0) {
         std::lock_guard<std::mutex> lock(allocation_mutex);
-        if (meta->is_freed || !meta->data) {
+        // realloc may have shrunk the allocation while the call was unlocked.
+        if (meta->is_freed || !meta->data ||
+            offset + static_cast<int64_t>(nbytes) > static_cast<int64_t>(meta->size)) {
             return Value(static_cast<int64_t>(-1));
         }
         std::memcpy(meta->data + offset, staging.data(),
@@ -293,7 +295,9 @@ Value MemoryManager::io_buffer(int64_t handle, int64_t offset, int64_t count,
     ssize_t nbytes = io(staging.data(), staging.size());
     if (nbytes > 0) {
         std::lock_guard<std::mutex> lock(allocation_mutex);
-        if (meta->is_freed || !meta->data) {
+        // realloc may have shrunk the allocation while the call was unlocked.
+        if (meta->is_freed || !meta->data ||
+            offset + static_cast<int64_t>(nbytes) > static_cast<int64_t>(meta->size)) {
             return Value(static_cast<int64_t>(-1));
         }
         std::memcpy(meta->data + offset, staging.data(),
@@ -373,7 +377,9 @@ Value MemoryManager::recvfrom_buffer(int64_t fd, int64_t handle, int64_t offset,
     }
     if (nbytes > 0) {
         std::lock_guard<std::mutex> lock(allocation_mutex);
-        if (meta->is_freed || !meta->data) {
+        // realloc may have shrunk the allocation while the call was unlocked.
+        if (meta->is_freed || !meta->data ||
+            offset + static_cast<int64_t>(nbytes) > static_cast<int64_t>(meta->size)) {
             return make_result(-1, "", 0);
         }
         std::memcpy(meta->data + offset, staging.data(),

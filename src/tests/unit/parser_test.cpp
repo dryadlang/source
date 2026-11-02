@@ -354,3 +354,60 @@ TEST(ParserTest, NestedMemberAccess) {
     ASSERT_NE(prop, nullptr);
     EXPECT_EQ(prop->name, "d");
 }
+
+namespace {
+
+BinaryExpression* binary_root(Program* program) {
+    auto* stmt = dynamic_cast<ExpressionStatement*>(program->statements[0].get());
+    return dynamic_cast<BinaryExpression*>(stmt->expression.get());
+}
+
+} // namespace
+
+TEST(ParserTest, BitwiseAndBindsTighterThanOr) {
+    auto program = parse("1 | 2 & 3;");
+    auto* root = binary_root(program.get());
+    ASSERT_NE(root, nullptr);
+    EXPECT_EQ(root->op, TokenType::Pipe);
+    auto* right = dynamic_cast<BinaryExpression*>(root->right.get());
+    ASSERT_NE(right, nullptr);
+    EXPECT_EQ(right->op, TokenType::Ampersand);
+}
+
+TEST(ParserTest, EqualityBindsTighterThanBitwiseAnd) {
+    auto program = parse("1 & 3 == 1;");
+    auto* root = binary_root(program.get());
+    ASSERT_NE(root, nullptr);
+    EXPECT_EQ(root->op, TokenType::Ampersand);
+    auto* right = dynamic_cast<BinaryExpression*>(root->right.get());
+    ASSERT_NE(right, nullptr);
+    EXPECT_EQ(right->op, TokenType::EqualEqual);
+}
+
+TEST(ParserTest, ShiftBindsTighterThanComparison) {
+    auto program = parse("1 << 2 < 5;");
+    auto* root = binary_root(program.get());
+    ASSERT_NE(root, nullptr);
+    EXPECT_EQ(root->op, TokenType::Less);
+    auto* left = dynamic_cast<BinaryExpression*>(root->left.get());
+    ASSERT_NE(left, nullptr);
+    EXPECT_EQ(left->op, TokenType::LessLess);
+}
+
+TEST(ParserTest, AdditionBindsTighterThanShift) {
+    auto program = parse("1 << 2 + 1;");
+    auto* root = binary_root(program.get());
+    ASSERT_NE(root, nullptr);
+    EXPECT_EQ(root->op, TokenType::LessLess);
+    auto* right = dynamic_cast<BinaryExpression*>(root->right.get());
+    ASSERT_NE(right, nullptr);
+    EXPECT_EQ(right->op, TokenType::Plus);
+}
+
+TEST(ParserTest, TildeIsUnary) {
+    auto program = parse("~value;");
+    auto* stmt = dynamic_cast<ExpressionStatement*>(program->statements[0].get());
+    auto* unary = dynamic_cast<UnaryExpression*>(stmt->expression.get());
+    ASSERT_NE(unary, nullptr);
+    EXPECT_EQ(unary->op, TokenType::Tilde);
+}

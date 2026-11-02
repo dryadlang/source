@@ -63,3 +63,6 @@ TEST(BytesTest, ValidateRejectsOverflowingRange) { EXPECT_TRUE(run_bytes_test("b
 TEST(BytesTest, IndexOf) { EXPECT_TRUE(run_bytes_test("bytes_test_index_of").is_truthy()); }
 TEST(BytesTest, Contains) { EXPECT_TRUE(run_bytes_test("bytes_test_contains").is_truthy()); }
 TEST(BytesTest, StartsEndsWith) { EXPECT_TRUE(run_bytes_test("bytes_test_starts_ends_with").is_truthy()); }
+TEST(BytesTest, SearchFromSlice) { EXPECT_TRUE(run_bytes_test("bytes_test_search_from_slice").is_truthy()); }
+TEST(BytesTest, SearchRejectsBadByte) { EXPECT_TRUE(run_bytes_test("bytes_test_search_rejects_bad_byte").is_truthy()); }
+TEST(BytesTest, StartsEndsEmptyAffix) { EXPECT_TRUE(run_bytes_test("bytes_test_starts_ends_empty_affix").is_truthy()); }

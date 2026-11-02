@@ -44,6 +44,7 @@ private:
     std::vector<std::unique_ptr<FunctionDeclaration>> owned_lambdas_;
     size_t lambda_counter_ = 0;
     size_t lambda_base_index_ = 0;
+    bool allow_lambdas_ = true;
     Interpreter* interpreter_ = nullptr;
 
     uint16_t allocate_slot(const std::string& name, const std::string& annotation = "");

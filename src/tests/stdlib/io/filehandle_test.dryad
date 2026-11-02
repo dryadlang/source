@@ -45,6 +45,18 @@ function test_filehandle_use_after_close() {
     return err != null;
 }
 
+function test_filehandle_write_accumulates() {
+    setVFSBackend(MemoryBackend());
+    let writer = FileHandle("/twice.txt", "write");
+    FileHandle_write(writer, "ab");
+    FileHandle_write(writer, "cd");
+    FileHandle_close(writer);
+    let reader = FileHandle("/twice.txt", "read");
+    let content = FileHandle_read(reader);
+    FileHandle_close(reader);
+    return content == "abcd";
+}
+
 function test_filehandle_append() {
     setVFSBackend(MemoryBackend());
     let writer = FileHandle("/app.txt", "write");

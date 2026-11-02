@@ -3,6 +3,7 @@
 
 import { Stream, Stream_isError, SeekOrigin_Begin, SeekOrigin_End } from "@std/io/stream";
 import { Path_ensureParentForFile } from "@std/io/path";
+import { ValidatePath } from "@std/io/io_errors";
 import {
     Buffer_GetActualHandle,
     Buffer_GetOffset,
@@ -218,8 +219,9 @@ class FileStream extends Stream {
 }
 
 function File_open(path, mode) {
-    if (path == null || path == "") {
-        return ArgumentException("Path cannot be null or empty");
+    let pathErr = ValidatePath(path);
+    if (pathErr != null) {
+        return pathErr;
     }
     if (mode == null) {
         mode = FileMode_Read;
@@ -257,15 +259,16 @@ function File_open(path, mode) {
 }
 
 function File_exists(path) {
-    if (path == null || path == "") {
+    if (ValidatePath(path) != null) {
         return false;
     }
     return __exists(path);
 }
 
 function File_delete(path) {
-    if (path == null || path == "") {
-        return ArgumentException("Path cannot be null or empty");
+    let pathErr = ValidatePath(path);
+    if (pathErr != null) {
+        return pathErr;
     }
     if (!__exists(path)) {
         return IOException("Cannot delete: " + path);

@@ -37,7 +37,7 @@ private:
     Value evaluate_arithmetic(TokenType op, const Value& left, const Value& right);
     Value evaluate_bitwise(TokenType op, const Value& left, const Value& right);
     Value evaluate_comparison(TokenType op, const Value& left, const Value& right);
-    Value evaluate_logical(TokenType op, const Value& left, const Value& right);
+    Value evaluate_logical(TokenType op, const Value& left, Expression* right);
 };
 
 } // namespace dryad

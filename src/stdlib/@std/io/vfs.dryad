@@ -136,7 +136,7 @@ function VFS_exists(vfs, path) {
     
     let disposed = __runtime_object_get(vfs, "disposed");
     if (disposed) {
-        return ObjectDisposedException("VFS");
+        return false;
     }
     
     if (path == null || path == "") {
@@ -239,7 +239,7 @@ function FileSystemBackend_exists(backend, path) {
         return false;
     }
 
-    if (path == null || path == "") {
+    if (ValidatePath(path) != null) {
         return false;
     }
 
@@ -284,6 +284,9 @@ function FileSystemBackend_listDirectory(backend, path) {
 
     if (path == null || path == "") {
         path = "/";
+    }
+    if (ValidatePath(path) != null) {
+        return [];
     }
 
     let normalizedPath = NormalizePath(path);
@@ -533,6 +536,10 @@ function NativeBackend_readFile(backend, path) {
     let content = "";
     if (size > 0) {
         content = __read(fd, size);
+        if (__runtime_value_kind(content) != "string") {
+            __close(fd);
+            return IOException("Failed to read file: " + path);
+        }
     }
     __close(fd);
     return content;
@@ -556,7 +563,7 @@ function NativeBackend_writeFile(backend, path, content) {
 
     let written = __write(fd, content);
     __close(fd);
-    if (written < 0) {
+    if (written != __string_length(content)) {
         return IOException("Failed to write file: " + path);
     }
     return null;

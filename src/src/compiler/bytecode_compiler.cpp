@@ -327,6 +327,10 @@ void BytecodeCompiler::compile_expression(Expression* expr) {
             break;
 
         case ASTNodeType::FunctionExpression: {
+            if (!allow_lambdas_) {
+                throw DryadException(
+                    "Bytecode compiler: function expressions require interpreter");
+            }
             const uint16_t function_index =
                 compile_lambda(static_cast<FunctionExpression*>(expr));
             builder_.emit_make_function(function_index);
@@ -735,16 +739,27 @@ uint16_t BytecodeCompiler::compile_lambda(FunctionExpression* expr) {
         throw DryadException("Bytecode compiler: invalid function expression");
     }
 
+    std::unique_ptr<FunctionDeclaration> borrowed_owner;
     FunctionDeclaration* decl = nullptr;
     if (expr->body) {
         const std::string name = "__lambda_" + std::to_string(lambda_counter_++);
-        auto owned = std::make_unique<FunctionDeclaration>(
+        std::vector<Parameter> parameters;
+        parameters.reserve(expr->parameters.size());
+        for (const auto& param : expr->parameters) {
+            parameters.emplace_back(param.name, param.type_annotation);
+        }
+        borrowed_owner = std::make_unique<FunctionDeclaration>(
             name,
-            std::move(expr->parameters),
-            std::move(expr->body),
-            std::move(expr->return_type));
-        owned_lambdas_.push_back(std::move(owned));
-        decl = owned_lambdas_.back().get();
+            std::move(parameters),
+            nullptr,
+            expr->return_type,
+            false,
+            false,
+            false,
+            ExecutionMode::Inherit,
+            expr->location);
+        borrowed_owner->body.reset(expr->body.get());
+        decl = borrowed_owner.get();
     } else if (interpreter_) {
         decl = interpreter_->lookup_lambda_code(expr);
     }
@@ -767,7 +782,18 @@ uint16_t BytecodeCompiler::compile_lambda(FunctionExpression* expr) {
     auto saved_loop_stack = loop_stack_;
     const FunctionProfile* saved_profile = profile_;
 
-    lambda_functions_.push_back(compile_function(decl, nullptr));
+    try {
+        lambda_functions_.push_back(compile_function(decl, nullptr));
+    } catch (...) {
+        if (borrowed_owner) {
+            borrowed_owner->body.release();
+        }
+        throw;
+    }
+    if (borrowed_owner) {
+        borrowed_owner->body.release();
+        owned_lambdas_.push_back(std::move(borrowed_owner));
+    }
 
     builder_ = std::move(saved_builder);
     slot_map_ = std::move(saved_slot_map);
@@ -856,6 +882,9 @@ CompiledProgram BytecodeCompiler::compile_program(Program* program, const TypePr
     function_indices_.clear();
     uint16_t next_index = 0;
 
+    // Named functions that close over locals stay on the interpreter. Compiling
+    // them would move or mis-compile the nested function expression.
+    allow_lambdas_ = false;
     for (auto& stmt : program->statements) {
         if (stmt->type != ASTNodeType::FunctionDeclaration) {
             continue;
@@ -881,6 +910,7 @@ CompiledProgram BytecodeCompiler::compile_program(Program* program, const TypePr
             throw;
         }
     }
+    allow_lambdas_ = true;
 
     std::unique_ptr<FunctionDeclaration> script_entry = synthesize_script_entry_function(program);
     if (script_entry) {

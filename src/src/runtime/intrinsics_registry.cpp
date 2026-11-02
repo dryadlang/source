@@ -12,6 +12,50 @@
 
 namespace dryad {
 
+namespace {
+
+bool path_contains_nul(const std::string& path) {
+    return path.find('\0') != std::string::npos;
+}
+
+ssize_t write_all(int fd, const char* data, size_t size) {
+    size_t offset = 0;
+    while (offset < size) {
+        ssize_t n = ::write(fd, data + offset, size - offset);
+        if (n < 0) {
+            if (errno == EINTR) {
+                continue;
+            }
+            return -1;
+        }
+        if (n == 0) {
+            return -1;
+        }
+        offset += static_cast<size_t>(n);
+    }
+    return static_cast<ssize_t>(offset);
+}
+
+ssize_t read_up_to(int fd, char* data, size_t size) {
+    size_t offset = 0;
+    while (offset < size) {
+        ssize_t n = ::read(fd, data + offset, size - offset);
+        if (n < 0) {
+            if (errno == EINTR) {
+                continue;
+            }
+            return offset == 0 ? -1 : static_cast<ssize_t>(offset);
+        }
+        if (n == 0) {
+            break;
+        }
+        offset += static_cast<size_t>(n);
+    }
+    return static_cast<ssize_t>(offset);
+}
+
+} // namespace
+
 IntrinsicsRegistry& IntrinsicsRegistry::instance() {
     static IntrinsicsRegistry registry;
     return registry;
@@ -103,8 +147,14 @@ void IntrinsicsRegistry::register_file_io_intrinsics() {
         
         const std::string& path = args[0].as_string();
         int64_t flags = args[1].as_integer();
-        
-        int fd = ::open(path.c_str(), static_cast<int>(flags), 0644);
+        if (path_contains_nul(path)) {
+            return Value(static_cast<int64_t>(-1));
+        }
+
+#ifndef O_CLOEXEC
+#define O_CLOEXEC 0
+#endif
+        int fd = ::open(path.c_str(), static_cast<int>(flags) | O_CLOEXEC, 0644);
         return Value(static_cast<int64_t>(fd));
     });
     
@@ -116,14 +166,17 @@ void IntrinsicsRegistry::register_file_io_intrinsics() {
         int64_t fd = args[0].as_integer();
         int64_t size = args[1].as_integer();
         
-        std::string buffer(size, '\0');
-        ssize_t n = ::read(static_cast<int>(fd), &buffer[0], size);
-        
+        if (size < 0) {
+            return Value(static_cast<int64_t>(-1));
+        }
+        std::string buffer(static_cast<size_t>(size), '\0');
+        ssize_t n = size == 0 ? 0 : read_up_to(static_cast<int>(fd), &buffer[0], static_cast<size_t>(size));
+
         if (n < 0) {
             return Value(static_cast<int64_t>(n));
         }
-        
-        buffer.resize(n);
+
+        buffer.resize(static_cast<size_t>(n));
         return Value(buffer);
     });
     
@@ -135,7 +188,7 @@ void IntrinsicsRegistry::register_file_io_intrinsics() {
         int64_t fd = args[0].as_integer();
         const std::string& data = args[1].as_string();
         
-        ssize_t n = ::write(static_cast<int>(fd), data.c_str(), data.size());
+        ssize_t n = write_all(static_cast<int>(fd), data.data(), data.size());
         return Value(static_cast<int64_t>(n));
     });
     
@@ -196,6 +249,9 @@ void IntrinsicsRegistry::register_file_io_intrinsics() {
         }
         
         const std::string& path = args[0].as_string();
+        if (path_contains_nul(path)) {
+            return Value(static_cast<int64_t>(-1));
+        }
         int result = ::unlink(path.c_str());
         return Value(static_cast<int64_t>(result));
     });
@@ -206,6 +262,9 @@ void IntrinsicsRegistry::register_file_io_intrinsics() {
         }
         
         const std::string& path = args[0].as_string();
+        if (path_contains_nul(path)) {
+            return Value(static_cast<int64_t>(-1));
+        }
         struct stat st;
         int result = ::stat(path.c_str(), &st);
         

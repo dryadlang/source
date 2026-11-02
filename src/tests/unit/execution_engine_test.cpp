@@ -274,3 +274,28 @@ TEST(ExecutionEngineTest, BytecodeCallsStdlibBufferViaGlobal) {
     Value result = interp.execution_engine().invoke_function(fn, nullptr, {});
     EXPECT_TRUE(result.is_truthy());
 }
+
+TEST(ExecutionEngineTest, BytecodeModeKeepsClosuresAndScriptLambdas) {
+    const std::string source = R"(
+        function makeMultiplier(factor) {
+            return function(x) {
+                return x * factor;
+            };
+        }
+        function anchor() {
+            return 1;
+        }
+        let double = makeMultiplier(2);
+        let scaled = double(21);
+        let f = function(v) { return v + 1; };
+        let bumped = f(41);
+    )";
+
+    Interpreter interp;
+    interp.set_default_execution_mode(ExecutionMode::Bytecode);
+    auto program = parse(source);
+    interp.execute(program.get());
+
+    EXPECT_EQ(interp.global_env()->get("scaled").as_integer(), 42);
+    EXPECT_EQ(interp.global_env()->get("bumped").as_integer(), 42);
+}

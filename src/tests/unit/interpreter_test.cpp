@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include "dryad/common/utils.h"
 #include "dryad/compiler/lexer.h"
 #include "dryad/compiler/parser.h"
 #include "dryad/compiler/interpreter.h"
@@ -167,6 +168,37 @@ TEST(InterpreterTest, LogicalOr) {
     EXPECT_TRUE(evaluate("true || false;").as_boolean());
     EXPECT_TRUE(evaluate("false || true;").as_boolean());
     EXPECT_FALSE(evaluate("false || false;").as_boolean());
+}
+
+TEST(InterpreterTest, LogicalOperatorsShortCircuit) {
+    const std::string source = R"(
+        let hit = 0;
+        function boom() {
+            hit = 1;
+            return 1;
+        }
+        let and_ok = false && boom();
+        let or_ok = true || boom();
+    )";
+
+    Lexer lexer(source);
+    auto tokens = lexer.tokenize();
+    Parser parser(std::move(tokens));
+    auto program = parser.parse();
+
+    Interpreter interp;
+    interp.execute(program.get());
+
+    EXPECT_EQ(interp.global_env()->get("hit").as_integer(), 0);
+    EXPECT_FALSE(interp.global_env()->get("and_ok").is_truthy());
+    EXPECT_TRUE(interp.global_env()->get("or_ok").is_truthy());
+    EXPECT_EQ(evaluate("true && 10;").as_integer(), 10);
+    EXPECT_EQ(evaluate("false || 20;").as_integer(), 20);
+}
+
+TEST(InterpreterTest, IntegerDivisionByZeroThrows) {
+    EXPECT_THROW(evaluate("1 / 0;"), DryadException);
+    EXPECT_THROW(evaluate("1 % 0;"), DryadException);
 }
 
 TEST(InterpreterTest, VariableDeclaration) {

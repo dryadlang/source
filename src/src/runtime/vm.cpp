@@ -280,7 +280,14 @@ void VM::dispatch_opcode(Opcode op) {
             if (!left.is_number() || !right.is_number()) {
                 throw DryadException("DIV requires numeric operands");
             }
-            stack_.push_back(Value(as_f64(left) / as_f64(right)));
+            if (left.is_integer() && right.is_integer()) {
+                if (right.as_integer() == 0) {
+                    throw DryadException("Division by zero");
+                }
+                stack_.push_back(Value(left.as_integer() / right.as_integer()));
+            } else {
+                stack_.push_back(Value(as_f64(left) / as_f64(right)));
+            }
             advance(1);
             break;
         }
@@ -293,6 +300,9 @@ void VM::dispatch_opcode(Opcode op) {
             stack_.pop_back();
             if (!left.is_integer() || !right.is_integer()) {
                 throw DryadException("MOD requires integer operands");
+            }
+            if (right.as_integer() == 0) {
+                throw DryadException("Modulo by zero");
             }
             stack_.push_back(Value(left.as_integer() % right.as_integer()));
             advance(1);
@@ -594,9 +604,10 @@ void VM::dispatch_opcode(Opcode op) {
                 throw DryadException("MAKE_FUNCTION requires a runtime delegate");
             }
             uint16_t function_index = read_u16_at(pc_ + 1);
+            VmRuntimeDelegate* delegate = runtime_delegate_;
             auto native_fn = std::make_shared<NativeFunction>(
-                [this, function_index](const std::vector<Value>& args) -> Value {
-                    return runtime_delegate_->invoke_bytecode_function(function_index, args);
+                [delegate, function_index](const std::vector<Value>& args) -> Value {
+                    return delegate->invoke_bytecode_function(function_index, args);
                 });
             stack_.push_back(Value(native_fn));
             advance(3);

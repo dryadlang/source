@@ -14,10 +14,13 @@ import {
     _getGlobalVFS
 } from "@std/io/file";
 
+import { ValidatePath } from "@std/io/io_errors";
+
 import {
     ArgumentException,
     ArgumentNullException,
     InvalidOperationException,
+    IOException,
     ObjectDisposedException
 } from "@std/core/exceptions";
 
@@ -32,8 +35,9 @@ import {
 // Returns:
 //   FileHandle object with lifecycle management
 function FileHandle(path, mode) {
-    if (path == null || path == "") {
-        return ArgumentException("Path cannot be null or empty");
+    let pathErr = ValidatePath(path);
+    if (pathErr != null) {
+        return pathErr;
     }
     
     if (mode == null || (mode != "read" && mode != "write" && mode != "append")) {
@@ -114,14 +118,20 @@ function FileHandle_write(handle, content) {
     let path = __runtime_object_get(handle, "path");
     let vfs = __runtime_object_get(handle, "vfs");
     
-    if (mode == "append") {
-        if (VFS_exists(vfs, path)) {
-            let previous = VFS_readFile(vfs, path);
-            content = previous + content;
+    let staged = __runtime_object_get(handle, "staged");
+    if (staged == null) {
+        if (mode == "append" && VFS_exists(vfs, path) == true) {
+            staged = VFS_readFile(vfs, path);
+            if (__runtime_value_kind(staged) != "string") {
+                return IOException("Failed to read file for append: " + path);
+            }
+        } else {
+            staged = "";
         }
     }
-    
-    return VFS_writeFile(vfs, path, content);
+    staged = staged + content;
+    __runtime_object_set(handle, "staged", staged);
+    return VFS_writeFile(vfs, path, staged);
 }
 
 // FileHandle_close(handle) - Close the file handle

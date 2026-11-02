@@ -61,3 +61,11 @@ TEST(IOErrorsTest, PathSeparators) {
 TEST(IOErrorsTest, NormalizePathHelper) {
     EXPECT_TRUE(run_io_test("test_normalize_path_helper").is_truthy());
 }
+
+TEST(IOErrorsTest, DotDotCollapsesToOneFile) {
+    EXPECT_TRUE(run_io_test("test_dotdot_is_one_file").is_truthy());
+}
+
+TEST(IOErrorsTest, NulBytePathRejected) {
+    EXPECT_TRUE(run_io_test("test_nul_byte_path_is_rejected").is_truthy());
+}

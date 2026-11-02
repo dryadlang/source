@@ -315,3 +315,33 @@ TEST_F(VMTest, LargeIntegerComparisonsAreExact) {
 
     EXPECT_TRUE(vm.get_stack_top().as_boolean());
 }
+
+TEST_F(VMTest, IntegerDivisionMatchesInterpreter) {
+    BytecodeBuilder builder;
+    builder.emit_push_int(10);
+    builder.emit_push_int(3);
+    builder.emit(Opcode::DIV);
+    builder.emit_halt();
+    vm.load(builder.build());
+    vm.execute();
+    EXPECT_EQ(vm.get_stack_top().as_integer(), 3);
+}
+
+TEST_F(VMTest, IntegerDivisionAndModuloByZeroThrow) {
+    BytecodeBuilder div_by_zero;
+    div_by_zero.emit_push_int(1);
+    div_by_zero.emit_push_int(0);
+    div_by_zero.emit(Opcode::DIV);
+    div_by_zero.emit_halt();
+    vm.load(div_by_zero.build());
+    EXPECT_THROW(vm.execute(), DryadException);
+
+    vm.reset();
+    BytecodeBuilder mod_by_zero;
+    mod_by_zero.emit_push_int(1);
+    mod_by_zero.emit_push_int(0);
+    mod_by_zero.emit(Opcode::MOD);
+    mod_by_zero.emit_halt();
+    vm.load(mod_by_zero.build());
+    EXPECT_THROW(vm.execute(), DryadException);
+}

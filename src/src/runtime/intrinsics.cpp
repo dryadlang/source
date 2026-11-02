@@ -1,4 +1,5 @@
 #include "dryad/runtime/intrinsics.h"
+#include <cerrno>
 #include <unistd.h>
 #include <algorithm>
 #include <vector>
@@ -250,7 +251,10 @@ Value MemoryManager::read_fd_to_buffer(int64_t fd, int64_t handle, int64_t offse
     }
 
     std::vector<uint8_t> staging(static_cast<size_t>(count), 0);
-    ssize_t nbytes = ::read(static_cast<int>(fd), staging.data(), staging.size());
+    ssize_t nbytes = -1;
+    do {
+        nbytes = ::read(static_cast<int>(fd), staging.data(), staging.size());
+    } while (nbytes < 0 && errno == EINTR);
     if (nbytes > 0) {
         std::lock_guard<std::mutex> lock(allocation_mutex);
         // The buffer may have been freed or resized while the call was
@@ -286,8 +290,22 @@ Value MemoryManager::write_fd_from_buffer(int64_t fd, int64_t handle, int64_t of
         staging.assign(meta->data + offset, meta->data + offset + count);
     }
 
-    ssize_t nbytes = ::write(static_cast<int>(fd), staging.data(), staging.size());
-    return Value(static_cast<int64_t>(nbytes));
+    size_t written = 0;
+    while (written < staging.size()) {
+        ssize_t nbytes = ::write(static_cast<int>(fd), staging.data() + written,
+                                 staging.size() - written);
+        if (nbytes < 0) {
+            if (errno == EINTR) {
+                continue;
+            }
+            return Value(static_cast<int64_t>(-1));
+        }
+        if (nbytes == 0) {
+            return Value(static_cast<int64_t>(-1));
+        }
+        written += static_cast<size_t>(nbytes);
+    }
+    return Value(static_cast<int64_t>(written));
 }
 
 Value MemoryManager::io_buffer(int64_t handle, int64_t offset, int64_t count,

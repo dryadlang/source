@@ -15,25 +15,134 @@ function Path_charAt(path, index) {
     return ch;
 }
 
+function Path_isSeparator(byte) {
+    return byte == 47 || byte == 92;
+}
+
+function Path_pop(parts) {
+    let next = [];
+    let n = __runtime_array_length(parts);
+    let i = 0;
+    while (i < n - 1) {
+        __runtime_array_push(next, parts[i]);
+        i = i + 1;
+    }
+    return next;
+}
+
+function Path_joinParts(absolute, parts) {
+    let n = __runtime_array_length(parts);
+    if (n == 0) {
+        if (absolute) {
+            return "/";
+        }
+        return ".";
+    }
+
+    let out = "";
+    if (absolute) {
+        out = "/";
+    }
+    let i = 0;
+    while (i < n) {
+        if (i > 0) {
+            out = out + "/";
+        }
+        out = out + parts[i];
+        i = i + 1;
+    }
+    return out;
+}
+
+// Lexical clean: swap separators, drop "." and empty segments, apply "..".
+// Returns null when the path contains a 0 byte (that byte would truncate a syscall).
+function Path_normalize(path) {
+    if (path == null) {
+        return null;
+    }
+    let len = __string_length(path);
+    if (len == 0) {
+        return "";
+    }
+
+    let raw = __alloc_bytes(len);
+    __string_to_bytes(path, raw, 0);
+
+    let i = 0;
+    while (i < len) {
+        if (__buffer_get(raw, i) == 0) {
+            __free_bytes(raw);
+            return null;
+        }
+        i = i + 1;
+    }
+
+    let absolute = Path_isSeparator(__buffer_get(raw, 0));
+    let parts = [];
+    let start = 0;
+    i = 0;
+    while (i <= len) {
+        let atEnd = i == len;
+        let sep = false;
+        if (!atEnd) {
+            sep = Path_isSeparator(__buffer_get(raw, i));
+        }
+        if (atEnd || sep) {
+            let segLen = i - start;
+            if (segLen > 0) {
+                let seg = __bytes_to_string(raw, start, segLen);
+                if (seg == "..") {
+                    let count = __runtime_array_length(parts);
+                    if (count > 0) {
+                        parts = Path_pop(parts);
+                    } else {
+                        if (!absolute) {
+                            __runtime_array_push(parts, seg);
+                        }
+                    }
+                } else {
+                    if (seg != ".") {
+                        __runtime_array_push(parts, seg);
+                    }
+                }
+            }
+            start = i + 1;
+        }
+        i = i + 1;
+    }
+    __free_bytes(raw);
+    return Path_joinParts(absolute, parts);
+}
+
 function Path_join(a, b) {
     if (a == null || a == "") {
         return ArgumentException("Path segment cannot be empty");
     }
-    if (b == null || b == "") {
-        return __normalize_path(a);
+    if (Path_normalize(a) == null) {
+        return ArgumentException("Path contains a null byte");
     }
-    return __normalize_path(a + "/" + b);
+    if (b == null || b == "") {
+        return Path_normalize(a);
+    }
+    if (Path_normalize(b) == null) {
+        return ArgumentException("Path contains a null byte");
+    }
+    let bNorm = Path_normalize(b);
+    if (__string_length(bNorm) > 0 && Path_charAt(bNorm, 0) == "/") {
+        return bNorm;
+    }
+    return Path_normalize(a + "/" + b);
 }
 
 function Path_dirname(path) {
     if (path == null || path == "") {
         return ".";
     }
-    path = __normalize_path(path);
-    let len = __string_length(path);
-    if (len == 0) {
+    path = Path_normalize(path);
+    if (path == null || path == "") {
         return ".";
     }
+    let len = __string_length(path);
 
     let i = len - 1;
     while (i >= 0) {
@@ -57,11 +166,11 @@ function Path_basename(path) {
     if (path == null || path == "") {
         return "";
     }
-    path = __normalize_path(path);
-    let len = __string_length(path);
-    if (len == 0) {
+    path = Path_normalize(path);
+    if (path == null || path == "") {
         return "";
     }
+    let len = __string_length(path);
 
     let i = len - 1;
     while (i >= 0) {
@@ -112,7 +221,10 @@ function Path_ensureDirectory(path) {
         return ArgumentException("Path cannot be null or empty");
     }
 
-    path = __normalize_path(path);
+    path = Path_normalize(path);
+    if (path == null) {
+        return ArgumentException("Path contains a null byte");
+    }
     if (path == "." || path == "/") {
         return null;
     }

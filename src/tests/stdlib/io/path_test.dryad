@@ -18,6 +18,16 @@ function test_path_extension() {
     return Path.extension("test.txt") == ".txt" && Path.extension("test") == "";
 }
 
+function test_path_dotdot_and_separators() {
+    let joined = Path.join("foo", "../bar");
+    let nested = Path.join("a\\b", "..\\c");
+    return joined == "bar" && nested == "a/c";
+}
+
+function test_path_absolute_join_replaces() {
+    return Path.join("foo", "/tmp/out.txt") == "/tmp/out.txt";
+}
+
 function test_path_ensure_parent_for_nested_file() {
     let path = Path.join("dryad_nested", "deep");
     path = Path.join(path, "nested.txt");

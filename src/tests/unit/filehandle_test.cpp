@@ -58,6 +58,10 @@ TEST(FileHandleTest, UseAfterClose) {
     EXPECT_TRUE(run_handle_test("test_filehandle_use_after_close").is_truthy());
 }
 
+TEST(FileHandleTest, WriteAccumulates) {
+    EXPECT_TRUE(run_handle_test("test_filehandle_write_accumulates").is_truthy());
+}
+
 TEST(FileHandleTest, Append) {
     EXPECT_TRUE(run_handle_test("test_filehandle_append").is_truthy());
 }

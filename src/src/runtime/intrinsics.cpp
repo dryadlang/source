@@ -39,8 +39,9 @@ Value MemoryManager::alloc_bytes(int64_t size) {
     
     std::lock_guard<std::mutex> lock(allocation_mutex);
     
-    AllocationMetadata* meta = new AllocationMetadata();
+    AllocationMetadata* meta = nullptr;
     try {
+        meta = new AllocationMetadata();
         meta->data = new uint8_t[static_cast<size_t>(size)]{};
     } catch (const std::bad_alloc&) {
         delete meta;
@@ -230,7 +231,8 @@ Value MemoryManager::read_fd_to_buffer(int64_t fd, int64_t handle, int64_t offse
         if (!meta || meta->is_freed || !meta->data) {
             return Value(static_cast<int64_t>(-1));
         }
-        if (offset + count > static_cast<int64_t>(meta->size)) {
+        const int64_t size = static_cast<int64_t>(meta->size);
+        if (offset > size || count > size - offset) {
             return Value(static_cast<int64_t>(-1));
         }
     }
@@ -265,7 +267,8 @@ Value MemoryManager::write_fd_from_buffer(int64_t fd, int64_t handle, int64_t of
         if (!meta || meta->is_freed || !meta->data) {
             return Value(static_cast<int64_t>(-1));
         }
-        if (offset + count > static_cast<int64_t>(meta->size)) {
+        const int64_t size = static_cast<int64_t>(meta->size);
+        if (offset > size || count > size - offset) {
             return Value(static_cast<int64_t>(-1));
         }
         staging.assign(meta->data + offset, meta->data + offset + count);
@@ -276,6 +279,7 @@ Value MemoryManager::write_fd_from_buffer(int64_t fd, int64_t handle, int64_t of
 }
 
 Value MemoryManager::io_buffer(int64_t handle, int64_t offset, int64_t count,
+                             IoBufferMode mode,
                              const std::function<ssize_t(uint8_t*, size_t)>& io) {
     if (count < 0 || offset < 0) {
         return Value(static_cast<int64_t>(-1));
@@ -289,14 +293,19 @@ Value MemoryManager::io_buffer(int64_t handle, int64_t offset, int64_t count,
         if (!meta || meta->is_freed || !meta->data) {
             return Value(static_cast<int64_t>(-1));
         }
-        if (offset + count > static_cast<int64_t>(meta->size)) {
+        const int64_t size = static_cast<int64_t>(meta->size);
+        if (offset > size || count > size - offset) {
             return Value(static_cast<int64_t>(-1));
         }
-        staging.assign(meta->data + offset, meta->data + offset + count);
+        if (mode == IoBufferMode::Write) {
+            staging.assign(meta->data + offset, meta->data + offset + count);
+        } else {
+            staging.assign(static_cast<size_t>(count), 0);
+        }
     }
 
     ssize_t nbytes = io(staging.data(), staging.size());
-    if (nbytes > 0) {
+    if (mode == IoBufferMode::Read && nbytes > 0) {
         std::lock_guard<std::mutex> lock(allocation_mutex);
         // The buffer may have been freed or resized while the call was
         // unlocked. The bytes are already consumed from the descriptor, so
@@ -333,7 +342,8 @@ Value MemoryManager::sendto_buffer(int64_t fd, int64_t handle, int64_t offset, i
         if (!meta || meta->is_freed || !meta->data) {
             return Value(static_cast<int64_t>(-1));
         }
-        if (offset + count > static_cast<int64_t>(meta->size)) {
+        const int64_t size = static_cast<int64_t>(meta->size);
+        if (offset > size || count > size - offset) {
             return Value(static_cast<int64_t>(-1));
         }
         staging.assign(meta->data + offset, meta->data + offset + count);
@@ -369,7 +379,8 @@ Value MemoryManager::recvfrom_buffer(int64_t fd, int64_t handle, int64_t offset,
         if (!meta || meta->is_freed || !meta->data) {
             return make_result(-1, "", 0);
         }
-        if (offset + count > static_cast<int64_t>(meta->size)) {
+        const int64_t size = static_cast<int64_t>(meta->size);
+        if (offset > size || count > size - offset) {
             return make_result(-1, "", 0);
         }
     }

@@ -8,6 +8,11 @@
 
 namespace dryad {
 
+enum class IoBufferMode {
+    Read,
+    Write
+};
+
 class MemoryManager {
 private:
     struct AllocationMetadata {
@@ -42,6 +47,7 @@ public:
                                const std::string& host, int64_t port);
     static Value recvfrom_buffer(int64_t fd, int64_t handle, int64_t offset, int64_t count);
     static Value io_buffer(int64_t handle, int64_t offset, int64_t count,
+                           IoBufferMode mode,
                            const std::function<ssize_t(uint8_t*, size_t)>& io);
 };
 

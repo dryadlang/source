@@ -5,6 +5,8 @@
 #include <thread>
 #include <sys/socket.h>
 #include <unistd.h>
+#include <fcntl.h>
+#include <cstring>
 
 using namespace dryad;
 
@@ -277,4 +279,39 @@ TEST(MemoryIntrinsicsTest, BlockingReadDoesNotHoldAllocationLock) {
     MemoryManager::free_bytes(tx.as_integer());
     ::close(fds[0]);
     ::close(fds[1]);
+}
+
+TEST(MemoryIntrinsicsTest, IoBufferWriteDoesNotModifyBuffer) {
+    Value buf = MemoryManager::alloc_bytes(8);
+    for (int i = 0; i < 4; ++i) {
+        MemoryManager::buffer_set(buf.as_integer(), i, i + 1);
+    }
+    Value r = MemoryManager::io_buffer(buf.as_integer(), 0, 4, IoBufferMode::Write,
+        [](uint8_t* p, size_t n) { std::memset(p, 0xFF, n); return static_cast<ssize_t>(n); });
+    EXPECT_EQ(r.as_integer(), 4);
+    for (int i = 0; i < 4; ++i) {
+        EXPECT_EQ(MemoryManager::buffer_get(buf.as_integer(), i).as_integer(), i + 1);
+    }
+    MemoryManager::free_bytes(buf.as_integer());
+}
+
+TEST(MemoryIntrinsicsTest, IoBufferReadWritesResult) {
+    Value buf = MemoryManager::alloc_bytes(8);
+    Value r = MemoryManager::io_buffer(buf.as_integer(), 0, 4, IoBufferMode::Read,
+        [](uint8_t* p, size_t n) { std::memset(p, 7, n); return static_cast<ssize_t>(n); });
+    EXPECT_EQ(r.as_integer(), 4);
+    for (int i = 0; i < 4; ++i) {
+        EXPECT_EQ(MemoryManager::buffer_get(buf.as_integer(), i).as_integer(), 7);
+    }
+    MemoryManager::free_bytes(buf.as_integer());
+}
+
+TEST(MemoryIntrinsicsTest, WriteRejectsOverflowingRange) {
+    Value buf = MemoryManager::alloc_bytes(8);
+    int fd = ::open("/dev/null", O_WRONLY);
+    ASSERT_GE(fd, 0);
+    Value r = MemoryManager::write_fd_from_buffer(fd, buf.as_integer(), 1, 9223372036854775807LL);
+    EXPECT_EQ(r.as_integer(), -1);
+    ::close(fd);
+    MemoryManager::free_bytes(buf.as_integer());
 }

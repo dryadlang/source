@@ -80,3 +80,5 @@ TEST(BytesTest, FromHexRoundtrip) { EXPECT_TRUE(run_bytes_test("bytes_test_from_
 TEST(BytesTest, FromHexRejectsOddLength) { EXPECT_TRUE(run_bytes_test("bytes_test_from_hex_rejects_odd_length").is_truthy()); }
 TEST(BytesTest, FromHexRejectsNonHex) { EXPECT_TRUE(run_bytes_test("bytes_test_from_hex_rejects_non_hex").is_truthy()); }
 TEST(BytesTest, FromHexEmpty) { EXPECT_TRUE(run_bytes_test("bytes_test_from_hex_empty").is_truthy()); }
+TEST(BytesTest, HexEdgeCases) { EXPECT_TRUE(run_bytes_test("bytes_test_hex_edge_cases").is_truthy()); }
+TEST(BytesTest, HexMixedCaseAndSlice) { EXPECT_TRUE(run_bytes_test("bytes_test_hex_mixed_case_and_slice").is_truthy()); }

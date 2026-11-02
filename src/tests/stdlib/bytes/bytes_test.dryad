@@ -491,3 +491,31 @@ function bytes_test_from_hex_empty() {
     Buffer_Dispose(r[0]);
     return ok;
 }
+
+function bytes_test_hex_edge_cases() {
+    let empty = Buffer_New(0);
+    let emptyHex = Bytes_ToHex(empty);
+    let badInput = Bytes_FromHex(42);
+    let badSecond = Bytes_FromHex("0z");
+    let nullHex = Bytes_ToHex(null);
+    let ok = emptyHex[1] == null && emptyHex[0] == "" &&
+             badInput[1] != null &&
+             badSecond[1] != null &&
+             nullHex[1] != null;
+    Buffer_Dispose(empty);
+    return ok;
+}
+
+function bytes_test_hex_mixed_case_and_slice() {
+    let mixed = Bytes_FromHex("aF");
+    let parent = Buffer_New(2);
+    Buffer_Write(parent, 0, 0);
+    Buffer_Write(parent, 1, 15);
+    let slice = Buffer_Slice(parent, 1, 2);
+    let hex = Bytes_ToHex(slice);
+    let ok = mixed[1] == null && Buffer_Len(mixed[0]) == 1 && Buffer_Read(mixed[0], 0) == 175 &&
+             hex[1] == null && hex[0] == "0f";
+    Buffer_Dispose(mixed[0]);
+    Buffer_Dispose(parent);
+    return ok;
+}

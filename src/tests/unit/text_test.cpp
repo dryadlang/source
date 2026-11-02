@@ -84,3 +84,5 @@ TEST(TextTest, FormatFloatMagnitudeLimit) { EXPECT_TRUE(run_text_test("text_test
 TEST(TextTest, LastIndexOfEmptyNeedleNonempty) { EXPECT_TRUE(run_text_test("text_test_last_index_of_empty_needle_nonempty").is_truthy()); }
 TEST(TextTest, TextViewInvalidConstruction) { EXPECT_TRUE(run_text_test("text_test_text_view_invalid_construction").is_truthy()); }
 TEST(TextTest, StringBuilderAppendBufferAfterDispose) { EXPECT_TRUE(run_text_test("text_test_string_builder_append_buffer_after_dispose").is_truthy()); }
+TEST(TextTest, NullArguments) { EXPECT_TRUE(run_text_test("text_test_null_arguments").is_truthy()); }
+TEST(TextTest, NullArgumentMessages) { EXPECT_TRUE(run_text_test("text_test_null_argument_messages").is_truthy()); }

@@ -478,3 +478,22 @@ function text_test_string_builder_append_buffer_after_dispose() {
     Buffer_Dispose(src);
     return r != null;
 }
+
+function text_test_null_arguments() {
+    let slice = Text_Slice(null, 0, 1);
+    let starts = Text_StartsWith(null, "a");
+    let join = Text_Join(null, "-");
+    let replace = Text_Replace("abc", null, "x");
+    let ok = slice[1] != null && starts[1] != null &&
+             join[1] != null && replace[1] != null;
+    return ok;
+}
+
+function text_test_null_argument_messages() {
+    // ArgumentNullException("text") renders as "text cannot be null".
+    let slice = Text_Slice(null, 0, 1);
+    let starts = Text_StartsWith(null, "a");
+    let ok = slice[1] == "text cannot be null" &&
+             starts[1] == "text cannot be null";
+    return ok;
+}

@@ -175,6 +175,9 @@ function Text_Length(text) {
 }
 
 function Text_CharAt(text, index) {
+    if (text == null) {
+        return ["", ArgumentNullException("text")];
+    }
     if (__runtime_value_kind(text) != "string") {
         return ["", ArgumentOutOfRangeException("text must be a string")];
     }
@@ -201,6 +204,9 @@ function Text_CharAt(text, index) {
 }
 
 function Text_CodePointAt(text, byteIndex) {
+    if (text == null) {
+        return [0, ArgumentNullException("text")];
+    }
     if (__runtime_value_kind(text) != "string") {
         return [0, ArgumentOutOfRangeException("text must be a string")];
     }
@@ -263,6 +269,9 @@ function Text_FromCodePoint(codePoint) {
 }
 
 function Text_Slice(text, start, end) {
+    if (text == null) {
+        return ["", ArgumentNullException("text")];
+    }
     if (__runtime_value_kind(text) != "string") {
         return ["", ArgumentOutOfRangeException("text must be a string")];
     }
@@ -293,6 +302,9 @@ function Text_Slice(text, start, end) {
 }
 
 function Text_Substring(text, start, count) {
+    if (text == null) {
+        return ["", ArgumentNullException("text")];
+    }
     if (__runtime_value_kind(text) != "string") {
         return ["", ArgumentOutOfRangeException("text must be a string")];
     }
@@ -323,8 +335,14 @@ function Text_Substring(text, start, count) {
 }
 
 function Text_IndexOf(text, needle) {
+    if (text == null) {
+        return [-1, ArgumentNullException("text")];
+    }
     if (__runtime_value_kind(text) != "string") {
         return [-1, ArgumentOutOfRangeException("text must be a string")];
+    }
+    if (needle == null) {
+        return [-1, ArgumentNullException("needle")];
     }
     if (__runtime_value_kind(needle) != "string") {
         return [-1, ArgumentOutOfRangeException("needle must be a string")];
@@ -345,8 +363,14 @@ function Text_IndexOf(text, needle) {
 }
 
 function Text_LastIndexOf(text, needle) {
+    if (text == null) {
+        return [-1, ArgumentNullException("text")];
+    }
     if (__runtime_value_kind(text) != "string") {
         return [-1, ArgumentOutOfRangeException("text must be a string")];
+    }
+    if (needle == null) {
+        return [-1, ArgumentNullException("needle")];
     }
     if (__runtime_value_kind(needle) != "string") {
         return [-1, ArgumentOutOfRangeException("needle must be a string")];
@@ -375,8 +399,14 @@ function Text_Includes(text, needle) {
 }
 
 function Text_StartsWith(text, prefix) {
+    if (text == null) {
+        return [false, ArgumentNullException("text")];
+    }
     if (__runtime_value_kind(text) != "string") {
         return [false, ArgumentOutOfRangeException("text must be a string")];
+    }
+    if (prefix == null) {
+        return [false, ArgumentNullException("prefix")];
     }
     if (__runtime_value_kind(prefix) != "string") {
         return [false, ArgumentOutOfRangeException("prefix must be a string")];
@@ -402,8 +432,14 @@ function Text_StartsWith(text, prefix) {
 }
 
 function Text_EndsWith(text, suffix) {
+    if (text == null) {
+        return [false, ArgumentNullException("text")];
+    }
     if (__runtime_value_kind(text) != "string") {
         return [false, ArgumentOutOfRangeException("text must be a string")];
+    }
+    if (suffix == null) {
+        return [false, ArgumentNullException("suffix")];
     }
     if (__runtime_value_kind(suffix) != "string") {
         return [false, ArgumentOutOfRangeException("suffix must be a string")];
@@ -430,8 +466,14 @@ function Text_EndsWith(text, suffix) {
 }
 
 function Text_Equals(a, b) {
+    if (a == null) {
+        return [false, ArgumentNullException("a")];
+    }
     if (__runtime_value_kind(a) != "string") {
         return [false, ArgumentOutOfRangeException("a must be a string")];
+    }
+    if (b == null) {
+        return [false, ArgumentNullException("b")];
     }
     if (__runtime_value_kind(b) != "string") {
         return [false, ArgumentOutOfRangeException("b must be a string")];
@@ -463,8 +505,14 @@ function Text_Equals(a, b) {
 }
 
 function Text_Compare(a, b) {
+    if (a == null) {
+        return [0, ArgumentNullException("a")];
+    }
     if (__runtime_value_kind(a) != "string") {
         return [0, ArgumentOutOfRangeException("a must be a string")];
+    }
+    if (b == null) {
+        return [0, ArgumentNullException("b")];
     }
     if (__runtime_value_kind(b) != "string") {
         return [0, ArgumentOutOfRangeException("b must be a string")];
@@ -485,6 +533,9 @@ function Text_Compare(a, b) {
 }
 
 function Text_CodePoints(text) {
+    if (text == null) {
+        return [[], ArgumentNullException("text")];
+    }
     if (__runtime_value_kind(text) != "string") {
         return [[], ArgumentOutOfRangeException("text must be a string")];
     }
@@ -510,6 +561,9 @@ function Text_CodePoints(text) {
 }
 
 function Text_CharCount(text) {
+    if (text == null) {
+        return [0, ArgumentNullException("text")];
+    }
     if (__runtime_value_kind(text) != "string") {
         return [0, ArgumentOutOfRangeException("text must be a string")];
     }
@@ -545,6 +599,9 @@ function Text_IsWhitespace(b) {
 
 // Maps ASCII letters A..Z <-> a..z; every other byte is copied unchanged.
 function Text_ConvertAsciiCase(text, toUpper) {
+    if (text == null) {
+        return ["", ArgumentNullException("text")];
+    }
     if (__runtime_value_kind(text) != "string") {
         return ["", ArgumentOutOfRangeException("text must be a string")];
     }
@@ -593,6 +650,9 @@ function Text_ToUpperAscii(text) {
 }
 
 function Text_TrimStart(text) {
+    if (text == null) {
+        return ["", ArgumentNullException("text")];
+    }
     if (__runtime_value_kind(text) != "string") {
         return ["", ArgumentOutOfRangeException("text must be a string")];
     }
@@ -614,6 +674,9 @@ function Text_TrimStart(text) {
 }
 
 function Text_TrimEnd(text) {
+    if (text == null) {
+        return ["", ArgumentNullException("text")];
+    }
     if (__runtime_value_kind(text) != "string") {
         return ["", ArgumentOutOfRangeException("text must be a string")];
     }
@@ -635,6 +698,9 @@ function Text_TrimEnd(text) {
 }
 
 function Text_Trim(text) {
+    if (text == null) {
+        return ["", ArgumentNullException("text")];
+    }
     if (__runtime_value_kind(text) != "string") {
         return ["", ArgumentOutOfRangeException("text must be a string")];
     }
@@ -660,6 +726,9 @@ function Text_Trim(text) {
 }
 
 function Text_Repeat(text, count) {
+    if (text == null) {
+        return ["", ArgumentNullException("text")];
+    }
     if (__runtime_value_kind(text) != "string") {
         return ["", ArgumentOutOfRangeException("text must be a string")];
     }
@@ -712,11 +781,17 @@ function Text_Repeat(text, count) {
 // Shared padding implementation. `atEnd` selects PadEnd (text first) vs PadStart
 // (padding first). Operates on bytes, not code points.
 function Text_Pad(text, length, pad, atEnd) {
+    if (text == null) {
+        return ["", ArgumentNullException("text")];
+    }
     if (__runtime_value_kind(text) != "string") {
         return ["", ArgumentOutOfRangeException("text must be a string")];
     }
     if (__runtime_value_kind(length) != "integer") {
         return ["", ArgumentOutOfRangeException("length must be an integer")];
+    }
+    if (pad == null) {
+        return ["", ArgumentNullException("pad")];
     }
     if (__runtime_value_kind(pad) != "string") {
         return ["", ArgumentOutOfRangeException("pad must be a string")];
@@ -805,8 +880,14 @@ function Text_PadEnd(text, length, pad) {
 // [[string], error]. An empty separator is rejected. `""` yields `[""]`, and a
 // trailing separator yields a trailing empty part.
 function Text_Split(text, separator) {
+    if (text == null) {
+        return [[], ArgumentNullException("text")];
+    }
     if (__runtime_value_kind(text) != "string") {
         return [[], ArgumentOutOfRangeException("text must be a string")];
+    }
+    if (separator == null) {
+        return [[], ArgumentNullException("separator")];
     }
     if (__runtime_value_kind(separator) != "string") {
         return [[], ArgumentOutOfRangeException("separator must be a string")];
@@ -857,8 +938,14 @@ function Text_Split(text, separator) {
 // Every element must be a string. `[]` yields `""`. The result is built in a
 // single buffer sized to the total byte length to avoid quadratic copying.
 function Text_Join(parts, separator) {
+    if (parts == null) {
+        return ["", ArgumentNullException("parts")];
+    }
     if (__runtime_value_kind(parts) != "array") {
         return ["", ArgumentOutOfRangeException("parts must be an array")];
+    }
+    if (separator == null) {
+        return ["", ArgumentNullException("separator")];
     }
     if (__runtime_value_kind(separator) != "string") {
         return ["", ArgumentOutOfRangeException("separator must be a string")];
@@ -938,11 +1025,20 @@ function Text_Join(parts, separator) {
 // non-overlapping occurrence is replaced or just the first. Occurrences are
 // located before any output is produced, so replacement text is never rescanned.
 function Text_ReplaceInternal(text, needle, replacement, replaceAll) {
+    if (text == null) {
+        return ["", ArgumentNullException("text")];
+    }
     if (__runtime_value_kind(text) != "string") {
         return ["", ArgumentOutOfRangeException("text must be a string")];
     }
+    if (needle == null) {
+        return ["", ArgumentNullException("needle")];
+    }
     if (__runtime_value_kind(needle) != "string") {
         return ["", ArgumentOutOfRangeException("needle must be a string")];
+    }
+    if (replacement == null) {
+        return ["", ArgumentNullException("replacement")];
     }
     if (__runtime_value_kind(replacement) != "string") {
         return ["", ArgumentOutOfRangeException("replacement must be a string")];
@@ -1089,6 +1185,9 @@ function Text_DigitValue(b) {
 // whitespace, underscores or '0x' prefix. Overflow is rejected, except that
 // -9223372036854775808 is representable.
 function Text_ParseInt(text, base) {
+    if (text == null) {
+        return [0, ArgumentNullException("text")];
+    }
     if (__runtime_value_kind(text) != "string") {
         return [0, ArgumentOutOfRangeException("text must be a string")];
     }
@@ -1199,6 +1298,9 @@ function Text_FormatInt(value, base) {
 // No whitespace. Digits are accumulated into a 64-bit mantissa plus a decimal
 // exponent, then combined with __int_to_float.
 function Text_ParseFloat(text) {
+    if (text == null) {
+        return [0.0, ArgumentNullException("text")];
+    }
     if (__runtime_value_kind(text) != "string") {
         return [0.0, ArgumentOutOfRangeException("text must be a string")];
     }

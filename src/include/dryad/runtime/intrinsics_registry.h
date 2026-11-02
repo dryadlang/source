@@ -2,8 +2,11 @@
 #define DRYAD_RUNTIME_INTRINSICS_REGISTRY_H
 
 #include "dryad/runtime/value.h"
+#include <atomic>
 #include <cstdint>
 #include <functional>
+#include <mutex>
+#include <shared_mutex>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -44,11 +47,15 @@ public:
     
 private:
     IntrinsicsRegistry() = default;
+    // Guards every map and next_id_. Intrinsic functions are copied out
+    // before being invoked so an intrinsic that calls back into the registry
+    // cannot deadlock.
+    mutable std::shared_mutex mutex_;
     std::unordered_map<std::string, IntrinsicFunction> intrinsics_;
     std::unordered_map<uint16_t, IntrinsicFunction> functions_by_id_;
     std::unordered_map<std::string, uint16_t> name_to_id_;
     uint16_t next_id_ = 0;
-    bool network_allowed_ = false;
+    std::atomic<bool> network_allowed_{false};
 };
 
 } // namespace dryad

@@ -7,6 +7,9 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <fstream>
+#include <atomic>
+#include <thread>
+#include <vector>
 
 using namespace dryad;
 
@@ -233,4 +236,31 @@ TEST_F(IntrinsicsTest, RuntimeObjectIntrinsics) {
     
     auto success = run_dryad(code, "success");
     EXPECT_TRUE(success.is_truthy());
+}
+
+TEST(IntrinsicsRegistryThreadSafetyTest, ConcurrentRegistrationIsIdempotent) {
+    auto& registry = IntrinsicsRegistry::instance();
+    registry.register_all();
+    const uint16_t expected = registry.get_id("syscall.memmove");
+
+    // Every Interpreter construction calls register_all(); worker threads do
+    // this concurrently. IDs must stay stable and the maps must survive it.
+    std::atomic<bool> stable{true};
+    std::vector<std::thread> workers;
+    for (int t = 0; t < 8; ++t) {
+        workers.emplace_back([&registry, expected, &stable]() {
+            for (int i = 0; i < 50; ++i) {
+                registry.register_all();
+                if (registry.get_id("syscall.memmove") != expected) {
+                    stable = false;
+                }
+            }
+        });
+    }
+    for (auto& worker : workers) {
+        worker.join();
+    }
+
+    EXPECT_TRUE(stable.load());
+    EXPECT_EQ(registry.get_id("syscall.memmove"), expected);
 }

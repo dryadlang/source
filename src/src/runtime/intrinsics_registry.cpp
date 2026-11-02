@@ -17,33 +17,58 @@ IntrinsicsRegistry& IntrinsicsRegistry::instance() {
 }
 
 void IntrinsicsRegistry::register_intrinsic(const std::string& name, IntrinsicFunction func) {
+    std::unique_lock<std::shared_mutex> lock(mutex_);
+
+    // Registration is idempotent: every Interpreter construction calls
+    // register_all(), including from worker threads. Re-registering must not
+    // allocate new IDs, or compiled bytecode would drift away from the
+    // registry and concurrent interpreters would corrupt the maps.
+    auto existing = name_to_id_.find(name);
+    if (existing != name_to_id_.end()) {
+        intrinsics_[name] = std::move(func);
+        functions_by_id_[existing->second] = intrinsics_[name];
+        return;
+    }
+
+    const uint16_t id = next_id_++;
     intrinsics_[name] = func;
-    functions_by_id_[next_id_] = func;
-    name_to_id_[name] = next_id_;
-    next_id_++;
+    functions_by_id_[id] = std::move(func);
+    name_to_id_[name] = id;
 }
 
 Value IntrinsicsRegistry::call(const std::string& name, const std::vector<Value>& args) {
-    auto it = intrinsics_.find(name);
-    if (it == intrinsics_.end()) {
-        throw DryadException("Unknown intrinsic: " + name);
+    IntrinsicFunction fn;
+    {
+        std::shared_lock<std::shared_mutex> lock(mutex_);
+        auto it = intrinsics_.find(name);
+        if (it == intrinsics_.end()) {
+            throw DryadException("Unknown intrinsic: " + name);
+        }
+        fn = it->second;
     }
-    return it->second(args);
+    return fn(args);
 }
 
 bool IntrinsicsRegistry::has(const std::string& name) const {
+    std::shared_lock<std::shared_mutex> lock(mutex_);
     return intrinsics_.find(name) != intrinsics_.end();
 }
 
 Value IntrinsicsRegistry::call_by_id(uint16_t id, const std::vector<Value>& args) {
-    auto it = functions_by_id_.find(id);
-    if (it == functions_by_id_.end()) {
-        throw DryadException("Unknown intrinsic ID: " + std::to_string(id));
+    IntrinsicFunction fn;
+    {
+        std::shared_lock<std::shared_mutex> lock(mutex_);
+        auto it = functions_by_id_.find(id);
+        if (it == functions_by_id_.end()) {
+            throw DryadException("Unknown intrinsic ID: " + std::to_string(id));
+        }
+        fn = it->second;
     }
-    return it->second(args);
+    return fn(args);
 }
 
 uint16_t IntrinsicsRegistry::get_id(const std::string& name) const {
+    std::shared_lock<std::shared_mutex> lock(mutex_);
     auto it = name_to_id_.find(name);
     if (it == name_to_id_.end()) {
         throw DryadException("Intrinsic not registered: " + name);
@@ -52,6 +77,7 @@ uint16_t IntrinsicsRegistry::get_id(const std::string& name) const {
 }
 
 std::vector<std::pair<uint16_t, std::string>> IntrinsicsRegistry::list_all_intrinsics() const {
+    std::shared_lock<std::shared_mutex> lock(mutex_);
     std::vector<std::pair<uint16_t, std::string>> result;
     for (const auto& pair : name_to_id_) {
         result.emplace_back(pair.second, pair.first);

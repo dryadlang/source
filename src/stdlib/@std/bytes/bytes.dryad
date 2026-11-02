@@ -1,0 +1,105 @@
+// @std/bytes/bytes.dryad
+// Byte operations over @std/buffers Buffer. Buffer is the only byte container.
+
+import { ArgumentNullException, ArgumentOutOfRangeException, IndexOutOfRangeException, Exception } from "@std/core/exceptions";
+import { Buffer_New, Buffer_Read, Buffer_Write, Buffer_Len, Buffer_GetActualHandle, Buffer_GetOffset } from "@std/buffers/buffer";
+
+function Bytes_ValidateRange(buf, offset, count) {
+    if (buf == null) {
+        return ArgumentNullException("buffer");
+    }
+    let len = Buffer_Len(buf);
+    if (__runtime_value_kind(len) != "integer") {
+        return len;
+    }
+    if (offset < 0 || count < 0 || offset + count > len) {
+        return ArgumentOutOfRangeException("Byte range out of bounds");
+    }
+    return null;
+}
+
+function Bytes_Copy(dst, dstOffset, src, srcOffset, count) {
+    let err = Bytes_ValidateRange(dst, dstOffset, count);
+    if (err != null) {
+        return err;
+    }
+    err = Bytes_ValidateRange(src, srcOffset, count);
+    if (err != null) {
+        return err;
+    }
+    __memmove(Buffer_GetActualHandle(dst), Buffer_GetOffset(dst) + dstOffset, Buffer_GetActualHandle(src), Buffer_GetOffset(src) + srcOffset, count);
+    return null;
+}
+
+function Bytes_Fill(buf, offset, count, value) {
+    let err = Bytes_ValidateRange(buf, offset, count);
+    if (err != null) {
+        return err;
+    }
+    if (value < 0 || value > 255) {
+        return ArgumentOutOfRangeException("Byte value must be between 0 and 255");
+    }
+    let handle = Buffer_GetActualHandle(buf);
+    let base = Buffer_GetOffset(buf) + offset;
+    for (let i = 0; i < count; i = i + 1) {
+        __buffer_set(handle, base + i, value);
+    }
+    return null;
+}
+
+function Bytes_Compare(a, b) {
+    let errA = Bytes_ValidateRange(a, 0, 0);
+    if (errA != null) {
+        return [0, errA];
+    }
+    let errB = Bytes_ValidateRange(b, 0, 0);
+    if (errB != null) {
+        return [0, errB];
+    }
+    let lenA = Buffer_Len(a);
+    let lenB = Buffer_Len(b);
+    let n = lenA;
+    if (lenB < n) {
+        n = lenB;
+    }
+    let ha = Buffer_GetActualHandle(a);
+    let hb = Buffer_GetActualHandle(b);
+    let oa = Buffer_GetOffset(a);
+    let ob = Buffer_GetOffset(b);
+    for (let i = 0; i < n; i = i + 1) {
+        let x = __buffer_get(ha, oa + i);
+        let y = __buffer_get(hb, ob + i);
+        if (x < y) {
+            return [-1, null];
+        }
+        if (x > y) {
+            return [1, null];
+        }
+    }
+    if (lenA < lenB) {
+        return [-1, null];
+    }
+    if (lenA > lenB) {
+        return [1, null];
+    }
+    return [0, null];
+}
+
+function Bytes_Equals(a, b) {
+    let errA = Bytes_ValidateRange(a, 0, 0);
+    if (errA != null) {
+        return [false, errA];
+    }
+    let errB = Bytes_ValidateRange(b, 0, 0);
+    if (errB != null) {
+        return [false, errB];
+    }
+    if (Buffer_Len(a) != Buffer_Len(b)) {
+        return [false, null];
+    }
+    let cmp = Bytes_Compare(a, b);
+    if (cmp[1] != null) {
+        return [false, cmp[1]];
+    }
+    return [cmp[0] == 0, null];
+}

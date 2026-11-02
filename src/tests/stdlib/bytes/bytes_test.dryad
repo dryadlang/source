@@ -1,0 +1,121 @@
+// @std/bytes behavior tests, loaded by tests/unit/bytes_test.cpp.
+
+import {
+    Bytes_Copy,
+    Bytes_Fill,
+    Bytes_Compare,
+    Bytes_Equals
+} from "@std/bytes/bytes";
+
+import {
+    Buffer_New,
+    Buffer_Read,
+    Buffer_Write,
+    Buffer_Len,
+    Buffer_Slice,
+    Buffer_Dispose
+} from "@std/buffers/buffer";
+
+function bytes_test_copy_roundtrip() {
+    let src = Buffer_New(4);
+    Buffer_Write(src, 0, 10);
+    Buffer_Write(src, 1, 20);
+    Buffer_Write(src, 2, 30);
+    Buffer_Write(src, 3, 40);
+    let dst = Buffer_New(4);
+    let err = Bytes_Copy(dst, 0, src, 0, 4);
+    let ok = err == null &&
+             Buffer_Read(dst, 0) == 10 &&
+             Buffer_Read(dst, 1) == 20 &&
+             Buffer_Read(dst, 2) == 30 &&
+             Buffer_Read(dst, 3) == 40;
+    Buffer_Dispose(dst);
+    Buffer_Dispose(src);
+    return ok;
+}
+
+function bytes_test_copy_offsets() {
+    let src = Buffer_New(4);
+    Buffer_Write(src, 1, 7);
+    Buffer_Write(src, 2, 8);
+    let dst = Buffer_New(4);
+    let err = Bytes_Copy(dst, 2, src, 1, 2);
+    let ok = err == null &&
+             Buffer_Read(dst, 1) == 0 &&
+             Buffer_Read(dst, 2) == 7 &&
+             Buffer_Read(dst, 3) == 8;
+    Buffer_Dispose(dst);
+    Buffer_Dispose(src);
+    return ok;
+}
+
+function bytes_test_copy_zero_length_at_end() {
+    let src = Buffer_New(2);
+    let dst = Buffer_New(2);
+    let err = Bytes_Copy(dst, 2, src, 2, 0);
+    let ok = err == null;
+    Buffer_Dispose(dst);
+    Buffer_Dispose(src);
+    return ok;
+}
+
+function bytes_test_copy_rejects_bad_range() {
+    let src = Buffer_New(2);
+    let dst = Buffer_New(2);
+    let e1 = Bytes_Copy(dst, 0, src, 0, 3);
+    let e2 = Bytes_Copy(dst, 1, src, 0, 2);
+    let e3 = Bytes_Copy(dst, 0, src, -1, 1);
+    let ok = e1 != null && e2 != null && e3 != null;
+    Buffer_Dispose(dst);
+    Buffer_Dispose(src);
+    return ok;
+}
+
+function bytes_test_fill() {
+    let buf = Buffer_New(4);
+    let err = Bytes_Fill(buf, 1, 2, 255);
+    let ok = err == null &&
+             Buffer_Read(buf, 0) == 0 &&
+             Buffer_Read(buf, 1) == 255 &&
+             Buffer_Read(buf, 2) == 255 &&
+             Buffer_Read(buf, 3) == 0;
+    Buffer_Dispose(buf);
+    return ok;
+}
+
+function bytes_test_compare_equal() {
+    let a = Buffer_New(2);
+    let b = Buffer_New(2);
+    Buffer_Write(a, 0, 5);
+    Buffer_Write(a, 1, 6);
+    Buffer_Write(b, 0, 5);
+    Buffer_Write(b, 1, 6);
+    let r = Bytes_Compare(a, b);
+    let ok = r[1] == null && r[0] == 0;
+    Buffer_Dispose(a);
+    Buffer_Dispose(b);
+    return ok;
+}
+
+function bytes_test_compare_orders() {
+    let a = Buffer_New(2);
+    let b = Buffer_New(2);
+    Buffer_Write(a, 0, 1);
+    Buffer_Write(b, 0, 2);
+    let r1 = Bytes_Compare(a, b);
+    let r2 = Bytes_Compare(b, a);
+    let ok = r1[1] == null && r1[0] == -1 && r2[1] == null && r2[0] == 1;
+    Buffer_Dispose(a);
+    Buffer_Dispose(b);
+    return ok;
+}
+
+function bytes_test_equals_length_mismatch() {
+    let a = Buffer_New(2);
+    let b = Buffer_New(3);
+    let r = Bytes_Equals(a, b);
+    let ok = r[1] == null && r[0] == false;
+    Buffer_Dispose(a);
+    Buffer_Dispose(b);
+    return ok;
+}

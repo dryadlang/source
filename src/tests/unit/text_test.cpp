@@ -77,3 +77,4 @@ TEST(TextTest, StringBuilderGrowth) { EXPECT_TRUE(run_text_test("text_test_strin
 TEST(TextTest, StringBuilderAppendBufferSlice) { EXPECT_TRUE(run_text_test("text_test_string_builder_append_buffer_slice").is_truthy()); }
 TEST(TextTest, TextView) { EXPECT_TRUE(run_text_test("text_test_text_view").is_truthy()); }
 TEST(TextTest, TextViewBounds) { EXPECT_TRUE(run_text_test("text_test_text_view_bounds").is_truthy()); }
+TEST(TextTest, TextViewRejectsCrossBoundaryCodePoint) { EXPECT_TRUE(run_text_test("text_test_text_view_rejects_cross_boundary_code_point").is_truthy()); }

@@ -413,3 +413,14 @@ function text_test_text_view_bounds() {
     Buffer_Dispose(buf);
     return ok;
 }
+
+function text_test_text_view_rejects_cross_boundary_code_point() {
+    let buf = Buffer_FromString("aé");
+    let cut = new TextView(buf, 0, 2);   // 'a' + the first byte of 'é'
+    let inside = cut.codePointAt(0);
+    let crossing = cut.codePointAt(1);
+    let ok = inside[1] == null && inside[0] == 97 &&
+             crossing[1] != null;
+    Buffer_Dispose(buf);
+    return ok;
+}

@@ -9,9 +9,9 @@ import {
     Text_Repeat, Text_PadStart, Text_PadEnd,
     Text_Split, Text_Join, Text_Replace, Text_ReplaceAll,
     Text_ParseInt, Text_FormatInt, Text_ParseFloat, Text_FormatFloat,
-    StringBuilder
+    StringBuilder, TextView
 } from "@std/text/text";
-import { Buffer_New, Buffer_Write, Buffer_Slice, Buffer_Dispose } from "@std/buffers/buffer";
+import { Buffer_New, Buffer_FromString, Buffer_Write, Buffer_Slice, Buffer_Dispose } from "@std/buffers/buffer";
 
 function text_test_length_is_bytes() {
     let ascii = Text_Length("abc");
@@ -383,5 +383,33 @@ function text_test_string_builder_append_buffer_slice() {
     let ok = err == null && text == "AB" && sb.length() == 2 &&
              bad != null;
     Buffer_Dispose(parent);
+    return ok;
+}
+
+function text_test_text_view() {
+    let buf = Buffer_FromString("aé€");
+    let view = new TextView(buf, 0, 6);
+    let len = view.length();
+    let first = view.codePointAt(0);
+    let second = view.codePointAt(1);
+    let sub = view.slice(1, 3);
+    let subText = sub.toString();
+    let whole = view.toString();
+    let ok = len == 6 &&
+             first[1] == null && first[0] == 97 &&
+             second[1] == null && second[0] == 233 &&
+             subText == "é" &&
+             whole == "aé€";
+    Buffer_Dispose(buf);
+    return ok;
+}
+
+function text_test_text_view_bounds() {
+    let buf = Buffer_FromString("abc");
+    let view = new TextView(buf, 1, 2);
+    let text = view.toString();
+    let badSlice = view.slice(0, 3);
+    let ok = text == "bc" && badSlice != null;
+    Buffer_Dispose(buf);
     return ok;
 }

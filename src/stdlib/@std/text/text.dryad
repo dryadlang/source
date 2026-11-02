@@ -1533,3 +1533,112 @@ class StringBuilder {
         return this._length;
     }
 }
+
+// ---------------------------------------------------------------------------
+// TextView.
+// ---------------------------------------------------------------------------
+
+// Resolves and validates the constructor arguments, returning
+// [resolvedLength, error]. A length of -1 means "to the end of the buffer".
+function TextView_Resolve(buffer, offset, length) {
+    if (buffer == null) {
+        return [0, ArgumentNullException("buffer")];
+    }
+    if (__runtime_value_kind(buffer) != "object") {
+        return [0, ArgumentOutOfRangeException("buffer must be a Buffer")];
+    }
+    let bufLen = Buffer_Len(buffer);
+    if (bufLen == null) {
+        return [0, ArgumentOutOfRangeException("buffer must be a Buffer")];
+    }
+    if (__runtime_value_kind(bufLen) != "integer") {
+        return [0, bufLen];
+    }
+    if (__runtime_value_kind(offset) != "integer") {
+        return [0, ArgumentOutOfRangeException("offset must be an integer")];
+    }
+    if (__runtime_value_kind(length) != "integer") {
+        return [0, ArgumentOutOfRangeException("length must be an integer")];
+    }
+    if (offset < 0) {
+        return [0, ArgumentOutOfRangeException("offset must not be negative")];
+    }
+    if (offset > bufLen) {
+        return [0, ArgumentOutOfRangeException("offset out of range")];
+    }
+    let resolved = length;
+    if (resolved == -1) {
+        resolved = bufLen - offset;
+    }
+    if (resolved < 0) {
+        return [0, ArgumentOutOfRangeException("length must not be negative")];
+    }
+    if (resolved > bufLen - offset) {
+        return [0, ArgumentOutOfRangeException("length out of range")];
+    }
+    return [resolved, null];
+}
+
+// A non-owning view over a caller-provided Buffer. The view never disposes the
+// buffer; the caller must keep it alive for as long as the view is used.
+class TextView {
+    constructor(buffer, offset = 0, length = -1) {
+        this._buffer = buffer;
+        this._offset = offset;
+        this._length = 0;
+        this._error = null;
+        let r = TextView_Resolve(buffer, offset, length);
+        this._length = r[0];
+        this._error = r[1];
+    }
+
+    length() {
+        if (this._error != null) {
+            return this._error;
+        }
+        return this._length;
+    }
+
+    slice(start, end) {
+        if (this._error != null) {
+            return this._error;
+        }
+        if (__runtime_value_kind(start) != "integer") {
+            return ArgumentOutOfRangeException("start must be an integer");
+        }
+        if (__runtime_value_kind(end) != "integer") {
+            return ArgumentOutOfRangeException("end must be an integer");
+        }
+        if (start < 0 || end < start || end > this._length) {
+            return ArgumentOutOfRangeException("Slice range out of bounds");
+        }
+        return new TextView(this._buffer, this._offset + start, end - start);
+    }
+
+    codePointAt(byteIndex) {
+        if (this._error != null) {
+            return [0, this._error];
+        }
+        if (__runtime_value_kind(byteIndex) != "integer") {
+            return [0, ArgumentOutOfRangeException("byteIndex must be an integer")];
+        }
+        if (byteIndex < 0 || byteIndex >= this._length) {
+            return [0, ArgumentOutOfRangeException("Byte index out of range")];
+        }
+        return Text_DecodeCodePoint(this._buffer, this._offset + byteIndex);
+    }
+
+    toString() {
+        if (this._error != null) {
+            return this._error;
+        }
+        if (this._length == 0) {
+            return "";
+        }
+        let r = Text_StringSlice(this._buffer, this._offset, this._offset + this._length);
+        if (r[1] != null) {
+            return r[1];
+        }
+        return r[0];
+    }
+}

@@ -424,3 +424,12 @@ function text_test_text_view_rejects_cross_boundary_code_point() {
     Buffer_Dispose(buf);
     return ok;
 }
+
+function text_test_string_builder_dispose() {
+    let sb = new StringBuilder(2);
+    sb.append("ab");
+    let first = sb.dispose();
+    let again = sb.dispose();
+    let after = sb.append("c");
+    return first == null && again == null && after != null;
+}

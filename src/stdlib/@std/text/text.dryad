@@ -1422,6 +1422,9 @@ class StringBuilder {
             return null;
         }
         let newCap = cap;
+        if (newCap < 1) {
+            newCap = 1;
+        }
         while (newCap < needed) {
             if (newCap > (9223372036854775807 - needed) / 2) {
                 newCap = needed;
@@ -1531,6 +1534,15 @@ class StringBuilder {
 
     length() {
         return this._length;
+    }
+
+    dispose() {
+        if (__runtime_value_kind(this._buffer) != "string") {
+            Buffer_Dispose(this._buffer);
+        }
+        this._capacity = 0;
+        this._length = 0;
+        return null;
     }
 }
 

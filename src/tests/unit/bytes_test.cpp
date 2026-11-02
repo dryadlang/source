@@ -75,3 +75,8 @@ TEST(BytesTest, RepeatRejectsBadCount) { EXPECT_TRUE(run_bytes_test("bytes_test_
 TEST(BytesTest, RepeatEmptySourceHugeCount) { EXPECT_TRUE(run_bytes_test("bytes_test_repeat_empty_source_huge_count").is_truthy()); }
 TEST(BytesTest, TrimAllWhitespaceVariants) { EXPECT_TRUE(run_bytes_test("bytes_test_trim_all_whitespace_variants").is_truthy()); }
 TEST(BytesTest, TrimEmptyAndSlice) { EXPECT_TRUE(run_bytes_test("bytes_test_trim_empty_and_slice").is_truthy()); }
+TEST(BytesTest, ToHexKnownVector) { EXPECT_TRUE(run_bytes_test("bytes_test_to_hex_known_vector").is_truthy()); }
+TEST(BytesTest, FromHexRoundtrip) { EXPECT_TRUE(run_bytes_test("bytes_test_from_hex_roundtrip").is_truthy()); }
+TEST(BytesTest, FromHexRejectsOddLength) { EXPECT_TRUE(run_bytes_test("bytes_test_from_hex_rejects_odd_length").is_truthy()); }
+TEST(BytesTest, FromHexRejectsNonHex) { EXPECT_TRUE(run_bytes_test("bytes_test_from_hex_rejects_non_hex").is_truthy()); }
+TEST(BytesTest, FromHexEmpty) { EXPECT_TRUE(run_bytes_test("bytes_test_from_hex_empty").is_truthy()); }

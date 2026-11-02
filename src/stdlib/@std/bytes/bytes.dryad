@@ -1,8 +1,8 @@
 // @std/bytes/bytes.dryad
 // Byte operations over @std/buffers Buffer. Buffer is the only byte container.
 
-import { ArgumentNullException, ArgumentOutOfRangeException } from "@std/core/exceptions";
-import { Buffer_New, Buffer_Len, Buffer_Slice, Buffer_Dispose, Buffer_GetActualHandle, Buffer_GetOffset } from "@std/buffers/buffer";
+import { Exception, ArgumentNullException, ArgumentOutOfRangeException } from "@std/core/exceptions";
+import { Buffer_New, Buffer_Len, Buffer_Read, Buffer_Write, Buffer_FromString, Buffer_Slice, Buffer_Dispose, Buffer_GetActualHandle, Buffer_GetOffset } from "@std/buffers/buffer";
 
 function Bytes_ValidateRange(buf, offset, count) {
     if (buf == null) {
@@ -324,4 +324,64 @@ function Bytes_TrimEnd(buf) {
     }
     let len = Buffer_Len(buf);
     return Bytes_SliceResult(buf, 0, Bytes_LastNonWhitespace(buf, len) + 1);
+}
+
+function Bytes_ToHex(buf) {
+    let err = Bytes_ValidateRange(buf, 0, 0);
+    if (err != null) {
+        return [null, err];
+    }
+    let digits = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"];
+    let len = Buffer_Len(buf);
+    let out = "";
+    for (let i = 0; i < len; i = i + 1) {
+        let b = Buffer_Read(buf, i);
+        out = out + digits[b >> 4] + digits[b & 15];
+    }
+    return [out, null];
+}
+
+function Bytes_HexValue(c) {
+    if (c >= 48 && c <= 57) {
+        return c - 48;
+    }
+    if (c >= 97 && c <= 102) {
+        return c - 87;
+    }
+    if (c >= 65 && c <= 70) {
+        return c - 55;
+    }
+    return -1;
+}
+
+function Bytes_FromHex(text) {
+    if (__runtime_value_kind(text) != "string") {
+        return [null, ArgumentOutOfRangeException("Hex input must be a string")];
+    }
+    let src = Buffer_FromString(text);
+    if (__runtime_value_kind(src) == "string") {
+        return [null, src];
+    }
+    let len = Buffer_Len(src);
+    if ((len & 1) != 0) {
+        Buffer_Dispose(src);
+        return [null, Exception("Hex string must have an even length")];
+    }
+    let out = Buffer_New(len >> 1);
+    if (__runtime_value_kind(out) == "string") {
+        Buffer_Dispose(src);
+        return [null, out];
+    }
+    for (let i = 0; i < len; i = i + 2) {
+        let hi = Bytes_HexValue(Buffer_Read(src, i));
+        let lo = Bytes_HexValue(Buffer_Read(src, i + 1));
+        if (hi < 0 || lo < 0) {
+            Buffer_Dispose(src);
+            Buffer_Dispose(out);
+            return [null, Exception("Invalid hex digit")];
+        }
+        Buffer_Write(out, i >> 1, hi * 16 + lo);
+    }
+    Buffer_Dispose(src);
+    return [out, null];
 }

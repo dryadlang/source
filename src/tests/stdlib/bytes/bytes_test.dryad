@@ -14,7 +14,9 @@ import {
     Bytes_Repeat,
     Bytes_Trim,
     Bytes_TrimStart,
-    Bytes_TrimEnd
+    Bytes_TrimEnd,
+    Bytes_ToHex,
+    Bytes_FromHex
 } from "@std/bytes/bytes";
 
 import {
@@ -445,5 +447,47 @@ function bytes_test_trim_empty_and_slice() {
              tv[1] == null && Buffer_Len(tv[0]) == 1 && Buffer_Read(tv[0], 0) == 65;
     Buffer_Dispose(empty);
     Buffer_Dispose(parent);
+    return ok;
+}
+
+function bytes_test_to_hex_known_vector() {
+    let buf = Buffer_New(4);
+    Buffer_Write(buf, 0, 0);
+    Buffer_Write(buf, 1, 15);
+    Buffer_Write(buf, 2, 165);
+    Buffer_Write(buf, 3, 255);
+    let r = Bytes_ToHex(buf);
+    let ok = r[1] == null && r[0] == "000fa5ff";
+    Buffer_Dispose(buf);
+    return ok;
+}
+
+function bytes_test_from_hex_roundtrip() {
+    let lower = Bytes_FromHex("000fa5ff");
+    let upper = Bytes_FromHex("000FA5FF");
+    let ok = lower[1] == null && upper[1] == null &&
+             Buffer_Len(lower[0]) == 4 &&
+             Buffer_Read(lower[0], 2) == 165 &&
+             Buffer_Read(upper[0], 2) == 165 &&
+             Buffer_Read(upper[0], 3) == 255;
+    Buffer_Dispose(lower[0]);
+    Buffer_Dispose(upper[0]);
+    return ok;
+}
+
+function bytes_test_from_hex_rejects_odd_length() {
+    let r = Bytes_FromHex("abc");
+    return r[1] != null && r[0] == null;
+}
+
+function bytes_test_from_hex_rejects_non_hex() {
+    let r = Bytes_FromHex("zz");
+    return r[1] != null && r[0] == null;
+}
+
+function bytes_test_from_hex_empty() {
+    let r = Bytes_FromHex("");
+    let ok = r[1] == null && Buffer_Len(r[0]) == 0;
+    Buffer_Dispose(r[0]);
     return ok;
 }

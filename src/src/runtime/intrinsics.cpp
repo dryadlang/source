@@ -2,6 +2,7 @@
 #include <unistd.h>
 #include <vector>
 #include <cstring>
+#include <new>
 #include <stdexcept>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -38,9 +39,14 @@ Value MemoryManager::alloc_bytes(int64_t size) {
     std::lock_guard<std::mutex> lock(allocation_mutex);
     
     AllocationMetadata* meta = new AllocationMetadata();
+    try {
+        meta->data = new uint8_t[static_cast<size_t>(size)]{};
+    } catch (const std::bad_alloc&) {
+        delete meta;
+        return Value();
+    }
     meta->size = static_cast<size_t>(size);
     meta->is_freed = false;
-    meta->data = new uint8_t[size]{};
     meta->next = allocations;
     allocations = meta;
     
@@ -74,7 +80,12 @@ Value MemoryManager::realloc(int64_t handle, int64_t new_size) {
         return Value();
     }
     
-    uint8_t* new_data = new uint8_t[new_size]{};
+    uint8_t* new_data = nullptr;
+    try {
+        new_data = new uint8_t[static_cast<size_t>(new_size)]{};
+    } catch (const std::bad_alloc&) {
+        return Value();
+    }
     size_t copy_size = std::min(meta->size, static_cast<size_t>(new_size));
     std::memcpy(new_data, meta->data, copy_size);
     

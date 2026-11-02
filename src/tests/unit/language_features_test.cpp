@@ -181,7 +181,9 @@ TEST(LanguageFeaturesTest, BitwiseRejectsBooleans) {
 
 TEST(LanguageFeaturesTest, ShiftCountsAreMasked) {
     const std::string source = R"(
-        let result = (1 << 64) == 1 && (1 << 65) == 2 && (16 >> 64) == 16;
+        let result = (1 << 64) == 1 && (1 << 65) == 2 && (16 >> 64) == 16 &&
+                     (1 << 63) == -9223372036854775807 - 1 &&
+                     (1 << -1) == -9223372036854775807 - 1;
     )";
     EXPECT_TRUE(run_source(source).is_truthy());
 }

@@ -180,11 +180,7 @@ std::string SemanticAnalyzer::infer_binary_type(TokenType op, const std::string&
     if (op == TokenType::Plus && left == "string" && right == "string") {
         return "string";
     }
-    if ((op == TokenType::Plus || op == TokenType::Minus || op == TokenType::Star ||
-         op == TokenType::Slash || op == TokenType::Percent ||
-         op == TokenType::Ampersand || op == TokenType::Pipe || op == TokenType::Caret ||
-         op == TokenType::LessLess || op == TokenType::GreaterGreater) &&
-        left == "number" && right == "number") {
+    if (is_arithmetic(op) && left == "number" && right == "number") {
         return "number";
     }
     if (!left.empty() && !right.empty() && left == right) {

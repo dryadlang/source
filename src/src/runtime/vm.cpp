@@ -333,7 +333,7 @@ void VM::dispatch_opcode(Opcode op) {
             Value operand = stack_.back();
             stack_.pop_back();
             if (!operand.is_integer()) {
-                throw DryadException("BIT_NOT requires integer operand");
+                throw DryadException("Bitwise operators require integer operands");
             }
             stack_.push_back(Value(~operand.as_integer()));
             advance(1);

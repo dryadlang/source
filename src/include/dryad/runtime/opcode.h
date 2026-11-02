@@ -34,7 +34,7 @@ enum class Opcode : uint8_t {
     MUL_I32     = 0x1B,
     DIV_I32     = 0x1C,
 
-    // Logical (0x20–0x22)
+    // Logical (0x20)
     NOT         = 0x20,
 
     // Bitwise (0x21–0x26)

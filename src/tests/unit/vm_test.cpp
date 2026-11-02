@@ -214,6 +214,23 @@ TEST_F(VMTest, BitwiseOpcodes) {
     EXPECT_EQ(vm.get_stack_top().as_integer(), 2);
 }
 
+TEST_F(VMTest, BitwiseOrXorAndMaskedShiftRight) {
+    auto run = [](int64_t lhs, int64_t rhs, Opcode op) {
+        BytecodeBuilder builder;
+        builder.emit_push_int(lhs);
+        builder.emit_push_int(rhs);
+        builder.emit(op);
+        builder.emit_halt();
+        VM local;
+        local.load(builder.build());
+        local.execute();
+        return local.get_stack_top().as_integer();
+    };
+    EXPECT_EQ(run(6, 3, Opcode::BIT_OR), 7);
+    EXPECT_EQ(run(6, 3, Opcode::BIT_XOR), 5);
+    EXPECT_EQ(run(16, 64, Opcode::SHR), 16);
+}
+
 TEST_F(VMTest, ShiftCountsAreMasked) {
     BytecodeBuilder builder;
     builder.emit_push_int(1);

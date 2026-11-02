@@ -290,4 +290,8 @@ TEST_F(IntrinsicsTest, IntToFloatConverts) {
     auto& registry = IntrinsicsRegistry::instance();
     EXPECT_DOUBLE_EQ(registry.call("syscall.int_to_float", {Value(int64_t(42))}).as_float(), 42.0);
     EXPECT_DOUBLE_EQ(registry.call("syscall.int_to_float", {Value(int64_t(-7))}).as_float(), -7.0);
+    // 2^53 + 1 is not representable as a double; it must round to 2^53.
+    EXPECT_DOUBLE_EQ(
+        registry.call("syscall.int_to_float", {Value(int64_t(9007199254740993LL))}).as_float(),
+        9007199254740992.0);
 }

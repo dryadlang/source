@@ -94,6 +94,13 @@ Value ExpressionEvaluator::evaluate_binary(BinaryExpression* expr) {
         case TokenType::Slash:
         case TokenType::Percent:
             return evaluate_arithmetic(expr->op, left, right);
+
+        case TokenType::Ampersand:
+        case TokenType::Pipe:
+        case TokenType::Caret:
+        case TokenType::LessLess:
+        case TokenType::GreaterGreater:
+            return evaluate_bitwise(expr->op, left, right);
         
         case TokenType::Less:
         case TokenType::LessEqual:
@@ -147,6 +154,23 @@ Value ExpressionEvaluator::evaluate_arithmetic(TokenType op, const Value& left, 
             return Value(left.as_integer() % right.as_integer());
         default:
             throw DryadException("Unknown arithmetic operator");
+    }
+}
+
+Value ExpressionEvaluator::evaluate_bitwise(TokenType op, const Value& left, const Value& right) {
+    if (!left.is_integer() || !right.is_integer()) {
+        throw DryadException("Bitwise operators require integer operands");
+    }
+
+    const int64_t l = left.as_integer();
+    const int64_t r = right.as_integer();
+    switch (op) {
+        case TokenType::Ampersand:      return Value(l & r);
+        case TokenType::Pipe:           return Value(l | r);
+        case TokenType::Caret:          return Value(l ^ r);
+        case TokenType::LessLess:       return Value(static_cast<int64_t>(static_cast<uint64_t>(l) << (r & 63)));
+        case TokenType::GreaterGreater: return Value(l >> (r & 63));
+        default: throw DryadException("Unknown bitwise operator");
     }
 }
 
@@ -209,6 +233,10 @@ Value ExpressionEvaluator::evaluate_unary(UnaryExpression* expr) {
         
         case TokenType::Bang:
             return Value(!operand.is_truthy());
+
+        case TokenType::Tilde:
+            if (!operand.is_integer()) throw DryadException("Bitwise operators require integer operands");
+            return Value(~operand.as_integer());
         
         default:
             throw DryadException("Unknown unary operator");

@@ -145,6 +145,11 @@ bool SemanticAnalyzer::is_arithmetic(TokenType op) const {
         case TokenType::Star:
         case TokenType::Slash:
         case TokenType::Percent:
+        case TokenType::Ampersand:
+        case TokenType::Pipe:
+        case TokenType::Caret:
+        case TokenType::LessLess:
+        case TokenType::GreaterGreater:
             return true;
         default:
             return false;
@@ -176,7 +181,9 @@ std::string SemanticAnalyzer::infer_binary_type(TokenType op, const std::string&
         return "string";
     }
     if ((op == TokenType::Plus || op == TokenType::Minus || op == TokenType::Star ||
-         op == TokenType::Slash || op == TokenType::Percent) &&
+         op == TokenType::Slash || op == TokenType::Percent ||
+         op == TokenType::Ampersand || op == TokenType::Pipe || op == TokenType::Caret ||
+         op == TokenType::LessLess || op == TokenType::GreaterGreater) &&
         left == "number" && right == "number") {
         return "number";
     }

@@ -2,6 +2,7 @@
 #include "dryad/compiler/lexer.h"
 #include "dryad/compiler/parser.h"
 #include "dryad/compiler/interpreter.h"
+#include "dryad/common/utils.h"
 #include <stdexcept>
 
 using namespace dryad;
@@ -150,4 +151,43 @@ TEST(LanguageFeaturesTest, ParserAcceptsReservedMemberNamesAfterDot) {
     auto result = run_source(source);
     ASSERT_TRUE(result.is_integer());
     EXPECT_EQ(result.as_integer(), 7);
+}
+
+TEST(LanguageFeaturesTest, BitwiseOperations) {
+    const std::string source = R"(
+        let a = 6 & 3;
+        let b = 6 | 3;
+        let c = 6 ^ 3;
+        let d = ~0;
+        let e = 1 << 4;
+        let f = -16 >> 2;
+        let result = a == 2 && b == 7 && c == 5 && d == -1 && e == 16 && f == -4;
+    )";
+    EXPECT_TRUE(run_source(source).is_truthy());
+}
+
+TEST(LanguageFeaturesTest, BitwisePrecedence) {
+    const std::string source = R"(
+        let result = (1 | 2 & 3) == 3 && (7 ^ 3 & 1) == 6 && (1 << 2 + 1) == 8;
+    )";
+    EXPECT_TRUE(run_source(source).is_truthy());
+}
+
+TEST(LanguageFeaturesTest, BitwiseRejectsBooleans) {
+    // `1 & 3 == 1` parses as `1 & (3 == 1)`; equality yields a boolean, which
+    // bitwise operators reject instead of coercing to 0/1.
+    EXPECT_THROW(run_source("let result = 1 & 3 == 1;"), DryadException);
+}
+
+TEST(LanguageFeaturesTest, ShiftCountsAreMasked) {
+    const std::string source = R"(
+        let result = (1 << 64) == 1 && (1 << 65) == 2 && (16 >> 64) == 16;
+    )";
+    EXPECT_TRUE(run_source(source).is_truthy());
+}
+
+TEST(LanguageFeaturesTest, BitwiseRejectsFloats) {
+    EXPECT_THROW(run_source("let result = 1.5 & 1;"), DryadException);
+    EXPECT_THROW(run_source("let result = 1 | 2.5;"), DryadException);
+    EXPECT_THROW(run_source("let result = ~1.5;"), DryadException);
 }

@@ -35,6 +35,7 @@ private:
     Value evaluate_super_method_call(MemberExpression* member, const std::vector<Value>& arguments);
     
     Value evaluate_arithmetic(TokenType op, const Value& left, const Value& right);
+    Value evaluate_bitwise(TokenType op, const Value& left, const Value& right);
     Value evaluate_comparison(TokenType op, const Value& left, const Value& right);
     Value evaluate_logical(TokenType op, const Value& left, const Value& right);
 };

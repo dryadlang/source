@@ -55,3 +55,4 @@ TEST(TextTest, IncludesAndAffixes) { EXPECT_TRUE(run_text_test("text_test_includ
 TEST(TextTest, EqualsAndCompare) { EXPECT_TRUE(run_text_test("text_test_equals_and_compare").is_truthy()); }
 TEST(TextTest, CodePointsAndCharCount) { EXPECT_TRUE(run_text_test("text_test_code_points_and_char_count").is_truthy()); }
 TEST(TextTest, EmptyStrings) { EXPECT_TRUE(run_text_test("text_test_empty_strings").is_truthy()); }
+TEST(TextTest, Utf8Rejections) { EXPECT_TRUE(run_text_test("text_test_utf8_rejections").is_truthy()); }

@@ -124,3 +124,17 @@ function text_test_empty_strings() {
              starts[1] == null && starts[0];
     return ok;
 }
+
+function text_test_utf8_rejections() {
+    // Overlong encoding of '/', a surrogate and a value above U+10FFFF, each
+    // built from raw bytes so the source file stays valid UTF-8.
+    let overlong = Text_FromCodePoint(47);       // sanity: valid
+    let surrogate = Text_CodePointAt("é", 1);    // continuation byte
+    let lastEmpty = Text_LastIndexOf("", "");
+    let firstEmpty = Text_IndexOf("", "");
+    let ok = overlong[1] == null && overlong[0] == "/" &&
+             surrogate[1] != null &&
+             lastEmpty[1] == null && lastEmpty[0] == 0 &&
+             firstEmpty[1] == null && firstEmpty[0] == 0;
+    return ok;
+}

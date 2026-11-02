@@ -19,14 +19,18 @@ function Text_ToBuffer(text) {
     return Buffer_FromString(text);
 }
 
-// Slices [start, end) and converts back to a string; returns a string or an
-// error string. Callers must validate the range first.
+// Slices [start, end) and converts back to a string; returns [string, error].
+// Callers must validate the range first.
 function Text_StringSlice(buf, start, end) {
     let slice = Buffer_Slice(buf, start, end);
     if (__runtime_value_kind(slice) == "string") {
-        return slice;
+        return ["", slice];
     }
-    return Buffer_AsString(slice);
+    let text = Buffer_AsString(slice);
+    if (__runtime_value_kind(text) != "string") {
+        return ["", Exception("Failed to read string from buffer")];
+    }
+    return [text, null];
 }
 
 // Number of bytes encoded by a UTF-8 lead byte (1-4). Only meaningful for a
@@ -185,8 +189,12 @@ function Text_CharAt(text, index) {
         return ["", ArgumentOutOfRangeException("Byte index out of range")];
     }
     let s = Text_StringSlice(buf, index, index + 1);
+    if (s[1] != null) {
+        Buffer_Dispose(buf);
+        return ["", s[1]];
+    }
     Buffer_Dispose(buf);
-    return [s, null];
+    return [s[0], null];
 }
 
 function Text_CodePointAt(text, byteIndex) {
@@ -196,6 +204,10 @@ function Text_CodePointAt(text, byteIndex) {
     let buf = Text_ToBuffer(text);
     if (__runtime_value_kind(buf) == "string") {
         return [0, buf];
+    }
+    if (__runtime_value_kind(byteIndex) != "integer") {
+        Buffer_Dispose(buf);
+        return [0, ArgumentOutOfRangeException("byteIndex must be an integer")];
     }
     let r = Text_DecodeCodePoint(buf, byteIndex);
     Buffer_Dispose(buf);
@@ -238,9 +250,13 @@ function Text_FromCodePoint(codePoint) {
         Buffer_Write(buf, 2, 128 | ((codePoint >> 6) & 63));
         Buffer_Write(buf, 3, 128 | (codePoint & 63));
     }
-    let s = Buffer_AsString(buf);
+    let text = Buffer_AsString(buf);
+    if (__runtime_value_kind(text) != "string" || __string_length(text) != n) {
+        Buffer_Dispose(buf);
+        return ["", Exception("Failed to encode code point")];
+    }
     Buffer_Dispose(buf);
-    return [s, null];
+    return [text, null];
 }
 
 function Text_Slice(text, start, end) {
@@ -252,13 +268,25 @@ function Text_Slice(text, start, end) {
         return ["", buf];
     }
     let len = Buffer_Len(buf);
+    if (__runtime_value_kind(start) != "integer") {
+        Buffer_Dispose(buf);
+        return ["", ArgumentOutOfRangeException("start must be an integer")];
+    }
+    if (__runtime_value_kind(end) != "integer") {
+        Buffer_Dispose(buf);
+        return ["", ArgumentOutOfRangeException("end must be an integer")];
+    }
     if (start < 0 || end < start || end > len) {
         Buffer_Dispose(buf);
         return ["", ArgumentOutOfRangeException("Slice range out of bounds")];
     }
     let s = Text_StringSlice(buf, start, end);
+    if (s[1] != null) {
+        Buffer_Dispose(buf);
+        return ["", s[1]];
+    }
     Buffer_Dispose(buf);
-    return [s, null];
+    return [s[0], null];
 }
 
 function Text_Substring(text, start, count) {
@@ -270,13 +298,25 @@ function Text_Substring(text, start, count) {
         return ["", buf];
     }
     let len = Buffer_Len(buf);
+    if (__runtime_value_kind(start) != "integer") {
+        Buffer_Dispose(buf);
+        return ["", ArgumentOutOfRangeException("start must be an integer")];
+    }
+    if (__runtime_value_kind(count) != "integer") {
+        Buffer_Dispose(buf);
+        return ["", ArgumentOutOfRangeException("count must be an integer")];
+    }
     if (start < 0 || count < 0 || count > len - start) {
         Buffer_Dispose(buf);
         return ["", ArgumentOutOfRangeException("Substring range out of bounds")];
     }
     let s = Text_StringSlice(buf, start, start + count);
+    if (s[1] != null) {
+        Buffer_Dispose(buf);
+        return ["", s[1]];
+    }
     Buffer_Dispose(buf);
-    return [s, null];
+    return [s[0], null];
 }
 
 function Text_IndexOf(text, needle) {

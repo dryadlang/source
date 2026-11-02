@@ -54,6 +54,7 @@ std::map<std::string, std::set<std::string>> load_imports() {
 std::set<std::string> allowed_imports(const std::string& module) {
     if (module == "bytes") return {"core", "buffers"};
     if (module == "buffers") return {"core"};
+    if (module == "text") return {"core", "buffers", "bytes"};
     return {}; // no rule yet for other modules in this wave
 }
 
@@ -66,6 +67,9 @@ TEST(StdlibLayersTest, BytesAndBuffersRespectLayers) {
     EXPECT_EQ(graph["bytes"].count("buffers"), 1u);
     EXPECT_EQ(graph["bytes"].count("core"), 1u);
     EXPECT_EQ(graph["buffers"].count("core"), 1u);
+    ASSERT_EQ(graph.count("text"), 1u);
+    EXPECT_EQ(graph["text"].count("bytes"), 1u);
+    EXPECT_EQ(graph["text"].count("buffers"), 1u);
     for (const auto& [module, imports] : graph) {
         const auto allowed = allowed_imports(module);
         if (allowed.empty()) {

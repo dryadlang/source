@@ -8,7 +8,8 @@ import {
     Text_ToLowerAscii, Text_ToUpperAscii, Text_Trim, Text_TrimStart, Text_TrimEnd,
     Text_Repeat, Text_PadStart, Text_PadEnd,
     Text_Split, Text_Join, Text_Replace, Text_ReplaceAll,
-    Text_ParseInt, Text_FormatInt, Text_ParseFloat, Text_FormatFloat
+    Text_ParseInt, Text_FormatInt, Text_ParseFloat, Text_FormatFloat,
+    StringBuilder
 } from "@std/text/text";
 
 function text_test_length_is_bytes() {
@@ -336,5 +337,35 @@ function text_test_format_float_negative_zero_and_precision() {
     let ok = negZero[1] == null && negZero[0] == "-0" &&
              maxPrecision[1] == null && Text_Length(maxPrecision[0])[0] == 17 &&
              Text_Slice(maxPrecision[0], 0, 2)[0] == "1.";
+    return ok;
+}
+
+function text_test_string_builder() {
+    let sb = new StringBuilder(4);
+    sb.append("ab");
+    sb.appendChar("c");
+    let mid = sb.toString();
+    let len = sb.length();
+    sb.clear();
+    let cleared = sb.toString();
+    let clearedLen = sb.length();
+    sb.appendBuffer(null);
+    let ok = mid == "abc" && len == 3 &&
+             cleared == "" && clearedLen == 0;
+    return ok;
+}
+
+function text_test_string_builder_growth() {
+    let sb = new StringBuilder(2);
+    let chunk = "0123456789";
+    let i = 0;
+    while (i < 1000) {
+        sb.append(chunk);
+        i = i + 1;
+    }
+    let out = sb.toString();
+    let ok = sb.length() == 10000 && Text_Length(out)[0] == 10000 &&
+             Text_CharAt(out, 0)[0] == "0" &&
+             Text_CharAt(out, 9999)[0] == "9";
     return ok;
 }

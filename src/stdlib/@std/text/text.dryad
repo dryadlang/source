@@ -3,7 +3,7 @@
 // byte container; strings are converted once per operation.
 
 import { ArgumentNullException, ArgumentOutOfRangeException, Exception } from "@std/core/exceptions";
-import { Buffer_New, Buffer_FromString, Buffer_AsString, Buffer_Read, Buffer_Write, Buffer_Len, Buffer_Slice, Buffer_Dispose } from "@std/buffers/buffer";
+import { Buffer_New, Buffer_FromString, Buffer_AsString, Buffer_Read, Buffer_Write, Buffer_Len, Buffer_Slice, Buffer_Resize, Buffer_Dispose } from "@std/buffers/buffer";
 import { Bytes_Compare, Bytes_Copy } from "@std/bytes/bytes";
 
 // ---------------------------------------------------------------------------
@@ -1393,4 +1393,140 @@ function Text_FormatFloat(value, decimals) {
         out = "-" + out;
     }
     return [out, null];
+}
+
+// ---------------------------------------------------------------------------
+// StringBuilder.
+// ---------------------------------------------------------------------------
+
+// Grows an owned buffer with a logical length kept in `_length`. Capacity is
+// doubled until it fits `needed`; the doubling is guarded against 64-bit
+// overflow by falling back to `needed` once the next doubling would exceed
+// the representable range.
+class StringBuilder {
+    constructor(initialCapacity = 16) {
+        if (__runtime_value_kind(initialCapacity) != "integer") {
+            initialCapacity = 16;
+        }
+        if (initialCapacity < 1) {
+            initialCapacity = 1;
+        }
+        this._buffer = Buffer_New(initialCapacity);
+        this._capacity = initialCapacity;
+        this._length = 0;
+    }
+
+    _ensureCapacity(needed) {
+        let cap = this._capacity;
+        if (cap >= needed) {
+            return null;
+        }
+        let newCap = cap;
+        while (newCap < needed) {
+            if (newCap > (9223372036854775807 - needed) / 2) {
+                newCap = needed;
+            } else {
+                newCap = newCap * 2;
+            }
+        }
+        let err = Buffer_Resize(this._buffer, newCap);
+        if (__runtime_value_kind(err) == "string") {
+            return err;
+        }
+        this._capacity = newCap;
+        return null;
+    }
+
+    append(text) {
+        if (__runtime_value_kind(text) != "string") {
+            return ArgumentOutOfRangeException("text must be a string");
+        }
+        let src = Buffer_FromString(text);
+        if (__runtime_value_kind(src) == "string") {
+            return src;
+        }
+        let textLen = Buffer_Len(src);
+        let err = this._ensureCapacity(this._length + textLen);
+        if (err != null) {
+            Buffer_Dispose(src);
+            return err;
+        }
+        err = Bytes_Copy(this._buffer, this._length, src, 0, textLen);
+        if (err != null) {
+            Buffer_Dispose(src);
+            return err;
+        }
+        this._length = this._length + textLen;
+        Buffer_Dispose(src);
+        return null;
+    }
+
+    appendChar(ch) {
+        if (__runtime_value_kind(ch) != "string") {
+            return ArgumentOutOfRangeException("ch must be a string");
+        }
+        let src = Buffer_FromString(ch);
+        if (__runtime_value_kind(src) == "string") {
+            return src;
+        }
+        let len = Buffer_Len(src);
+        if (len != 1) {
+            Buffer_Dispose(src);
+            return ArgumentOutOfRangeException("ch must be a single byte");
+        }
+        let err = this._ensureCapacity(this._length + 1);
+        if (err != null) {
+            Buffer_Dispose(src);
+            return err;
+        }
+        let byte = Buffer_Read(src, 0);
+        err = Buffer_Write(this._buffer, this._length, byte);
+        if (err != null) {
+            Buffer_Dispose(src);
+            return err;
+        }
+        this._length = this._length + 1;
+        Buffer_Dispose(src);
+        return null;
+    }
+
+    appendBuffer(buf) {
+        if (buf == null) {
+            return ArgumentNullException("buf");
+        }
+        if (__runtime_value_kind(buf) != "object") {
+            return ArgumentOutOfRangeException("buf must be a Buffer");
+        }
+        let srcLen = Buffer_Len(buf);
+        if (__runtime_value_kind(srcLen) != "integer") {
+            return srcLen;
+        }
+        let err = this._ensureCapacity(this._length + srcLen);
+        if (err != null) {
+            return err;
+        }
+        err = Bytes_Copy(this._buffer, this._length, buf, 0, srcLen);
+        if (err != null) {
+            return err;
+        }
+        this._length = this._length + srcLen;
+        return null;
+    }
+
+    toString() {
+        if (this._length == 0) {
+            return "";
+        }
+        let slice = Buffer_Slice(this._buffer, 0, this._length);
+        return Buffer_AsString(slice);
+    }
+
+    clear() {
+        this._length = 0;
+        return null;
+    }
+
+    length() {
+        return this._length;
+    }
 }

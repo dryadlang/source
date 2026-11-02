@@ -60,3 +60,6 @@ TEST(BytesTest, CopyOverlap) { EXPECT_TRUE(run_bytes_test("bytes_test_copy_overl
 TEST(BytesTest, FillRejectsValue) { EXPECT_TRUE(run_bytes_test("bytes_test_fill_rejects_value").is_truthy()); }
 TEST(BytesTest, EqualsTrueAndLengthOrder) { EXPECT_TRUE(run_bytes_test("bytes_test_equals_true_and_length_order").is_truthy()); }
 TEST(BytesTest, ValidateRejectsOverflowingRange) { EXPECT_TRUE(run_bytes_test("bytes_test_validate_rejects_overflowing_range").is_truthy()); }
+TEST(BytesTest, IndexOf) { EXPECT_TRUE(run_bytes_test("bytes_test_index_of").is_truthy()); }
+TEST(BytesTest, Contains) { EXPECT_TRUE(run_bytes_test("bytes_test_contains").is_truthy()); }
+TEST(BytesTest, StartsEndsWith) { EXPECT_TRUE(run_bytes_test("bytes_test_starts_ends_with").is_truthy()); }

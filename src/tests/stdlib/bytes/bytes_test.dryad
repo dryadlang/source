@@ -4,7 +4,12 @@ import {
     Bytes_Copy,
     Bytes_Fill,
     Bytes_Compare,
-    Bytes_Equals
+    Bytes_Equals,
+    Bytes_IndexOf,
+    Bytes_LastIndexOf,
+    Bytes_Contains,
+    Bytes_StartsWith,
+    Bytes_EndsWith
 } from "@std/bytes/bytes";
 
 import {
@@ -205,5 +210,55 @@ function bytes_test_validate_rejects_overflowing_range() {
     let err = Bytes_Copy(buf, 1, buf, 0, 9223372036854775807);
     let ok = err != null;
     Buffer_Dispose(buf);
+    return ok;
+}
+
+function bytes_test_index_of() {
+    let buf = Buffer_New(4);
+    Buffer_Write(buf, 1, 9);
+    Buffer_Write(buf, 3, 9);
+    let first = Bytes_IndexOf(buf, 9);
+    let last = Bytes_LastIndexOf(buf, 9);
+    let missing = Bytes_IndexOf(buf, 7);
+    let ok = first[1] == null && first[0] == 1 &&
+             last[1] == null && last[0] == 3 &&
+             missing[1] == null && missing[0] == -1;
+    Buffer_Dispose(buf);
+    return ok;
+}
+
+function bytes_test_contains() {
+    let buf = Buffer_New(2);
+    Buffer_Write(buf, 0, 42);
+    let yes = Bytes_Contains(buf, 42);
+    let no = Bytes_Contains(buf, 43);
+    let ok = yes[1] == null && yes[0] && no[1] == null && no[0] == false;
+    Buffer_Dispose(buf);
+    return ok;
+}
+
+function bytes_test_starts_ends_with() {
+    let buf = Buffer_New(4);
+    Buffer_Write(buf, 0, 1);
+    Buffer_Write(buf, 1, 2);
+    Buffer_Write(buf, 2, 3);
+    Buffer_Write(buf, 3, 4);
+    let prefix = Buffer_New(2);
+    Buffer_Write(prefix, 0, 1);
+    Buffer_Write(prefix, 1, 2);
+    let suffix = Buffer_New(2);
+    Buffer_Write(suffix, 0, 3);
+    Buffer_Write(suffix, 1, 4);
+    let longer = Buffer_New(5);
+    let s1 = Bytes_StartsWith(buf, prefix);
+    let s2 = Bytes_EndsWith(buf, suffix);
+    let s3 = Bytes_StartsWith(buf, longer);
+    let ok = s1[1] == null && s1[0] &&
+             s2[1] == null && s2[0] &&
+             s3[1] == null && s3[0] == false;
+    Buffer_Dispose(buf);
+    Buffer_Dispose(prefix);
+    Buffer_Dispose(suffix);
+    Buffer_Dispose(longer);
     return ok;
 }

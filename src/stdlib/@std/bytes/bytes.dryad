@@ -103,3 +103,94 @@ function Bytes_Equals(a, b) {
     }
     return [cmp[0] == 0, null];
 }
+
+function Bytes_IndexOf(buf, byte) {
+    let err = Bytes_ValidateRange(buf, 0, 0);
+    if (err != null) {
+        return [-1, err];
+    }
+    if (byte < 0 || byte > 255) {
+        return [-1, ArgumentOutOfRangeException("Byte value must be between 0 and 255")];
+    }
+    let len = Buffer_Len(buf);
+    let handle = Buffer_GetActualHandle(buf);
+    let base = Buffer_GetOffset(buf);
+    for (let i = 0; i < len; i = i + 1) {
+        if (__buffer_get(handle, base + i) == byte) {
+            return [i, null];
+        }
+    }
+    return [-1, null];
+}
+
+function Bytes_LastIndexOf(buf, byte) {
+    let err = Bytes_ValidateRange(buf, 0, 0);
+    if (err != null) {
+        return [-1, err];
+    }
+    if (byte < 0 || byte > 255) {
+        return [-1, ArgumentOutOfRangeException("Byte value must be between 0 and 255")];
+    }
+    let len = Buffer_Len(buf);
+    let handle = Buffer_GetActualHandle(buf);
+    let base = Buffer_GetOffset(buf);
+    for (let i = len - 1; i >= 0; i = i - 1) {
+        if (__buffer_get(handle, base + i) == byte) {
+            return [i, null];
+        }
+    }
+    return [-1, null];
+}
+
+function Bytes_Contains(buf, byte) {
+    let r = Bytes_IndexOf(buf, byte);
+    if (r[1] != null) {
+        return [false, r[1]];
+    }
+    return [r[0] >= 0, null];
+}
+
+function Bytes_MatchesAt(buf, pos, affix) {
+    let ha = Buffer_GetActualHandle(buf);
+    let hb = Buffer_GetActualHandle(affix);
+    let oa = Buffer_GetOffset(buf) + pos;
+    let ob = Buffer_GetOffset(affix);
+    let n = Buffer_Len(affix);
+    for (let i = 0; i < n; i = i + 1) {
+        if (__buffer_get(ha, oa + i) != __buffer_get(hb, ob + i)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+function Bytes_StartsWith(buf, prefix) {
+    let errA = Bytes_ValidateRange(buf, 0, 0);
+    if (errA != null) {
+        return [false, errA];
+    }
+    let errB = Bytes_ValidateRange(prefix, 0, 0);
+    if (errB != null) {
+        return [false, errB];
+    }
+    if (Buffer_Len(prefix) > Buffer_Len(buf)) {
+        return [false, null];
+    }
+    return [Bytes_MatchesAt(buf, 0, prefix), null];
+}
+
+function Bytes_EndsWith(buf, suffix) {
+    let errA = Bytes_ValidateRange(buf, 0, 0);
+    if (errA != null) {
+        return [false, errA];
+    }
+    let errB = Bytes_ValidateRange(suffix, 0, 0);
+    if (errB != null) {
+        return [false, errB];
+    }
+    let start = Buffer_Len(buf) - Buffer_Len(suffix);
+    if (start < 0) {
+        return [false, null];
+    }
+    return [Bytes_MatchesAt(buf, start, suffix), null];
+}

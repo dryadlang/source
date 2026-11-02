@@ -210,20 +210,25 @@ Token Lexer::scan_token() {
             return Token(TokenType::Equal, "=", start_loc);
         
         case '<':
+            if (match('<')) return Token(TokenType::LessLess, "<<", start_loc);
             if (match('=')) return Token(TokenType::LessEqual, "<=", start_loc);
             return Token(TokenType::Less, "<", start_loc);
         
         case '>':
+            if (match('>')) return Token(TokenType::GreaterGreater, ">>", start_loc);
             if (match('=')) return Token(TokenType::GreaterEqual, ">=", start_loc);
             return Token(TokenType::Greater, ">", start_loc);
         
         case '&':
             if (match('&')) return Token(TokenType::AmpersandAmpersand, "&&", start_loc);
-            return make_error("Unexpected character '&'");
+            return Token(TokenType::Ampersand, "&", start_loc);
         
         case '|':
             if (match('|')) return Token(TokenType::PipePipe, "||", start_loc);
-            return make_error("Unexpected character '|'");
+            return Token(TokenType::Pipe, "|", start_loc);
+        
+        case '^': return Token(TokenType::Caret, "^", start_loc);
+        case '~': return Token(TokenType::Tilde, "~", start_loc);
         
         case '"': {
             current_--;

@@ -39,6 +39,12 @@ enum class TokenType {
     Bang,
     AmpersandAmpersand,
     PipePipe,
+    Ampersand,       // &
+    Pipe,            // |
+    Caret,           // ^
+    Tilde,           // ~
+    LessLess,        // <<
+    GreaterGreater,  // >>
     
     LeftParen,
     RightParen,

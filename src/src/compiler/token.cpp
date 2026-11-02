@@ -14,7 +14,7 @@ bool Token::is_operator() const {
     return (type >= TokenType::Plus && type <= TokenType::Percent) ||
            (type >= TokenType::Equal && type <= TokenType::GreaterEqual) ||
            (type >= TokenType::PlusEqual && type <= TokenType::SlashEqual) ||
-           (type >= TokenType::Bang && type <= TokenType::PipePipe);
+           (type >= TokenType::Bang && type <= TokenType::GreaterGreater);
 }
 
 bool Token::is_keyword() const {
@@ -49,6 +49,12 @@ std::string token_type_to_string(TokenType type) {
         {TokenType::Bang, "!"},
         {TokenType::AmpersandAmpersand, "&&"},
         {TokenType::PipePipe, "||"},
+        {TokenType::Ampersand, "&"},
+        {TokenType::Pipe, "|"},
+        {TokenType::Caret, "^"},
+        {TokenType::Tilde, "~"},
+        {TokenType::LessLess, "<<"},
+        {TokenType::GreaterGreater, ">>"},
         {TokenType::LeftParen, "("},
         {TokenType::RightParen, ")"},
         {TokenType::LeftBrace, "{"},

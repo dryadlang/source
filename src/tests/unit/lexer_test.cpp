@@ -303,3 +303,39 @@ TEST(LexerTest, TryCatchFinally) {
     EXPECT_EQ(catch_count, 1);
     EXPECT_EQ(finally_count, 1);
 }
+
+TEST(LexerTest, BitwiseOperators) {
+    Lexer lexer("& | ^ ~ << >>");
+    auto tokens = lexer.tokenize();
+    ASSERT_EQ(tokens.size(), 7);
+    EXPECT_EQ(tokens[0].type, TokenType::Ampersand);
+    EXPECT_EQ(tokens[1].type, TokenType::Pipe);
+    EXPECT_EQ(tokens[2].type, TokenType::Caret);
+    EXPECT_EQ(tokens[3].type, TokenType::Tilde);
+    EXPECT_EQ(tokens[4].type, TokenType::LessLess);
+    EXPECT_EQ(tokens[5].type, TokenType::GreaterGreater);
+    EXPECT_EQ(tokens[6].type, TokenType::EndOfFile);
+}
+
+TEST(LexerTest, BitwiseDoesNotBreakLogicalOrComparison) {
+    Lexer lexer("&& || <= >= < >");
+    auto tokens = lexer.tokenize();
+    ASSERT_EQ(tokens.size(), 7);
+    EXPECT_EQ(tokens[0].type, TokenType::AmpersandAmpersand);
+    EXPECT_EQ(tokens[1].type, TokenType::PipePipe);
+    EXPECT_EQ(tokens[2].type, TokenType::LessEqual);
+    EXPECT_EQ(tokens[3].type, TokenType::GreaterEqual);
+    EXPECT_EQ(tokens[4].type, TokenType::Less);
+    EXPECT_EQ(tokens[5].type, TokenType::Greater);
+}
+
+TEST(LexerTest, AmpersandRuns) {
+    Lexer lexer("a &&& b");
+    auto tokens = lexer.tokenize();
+    ASSERT_EQ(tokens.size(), 5);
+    EXPECT_EQ(tokens[0].type, TokenType::Identifier);
+    EXPECT_EQ(tokens[1].type, TokenType::AmpersandAmpersand);
+    EXPECT_EQ(tokens[2].type, TokenType::Ampersand);
+    EXPECT_EQ(tokens[3].type, TokenType::Identifier);
+    EXPECT_EQ(tokens[4].type, TokenType::EndOfFile);
+}

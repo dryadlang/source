@@ -369,6 +369,9 @@ void BytecodeCompiler::compile_unary(UnaryExpression* expr) {
             builder_.emit(Opcode::SUB);
             pop_stack();
             break;
+        case TokenType::Tilde:
+            builder_.emit(Opcode::BIT_NOT);
+            break;
         default:
             throw DryadException("Bytecode compiler: unsupported unary operator");
     }
@@ -485,6 +488,21 @@ void BytecodeCompiler::compile_binary(BinaryExpression* expr) {
             break;
         case TokenType::Percent:
             builder_.emit(Opcode::MOD);
+            break;
+        case TokenType::Ampersand:
+            builder_.emit(Opcode::BIT_AND);
+            break;
+        case TokenType::Pipe:
+            builder_.emit(Opcode::BIT_OR);
+            break;
+        case TokenType::Caret:
+            builder_.emit(Opcode::BIT_XOR);
+            break;
+        case TokenType::LessLess:
+            builder_.emit(Opcode::SHL);
+            break;
+        case TokenType::GreaterGreater:
+            builder_.emit(Opcode::SHR);
             break;
         case TokenType::Less:
             builder_.emit(Opcode::LT);

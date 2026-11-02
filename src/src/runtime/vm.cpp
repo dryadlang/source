@@ -299,6 +299,46 @@ void VM::dispatch_opcode(Opcode op) {
             break;
         }
 
+        case Opcode::BIT_AND:
+        case Opcode::BIT_OR:
+        case Opcode::BIT_XOR:
+        case Opcode::SHL:
+        case Opcode::SHR: {
+            validate_stack(2, "bitwise");
+            Value right = stack_.back();
+            stack_.pop_back();
+            Value left = stack_.back();
+            stack_.pop_back();
+            if (!left.is_integer() || !right.is_integer()) {
+                throw DryadException("Bitwise operators require integer operands");
+            }
+            int64_t l = left.as_integer();
+            int64_t r = right.as_integer();
+            int64_t result = 0;
+            switch (op) {
+                case Opcode::BIT_AND: result = l & r; break;
+                case Opcode::BIT_OR:  result = l | r; break;
+                case Opcode::BIT_XOR: result = l ^ r; break;
+                case Opcode::SHL:     result = static_cast<int64_t>(static_cast<uint64_t>(l) << (r & 63)); break;
+                default:              result = l >> (r & 63); break;
+            }
+            stack_.push_back(Value(result));
+            advance(1);
+            break;
+        }
+
+        case Opcode::BIT_NOT: {
+            validate_stack(1, "BIT_NOT");
+            Value operand = stack_.back();
+            stack_.pop_back();
+            if (!operand.is_integer()) {
+                throw DryadException("BIT_NOT requires integer operand");
+            }
+            stack_.push_back(Value(~operand.as_integer()));
+            advance(1);
+            break;
+        }
+
         case Opcode::ADD_F64: {
             validate_stack(2, "ADD_F64");
             double b = as_f64(stack_.back());

@@ -37,6 +37,14 @@ enum class Opcode : uint8_t {
     // Logical (0x20–0x22)
     NOT         = 0x20,
 
+    // Bitwise (0x21–0x26)
+    BIT_AND     = 0x21,
+    BIT_OR      = 0x22,
+    BIT_XOR     = 0x23,
+    BIT_NOT     = 0x24,
+    SHL         = 0x25,
+    SHR         = 0x26,
+
     // Comparison (0x40–0x45)
     EQ          = 0x40,
     NEQ         = 0x41,

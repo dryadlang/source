@@ -202,3 +202,36 @@ TEST_F(VMTest, GenericAddStringConcat) {
 
     EXPECT_EQ(vm.get_stack_top().as_string(), "hello world");
 }
+
+TEST_F(VMTest, BitwiseOpcodes) {
+    BytecodeBuilder builder;
+    builder.emit_push_int(6);
+    builder.emit_push_int(3);
+    builder.emit(Opcode::BIT_AND);
+    builder.emit_halt();
+    vm.load(builder.build());
+    vm.execute();
+    EXPECT_EQ(vm.get_stack_top().as_integer(), 2);
+}
+
+TEST_F(VMTest, ShiftCountsAreMasked) {
+    BytecodeBuilder builder;
+    builder.emit_push_int(1);
+    builder.emit_push_int(64);
+    builder.emit(Opcode::SHL);
+    builder.emit_halt();
+    vm.load(builder.build());
+    vm.execute();
+    EXPECT_EQ(vm.get_stack_top().as_integer(), 1);
+}
+
+TEST_F(VMTest, LeftShiftWraps) {
+    BytecodeBuilder builder;
+    builder.emit_push_int(1);
+    builder.emit_push_int(63);
+    builder.emit(Opcode::SHL);
+    builder.emit_halt();
+    vm.load(builder.build());
+    vm.execute();
+    EXPECT_EQ(vm.get_stack_top().as_integer(), -9223372036854775807LL - 1);
+}

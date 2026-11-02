@@ -197,7 +197,36 @@ TEST(MemoryIntrinsicsTest, MemmoveRejectsOutOfBounds) {
     EXPECT_EQ(intr.buffer_get(dst.as_integer(), 2).as_integer(), 0);
     EXPECT_TRUE(intr.memmove(dst.as_integer(), -1, src.as_integer(), 0, 1).is_null());
     EXPECT_TRUE(intr.memmove(dst.as_integer(), 0, src.as_integer(), 0, -1).is_null());
+    EXPECT_EQ(intr.buffer_get(dst.as_integer(), 2).as_integer(), 0);
 
     intr.free_bytes(src.as_integer());
     intr.free_bytes(dst.as_integer());
+}
+
+TEST(MemoryIntrinsicsTest, MemmoveZeroCountIsNoOp) {
+    Intrinsics intr;
+    Value src = intr.alloc_bytes(4);
+    Value dst = intr.alloc_bytes(4);
+    intr.buffer_set(dst.as_integer(), 0, 77);
+
+    EXPECT_TRUE(intr.memmove(dst.as_integer(), 0, src.as_integer(), 0, 0).is_null());
+    EXPECT_EQ(intr.buffer_get(dst.as_integer(), 0).as_integer(), 77);
+
+    intr.free_bytes(src.as_integer());
+    intr.free_bytes(dst.as_integer());
+}
+
+TEST(MemoryIntrinsicsTest, MemmoveRejectsFreedHandle) {
+    Intrinsics intr;
+    Value src = intr.alloc_bytes(4);
+    Value dst = intr.alloc_bytes(4);
+    intr.buffer_set(src.as_integer(), 0, 5);
+    intr.free_bytes(dst.as_integer());
+
+    EXPECT_TRUE(intr.memmove(dst.as_integer(), 0, src.as_integer(), 0, 1).is_null());
+    EXPECT_EQ(intr.buffer_get(src.as_integer(), 0).as_integer(), 5);
+    EXPECT_TRUE(intr.memmove(0, 0, src.as_integer(), 0, 1).is_null());
+    EXPECT_EQ(intr.buffer_get(src.as_integer(), 0).as_integer(), 5);
+
+    intr.free_bytes(src.as_integer());
 }

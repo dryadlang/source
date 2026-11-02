@@ -11,7 +11,6 @@ import {
     Buffer_New,
     Buffer_Read,
     Buffer_Write,
-    Buffer_Len,
     Buffer_Slice,
     Buffer_Dispose
 } from "@std/buffers/buffer";
@@ -117,5 +116,94 @@ function bytes_test_equals_length_mismatch() {
     let ok = r[1] == null && r[0] == false;
     Buffer_Dispose(a);
     Buffer_Dispose(b);
+    return ok;
+}
+
+function bytes_test_validate_rejects_disposed() {
+    let buf = Buffer_New(2);
+    Buffer_Dispose(buf);
+    let r1 = Bytes_Compare(buf, buf);
+    let r2 = Bytes_Equals(buf, buf);
+    return r1[1] != null && r2[1] != null;
+}
+
+function bytes_test_copy_from_slice() {
+    let parent = Buffer_New(4);
+    Buffer_Write(parent, 2, 11);
+    Buffer_Write(parent, 3, 22);
+    let slice = Buffer_Slice(parent, 2, 4);
+    let dst = Buffer_New(2);
+    let err = Bytes_Copy(dst, 0, slice, 0, 2);
+    let ok = err == null && Buffer_Read(dst, 0) == 11 && Buffer_Read(dst, 1) == 22;
+    Buffer_Dispose(dst);
+    Buffer_Dispose(parent);
+    return ok;
+}
+
+function bytes_test_fill_from_slice() {
+    let parent = Buffer_New(4);
+    let slice = Buffer_Slice(parent, 2, 4);
+    let err = Bytes_Fill(slice, 0, 2, 7);
+    let ok = err == null && Buffer_Read(parent, 0) == 0 &&
+             Buffer_Read(parent, 2) == 7 && Buffer_Read(parent, 3) == 7;
+    Buffer_Dispose(parent);
+    return ok;
+}
+
+function bytes_test_compare_from_slices() {
+    let a = Buffer_New(4);
+    Buffer_Write(a, 1, 5);
+    let b = Buffer_New(3);
+    Buffer_Write(b, 2, 5);
+    let sa = Buffer_Slice(a, 1, 2);
+    let sb = Buffer_Slice(b, 2, 3);
+    let r = Bytes_Compare(sa, sb);
+    let ok = r[1] == null && r[0] == 0;
+    Buffer_Dispose(a);
+    Buffer_Dispose(b);
+    return ok;
+}
+
+function bytes_test_copy_overlap() {
+    let buf = Buffer_New(4);
+    Buffer_Write(buf, 0, 1);
+    Buffer_Write(buf, 1, 2);
+    Buffer_Write(buf, 2, 3);
+    let err = Bytes_Copy(buf, 1, buf, 0, 3);
+    let ok = err == null && Buffer_Read(buf, 0) == 1 &&
+             Buffer_Read(buf, 1) == 1 && Buffer_Read(buf, 2) == 2 && Buffer_Read(buf, 3) == 3;
+    Buffer_Dispose(buf);
+    return ok;
+}
+
+function bytes_test_fill_rejects_value() {
+    let buf = Buffer_New(1);
+    let e1 = Bytes_Fill(buf, 0, 1, 256);
+    let e2 = Bytes_Fill(buf, 0, 1, -1);
+    let ok = e1 != null && e2 != null && Buffer_Read(buf, 0) == 0;
+    Buffer_Dispose(buf);
+    return ok;
+}
+
+function bytes_test_equals_true_and_length_order() {
+    let a = Buffer_New(2);
+    let b = Buffer_New(2);
+    Buffer_Write(a, 0, 9);
+    Buffer_Write(b, 0, 9);
+    let eq = Bytes_Equals(a, b);
+    let c = Buffer_New(1);
+    let cmp = Bytes_Compare(a, c);
+    let ok = eq[1] == null && eq[0] && cmp[1] == null && cmp[0] == 1;
+    Buffer_Dispose(a);
+    Buffer_Dispose(b);
+    Buffer_Dispose(c);
+    return ok;
+}
+
+function bytes_test_validate_rejects_overflowing_range() {
+    let buf = Buffer_New(2);
+    let err = Bytes_Copy(buf, 1, buf, 0, 9223372036854775807);
+    let ok = err != null;
+    Buffer_Dispose(buf);
     return ok;
 }

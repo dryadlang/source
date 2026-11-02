@@ -1,8 +1,8 @@
 // @std/bytes/bytes.dryad
 // Byte operations over @std/buffers Buffer. Buffer is the only byte container.
 
-import { ArgumentNullException, ArgumentOutOfRangeException, IndexOutOfRangeException, Exception } from "@std/core/exceptions";
-import { Buffer_New, Buffer_Read, Buffer_Write, Buffer_Len, Buffer_GetActualHandle, Buffer_GetOffset } from "@std/buffers/buffer";
+import { ArgumentNullException, ArgumentOutOfRangeException } from "@std/core/exceptions";
+import { Buffer_Len, Buffer_GetActualHandle, Buffer_GetOffset } from "@std/buffers/buffer";
 
 function Bytes_ValidateRange(buf, offset, count) {
     if (buf == null) {
@@ -12,7 +12,7 @@ function Bytes_ValidateRange(buf, offset, count) {
     if (__runtime_value_kind(len) != "integer") {
         return len;
     }
-    if (offset < 0 || count < 0 || offset + count > len) {
+    if (offset < 0 || count < 0 || offset > len || count > len - offset) {
         return ArgumentOutOfRangeException("Byte range out of bounds");
     }
     return null;

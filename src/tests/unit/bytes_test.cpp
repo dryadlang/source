@@ -52,3 +52,11 @@ TEST(BytesTest, Fill) { EXPECT_TRUE(run_bytes_test("bytes_test_fill").is_truthy(
 TEST(BytesTest, CompareEqual) { EXPECT_TRUE(run_bytes_test("bytes_test_compare_equal").is_truthy()); }
 TEST(BytesTest, CompareOrders) { EXPECT_TRUE(run_bytes_test("bytes_test_compare_orders").is_truthy()); }
 TEST(BytesTest, EqualsLengthMismatch) { EXPECT_TRUE(run_bytes_test("bytes_test_equals_length_mismatch").is_truthy()); }
+TEST(BytesTest, ValidateRejectsDisposed) { EXPECT_TRUE(run_bytes_test("bytes_test_validate_rejects_disposed").is_truthy()); }
+TEST(BytesTest, CopyFromSlice) { EXPECT_TRUE(run_bytes_test("bytes_test_copy_from_slice").is_truthy()); }
+TEST(BytesTest, FillFromSlice) { EXPECT_TRUE(run_bytes_test("bytes_test_fill_from_slice").is_truthy()); }
+TEST(BytesTest, CompareFromSlices) { EXPECT_TRUE(run_bytes_test("bytes_test_compare_from_slices").is_truthy()); }
+TEST(BytesTest, CopyOverlap) { EXPECT_TRUE(run_bytes_test("bytes_test_copy_overlap").is_truthy()); }
+TEST(BytesTest, FillRejectsValue) { EXPECT_TRUE(run_bytes_test("bytes_test_fill_rejects_value").is_truthy()); }
+TEST(BytesTest, EqualsTrueAndLengthOrder) { EXPECT_TRUE(run_bytes_test("bytes_test_equals_true_and_length_order").is_truthy()); }
+TEST(BytesTest, ValidateRejectsOverflowingRange) { EXPECT_TRUE(run_bytes_test("bytes_test_validate_rejects_overflowing_range").is_truthy()); }

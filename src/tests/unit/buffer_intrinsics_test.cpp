@@ -136,3 +136,54 @@ TEST(MemoryIntrinsicsTest, DoubleFreeDetection) {
     Value second_free = intr.free_bytes(handle);
     EXPECT_TRUE(second_free.is_null());
 }
+
+TEST(MemoryIntrinsicsTest, MemmoveWithOffsets) {
+    Intrinsics intr;
+    Value src = intr.alloc_bytes(8);
+    Value dst = intr.alloc_bytes(8);
+    for (int i = 0; i < 4; ++i) {
+        intr.buffer_set(src.as_integer(), i, 10 + i);
+    }
+
+    Value moved = intr.memmove(dst.as_integer(), 2, src.as_integer(), 1, 3);
+    EXPECT_TRUE(moved.is_null());
+    EXPECT_EQ(intr.buffer_get(dst.as_integer(), 1).as_integer(), 0);
+    EXPECT_EQ(intr.buffer_get(dst.as_integer(), 2).as_integer(), 11);
+    EXPECT_EQ(intr.buffer_get(dst.as_integer(), 3).as_integer(), 12);
+    EXPECT_EQ(intr.buffer_get(dst.as_integer(), 4).as_integer(), 13);
+
+    intr.free_bytes(src.as_integer());
+    intr.free_bytes(dst.as_integer());
+}
+
+TEST(MemoryIntrinsicsTest, MemmoveOverlapForward) {
+    Intrinsics intr;
+    Value buf = intr.alloc_bytes(6);
+    for (int i = 0; i < 5; ++i) {
+        intr.buffer_set(buf.as_integer(), i, i + 1);
+    }
+
+    Value moved = intr.memmove(buf.as_integer(), 1, buf.as_integer(), 0, 4);
+    EXPECT_TRUE(moved.is_null());
+    EXPECT_EQ(intr.buffer_get(buf.as_integer(), 0).as_integer(), 1);
+    EXPECT_EQ(intr.buffer_get(buf.as_integer(), 1).as_integer(), 1);
+    EXPECT_EQ(intr.buffer_get(buf.as_integer(), 2).as_integer(), 2);
+    EXPECT_EQ(intr.buffer_get(buf.as_integer(), 3).as_integer(), 3);
+    EXPECT_EQ(intr.buffer_get(buf.as_integer(), 4).as_integer(), 4);
+
+    intr.free_bytes(buf.as_integer());
+}
+
+TEST(MemoryIntrinsicsTest, MemmoveRejectsOutOfBounds) {
+    Intrinsics intr;
+    Value src = intr.alloc_bytes(4);
+    Value dst = intr.alloc_bytes(4);
+
+    EXPECT_TRUE(intr.memmove(dst.as_integer(), 2, src.as_integer(), 0, 3).is_null());
+    EXPECT_EQ(intr.buffer_get(dst.as_integer(), 2).as_integer(), 0);
+    EXPECT_TRUE(intr.memmove(dst.as_integer(), -1, src.as_integer(), 0, 1).is_null());
+    EXPECT_TRUE(intr.memmove(dst.as_integer(), 0, src.as_integer(), 0, -1).is_null());
+
+    intr.free_bytes(src.as_integer());
+    intr.free_bytes(dst.as_integer());
+}

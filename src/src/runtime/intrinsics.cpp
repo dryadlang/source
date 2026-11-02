@@ -85,6 +85,36 @@ Value MemoryManager::realloc(int64_t handle, int64_t new_size) {
     return Value(handle);
 }
 
+Value MemoryManager::memmove(int64_t dest_handle, int64_t dest_offset,
+                              int64_t src_handle, int64_t src_offset, int64_t count) {
+    if (count <= 0) {
+        return Value();
+    }
+
+    std::lock_guard<std::mutex> lock(allocation_mutex);
+
+    AllocationMetadata* dest_meta = get_metadata(dest_handle);
+    AllocationMetadata* src_meta = get_metadata(src_handle);
+
+    if (!dest_meta || dest_meta->is_freed || !src_meta || src_meta->is_freed) {
+        return Value();
+    }
+
+    if (dest_offset < 0 || src_offset < 0) {
+        return Value();
+    }
+
+    if (dest_offset + count > static_cast<int64_t>(dest_meta->size) ||
+        src_offset + count > static_cast<int64_t>(src_meta->size)) {
+        return Value();
+    }
+
+    std::memmove(dest_meta->data + dest_offset, src_meta->data + src_offset,
+                 static_cast<size_t>(count));
+
+    return Value();
+}
+
 Value MemoryManager::memcpy(int64_t dest_handle, int64_t src_handle, int64_t count) {
     if (count <= 0) {
         return Value();
@@ -354,6 +384,11 @@ Value Intrinsics::realloc(int64_t handle, int64_t new_size) {
 
 Value Intrinsics::memcpy(int64_t dest_handle, int64_t src_handle, int64_t count) {
     return MemoryManager::memcpy(dest_handle, src_handle, count);
+}
+
+Value Intrinsics::memmove(int64_t dest_handle, int64_t dest_offset,
+                          int64_t src_handle, int64_t src_offset, int64_t count) {
+    return MemoryManager::memmove(dest_handle, dest_offset, src_handle, src_offset, count);
 }
 
 Value Intrinsics::memset(int64_t handle, int64_t value, int64_t count) {

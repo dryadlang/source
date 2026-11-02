@@ -55,7 +55,7 @@ void Interpreter::setup_intrinsic_functions() {
     auto intrinsic_names = std::vector<std::string>{
         "syscall.open", "syscall.read", "syscall.write", "syscall.close",
         "syscall.unlink", "syscall.stat", "syscall.time", "syscall.clock_gettime",
-        "syscall.malloc", "syscall.free", "syscall.realloc", "syscall.memcpy", "syscall.memset",
+        "syscall.malloc", "syscall.free", "syscall.realloc", "syscall.memcpy", "syscall.memmove", "syscall.memset",
         "syscall.alloc_bytes", "syscall.free_bytes", "syscall.buffer_get", "syscall.buffer_set",
         "syscall.string_length", "syscall.int_to_string", "syscall.string_to_bytes",
         "syscall.bytes_to_string",

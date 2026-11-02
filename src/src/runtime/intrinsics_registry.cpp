@@ -439,6 +439,22 @@ void IntrinsicsRegistry::register_all() {
     register_thread_intrinsics();
     register_event_loop_intrinsics();
     register_poller_intrinsics();
+
+    // Appended last on purpose: intrinsic IDs are positional and are stored
+    // in .dryadc companions. Inserting earlier would shift existing IDs.
+    register_intrinsic("syscall.memmove", [](const std::vector<Value>& args) -> Value {
+        if (args.size() < 5) {
+            throw DryadException("syscall.memmove requires 5 integer arguments");
+        }
+        for (size_t i = 0; i < 5; ++i) {
+            if (!args[i].is_integer()) {
+                throw DryadException("syscall.memmove requires 5 integer arguments");
+            }
+        }
+        return MemoryManager::memmove(args[0].as_integer(), args[1].as_integer(),
+                                      args[2].as_integer(), args[3].as_integer(),
+                                      args[4].as_integer());
+    });
 }
 
 } // namespace dryad

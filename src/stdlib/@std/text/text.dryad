@@ -1062,3 +1062,335 @@ function Text_Replace(text, needle, replacement) {
 function Text_ReplaceAll(text, needle, replacement) {
     return Text_ReplaceInternal(text, needle, replacement, true);
 }
+
+// ---------------------------------------------------------------------------
+// Numeric parse and format.
+// ---------------------------------------------------------------------------
+
+// Numeric value of an ASCII digit byte (0-9, a-f, A-F), or -1 if not a digit.
+function Text_DigitValue(b) {
+    if (b >= 48 && b <= 57) {
+        return b - 48;
+    }
+    if (b >= 97 && b <= 102) {
+        return b - 87;
+    }
+    if (b >= 65 && b <= 70) {
+        return b - 55;
+    }
+    return -1;
+}
+
+// Parses `text` as a signed integer in base 2, 8, 10 or 16. Returns [int, error].
+// Accepts an optional single leading '+'/'-', then one or more digits. No
+// whitespace, underscores or '0x' prefix. Overflow is rejected, except that
+// -9223372036854775808 is representable.
+function Text_ParseInt(text, base) {
+    if (__runtime_value_kind(text) != "string") {
+        return [0, ArgumentOutOfRangeException("text must be a string")];
+    }
+    if (__runtime_value_kind(base) != "integer") {
+        return [0, ArgumentOutOfRangeException("base must be an integer")];
+    }
+    if (base != 2 && base != 8 && base != 10 && base != 16) {
+        return [0, ArgumentOutOfRangeException("base must be 2, 8, 10 or 16")];
+    }
+    let buf = Text_ToBuffer(text);
+    if (__runtime_value_kind(buf) == "string") {
+        return [0, buf];
+    }
+    let len = Buffer_Len(buf);
+    let result = 0;
+    let error = null;
+    if (len == 0) {
+        error = ArgumentOutOfRangeException("No digits");
+    } else {
+        let i = 0;
+        let negative = false;
+        let b0 = Buffer_Read(buf, 0);
+        if (b0 == 43) {
+            i = 1;
+        } else if (b0 == 45) {
+            negative = true;
+            i = 1;
+        }
+        if (i == len) {
+            error = ArgumentOutOfRangeException("No digits");
+        } else if (negative) {
+            // Accumulate negatively so -9223372036854775808 is representable.
+            // The guard compares a difference to zero: the '<'/'<' operators
+            // promote integers to doubles, which is not exact near 2^63.
+            let value = 0;
+            while (i < len && error == null) {
+                let d = Text_DigitValue(Buffer_Read(buf, i));
+                if (d < 0 || d >= base) {
+                    error = ArgumentOutOfRangeException("Invalid digit");
+                } else if (value - (-9223372036854775807 - 1 + d) / base < 0) {
+                    error = ArgumentOutOfRangeException("Integer overflow");
+                } else {
+                    value = value * base - d;
+                    i = i + 1;
+                }
+            }
+            result = value;
+        } else {
+            let value = 0;
+            while (i < len && error == null) {
+                let d = Text_DigitValue(Buffer_Read(buf, i));
+                if (d < 0 || d >= base) {
+                    error = ArgumentOutOfRangeException("Invalid digit");
+                } else if (value - (9223372036854775807 - d) / base > 0) {
+                    error = ArgumentOutOfRangeException("Integer overflow");
+                } else {
+                    value = value * base + d;
+                    i = i + 1;
+                }
+            }
+            result = value;
+        }
+    }
+    Buffer_Dispose(buf);
+    if (error != null) {
+        return [0, error];
+    }
+    return [result, null];
+}
+
+// Formats an integer in base 2, 8, 10 or 16 with lowercase digits. Returns
+// [string, error]. Zero yields "0"; negative values get a leading '-'. INT64_MIN
+// is handled by accumulating digits from the (negative) remainder so its
+// magnitude is never negated.
+function Text_FormatInt(value, base) {
+    if (__runtime_value_kind(value) != "integer") {
+        return ["", ArgumentOutOfRangeException("value must be an integer")];
+    }
+    if (__runtime_value_kind(base) != "integer") {
+        return ["", ArgumentOutOfRangeException("base must be an integer")];
+    }
+    if (base != 2 && base != 8 && base != 10 && base != 16) {
+        return ["", ArgumentOutOfRangeException("base must be 2, 8, 10 or 16")];
+    }
+    if (value == 0) {
+        return ["0", null];
+    }
+    let negative = value < 0;
+    let mag = value;
+    let digits = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"];
+    let out = "";
+    while (mag != 0) {
+        let d = mag % base;
+        if (d < 0) {
+            d = -d;
+        }
+        out = digits[d] + out;
+        mag = mag / base;
+    }
+    if (negative) {
+        out = "-" + out;
+    }
+    return [out, null];
+}
+
+// Parses `text` as a decimal floating-point number. Returns [float, error].
+// Accepts an optional sign, one or more mantissa digits with at most one '.',
+// and an optional 'e'/'E' exponent with optional sign and at least one digit.
+// No whitespace. Digits are accumulated into a 64-bit mantissa plus a decimal
+// exponent, then combined with __int_to_float.
+function Text_ParseFloat(text) {
+    if (__runtime_value_kind(text) != "string") {
+        return [0.0, ArgumentOutOfRangeException("text must be a string")];
+    }
+    let buf = Text_ToBuffer(text);
+    if (__runtime_value_kind(buf) == "string") {
+        return [0.0, buf];
+    }
+    let len = Buffer_Len(buf);
+    let error = null;
+    let result = 0.0;
+    if (len == 0) {
+        error = ArgumentOutOfRangeException("No digits");
+    } else {
+        let i = 0;
+        let negative = false;
+        let b0 = Buffer_Read(buf, 0);
+        if (b0 == 43) {
+            i = 1;
+        } else if (b0 == 45) {
+            negative = true;
+            i = 1;
+        }
+        let mantissa = 0;
+        let exp10 = 0;
+        let sawDigit = false;
+        while (i < len) {
+            let b = Buffer_Read(buf, i);
+            if (b < 48 || b > 57) {
+                break;
+            }
+            let d = b - 48;
+            if (mantissa - (9223372036854775807 - d) / 10 <= 0) {
+                mantissa = mantissa * 10 + d;
+            } else {
+                exp10 = exp10 + 1;
+            }
+            sawDigit = true;
+            i = i + 1;
+        }
+        if (i < len && Buffer_Read(buf, i) == 46) {
+            i = i + 1;
+            while (i < len) {
+                let b = Buffer_Read(buf, i);
+                if (b < 48 || b > 57) {
+                    break;
+                }
+                let d = b - 48;
+                if (mantissa - (9223372036854775807 - d) / 10 <= 0) {
+                    mantissa = mantissa * 10 + d;
+                    exp10 = exp10 - 1;
+                }
+                sawDigit = true;
+                i = i + 1;
+            }
+        }
+        if (!sawDigit) {
+            error = ArgumentOutOfRangeException("No digits");
+        } else if (i < len) {
+            let b = Buffer_Read(buf, i);
+            if (b == 101 || b == 69) {
+                i = i + 1;
+                let expNeg = false;
+                if (i < len) {
+                    let c = Buffer_Read(buf, i);
+                    if (c == 43) {
+                        i = i + 1;
+                    } else if (c == 45) {
+                        expNeg = true;
+                        i = i + 1;
+                    }
+                }
+                let expDigits = 0;
+                let exp = 0;
+                while (i < len) {
+                    let b2 = Buffer_Read(buf, i);
+                    if (b2 < 48 || b2 > 57) {
+                        break;
+                    }
+                    let d2 = b2 - 48;
+                    if (exp < 100000) {
+                        exp = exp * 10 + d2;
+                    }
+                    expDigits = expDigits + 1;
+                    i = i + 1;
+                }
+                if (expDigits == 0) {
+                    error = ArgumentOutOfRangeException("Exponent requires digits");
+                } else if (expNeg) {
+                    exp10 = exp10 - exp;
+                } else {
+                    exp10 = exp10 + exp;
+                }
+            }
+            if (error == null && i != len) {
+                error = ArgumentOutOfRangeException("Unexpected trailing characters");
+            }
+        }
+        if (error == null) {
+            let value = __int_to_float(mantissa);
+            if (exp10 > 0) {
+                if (exp10 > 308) {
+                    exp10 = 308;
+                }
+                while (exp10 > 0) {
+                    value = value * 10.0;
+                    exp10 = exp10 - 1;
+                }
+            } else if (exp10 < 0) {
+                if (exp10 < -308) {
+                    exp10 = -308;
+                }
+                while (exp10 < 0) {
+                    value = value / 10.0;
+                    exp10 = exp10 + 1;
+                }
+            }
+            if (negative) {
+                value = -value;
+            }
+            result = value;
+        }
+    }
+    Buffer_Dispose(buf);
+    if (error != null) {
+        return [0.0, error];
+    }
+    return [result, null];
+}
+
+// Formats a float with a fixed number of decimal places (0..15). Returns
+// [string, error]. Non-finite values are rejected. Rounding is half away from
+// zero. Zero produces "0" plus optional fraction zeros.
+function Text_FormatFloat(value, decimals) {
+    if (__runtime_value_kind(value) != "float") {
+        return ["", ArgumentOutOfRangeException("value must be a float")];
+    }
+    if (__runtime_value_kind(decimals) != "integer") {
+        return ["", ArgumentOutOfRangeException("decimals must be an integer")];
+    }
+    if (decimals < 0 || decimals > 15) {
+        return ["", ArgumentOutOfRangeException("decimals must be between 0 and 15")];
+    }
+    let inf = 1.0 / 0.0;
+    if (value != value || value == inf || value == -inf) {
+        return ["", ArgumentOutOfRangeException("value must be finite")];
+    }
+    let negative = value < 0.0;
+    let a = value;
+    if (a < 0.0) {
+        a = -a;
+    }
+    let scale = 1.0;
+    let k = 0;
+    while (k < decimals) {
+        scale = scale * 10.0;
+        k = k + 1;
+    }
+    let rounded = __float_to_int(a * scale + 0.5);
+    if (rounded == null) {
+        return ["", ArgumentOutOfRangeException("value out of range")];
+    }
+    let digits = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
+    let mag = rounded;
+    let ds = "";
+    if (mag == 0) {
+        ds = "0";
+    } else {
+        while (mag != 0) {
+            let d = mag % 10;
+            ds = digits[d] + ds;
+            mag = mag / 10;
+        }
+    }
+    let out = "";
+    if (decimals == 0) {
+        out = ds;
+    } else {
+        let dlen = __string_length(ds);
+        if (dlen <= decimals) {
+            let zeros = "";
+            let j = 0;
+            while (j < decimals - dlen) {
+                zeros = zeros + "0";
+                j = j + 1;
+            }
+            out = "0." + zeros + ds;
+        } else {
+            let intPart = Text_Substring(ds, 0, dlen - decimals);
+            let fracPart = Text_Substring(ds, dlen - decimals, decimals);
+            out = intPart[0] + "." + fracPart[0];
+        }
+    }
+    if (negative) {
+        out = "-" + out;
+    }
+    return [out, null];
+}

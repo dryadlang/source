@@ -7,7 +7,8 @@ import {
     Text_CodePoints, Text_CharCount,
     Text_ToLowerAscii, Text_ToUpperAscii, Text_Trim, Text_TrimStart, Text_TrimEnd,
     Text_Repeat, Text_PadStart, Text_PadEnd,
-    Text_Split, Text_Join, Text_Replace, Text_ReplaceAll
+    Text_Split, Text_Join, Text_Replace, Text_ReplaceAll,
+    Text_ParseInt, Text_FormatInt, Text_ParseFloat, Text_FormatFloat
 } from "@std/text/text";
 
 function text_test_length_is_bytes() {
@@ -240,5 +241,71 @@ function text_test_split_part_contents() {
     let ok = parts[1] == null &&
              parts[0][0] == "a" && parts[0][1] == "b" &&
              parts[0][2] == "" && parts[0][3] == "c";
+    return ok;
+}
+
+function text_test_parse_int() {
+    let dec = Text_ParseInt("42", 10);
+    let neg = Text_ParseInt("-17", 10);
+    let hex = Text_ParseInt("ff", 16);
+    let bin = Text_ParseInt("1010", 2);
+    let badBase = Text_ParseInt("10", 3);
+    let badDigit = Text_ParseInt("12", 2);
+    let empty = Text_ParseInt("", 10);
+    let spaces = Text_ParseInt(" 42", 10);
+    let ok = dec[1] == null && dec[0] == 42 &&
+             neg[1] == null && neg[0] == -17 &&
+             hex[1] == null && hex[0] == 255 &&
+             bin[1] == null && bin[0] == 10 &&
+             badBase[1] != null && badDigit[1] != null &&
+             empty[1] != null && spaces[1] != null;
+    return ok;
+}
+
+function text_test_parse_int_rejects_overflow() {
+    let tooBig = Text_ParseInt("9223372036854775808", 10);
+    let minValue = Text_ParseInt("-9223372036854775808", 10);
+    return tooBig[1] != null && minValue[1] == null &&
+           minValue[0] == -9223372036854775807 - 1;
+}
+
+function text_test_format_int() {
+    let dec = Text_FormatInt(42, 10);
+    let neg = Text_FormatInt(-17, 10);
+    let hex = Text_FormatInt(255, 16);
+    let minValue = Text_FormatInt(-9223372036854775807 - 1, 10);
+    let badBase = Text_FormatInt(1, 3);
+    let ok = dec[1] == null && dec[0] == "42" &&
+             neg[1] == null && neg[0] == "-17" &&
+             hex[1] == null && hex[0] == "ff" &&
+             minValue[1] == null && minValue[0] == "-9223372036854775808" &&
+             badBase[1] != null;
+    return ok;
+}
+
+function text_test_parse_float() {
+    let whole = Text_ParseFloat("42");
+    let frac = Text_ParseFloat("-3.5");
+    let exp = Text_ParseFloat("1e3");
+    let bad = Text_ParseFloat("1.2.3");
+    let empty = Text_ParseFloat("");
+    let ok = whole[1] == null && whole[0] == 42.0 &&
+             frac[1] == null && frac[0] == -3.5 &&
+             exp[1] == null && exp[0] == 1000.0 &&
+             bad[1] != null && empty[1] != null;
+    return ok;
+}
+
+function text_test_format_float() {
+    let two = Text_FormatFloat(3.14159, 2);
+    let zero = Text_FormatFloat(3.7, 0);
+    let negHalf = Text_FormatFloat(-0.5, 0);
+    let whole = Text_FormatFloat(42.0, 3);
+    let badPrecision = Text_FormatFloat(1.0, 16);
+    let ok = two[1] == null && two[0] == "3.14" &&
+             zero[1] == null && zero[0] == "4" &&
+             negHalf[1] == null && negHalf[0] == "-1" &&
+             whole[1] == null && whole[0] == "42.000" &&
+             badPrecision[1] != null;
     return ok;
 }

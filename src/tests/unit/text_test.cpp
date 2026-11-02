@@ -65,3 +65,8 @@ TEST(TextTest, Join) { EXPECT_TRUE(run_text_test("text_test_join").is_truthy());
 TEST(TextTest, Replace) { EXPECT_TRUE(run_text_test("text_test_replace").is_truthy()); }
 TEST(TextTest, ReplaceDeletesAndJoinsEmptySeparator) { EXPECT_TRUE(run_text_test("text_test_replace_deletes_and_joins_empty_separator").is_truthy()); }
 TEST(TextTest, SplitPartContents) { EXPECT_TRUE(run_text_test("text_test_split_part_contents").is_truthy()); }
+TEST(TextTest, ParseInt) { EXPECT_TRUE(run_text_test("text_test_parse_int").is_truthy()); }
+TEST(TextTest, ParseIntRejectsOverflow) { EXPECT_TRUE(run_text_test("text_test_parse_int_rejects_overflow").is_truthy()); }
+TEST(TextTest, FormatInt) { EXPECT_TRUE(run_text_test("text_test_format_int").is_truthy()); }
+TEST(TextTest, ParseFloat) { EXPECT_TRUE(run_text_test("text_test_parse_float").is_truthy()); }
+TEST(TextTest, FormatFloat) { EXPECT_TRUE(run_text_test("text_test_format_float").is_truthy()); }

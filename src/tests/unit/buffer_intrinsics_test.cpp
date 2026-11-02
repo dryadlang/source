@@ -1,5 +1,10 @@
 #include <gtest/gtest.h>
 #include "dryad/runtime/intrinsics.h"
+#include <atomic>
+#include <chrono>
+#include <thread>
+#include <sys/socket.h>
+#include <unistd.h>
 
 using namespace dryad;
 
@@ -229,4 +234,47 @@ TEST(MemoryIntrinsicsTest, MemmoveRejectsFreedHandle) {
     EXPECT_EQ(intr.buffer_get(src.as_integer(), 0).as_integer(), 5);
 
     intr.free_bytes(src.as_integer());
+}
+
+TEST(MemoryIntrinsicsTest, BlockingReadDoesNotHoldAllocationLock) {
+    int fds[2];
+    ASSERT_EQ(::socketpair(AF_UNIX, SOCK_STREAM, 0, fds), 0);
+
+    Value rx = MemoryManager::alloc_bytes(8);
+    Value tx = MemoryManager::alloc_bytes(8);
+    for (int i = 0; i < 4; ++i) {
+        MemoryManager::buffer_set(tx.as_integer(), i, i + 1);
+    }
+
+    std::atomic<bool> read_done{false};
+    std::thread reader([&]() {
+        MemoryManager::read_fd_to_buffer(fds[0], rx.as_integer(), 0, 4);
+        read_done = true;
+    });
+
+    // Let the reader take the allocation lock and block inside read().
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    ASSERT_FALSE(read_done.load());
+
+    std::atomic<bool> write_done{false};
+    std::thread writer([&]() {
+        MemoryManager::write_fd_from_buffer(fds[1], tx.as_integer(), 0, 4);
+        write_done = true;
+    });
+
+    for (int i = 0; i < 200 && !write_done.load(); ++i) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+    EXPECT_TRUE(write_done.load());
+
+    // Unblock the reader whether or not the assertion held.
+    ::shutdown(fds[1], SHUT_RDWR);
+    reader.join();
+    writer.join();
+    EXPECT_EQ(MemoryManager::buffer_get(rx.as_integer(), 0).as_integer(), 1);
+
+    MemoryManager::free_bytes(rx.as_integer());
+    MemoryManager::free_bytes(tx.as_integer());
+    ::close(fds[0]);
+    ::close(fds[1]);
 }

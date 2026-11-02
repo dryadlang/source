@@ -1,5 +1,6 @@
 #include "dryad/runtime/intrinsics.h"
 #include <unistd.h>
+#include <algorithm>
 #include <vector>
 #include <cstring>
 #include <new>
@@ -222,16 +223,28 @@ Value MemoryManager::read_fd_to_buffer(int64_t fd, int64_t handle, int64_t offse
         return Value(static_cast<int64_t>(-1));
     }
 
-    std::lock_guard<std::mutex> lock(allocation_mutex);
-    AllocationMetadata* meta = get_metadata(handle);
-    if (!meta || meta->is_freed) {
-        return Value(static_cast<int64_t>(-1));
-    }
-    if (offset + count > static_cast<int64_t>(meta->size)) {
-        return Value(static_cast<int64_t>(-1));
+    AllocationMetadata* meta = nullptr;
+    {
+        std::lock_guard<std::mutex> lock(allocation_mutex);
+        meta = get_metadata(handle);
+        if (!meta || meta->is_freed) {
+            return Value(static_cast<int64_t>(-1));
+        }
+        if (offset + count > static_cast<int64_t>(meta->size)) {
+            return Value(static_cast<int64_t>(-1));
+        }
     }
 
-    ssize_t nbytes = ::read(static_cast<int>(fd), meta->data + offset, static_cast<size_t>(count));
+    std::vector<uint8_t> staging(static_cast<size_t>(count), 0);
+    ssize_t nbytes = ::read(static_cast<int>(fd), staging.data(), staging.size());
+    if (nbytes > 0) {
+        std::lock_guard<std::mutex> lock(allocation_mutex);
+        if (meta->is_freed || !meta->data) {
+            return Value(static_cast<int64_t>(-1));
+        }
+        std::memcpy(meta->data + offset, staging.data(),
+                    std::min(static_cast<size_t>(nbytes), staging.size()));
+    }
     return Value(static_cast<int64_t>(nbytes));
 }
 
@@ -240,16 +253,20 @@ Value MemoryManager::write_fd_from_buffer(int64_t fd, int64_t handle, int64_t of
         return Value(static_cast<int64_t>(-1));
     }
 
-    std::lock_guard<std::mutex> lock(allocation_mutex);
-    AllocationMetadata* meta = get_metadata(handle);
-    if (!meta || meta->is_freed) {
-        return Value(static_cast<int64_t>(-1));
-    }
-    if (offset + count > static_cast<int64_t>(meta->size)) {
-        return Value(static_cast<int64_t>(-1));
+    std::vector<uint8_t> staging;
+    {
+        std::lock_guard<std::mutex> lock(allocation_mutex);
+        AllocationMetadata* meta = get_metadata(handle);
+        if (!meta || meta->is_freed || !meta->data) {
+            return Value(static_cast<int64_t>(-1));
+        }
+        if (offset + count > static_cast<int64_t>(meta->size)) {
+            return Value(static_cast<int64_t>(-1));
+        }
+        staging.assign(meta->data + offset, meta->data + offset + count);
     }
 
-    ssize_t nbytes = ::write(static_cast<int>(fd), meta->data + offset, static_cast<size_t>(count));
+    ssize_t nbytes = ::write(static_cast<int>(fd), staging.data(), staging.size());
     return Value(static_cast<int64_t>(nbytes));
 }
 
@@ -259,16 +276,29 @@ Value MemoryManager::io_buffer(int64_t handle, int64_t offset, int64_t count,
         return Value(static_cast<int64_t>(-1));
     }
 
-    std::lock_guard<std::mutex> lock(allocation_mutex);
-    AllocationMetadata* meta = get_metadata(handle);
-    if (!meta || meta->is_freed) {
-        return Value(static_cast<int64_t>(-1));
-    }
-    if (offset + count > static_cast<int64_t>(meta->size)) {
-        return Value(static_cast<int64_t>(-1));
+    AllocationMetadata* meta = nullptr;
+    std::vector<uint8_t> staging;
+    {
+        std::lock_guard<std::mutex> lock(allocation_mutex);
+        meta = get_metadata(handle);
+        if (!meta || meta->is_freed || !meta->data) {
+            return Value(static_cast<int64_t>(-1));
+        }
+        if (offset + count > static_cast<int64_t>(meta->size)) {
+            return Value(static_cast<int64_t>(-1));
+        }
+        staging.assign(meta->data + offset, meta->data + offset + count);
     }
 
-    ssize_t nbytes = io(meta->data + offset, static_cast<size_t>(count));
+    ssize_t nbytes = io(staging.data(), staging.size());
+    if (nbytes > 0) {
+        std::lock_guard<std::mutex> lock(allocation_mutex);
+        if (meta->is_freed || !meta->data) {
+            return Value(static_cast<int64_t>(-1));
+        }
+        std::memcpy(meta->data + offset, staging.data(),
+                    std::min(static_cast<size_t>(nbytes), staging.size()));
+    }
     return Value(static_cast<int64_t>(nbytes));
 }
 
@@ -286,17 +316,21 @@ Value MemoryManager::sendto_buffer(int64_t fd, int64_t handle, int64_t offset, i
         return Value(static_cast<int64_t>(-1));
     }
 
-    std::lock_guard<std::mutex> lock(allocation_mutex);
-    AllocationMetadata* meta = get_metadata(handle);
-    if (!meta || meta->is_freed) {
-        return Value(static_cast<int64_t>(-1));
-    }
-    if (offset + count > static_cast<int64_t>(meta->size)) {
-        return Value(static_cast<int64_t>(-1));
+    std::vector<uint8_t> staging;
+    {
+        std::lock_guard<std::mutex> lock(allocation_mutex);
+        AllocationMetadata* meta = get_metadata(handle);
+        if (!meta || meta->is_freed || !meta->data) {
+            return Value(static_cast<int64_t>(-1));
+        }
+        if (offset + count > static_cast<int64_t>(meta->size)) {
+            return Value(static_cast<int64_t>(-1));
+        }
+        staging.assign(meta->data + offset, meta->data + offset + count);
     }
 
-    ssize_t nbytes = ::sendto(static_cast<int>(fd), meta->data + offset,
-                              static_cast<size_t>(count), 0,
+    ssize_t nbytes = ::sendto(static_cast<int>(fd), staging.data(),
+                              staging.size(), 0,
                               reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr));
     return Value(static_cast<int64_t>(nbytes));
 }
@@ -318,20 +352,32 @@ Value MemoryManager::recvfrom_buffer(int64_t fd, int64_t handle, int64_t offset,
     socklen_t addrlen = sizeof(addr);
     std::memset(&addr, 0, sizeof(addr));
 
-    std::lock_guard<std::mutex> lock(allocation_mutex);
-    AllocationMetadata* meta = get_metadata(handle);
-    if (!meta || meta->is_freed) {
-        return make_result(-1, "", 0);
-    }
-    if (offset + count > static_cast<int64_t>(meta->size)) {
-        return make_result(-1, "", 0);
+    AllocationMetadata* meta = nullptr;
+    {
+        std::lock_guard<std::mutex> lock(allocation_mutex);
+        meta = get_metadata(handle);
+        if (!meta || meta->is_freed) {
+            return make_result(-1, "", 0);
+        }
+        if (offset + count > static_cast<int64_t>(meta->size)) {
+            return make_result(-1, "", 0);
+        }
     }
 
-    ssize_t nbytes = ::recvfrom(static_cast<int>(fd), meta->data + offset,
-                               static_cast<size_t>(count), 0,
+    std::vector<uint8_t> staging(static_cast<size_t>(count), 0);
+    ssize_t nbytes = ::recvfrom(static_cast<int>(fd), staging.data(),
+                               staging.size(), 0,
                                reinterpret_cast<struct sockaddr*>(&addr), &addrlen);
     if (nbytes < 0) {
         return make_result(-1, "", 0);
+    }
+    if (nbytes > 0) {
+        std::lock_guard<std::mutex> lock(allocation_mutex);
+        if (meta->is_freed || !meta->data) {
+            return make_result(-1, "", 0);
+        }
+        std::memcpy(meta->data + offset, staging.data(),
+                    std::min(static_cast<size_t>(nbytes), staging.size()));
     }
 
     char host_buf[INET_ADDRSTRLEN] = {};

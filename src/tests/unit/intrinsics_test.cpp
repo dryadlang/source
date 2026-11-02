@@ -274,6 +274,13 @@ TEST_F(IntrinsicsTest, FloatToIntTruncatesTowardZero) {
     EXPECT_EQ(registry.call("syscall.float_to_int", {Value(0.0)}).as_integer(), 0);
 }
 
+TEST_F(IntrinsicsTest, FloatToIntPassesIntegersThroughExactly) {
+    auto& registry = IntrinsicsRegistry::instance();
+    EXPECT_EQ(registry.call("syscall.float_to_int",
+                            {Value(int64_t(9007199254740993LL))}).as_integer(),
+              9007199254740993LL);
+}
+
 TEST_F(IntrinsicsTest, FloatToIntRejectsOutOfRangeAndNonFinite) {
     auto& registry = IntrinsicsRegistry::instance();
     EXPECT_TRUE(registry.call("syscall.float_to_int",

@@ -489,8 +489,10 @@ void IntrinsicsRegistry::register_all() {
         if (args.size() < 1 || !args[0].is_number()) {
             throw DryadException("syscall.float_to_int requires a number");
         }
-        const double value = args[0].is_float() ? args[0].as_float()
-                                                : static_cast<double>(args[0].as_integer());
+        if (args[0].is_integer()) {
+            return Value(args[0].as_integer());
+        }
+        const double value = args[0].as_float();
         if (!std::isfinite(value) || value >= 9223372036854775808.0 ||
             value < -9223372036854775808.0) {
             return Value();

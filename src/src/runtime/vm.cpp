@@ -320,7 +320,8 @@ void VM::dispatch_opcode(Opcode op) {
                 case Opcode::BIT_OR:  result = l | r; break;
                 case Opcode::BIT_XOR: result = l ^ r; break;
                 case Opcode::SHL:     result = static_cast<int64_t>(static_cast<uint64_t>(l) << (r & 63)); break;
-                default:              result = l >> (r & 63); break;
+                case Opcode::SHR:     result = l >> (r & 63); break;
+                default:              throw DryadException("Invalid bitwise opcode");
             }
             stack_.push_back(Value(result));
             advance(1);

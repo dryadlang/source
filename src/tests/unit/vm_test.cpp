@@ -235,3 +235,54 @@ TEST_F(VMTest, LeftShiftWraps) {
     vm.execute();
     EXPECT_EQ(vm.get_stack_top().as_integer(), -9223372036854775807LL - 1);
 }
+
+TEST_F(VMTest, ArithmeticRightShiftKeepsSign) {
+    BytecodeBuilder builder;
+    builder.emit_push_int(-16);
+    builder.emit_push_int(2);
+    builder.emit(Opcode::SHR);
+    builder.emit_halt();
+    vm.load(builder.build());
+    vm.execute();
+    EXPECT_EQ(vm.get_stack_top().as_integer(), -4);
+}
+
+TEST_F(VMTest, BitwiseNotOfZeroIsMinusOne) {
+    BytecodeBuilder builder;
+    builder.emit_push_int(0);
+    builder.emit(Opcode::BIT_NOT);
+    builder.emit_halt();
+    vm.load(builder.build());
+    vm.execute();
+    EXPECT_EQ(vm.get_stack_top().as_integer(), -1);
+}
+
+TEST_F(VMTest, NegativeShiftCountIsMasked) {
+    BytecodeBuilder builder;
+    builder.emit_push_int(1);
+    builder.emit_push_int(-1);
+    builder.emit(Opcode::SHL);
+    builder.emit_halt();
+    vm.load(builder.build());
+    vm.execute();
+    EXPECT_EQ(vm.get_stack_top().as_integer(), -9223372036854775807LL - 1);
+}
+
+TEST_F(VMTest, BitwiseBinaryRejectsNonInteger) {
+    BytecodeBuilder builder;
+    builder.emit_push_float(1.5);
+    builder.emit_push_int(1);
+    builder.emit(Opcode::BIT_AND);
+    builder.emit_halt();
+    vm.load(builder.build());
+    EXPECT_THROW(vm.execute(), dryad::DryadException);
+}
+
+TEST_F(VMTest, BitwiseNotRejectsNonInteger) {
+    BytecodeBuilder builder;
+    builder.emit_push_float(1.5);
+    builder.emit(Opcode::BIT_NOT);
+    builder.emit_halt();
+    vm.load(builder.build());
+    EXPECT_THROW(vm.execute(), dryad::DryadException);
+}

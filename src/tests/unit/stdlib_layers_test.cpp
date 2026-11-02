@@ -33,6 +33,10 @@ std::map<std::string, std::set<std::string>> load_imports() {
         std::ifstream in(entry.path());
         std::string line;
         while (std::getline(in, line)) {
+            const auto first = line.find_first_not_of(" \t");
+            if (first != std::string::npos && line.compare(first, 2, "//") == 0) {
+                continue;
+            }
             if (line.find("from \"") == std::string::npos) {
                 continue;
             }

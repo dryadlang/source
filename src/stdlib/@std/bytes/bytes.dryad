@@ -36,6 +36,9 @@ function Bytes_Fill(buf, offset, count, value) {
     if (err != null) {
         return err;
     }
+    if (__runtime_value_kind(value) != "integer") {
+        return ArgumentOutOfRangeException("Byte value must be an integer");
+    }
     if (value < 0 || value > 255) {
         return ArgumentOutOfRangeException("Byte value must be between 0 and 255");
     }
@@ -109,6 +112,9 @@ function Bytes_IndexOf(buf, byte) {
     if (err != null) {
         return [-1, err];
     }
+    if (__runtime_value_kind(byte) != "integer") {
+        return [-1, ArgumentOutOfRangeException("Byte must be an integer")];
+    }
     if (byte < 0 || byte > 255) {
         return [-1, ArgumentOutOfRangeException("Byte value must be between 0 and 255")];
     }
@@ -127,6 +133,9 @@ function Bytes_LastIndexOf(buf, byte) {
     let err = Bytes_ValidateRange(buf, 0, 0);
     if (err != null) {
         return [-1, err];
+    }
+    if (__runtime_value_kind(byte) != "integer") {
+        return [-1, ArgumentOutOfRangeException("Byte must be an integer")];
     }
     if (byte < 0 || byte > 255) {
         return [-1, ArgumentOutOfRangeException("Byte value must be between 0 and 255")];
@@ -355,6 +364,9 @@ function Bytes_HexValue(c) {
 }
 
 function Bytes_FromHex(text) {
+    if (text == null) {
+        return [null, ArgumentNullException("text")];
+    }
     if (__runtime_value_kind(text) != "string") {
         return [null, ArgumentOutOfRangeException("Hex input must be a string")];
     }

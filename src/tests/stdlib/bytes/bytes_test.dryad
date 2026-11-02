@@ -498,10 +498,20 @@ function bytes_test_hex_edge_cases() {
     let badInput = Bytes_FromHex(42);
     let badSecond = Bytes_FromHex("0z");
     let nullHex = Bytes_ToHex(null);
+    let nullInput = Bytes_FromHex(null);
+    let buf = Buffer_New(2);
+    let badIndex = Bytes_IndexOf(buf, null);
+    let badLast = Bytes_LastIndexOf(buf, "a");
+    let badFill = Bytes_Fill(buf, 0, 1, null);
+    Buffer_Dispose(buf);
     let ok = emptyHex[1] == null && emptyHex[0] == "" &&
              badInput[1] != null &&
              badSecond[1] != null &&
-             nullHex[1] != null;
+             nullHex[1] != null &&
+             nullInput[1] != null &&
+             badIndex[1] != null &&
+             badLast[1] != null &&
+             badFill != null;
     Buffer_Dispose(empty);
     return ok;
 }

@@ -63,3 +63,5 @@ TEST(TextTest, Split) { EXPECT_TRUE(run_text_test("text_test_split").is_truthy()
 TEST(TextTest, SplitRejectsEmptySeparator) { EXPECT_TRUE(run_text_test("text_test_split_rejects_empty_separator").is_truthy()); }
 TEST(TextTest, Join) { EXPECT_TRUE(run_text_test("text_test_join").is_truthy()); }
 TEST(TextTest, Replace) { EXPECT_TRUE(run_text_test("text_test_replace").is_truthy()); }
+TEST(TextTest, ReplaceDeletesAndJoinsEmptySeparator) { EXPECT_TRUE(run_text_test("text_test_replace_deletes_and_joins_empty_separator").is_truthy()); }
+TEST(TextTest, SplitPartContents) { EXPECT_TRUE(run_text_test("text_test_split_part_contents").is_truthy()); }

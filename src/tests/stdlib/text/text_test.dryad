@@ -222,3 +222,23 @@ function text_test_replace() {
              emptyNeedle[1] != null;
     return ok;
 }
+
+function text_test_replace_deletes_and_joins_empty_separator() {
+    let deleted = Text_ReplaceAll("abcabc", "b", "");
+    let joined = Text_Join(["a", "b", "c"], "");
+    let withEmpty = Text_Join(["", "a", ""], "-");
+    let badPart = Text_Join(["a", null], "-");
+    let ok = deleted[1] == null && deleted[0] == "acac" &&
+             joined[1] == null && joined[0] == "abc" &&
+             withEmpty[1] == null && withEmpty[0] == "-a-" &&
+             badPart[1] != null;
+    return ok;
+}
+
+function text_test_split_part_contents() {
+    let parts = Text_Split("a,b,,c", ",");
+    let ok = parts[1] == null &&
+             parts[0][0] == "a" && parts[0][1] == "b" &&
+             parts[0][2] == "" && parts[0][3] == "c";
+    return ok;
+}

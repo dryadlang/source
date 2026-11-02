@@ -981,6 +981,14 @@ function Text_ReplaceInternal(text, needle, replacement, replaceAll) {
         Buffer_Dispose(rbuf);
         return [text, null];
     }
+    if (replLen > needleLen && matchCount > 0) {
+        if (replLen - needleLen > (9223372036854775807 - len) / matchCount) {
+            Buffer_Dispose(buf);
+            Buffer_Dispose(nbuf);
+            Buffer_Dispose(rbuf);
+            return ["", ArgumentOutOfRangeException("Replacement result too large")];
+        }
+    }
     let total = len + (replLen - needleLen) * matchCount;
     if (total < 0) {
         Buffer_Dispose(buf);

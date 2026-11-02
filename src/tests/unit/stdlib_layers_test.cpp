@@ -14,7 +14,7 @@ namespace {
 
 std::map<std::string, std::set<std::string>> load_imports() {
     std::map<std::string, std::set<std::string>> graph;
-    const std::regex import_re(R"(@std/([A-Za-z0-9_]+)/)");
+    const std::regex import_re(R"(@std/([A-Za-z0-9_]+)(?:/|"))");
     for (const auto& entry : recursive_directory_iterator(DRYAD_STDLIB_DIR)) {
         if (!entry.is_regular_file() || entry.path().extension() != ".dryad") {
             continue;
@@ -57,6 +57,11 @@ std::set<std::string> allowed_imports(const std::string& module) {
 
 TEST(StdlibLayersTest, BytesAndBuffersRespectLayers) {
     auto graph = load_imports();
+    ASSERT_EQ(graph.count("bytes"), 1u);
+    ASSERT_EQ(graph.count("buffers"), 1u);
+    EXPECT_EQ(graph["bytes"].count("buffers"), 1u);
+    EXPECT_EQ(graph["bytes"].count("core"), 1u);
+    EXPECT_EQ(graph["buffers"].count("core"), 1u);
     for (const auto& [module, imports] : graph) {
         const auto allowed = allowed_imports(module);
         if (allowed.empty()) {

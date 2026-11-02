@@ -226,10 +226,20 @@ function Bytes_Repeat(buf, count) {
     if (err != null) {
         return [null, err];
     }
+    if (__runtime_value_kind(count) != "integer") {
+        return [null, ArgumentOutOfRangeException("Repeat count must be an integer")];
+    }
     if (count < 0) {
         return [null, ArgumentOutOfRangeException("Repeat count must not be negative")];
     }
     let len = Buffer_Len(buf);
+    if (len == 0 || count == 0) {
+        let empty = Buffer_New(0);
+        if (__runtime_value_kind(empty) == "string") {
+            return [null, empty];
+        }
+        return [empty, null];
+    }
     if (count > 0) {
         if (len > 9223372036854775807 / count) {
             return [null, ArgumentOutOfRangeException("Repeat size too large")];

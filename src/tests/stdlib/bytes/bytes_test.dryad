@@ -382,8 +382,8 @@ function bytes_test_trim() {
     // TrimStart keeps the trailing whitespace: [65, 10, 32].
     // TrimEnd keeps the leading whitespace: [32, 9, 65].
     let ok = all[1] == null && Buffer_Len(all[0]) == 1 && Buffer_Read(all[0], 0) == 65 &&
-             start[1] == null && Buffer_Len(start[0]) == 3 && Buffer_Read(start[0], 0) == 65 &&
-             end[1] == null && Buffer_Len(end[0]) == 3 && Buffer_Read(end[0], 0) == 32;
+             start[1] == null && Buffer_Len(start[0]) == 3 && Buffer_Read(start[0], 0) == 65 && Buffer_Read(start[0], 2) == 32 &&
+             end[1] == null && Buffer_Len(end[0]) == 3 && Buffer_Read(end[0], 0) == 32 && Buffer_Read(end[0], 2) == 65;
     Buffer_Dispose(buf);
     return ok;
 }
@@ -395,5 +395,55 @@ function bytes_test_trim_all_whitespace() {
     let r = Bytes_Trim(buf);
     let ok = r[1] == null && Buffer_Len(r[0]) == 0;
     Buffer_Dispose(buf);
+    return ok;
+}
+
+function bytes_test_repeat_rejects_bad_count() {
+    let buf = Buffer_New(1);
+    let neg = Bytes_Repeat(buf, -1);
+    let huge = Bytes_Repeat(buf, 9223372036854775807);
+    let bad = Bytes_Repeat(buf, null);
+    let ok = neg[1] != null && huge[1] != null && bad[1] != null;
+    Buffer_Dispose(buf);
+    return ok;
+}
+
+function bytes_test_repeat_empty_source_huge_count() {
+    let empty = Buffer_New(0);
+    let r = Bytes_Repeat(empty, 9223372036854775807);
+    let ok = r[1] == null && Buffer_Len(r[0]) == 0;
+    Buffer_Dispose(r[0]);
+    Buffer_Dispose(empty);
+    return ok;
+}
+
+function bytes_test_trim_all_whitespace_variants() {
+    let buf = Buffer_New(2);
+    Buffer_Write(buf, 0, 32);
+    Buffer_Write(buf, 1, 10);
+    let s = Bytes_TrimStart(buf);
+    let e = Bytes_TrimEnd(buf);
+    let ok = s[1] == null && Buffer_Len(s[0]) == 0 &&
+             e[1] == null && Buffer_Len(e[0]) == 0;
+    Buffer_Dispose(buf);
+    return ok;
+}
+
+function bytes_test_trim_empty_and_slice() {
+    let empty = Buffer_New(0);
+    let t = Bytes_Trim(empty);
+    let ts = Bytes_TrimStart(empty);
+    let te = Bytes_TrimEnd(empty);
+    let parent = Buffer_New(4);
+    Buffer_Write(parent, 1, 32);
+    Buffer_Write(parent, 2, 65);
+    let slice = Buffer_Slice(parent, 1, 3);
+    let tv = Bytes_Trim(slice);
+    let ok = t[1] == null && Buffer_Len(t[0]) == 0 &&
+             ts[1] == null && Buffer_Len(ts[0]) == 0 &&
+             te[1] == null && Buffer_Len(te[0]) == 0 &&
+             tv[1] == null && Buffer_Len(tv[0]) == 1 && Buffer_Read(tv[0], 0) == 65;
+    Buffer_Dispose(empty);
+    Buffer_Dispose(parent);
     return ok;
 }

@@ -341,3 +341,35 @@ function test_buffer_string_via_slice() {
     Buffer_Dispose(buf);
     return str == "World";
 }
+
+function test_buffer_copy_to_overlap_same_buffer() {
+    let buf = Buffer_New(6);
+    Buffer_Write(buf, 0, 1);
+    Buffer_Write(buf, 1, 2);
+    Buffer_Write(buf, 2, 3);
+    Buffer_Write(buf, 3, 4);
+    let err = Buffer_CopyTo(buf, buf, 1, 4);
+    let ok = err == null &&
+             Buffer_Read(buf, 0) == 1 &&
+             Buffer_Read(buf, 1) == 1 &&
+             Buffer_Read(buf, 2) == 2 &&
+             Buffer_Read(buf, 3) == 3 &&
+             Buffer_Read(buf, 4) == 4;
+    Buffer_Dispose(buf);
+    return ok;
+}
+
+function test_buffer_copy_to_from_slice() {
+    let src = Buffer_New(6);
+    Buffer_Write(src, 2, 77);
+    Buffer_Write(src, 3, 78);
+    let slice = Buffer_Slice(src, 2, 4);
+    let dst = Buffer_New(2);
+    let err = Buffer_CopyTo(slice, dst, 0, 2);
+    let ok = err == null &&
+             Buffer_Read(dst, 0) == 77 &&
+             Buffer_Read(dst, 1) == 78;
+    Buffer_Dispose(dst);
+    Buffer_Dispose(src);
+    return ok;
+}

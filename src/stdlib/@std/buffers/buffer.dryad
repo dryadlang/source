@@ -226,16 +226,13 @@ function Buffer_CopyTo(buf, dest, destOffset, count) {
     if (destOffset < 0 || destOffset + count > dstLength) {
         return IndexOutOfRangeException("Destination range out of bounds");
     }
-    let srcHandle = Buffer_GetActualHandle(buf);
-    let srcOffset = Buffer_GetOffset(buf);
-    let dstHandle = Buffer_GetActualHandle(dest);
-    let dstActualOffset = Buffer_GetOffset(dest) + destOffset;
-    let i = 0;
-    while (i < count) {
-        let byte = __buffer_get(srcHandle, srcOffset + i);
-        __buffer_set(dstHandle, dstActualOffset + i, byte);
-        i = i + 1;
-    }
+    __memmove(
+        Buffer_GetActualHandle(dest),
+        Buffer_GetOffset(dest) + destOffset,
+        Buffer_GetActualHandle(buf),
+        Buffer_GetOffset(buf),
+        count
+    );
     return null;
 }
 

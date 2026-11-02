@@ -104,8 +104,10 @@ Value MemoryManager::memmove(int64_t dest_handle, int64_t dest_offset,
         return Value();
     }
 
-    if (dest_offset + count > static_cast<int64_t>(dest_meta->size) ||
-        src_offset + count > static_cast<int64_t>(src_meta->size)) {
+    const int64_t dest_size = static_cast<int64_t>(dest_meta->size);
+    const int64_t src_size = static_cast<int64_t>(src_meta->size);
+    if (dest_offset > dest_size || src_offset > src_size ||
+        count > dest_size - dest_offset || count > src_size - src_offset) {
         return Value();
     }
 

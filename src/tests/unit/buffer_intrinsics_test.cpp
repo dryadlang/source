@@ -174,6 +174,20 @@ TEST(MemoryIntrinsicsTest, MemmoveOverlapForward) {
     intr.free_bytes(buf.as_integer());
 }
 
+TEST(MemoryIntrinsicsTest, MemmoveRejectsOverflowingOffsets) {
+    Intrinsics intr;
+    Value src = intr.alloc_bytes(4);
+    Value dst = intr.alloc_bytes(4);
+    const int64_t huge = 9223372036854775807LL;
+
+    EXPECT_TRUE(intr.memmove(dst.as_integer(), huge, src.as_integer(), 0, 1).is_null());
+    EXPECT_TRUE(intr.memmove(dst.as_integer(), 0, src.as_integer(), huge, 1).is_null());
+    EXPECT_EQ(intr.buffer_get(dst.as_integer(), 0).as_integer(), 0);
+
+    intr.free_bytes(src.as_integer());
+    intr.free_bytes(dst.as_integer());
+}
+
 TEST(MemoryIntrinsicsTest, MemmoveRejectsOutOfBounds) {
     Intrinsics intr;
     Value src = intr.alloc_bytes(4);

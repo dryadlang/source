@@ -254,7 +254,7 @@ TEST(MemoryIntrinsicsTest, BlockingReadDoesNotHoldAllocationLock) {
 
     // Let the reader take the allocation lock and block inside read().
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    ASSERT_FALSE(read_done.load());
+    EXPECT_FALSE(read_done.load());
 
     std::atomic<bool> write_done{false};
     std::thread writer([&]() {

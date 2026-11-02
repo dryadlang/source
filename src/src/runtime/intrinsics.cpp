@@ -227,7 +227,7 @@ Value MemoryManager::read_fd_to_buffer(int64_t fd, int64_t handle, int64_t offse
     {
         std::lock_guard<std::mutex> lock(allocation_mutex);
         meta = get_metadata(handle);
-        if (!meta || meta->is_freed) {
+        if (!meta || meta->is_freed || !meta->data) {
             return Value(static_cast<int64_t>(-1));
         }
         if (offset + count > static_cast<int64_t>(meta->size)) {
@@ -239,7 +239,10 @@ Value MemoryManager::read_fd_to_buffer(int64_t fd, int64_t handle, int64_t offse
     ssize_t nbytes = ::read(static_cast<int>(fd), staging.data(), staging.size());
     if (nbytes > 0) {
         std::lock_guard<std::mutex> lock(allocation_mutex);
-        // realloc may have shrunk the allocation while the call was unlocked.
+        // The buffer may have been freed or resized while the call was
+        // unlocked. The bytes are already consumed from the descriptor, so
+        // report the call as failed rather than writing into a stale region.
+        // realloc keeps this node but may have shrunk the allocation.
         if (meta->is_freed || !meta->data ||
             offset + static_cast<int64_t>(nbytes) > static_cast<int64_t>(meta->size)) {
             return Value(static_cast<int64_t>(-1));
@@ -295,7 +298,10 @@ Value MemoryManager::io_buffer(int64_t handle, int64_t offset, int64_t count,
     ssize_t nbytes = io(staging.data(), staging.size());
     if (nbytes > 0) {
         std::lock_guard<std::mutex> lock(allocation_mutex);
-        // realloc may have shrunk the allocation while the call was unlocked.
+        // The buffer may have been freed or resized while the call was
+        // unlocked. The bytes are already consumed from the descriptor, so
+        // report the call as failed rather than writing into a stale region.
+        // realloc keeps this node but may have shrunk the allocation.
         if (meta->is_freed || !meta->data ||
             offset + static_cast<int64_t>(nbytes) > static_cast<int64_t>(meta->size)) {
             return Value(static_cast<int64_t>(-1));
@@ -360,7 +366,7 @@ Value MemoryManager::recvfrom_buffer(int64_t fd, int64_t handle, int64_t offset,
     {
         std::lock_guard<std::mutex> lock(allocation_mutex);
         meta = get_metadata(handle);
-        if (!meta || meta->is_freed) {
+        if (!meta || meta->is_freed || !meta->data) {
             return make_result(-1, "", 0);
         }
         if (offset + count > static_cast<int64_t>(meta->size)) {
@@ -377,7 +383,10 @@ Value MemoryManager::recvfrom_buffer(int64_t fd, int64_t handle, int64_t offset,
     }
     if (nbytes > 0) {
         std::lock_guard<std::mutex> lock(allocation_mutex);
-        // realloc may have shrunk the allocation while the call was unlocked.
+        // The buffer may have been freed or resized while the call was
+        // unlocked. The bytes are already consumed from the descriptor, so
+        // report the call as failed rather than writing into a stale region.
+        // realloc keeps this node but may have shrunk the allocation.
         if (meta->is_freed || !meta->data ||
             offset + static_cast<int64_t>(nbytes) > static_cast<int64_t>(meta->size)) {
             return make_result(-1, "", 0);

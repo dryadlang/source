@@ -309,3 +309,32 @@ function text_test_format_float() {
              badPrecision[1] != null;
     return ok;
 }
+
+function text_test_numeric_edges() {
+    let hexUpper = Text_ParseInt("FF", 16);
+    let plus = Text_ParseInt("+42", 10);
+    let binFormat = Text_FormatInt(10, 2);
+    let octFormat = Text_FormatInt(8, 8);
+    let negExp = Text_ParseFloat("2.5e-2");
+    let junk = Text_ParseFloat("1.2x");
+    let nan = Text_ParseFloat("nan");
+    let inf = Text_FormatFloat(1.0 / 0.0, 2);
+    let ok = hexUpper[1] == null && hexUpper[0] == 255 &&
+             plus[1] == null && plus[0] == 42 &&
+             binFormat[1] == null && binFormat[0] == "1010" &&
+             octFormat[1] == null && octFormat[0] == "10" &&
+             negExp[1] == null && negExp[0] == 0.025 &&
+             junk[1] != null &&
+             nan[1] != null &&
+             inf[1] != null;
+    return ok;
+}
+
+function text_test_format_float_negative_zero_and_precision() {
+    let negZero = Text_FormatFloat(-0.4, 0);
+    let maxPrecision = Text_FormatFloat(1.0, 15);
+    let ok = negZero[1] == null && negZero[0] == "-0" &&
+             maxPrecision[1] == null && Text_Length(maxPrecision[0])[0] == 17 &&
+             Text_Slice(maxPrecision[0], 0, 2)[0] == "1.";
+    return ok;
+}

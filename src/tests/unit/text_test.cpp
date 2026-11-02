@@ -70,3 +70,5 @@ TEST(TextTest, ParseIntRejectsOverflow) { EXPECT_TRUE(run_text_test("text_test_p
 TEST(TextTest, FormatInt) { EXPECT_TRUE(run_text_test("text_test_format_int").is_truthy()); }
 TEST(TextTest, ParseFloat) { EXPECT_TRUE(run_text_test("text_test_parse_float").is_truthy()); }
 TEST(TextTest, FormatFloat) { EXPECT_TRUE(run_text_test("text_test_format_float").is_truthy()); }
+TEST(TextTest, NumericEdges) { EXPECT_TRUE(run_text_test("text_test_numeric_edges").is_truthy()); }
+TEST(TextTest, FormatFloatNegativeZeroAndPrecision) { EXPECT_TRUE(run_text_test("text_test_format_float_negative_zero_and_precision").is_truthy()); }

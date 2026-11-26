@@ -91,12 +91,12 @@ private:
         double float_;
     };
     
-    std::string* string_;
+    std::unique_ptr<std::string> string_;
     std::shared_ptr<std::vector<Value>> array_;
     std::shared_ptr<std::unordered_map<std::string, Value>> object_;
-    std::shared_ptr<Function>* function_;
-    std::shared_ptr<DryadClass>* class_;
-    std::shared_ptr<ClassInstance>* instance_;
+    std::unique_ptr<std::shared_ptr<Function>> function_;
+    std::unique_ptr<std::shared_ptr<DryadClass>> class_;
+    std::unique_ptr<std::shared_ptr<ClassInstance>> instance_;
     
     void clear_data();
 };

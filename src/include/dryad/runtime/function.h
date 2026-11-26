@@ -53,8 +53,8 @@ public:
     Value call_interpreted(Interpreter* interp, const std::vector<Value>& args,
                            std::shared_ptr<ClassInstance> receiver = nullptr);
     
-    FunctionDeclaration* declaration() { return declaration_; }
-    std::shared_ptr<Environment> closure() { return closure_; }
+    FunctionDeclaration* declaration() const { return declaration_; }
+    std::shared_ptr<Environment> closure() const { return closure_; }
     std::shared_ptr<DryadClass> home_class() const { return home_class_; }
     
 private:

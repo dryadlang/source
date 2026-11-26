@@ -2,11 +2,12 @@
 #define DRYAD_COMPILER_DIAGNOSTIC_H
 
 #include "dryad/compiler/token.h"
+#include <cstdint>
 #include <string>
 
 namespace dryad {
 
-enum class DiagnosticSeverity {
+enum class DiagnosticSeverity : std::uint8_t {
     Error,
     Warning
 };

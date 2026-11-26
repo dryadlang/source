@@ -32,7 +32,7 @@ public:
     bool is_interface;
     
     DryadClass(std::string name, std::shared_ptr<DryadClass> super = nullptr)
-        : name(std::move(name)), super_class(super), constructor(nullptr), is_abstract(false), is_interface(false) {}
+        : name(std::move(name)), super_class(std::move(super)), constructor(nullptr), is_abstract(false), is_interface(false) {}
     
     std::shared_ptr<Function> find_method(const std::string& method_name);
     std::shared_ptr<Function> find_getter(const std::string& property_name);

@@ -35,7 +35,7 @@ bool parse_key_value(const std::string& line, std::string& key, std::string& val
 }
 
 std::string resolve_path(const std::string& base_dir, const std::string& path) {
-    if (path.empty() || path.rfind("@", 0) == 0) {
+    if (path.empty() || path.rfind('@', 0) == 0) {
         return path;
     }
     if (!base_dir.empty() && path[0] != '/') {

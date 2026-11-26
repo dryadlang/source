@@ -35,7 +35,7 @@ std::string resolve_with_extensions(const std::string& base_path) {
         throw DryadException("Cannot open module file: " + base_path);
     }
 
-    const std::string dyd_path = base_path + ".dyd";
+    std::string dyd_path = base_path + ".dyd";
     if (file_exists(dyd_path)) {
         return dyd_path;
     }
@@ -100,7 +100,7 @@ std::string ModuleLoader::import_context_path() const {
 
 std::string ModuleLoader::module_cache_key(const std::string& specifier,
                                          const std::string& resolved_path) const {
-    if (is_relative_specifier(specifier) || specifier.rfind("@", 0) != 0) {
+    if (is_relative_specifier(specifier) || specifier.rfind('@', 0) != 0) {
         return std::filesystem::path(resolved_path).replace_extension("").string();
     }
     return specifier;
@@ -111,7 +111,7 @@ std::string ModuleLoader::resolve_cache_key(const std::string& specifier) const 
     try {
         resolved_path = resolve_specifier(specifier);
     } catch (...) {
-        if (specifier.rfind("@", 0) != 0) {
+        if (specifier.rfind('@', 0) != 0) {
             throw;
         }
     }
@@ -146,9 +146,11 @@ std::string ModuleLoader::resolve_module_path(const std::string& specifier) cons
         return resolve_with_extensions(stdlib_root_ + "/" + specifier);
     }
 
-    if (specifier.rfind("@", 0) == 0) {
+    if (specifier.rfind('@', 0) == 0) {
         for (const auto& root : library_paths_) {
-            const std::string candidate = root + "/" + specifier;
+            std::string candidate;
+            candidate.reserve(root.size() + 1 + specifier.size());
+            candidate.append(root).append("/").append(specifier);
             if (has_source_extension(candidate)) {
                 if (file_exists(candidate)) {
                     return candidate;
@@ -182,9 +184,11 @@ std::string ModuleLoader::resolve_library_path(const std::string& specifier) con
         return stdlib_root_ + "/" + specifier + ".dyl";
     }
 
-    if (specifier.rfind("@", 0) == 0) {
+    if (specifier.rfind('@', 0) == 0) {
         for (const auto& root : library_paths_) {
-            const std::string candidate = root + "/" + specifier + ".dyl";
+            std::string candidate;
+            candidate.reserve(root.size() + 1 + specifier.size() + 4);
+            candidate.append(root).append("/").append(specifier).append(".dyl");
             if (file_exists(candidate)) {
                 return candidate;
             }
@@ -288,7 +292,7 @@ std::shared_ptr<Environment> ModuleLoader::load_module(const std::string& specif
     try {
         resolved_path = resolve_specifier(specifier);
     } catch (...) {
-        if (specifier.rfind("@", 0) != 0) {
+        if (specifier.rfind('@', 0) != 0) {
             throw;
         }
     }

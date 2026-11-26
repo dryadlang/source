@@ -46,7 +46,7 @@ void Interpreter::setup_native_functions() {
             if (i > 0) std::cout << " ";
             std::cout << args[i].to_string();
         }
-        std::cout << std::endl;
+        std::cout << '\n';
         return Value();
     });
 }
@@ -192,7 +192,7 @@ void Interpreter::execute_statement(Statement* stmt) {
 
 void Interpreter::execute_block(const std::vector<std::unique_ptr<Statement>>& statements,
                                 std::shared_ptr<Environment> env) {
-    executor_->execute_block(statements, env);
+    executor_->execute_block(statements, std::move(env));
 }
 
 FunctionDeclaration* Interpreter::lookup_lambda_code(const FunctionExpression* expr) const {

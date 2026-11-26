@@ -2,12 +2,13 @@
 #define DRYAD_AOT_ANALYZE_PASS_H
 
 #include "dryad/compiler/compile_pipeline.h"
+#include <cstdint>
 #include <string>
 #include <vector>
 
 namespace dryad {
 
-enum class AnalyzePathKind {
+enum class AnalyzePathKind : std::uint8_t {
     FastPath,
     SlowPath
 };

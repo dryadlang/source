@@ -213,9 +213,10 @@ let broken = ;
 
     EXPECT_TRUE(parser.has_error());
     ASSERT_FALSE(program->statements.empty());
-    auto* expr_stmt = static_cast<ExpressionStatement*>(program->statements[0].get());
-    auto* assignment = static_cast<AssignmentExpression*>(expr_stmt->expression.get());
-    EXPECT_EQ(assignment->value->type, ASTNodeType::ErrorExpression);
+    ASSERT_EQ(program->statements[0]->type, ASTNodeType::VariableDeclaration);
+    auto* declaration = static_cast<VariableDeclaration*>(program->statements[0].get());
+    ASSERT_NE(declaration->initializer, nullptr);
+    EXPECT_EQ(declaration->initializer->type, ASTNodeType::ErrorExpression);
 }
 
 TEST(LspFoundationTest, UnusedVariableWarning) {

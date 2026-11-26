@@ -80,6 +80,13 @@ jobs:
         run: cmake --build src/build-asan --parallel
 
       - name: Run tests under ASAN/UBSAN
+        # LeakSanitizer is disabled: Dryad's reference-counted runtime
+        # intentionally does not reclaim cyclic references or state still
+        # alive at process exit (see CONTRIBUTING.md's memory-management
+        # trade-off), which LSAN reports as "leaks" on every test process.
+        # ASAN (overflow/use-after-free) and UBSAN stay fully enabled.
+        env:
+          ASAN_OPTIONS: detect_leaks=0
         run: ctest --test-dir src/build-asan --output-on-failure --timeout 300
 
   coverage:
@@ -129,6 +136,7 @@ jobs:
             --object-directory src/build-cov \
             --exclude '.*/build.*/_deps/.*' \
             --exclude '.*/tests/.*' \
+            --gcov-ignore-parse-errors negative_hits.warn \
             --print-summary \
             --xml coverage/coverage.xml \
             --html-details coverage/coverage.html \

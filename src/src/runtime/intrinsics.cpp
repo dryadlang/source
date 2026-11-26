@@ -36,6 +36,18 @@ Value MemoryManager::alloc_bytes(int64_t size) {
     if (size <= 0) {
         return Value();
     }
+
+    // Reject allocations no real workload needs before they reach operator
+    // new: huge-but-not-overflowing sizes (e.g. Bytes_Repeat with a 1-byte
+    // buffer and a count near INT64_MAX) would otherwise hit the platform
+    // allocator's hard limit. Under a normal libstdc++ that throws a
+    // catchable std::bad_alloc/std::bad_array_new_length (handled below),
+    // but under AddressSanitizer an oversized request is a hard abort that
+    // no try/catch can intercept, so it must be rejected up front instead.
+    constexpr int64_t kMaxAllocBytes = int64_t{1} << 40;  // 1 TiB
+    if (size > kMaxAllocBytes) {
+        return Value();
+    }
     
     std::lock_guard<std::mutex> lock(allocation_mutex);
     

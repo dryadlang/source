@@ -292,10 +292,10 @@ bool Value::is_truthy() const {
         case ValueType::Object:
             return !object_->empty();
         case ValueType::Function:
-            return true;
         case ValueType::Class:
-            return true;
         case ValueType::Instance:
+            // Reference types (functions, classes, instances) are always
+            // truthy, mirroring object truthiness in JS-like semantics.
             return true;
     }
     return false;

@@ -5,6 +5,7 @@
 #include "dryad/compiler/interpreter.h"
 #include "dryad/compiler/bytecode_compiler.h"
 #include "dryad/compiler/program_entry.h"
+#include "dryad/common/utils.h"
 #include "dryad/runtime/vm.h"
 #include "dryad/runtime/opcode.h"
 #include "dryad/runtime/intrinsics_registry.h"
@@ -390,4 +391,59 @@ TEST(BytecodeCompilerTest, EmitsBitwiseOpcodes) {
     EXPECT_TRUE(code_contains_opcode(fn.module, Opcode::BIT_NOT));
     EXPECT_TRUE(code_contains_opcode(fn.module, Opcode::SHL));
     EXPECT_TRUE(code_contains_opcode(fn.module, Opcode::SHR));
+}
+
+TEST(BytecodeCompilerTest, CompileProgramLeavesProgramStatementsInPlace) {
+    const std::string source = R"(
+        let a = 1;
+        function f() {
+            return 2;
+        }
+        let b = f();
+        let c = a + b;
+    )";
+
+    Interpreter interp;
+    auto program = parse_program(source);
+    std::vector<const Statement*> before;
+    for (const auto& stmt : program->statements) {
+        before.push_back(stmt.get());
+    }
+    const auto* storage_before = program->statements.data();
+
+    BytecodeCompiler compiler;
+    CompiledProgram compiled = compiler.compile_program(program.get(), interp.type_profiler());
+
+    ASSERT_EQ(program->statements.size(), before.size());
+    EXPECT_EQ(program->statements.data(), storage_before);
+    for (size_t i = 0; i < before.size(); ++i) {
+        EXPECT_EQ(program->statements[i].get(), before[i]);
+    }
+    bool has_entry = false;
+    for (const auto& function : compiled.functions) {
+        has_entry = has_entry || function.metadata.name == kScriptEntryFunctionName;
+    }
+    EXPECT_TRUE(has_entry);
+}
+
+TEST(BytecodeCompilerTest, StandaloneFunctionWithLambdaIsRejected) {
+    const std::string source = R"(
+        function make() {
+            return function(y) {
+                return y * 10;
+            };
+        }
+    )";
+
+    EXPECT_THROW(compile_named_function(source, "make", nullptr), DryadException);
+}
+
+TEST(BytecodeCompilerTest, CallThroughLocalFunctionValueIsRejected) {
+    const std::string source = R"(
+        function apply(f, x) {
+            return f(x);
+        }
+    )";
+
+    EXPECT_THROW(compile_named_function(source, "apply", nullptr), DryadException);
 }

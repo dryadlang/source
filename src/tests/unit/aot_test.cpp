@@ -537,10 +537,10 @@ TEST(AotTest, ScriptEntryUsesDryadMainSymbol) {
     EXPECT_FALSE(program_has_user_functions(program.get()));
     EXPECT_TRUE(program_has_script_body(program.get()));
 
-    auto entry = synthesize_script_entry_function(program.get());
-    ASSERT_NE(entry, nullptr);
-    EXPECT_EQ(entry->name, kScriptEntryFunctionName);
-    EXPECT_TRUE(program->statements.empty());
+    const auto script_body = script_level_statements(program.get());
+    ASSERT_EQ(script_body.size(), 1U);
+    EXPECT_EQ(script_body[0], program->statements[0].get());
+    EXPECT_EQ(program->statements.size(), 1U);
 }
 
 TEST(AotTest, MicroIrLowersBitwiseOpcodes) {

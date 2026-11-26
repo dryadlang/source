@@ -41,14 +41,21 @@ private:
     size_t max_stack_depth_ = 0;
     std::vector<LoopCompileContext> loop_stack_;
     std::vector<CompiledFunction> lambda_functions_;
-    std::vector<std::unique_ptr<FunctionDeclaration>> owned_lambdas_;
     size_t lambda_counter_ = 0;
     size_t lambda_base_index_ = 0;
-    bool allow_lambdas_ = true;
+    bool allow_lambdas_ = false;
     Interpreter* interpreter_ = nullptr;
 
     uint16_t allocate_slot(const std::string& name, const std::string& annotation = "");
     uint16_t compile_lambda(FunctionExpression* expr);
+    static std::vector<Statement*> block_statements(const BlockStatement* block);
+    void begin_function(const std::string& name, size_t parameter_count,
+                        const FunctionProfile* profile);
+    CompiledFunction end_function(const std::vector<Statement*>& body);
+    CompiledFunction compile_function_body(const std::string& name,
+                                           const std::vector<Parameter>& parameters,
+                                           const std::vector<Statement*>& body,
+                                           const FunctionProfile* profile);
     uint16_t slot_index(const std::string& name) const;
     SlotProfile slot_profile(const std::string& name) const;
 

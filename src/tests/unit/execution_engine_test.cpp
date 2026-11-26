@@ -299,3 +299,121 @@ TEST(ExecutionEngineTest, BytecodeModeKeepsClosuresAndScriptLambdas) {
     EXPECT_EQ(interp.global_env()->get("scaled").as_integer(), 42);
     EXPECT_EQ(interp.global_env()->get("bumped").as_integer(), 42);
 }
+
+TEST(ExecutionEngineTest, BytecodeCallFromScriptBodyKeepsIteratingProgram) {
+    const std::string source = R"(
+        @compile("bytecode")
+        function hot(n) {
+            return n * 2;
+        }
+        let a = hot(3);
+        let b = a + 1;
+        let c = b + 1;
+        let d = c + 1;
+    )";
+
+    Interpreter interp;
+    auto program = parse(source);
+    const size_t statement_count = program->statements.size();
+    interp.execute(program.get());
+
+    EXPECT_EQ(program->statements.size(), statement_count);
+    EXPECT_EQ(interp.global_env()->get("a").as_integer(), 6);
+    EXPECT_EQ(interp.global_env()->get("d").as_integer(), 9);
+}
+
+TEST(ExecutionEngineTest, BytecodeCompileLeavesLaterLambdasRunnable) {
+    const std::string source = R"(
+        @compile("bytecode")
+        function hot(n) {
+            return n * 2;
+        }
+        let a = hot(3);
+        let add = function(x) {
+            return x + 1;
+        };
+        let b = add(a);
+    )";
+
+    Interpreter interp;
+    auto program = parse(source);
+    interp.execute(program.get());
+
+    EXPECT_EQ(interp.global_env()->get("b").as_integer(), 7);
+}
+
+TEST(ExecutionEngineTest, BytecodeFunctionReturnsItsOwnLambda) {
+    const std::string source = R"(
+        function helper(v) {
+            return v + 1000;
+        }
+        @compile("bytecode")
+        function make_scaler() {
+            return function(y) {
+                return y * 10;
+            };
+        }
+        let scale = make_scaler();
+        let r = scale(2);
+    )";
+
+    Interpreter interp;
+    auto program = parse(source);
+    interp.execute(program.get());
+
+    EXPECT_EQ(interp.global_env()->get("r").as_integer(), 20);
+}
+
+TEST(ExecutionEngineTest, BytecodeNestedScriptLambdasStayCorrect) {
+    const std::string source = R"(
+        let outer = function() {
+            return function(y) {
+                return y * 3;
+            };
+        };
+        let inner = outer();
+        let r = inner(4);
+    )";
+
+    Interpreter interp;
+    interp.set_default_execution_mode(ExecutionMode::Bytecode);
+    auto program = parse(source);
+    interp.execute(program.get());
+
+    EXPECT_EQ(interp.global_env()->get("r").as_integer(), 12);
+}
+
+TEST(ExecutionEngineTest, BytecodeScriptLambdaSeesScriptVariables) {
+    const std::string source = R"(
+        let base = 5;
+        let add_base = function(x) {
+            return x + base;
+        };
+        let r = add_base(2);
+    )";
+
+    Interpreter interp;
+    interp.set_default_execution_mode(ExecutionMode::Bytecode);
+    auto program = parse(source);
+    interp.execute(program.get());
+
+    EXPECT_EQ(interp.global_env()->get("r").as_integer(), 7);
+}
+TEST(ExecutionEngineTest, BytecodeFunctionCallingParameterFallsBackToInterpreter) {
+    const std::string source = R"(
+        function inc(v) {
+            return v + 1;
+        }
+        @compile("bytecode")
+        function apply(f, x) {
+            return f(x);
+        }
+        let r = apply(inc, 41);
+    )";
+
+    Interpreter interp;
+    auto program = parse(source);
+    interp.execute(program.get());
+
+    EXPECT_EQ(interp.global_env()->get("r").as_integer(), 42);
+}

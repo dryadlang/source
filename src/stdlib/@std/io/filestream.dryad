@@ -20,6 +20,7 @@ import {
     Buffer_New,
     Buffer_FromString,
     Buffer_AsString,
+    Buffer_Slice,
     Buffer_Dispose
 } from "@std/buffers/buffer";
 import {
@@ -301,16 +302,24 @@ function File_ReadAllText(path) {
     }
 
     let buf = Buffer_New(size);
-    if (size > 0) {
-        let nbytes = stream.read(buf, 0, size);
-        if (nbytes != size) {
+    // FileStream.read is one read(2): it may return fewer bytes than asked.
+    let total = 0;
+    while (total < size) {
+        let nbytes = stream.read(buf, total, size - total);
+        if (__runtime_value_kind(nbytes) != "integer" || nbytes < 0) {
             Buffer_Dispose(buf);
             stream.close();
-            if (nbytes < 0) {
-                return IOException("Failed to read file: " + path);
-            }
-            return nbytes;
+            return IOException("Failed to read file: " + path);
         }
+        if (nbytes == 0) {
+            // The file shrank after its size was taken: keep what was read.
+            let shrunk = Buffer_Slice(buf, 0, total);
+            let shrunkText = Buffer_AsString(shrunk);
+            Buffer_Dispose(buf);
+            stream.close();
+            return shrunkText;
+        }
+        total = total + nbytes;
     }
 
     let text = Buffer_AsString(buf);
@@ -335,10 +344,8 @@ function File_WriteAllText(path, content) {
     stream.close();
 
     if (writeResult != contentLen) {
-        if (writeResult < 0) {
-            return IOException("Failed to write file: " + path);
-        }
-        return writeResult;
+        // An error string or a short count: either way the file is incomplete.
+        return IOException("Failed to write file: " + path);
     }
     return null;
 }

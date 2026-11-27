@@ -363,3 +363,33 @@ TEST(ExecutionEngineTest, BytecodeFunctionReturnsItsOwnLambda) {
 
     EXPECT_EQ(interp.global_env()->get("r").as_integer(), 20);
 }
+
+// runtime.value_kind names every ValueType the same way in both tiers.
+TEST(ExecutionEngineTest, ValueKindIntrinsicInInterpreterAndBytecode) {
+    const std::string body = R"(
+            let parts = [
+                __runtime_value_kind(null), __runtime_value_kind(true), __runtime_value_kind(1),
+                __runtime_value_kind(1.5), __runtime_value_kind("s"), __runtime_value_kind([1]),
+                __runtime_value_kind(__runtime_create_object()), __runtime_value_kind(Point),
+                __runtime_value_kind(new Point())
+            ];
+            let out = "";
+            let i = 0;
+            while (i < 9) {
+                out = out + parts[i] + ",";
+                i = i + 1;
+            }
+            return out;
+    )";
+    const std::string expected = "null,boolean,integer,float,string,array,object,class,instance,";
+    for (const std::string decorator : {"", "@compile(\"bytecode\")\n"}) {
+        const std::string source = "class Point { constructor() { this.x = 1; } }\n" + decorator +
+            "function probe() {" + body + "}\nlet result = probe();\n"
+            "let fn_type = __runtime_value_kind(probe);\n";
+        Interpreter interp;
+        auto program = parse(source);
+        interp.execute(program.get());
+        EXPECT_EQ(interp.global_env()->get("result").as_string(), expected) << decorator;
+        EXPECT_EQ(interp.global_env()->get("fn_type").as_string(), "function") << decorator;
+    }
+}

@@ -310,3 +310,158 @@ TEST_F(IntrinsicsTest, IntToFloatConverts) {
         registry.call("syscall.int_to_float", {Value(int64_t(9007199254740993LL))}).as_float(),
         9007199254740992.0);
 }
+
+// --- Filesystem intrinsics: argument validation and nul-byte-path rejection ---
+// These guard the error paths behind syscall.mkdir/rmdir/lseek/rename/chdir/
+// exists/filesize/readdir/open_*/normalize_path that the happy-path stdlib
+// tests never exercise (missing args, wrong types, embedded NUL bytes).
+
+TEST_F(IntrinsicsTest, MkdirRmdirRoundTrip) {
+    auto& registry = IntrinsicsRegistry::instance();
+    std::string dir = path_ + "_dir";
+    EXPECT_EQ(registry.call("syscall.mkdir", {Value(dir)}).as_integer(), 0);
+    EXPECT_EQ(registry.call("syscall.rmdir", {Value(dir)}).as_integer(), 0);
+}
+
+TEST_F(IntrinsicsTest, MkdirRequiresArgument) {
+    auto& registry = IntrinsicsRegistry::instance();
+    EXPECT_THROW(registry.call("syscall.mkdir", {}), DryadException);
+}
+
+TEST_F(IntrinsicsTest, MkdirRejectsNulByte) {
+    auto& registry = IntrinsicsRegistry::instance();
+    std::string bad_path = std::string("/tmp/dryad\0nul", 14);
+    EXPECT_EQ(registry.call("syscall.mkdir", {Value(bad_path)}).as_integer(), -1);
+}
+
+TEST_F(IntrinsicsTest, RmdirRequiresArgument) {
+    auto& registry = IntrinsicsRegistry::instance();
+    EXPECT_THROW(registry.call("syscall.rmdir", {}), DryadException);
+}
+
+TEST_F(IntrinsicsTest, RmdirRejectsNulByte) {
+    auto& registry = IntrinsicsRegistry::instance();
+    std::string bad_path = std::string("/tmp/dryad\0nul", 14);
+    EXPECT_EQ(registry.call("syscall.rmdir", {Value(bad_path)}).as_integer(), -1);
+}
+
+TEST_F(IntrinsicsTest, LseekRequiresThreeArguments) {
+    auto& registry = IntrinsicsRegistry::instance();
+    EXPECT_THROW(registry.call("syscall.lseek", {Value(int64_t(0)), Value(int64_t(0))}),
+                 DryadException);
+}
+
+TEST_F(IntrinsicsTest, RenameRequiresTwoArguments) {
+    auto& registry = IntrinsicsRegistry::instance();
+    EXPECT_THROW(registry.call("syscall.rename", {Value(path_)}), DryadException);
+}
+
+TEST_F(IntrinsicsTest, RenameRejectsNulByte) {
+    auto& registry = IntrinsicsRegistry::instance();
+    std::string bad_path = std::string("/tmp/dryad\0nul", 14);
+    EXPECT_EQ(registry.call("syscall.rename", {Value(bad_path), Value(path_)}).as_integer(), -1);
+    EXPECT_EQ(registry.call("syscall.rename", {Value(path_), Value(bad_path)}).as_integer(), -1);
+}
+
+TEST_F(IntrinsicsTest, RenameMovesFile) {
+    auto& registry = IntrinsicsRegistry::instance();
+    std::ofstream(path_) << "renamed";
+    std::string new_path = path_ + "_renamed";
+
+    EXPECT_EQ(registry.call("syscall.rename", {Value(path_), Value(new_path)}).as_integer(), 0);
+    EXPECT_FALSE(std::ifstream(path_).good());
+    EXPECT_TRUE(std::ifstream(new_path).good());
+
+    ::unlink(new_path.c_str());
+}
+
+TEST_F(IntrinsicsTest, GetcwdReturnsNonEmptyString) {
+    auto& registry = IntrinsicsRegistry::instance();
+    Value cwd = registry.call("syscall.getcwd", {});
+    EXPECT_TRUE(cwd.is_string());
+    EXPECT_FALSE(cwd.as_string().empty());
+}
+
+TEST_F(IntrinsicsTest, ChdirRequiresArgument) {
+    auto& registry = IntrinsicsRegistry::instance();
+    EXPECT_THROW(registry.call("syscall.chdir", {}), DryadException);
+}
+
+TEST_F(IntrinsicsTest, ChdirRejectsNulByte) {
+    auto& registry = IntrinsicsRegistry::instance();
+    std::string bad_path = std::string("/tmp/dryad\0nul", 14);
+    EXPECT_EQ(registry.call("syscall.chdir", {Value(bad_path)}).as_integer(), -1);
+}
+
+TEST_F(IntrinsicsTest, ExistsRequiresStringArgument) {
+    auto& registry = IntrinsicsRegistry::instance();
+    EXPECT_THROW(registry.call("syscall.exists", {}), DryadException);
+    EXPECT_THROW(registry.call("syscall.exists", {Value(int64_t(0))}), DryadException);
+}
+
+TEST_F(IntrinsicsTest, ExistsRejectsNulByte) {
+    auto& registry = IntrinsicsRegistry::instance();
+    std::string bad_path = std::string("/tmp/dryad\0nul", 14);
+    EXPECT_FALSE(registry.call("syscall.exists", {Value(bad_path)}).as_boolean());
+}
+
+TEST_F(IntrinsicsTest, FilesizeRequiresStringArgument) {
+    auto& registry = IntrinsicsRegistry::instance();
+    EXPECT_THROW(registry.call("syscall.filesize", {}), DryadException);
+    EXPECT_THROW(registry.call("syscall.filesize", {Value(int64_t(0))}), DryadException);
+}
+
+TEST_F(IntrinsicsTest, FilesizeRejectsNulByte) {
+    auto& registry = IntrinsicsRegistry::instance();
+    std::string bad_path = std::string("/tmp/dryad\0nul", 14);
+    EXPECT_EQ(registry.call("syscall.filesize", {Value(bad_path)}).as_integer(), -1);
+}
+
+TEST_F(IntrinsicsTest, ReaddirRequiresStringArgument) {
+    auto& registry = IntrinsicsRegistry::instance();
+    EXPECT_THROW(registry.call("syscall.readdir", {}), DryadException);
+    EXPECT_THROW(registry.call("syscall.readdir", {Value(int64_t(0))}), DryadException);
+}
+
+TEST_F(IntrinsicsTest, ReaddirRejectsNulByte) {
+    auto& registry = IntrinsicsRegistry::instance();
+    std::string bad_path = std::string("/tmp/dryad\0nul", 14);
+    Value result = registry.call("syscall.readdir", {Value(bad_path)});
+    EXPECT_TRUE(result.is_array());
+    EXPECT_EQ(result.array_length(), 0);
+}
+
+TEST_F(IntrinsicsTest, ReaddirReturnsEmptyArrayForMissingDirectory) {
+    auto& registry = IntrinsicsRegistry::instance();
+    Value result = registry.call("syscall.readdir", {Value(std::string("/tmp/dryad_does_not_exist_xyz"))});
+    EXPECT_TRUE(result.is_array());
+    EXPECT_EQ(result.array_length(), 0);
+}
+
+TEST_F(IntrinsicsTest, OpenVariantsRequireStringArgument) {
+    auto& registry = IntrinsicsRegistry::instance();
+    for (const char* name : {"syscall.open_read", "syscall.open_write",
+                             "syscall.open_append", "syscall.open_readwrite"}) {
+        EXPECT_THROW(registry.call(name, {}), DryadException) << name;
+        EXPECT_THROW(registry.call(name, {Value(int64_t(0))}), DryadException) << name;
+    }
+}
+
+TEST_F(IntrinsicsTest, OpenReadRejectsNulByte) {
+    auto& registry = IntrinsicsRegistry::instance();
+    std::string bad_path = std::string("/tmp/dryad\0nul", 14);
+    EXPECT_EQ(registry.call("syscall.open_read", {Value(bad_path)}).as_integer(), -1);
+}
+
+TEST_F(IntrinsicsTest, NormalizePathReplacesBackslashes) {
+    auto& registry = IntrinsicsRegistry::instance();
+    Value result = registry.call("syscall.normalize_path", {Value(std::string("a\\b\\c"))});
+    EXPECT_TRUE(result.is_string());
+    EXPECT_EQ(result.as_string(), "a/b/c");
+}
+
+TEST_F(IntrinsicsTest, NormalizePathRequiresStringArgument) {
+    auto& registry = IntrinsicsRegistry::instance();
+    EXPECT_THROW(registry.call("syscall.normalize_path", {}), DryadException);
+    EXPECT_THROW(registry.call("syscall.normalize_path", {Value(int64_t(0))}), DryadException);
+}

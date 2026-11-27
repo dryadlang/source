@@ -5,6 +5,7 @@ import {
     Fs_WriteFile,
     Fs_Exists,
     Fs_RemoveFile,
+    Fs_RenameFile,
     Fs_ListDirectory,
     Fs_Mkdir,
     Fs_SetBackend
@@ -72,4 +73,18 @@ function test_native_read_write_via_file_api() {
     let ok = Fs_Exists(path);
     Fs_RemoveFile(path);
     return content == "from file api" && ok && !Fs_Exists(path);
+}
+
+function test_rename_file_function() {
+    Fs_SetBackend(MemoryBackend());
+    Fs_WriteFile("/old.txt", "renamed content");
+    let result = Fs_RenameFile("/old.txt", "/new.txt");
+    return result == null && !Fs_Exists("/old.txt") &&
+        Fs_ReadFile("/new.txt") == "renamed content";
+}
+
+function test_rename_file_function_missing_source() {
+    Fs_SetBackend(MemoryBackend());
+    let err = Fs_RenameFile("/nope.txt", "/dest.txt");
+    return err != null && !Fs_Exists("/dest.txt");
 }

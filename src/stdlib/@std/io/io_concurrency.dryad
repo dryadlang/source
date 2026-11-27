@@ -11,6 +11,7 @@ import {
     VFS_exists,
     VFS_RemoveFile,
     VFS_removeFile,
+    VFS_RenameFile,
     VFS_ListDirectory,
     VFS_listDirectory,
     VFS_Mkdir,
@@ -78,6 +79,12 @@ function ThreadSafeVFS_Exists(vfs, path) {
 function ThreadSafeVFS_RemoveFile(vfs, path) {
     return _ThreadSafeVFS_withLock(vfs, function() {
         return VFS_RemoveFile(vfs, path);
+    });
+}
+
+function ThreadSafeVFS_RenameFile(vfs, oldPath, newPath) {
+    return _ThreadSafeVFS_withLock(vfs, function() {
+        return VFS_RenameFile(vfs, oldPath, newPath);
     });
 }
 

@@ -69,3 +69,11 @@ TEST(IOFunctionsTest, ListDirectoryFunction) {
 TEST(IOFunctionsTest, NativeReadWriteViaFileApi) {
     EXPECT_TRUE(run_io_test("test_native_read_write_via_file_api").is_truthy());
 }
+
+TEST(IOFunctionsTest, RenameFileFunction) {
+    EXPECT_TRUE(run_io_test("test_rename_file_function").is_truthy());
+}
+
+TEST(IOFunctionsTest, RenameFileFunctionMissingSource) {
+    EXPECT_TRUE(run_io_test("test_rename_file_function_missing_source").is_truthy());
+}

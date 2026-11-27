@@ -101,3 +101,19 @@ TEST(VFSTest, NativeBackendMkdirAndList) {
 TEST(VFSTest, NativeBackendMissingFile) {
     EXPECT_TRUE(run_vfs_test("test_native_backend_missing_file").is_truthy());
 }
+
+TEST(VFSTest, MemoryBackendRenameFile) {
+    EXPECT_TRUE(run_vfs_test("test_memory_backend_rename_file").is_truthy());
+}
+
+TEST(VFSTest, MemoryBackendRenameMissingFile) {
+    EXPECT_TRUE(run_vfs_test("test_memory_backend_rename_missing_file").is_truthy());
+}
+
+TEST(VFSTest, NativeBackendRenameFile) {
+    EXPECT_TRUE(run_vfs_test("test_native_backend_rename_file").is_truthy());
+}
+
+TEST(VFSTest, NativeBackendRenameMissingFile) {
+    EXPECT_TRUE(run_vfs_test("test_native_backend_rename_missing_file").is_truthy());
+}

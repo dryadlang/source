@@ -243,3 +243,32 @@ function test_udp_closed_client_reports_errors() {
     client.close();
     return expectEq("bind after close", client.bind("127.0.0.1", 0), "UDP socket is not available");
 }
+
+function test_socket_async_rejects_on_a_closed_socket() {
+    let socket = new Socket(SocketDomain_IPv4, SocketType_Stream);
+    socket.close();
+    let outcomes = [];
+    Socket_SendAsync(socket, Buffer_FromString("x"), 0, 1).then(function(n) {
+        __runtime_array_push(outcomes, "send resolved");
+        return n;
+    }, function(err) {
+        __runtime_array_push(outcomes, "send rejected");
+        return err;
+    });
+    Socket_ReceiveAsync(socket, Buffer_New(1), 0, 1).then(function(n) {
+        __runtime_array_push(outcomes, "receive resolved");
+        return n;
+    }, function(err) {
+        __runtime_array_push(outcomes, "receive rejected");
+        return err;
+    });
+    Promise_Flush();
+    if (__runtime_array_length(outcomes) != 2) {
+        return "expected both promises to settle";
+    }
+    let r = expectEq("send", outcomes[0], "send rejected");
+    if (r != true) {
+        return r;
+    }
+    return expectEq("receive", outcomes[1], "receive rejected");
+}

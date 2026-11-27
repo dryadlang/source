@@ -30,11 +30,8 @@ function Socket_SendAsync(socket, buffer, offset, count) {
     return new Promise(function(resolve, reject) {
         EventLoop_Schedule(function() {
             let result = socket.send(buffer, offset, count);
-            if (result != null && result < 0) {
-                reject(result);
-                return null;
-            }
-            if (result != null && result >= 0) {
+            // A byte count resolves; an error string (or anything else) rejects.
+            if (__runtime_value_kind(result) == "integer" && result >= 0) {
                 resolve(result);
                 return null;
             }
@@ -49,11 +46,8 @@ function Socket_ReceiveAsync(socket, buffer, offset, count) {
     return new Promise(function(resolve, reject) {
         EventLoop_Schedule(function() {
             let result = socket.receive(buffer, offset, count);
-            if (result != null && result < 0) {
-                reject(result);
-                return null;
-            }
-            if (result != null && result >= 0) {
+            // A byte count resolves; an error string (or anything else) rejects.
+            if (__runtime_value_kind(result) == "integer" && result >= 0) {
                 resolve(result);
                 return null;
             }

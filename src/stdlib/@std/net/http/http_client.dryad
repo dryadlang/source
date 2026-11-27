@@ -87,23 +87,37 @@ class HttpClient {
         let reqLen = Buffer_Len(reqBuf);
         let wrote = stream.write(reqBuf, 0, reqLen);
         Buffer_Dispose(reqBuf);
-        if (wrote == null || wrote < 0) {
+        if (wrote != reqLen) {
+            // An error string or a short count: the request did not go out whole.
             stream.close();
             client.close();
             this._lastError = NetworkException("HTTP request write failed");
             return this._lastError;
         }
 
+        // The request sends `Connection: close`, so the response ends at EOF.
+        // One read returns whatever arrived so far, so keep reading until then.
         let respBuf = Buffer_New(8192);
-        let read = stream.read(respBuf, 0, 8192);
-        let respSlice = Buffer_Slice(respBuf, 0, read);
-        let raw = Buffer_AsString(respSlice);
-        Buffer_Dispose(respSlice);
+        let raw = "";
+        let failed = false;
+        while (true) {
+            let read = stream.read(respBuf, 0, 8192);
+            if (__runtime_value_kind(read) != "integer" || read < 0) {
+                failed = true;
+                break;
+            }
+            if (read == 0) {
+                break;
+            }
+            let chunk = Buffer_Slice(respBuf, 0, read);
+            raw = raw + Buffer_AsString(chunk);
+            Buffer_Dispose(chunk);
+        }
         Buffer_Dispose(respBuf);
         stream.close();
         client.close();
 
-        if (read == null || read <= 0) {
+        if (failed || raw == "") {
             this._lastError = NetworkException("HTTP response read failed");
             return this._lastError;
         }

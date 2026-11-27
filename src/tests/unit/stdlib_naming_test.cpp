@@ -125,3 +125,30 @@ TEST(StdlibNamingTest, BarrelsStillExportDeprecatedNames) {
         EXPECT_TRUE(interp.global_env()->get(name).is_function()) << name;
     }
 }
+
+TEST(StdlibNamingTest, EveryPackageHasABarrel) {
+    // `import ... from "@std/<package>"` works for every package, resolving to
+    // <package>/<package>.dryad (or a top-level <package>.dryad).
+    const char* source = R"(
+        import { ArgumentNullException, IDisposable } from "@std/core";
+        import { Buffer_FromString } from "@std/buffers";
+        import { Bytes_Equals } from "@std/bytes";
+        import { Text_Length } from "@std/text";
+        import { List } from "@std/collections";
+        import { Fs_ReadFile, Path, MemoryBackend, FileStream } from "@std/io";
+        import { Promise_Resolve, Thread } from "@std/async";
+        import { TcpClient, HttpClient } from "@std/net";
+    )";
+    Lexer lexer(source);
+    Parser parser(lexer.tokenize());
+    auto program = parser.parse();
+    ASSERT_FALSE(parser.has_error()) << parser.error_message();
+    Interpreter interp;
+    interp.set_stdlib_root(DRYAD_STDLIB_DIR);
+    interp.execute(program.get());
+    for (const char* name : {"ArgumentNullException", "Buffer_FromString", "Bytes_Equals", "Text_Length", "List",
+                             "Fs_ReadFile", "Path", "MemoryBackend", "FileStream", "Promise_Resolve", "Thread",
+                             "TcpClient", "HttpClient"}) {
+        EXPECT_FALSE(interp.global_env()->get(name).is_null()) << name;
+    }
+}

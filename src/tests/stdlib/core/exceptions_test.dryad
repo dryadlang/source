@@ -8,11 +8,32 @@ import {
     KeyNotFoundException, NetworkException, SocketException, HttpException
 } from "@std/core";
 
+// Renders any value for failure messages (Dryad has no implicit string conversion).
+function show(value) {
+    let kind = __runtime_value_kind(value);
+    if (kind == "string") {
+        return "\"" + value + "\"";
+    }
+    if (kind == "integer") {
+        return __int_to_string(value);
+    }
+    if (kind == "boolean") {
+        if (value) {
+            return "true";
+        }
+        return "false";
+    }
+    if (kind == "null") {
+        return "null";
+    }
+    return "<" + kind + ">";
+}
+
 function expectEq(actual, expected) {
     if (actual == expected) {
         return true;
     }
-    return "expected \"" + expected + "\", got \"" + actual + "\"";
+    return "expected " + show(expected) + ", got " + show(actual);
 }
 
 function test_message_factories_return_their_message() {

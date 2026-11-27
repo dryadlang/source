@@ -21,11 +21,32 @@ import {
 import { Buffer_FromString, Buffer_AsString } from "@std/buffers";
 import { Promise_Flush } from "@std/async";
 
+// Renders any value for failure messages (Dryad has no implicit string conversion).
+function show(value) {
+    let kind = __runtime_value_kind(value);
+    if (kind == "string") {
+        return "\"" + value + "\"";
+    }
+    if (kind == "integer") {
+        return __int_to_string(value);
+    }
+    if (kind == "boolean") {
+        if (value) {
+            return "true";
+        }
+        return "false";
+    }
+    if (kind == "null") {
+        return "null";
+    }
+    return "<" + kind + ">";
+}
+
 function expectEq(label, actual, expected) {
     if (actual == expected) {
         return true;
     }
-    return label + ": expected \"" + expected + "\", got \"" + actual + "\"";
+    return label + ": expected " + show(expected) + ", got " + show(actual);
 }
 
 // Runs a list of [label, actual, expected] checks and reports the first miss.

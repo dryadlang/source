@@ -117,6 +117,38 @@ function test_http_response_parse() {
     ]);
 }
 
+function test_http_headers_ignore_case_and_reject_injection() {
+    let headers = new HttpHeaders();
+    headers.set("X-Token", "a");
+    headers.set("x-token", "b");
+    let names = [];
+    headers.forEach(function(name, value) {
+        __runtime_array_push(names, name + "=" + value);
+        return null;
+    });
+    return all([
+        ["lookup ignores case", headers.get("X-TOKEN"), "b"],
+        ["has ignores case", headers.has("x-Token"), true],
+        ["one entry per name", __runtime_array_length(names), 1],
+        ["last spelling kept", names[0], "x-token=b"],
+        ["CRLF in value", headers.set("X-A", "v\r\nX-Evil: 1"), "Header value must not contain CR or LF"],
+        ["LF in name", headers.set("X\nB", "v"), "Header name must not contain CR or LF"],
+        ["non-string value", headers.set("X-N", 5), "Header value must be a string"],
+        ["rejected not stored", headers.has("X-A"), false]
+    ]);
+}
+
+function test_http_response_parse_chunked() {
+    let head = "HTTP/1.1 200 OK\r\nTransfer-Encoding: Chunked\r\n\r\n";
+    let ok = HttpResponse_Parse(head + "3\r\nabc\r\n2\r\nde\r\n0\r\nX-Trailer: t\r\n\r\n");
+    return all([
+        ["decoded", ok.body, "abcde"],
+        ["truncated", HttpResponse_Parse(head + "5\r\nab"), "Malformed chunked HTTP body"],
+        ["no last chunk", HttpResponse_Parse(head + "2\r\nab\r\n"), "Malformed chunked HTTP body"],
+        ["bad size", HttpResponse_Parse(head + "zz\r\nab\r\n0\r\n\r\n"), "Malformed chunked HTTP body"]
+    ]);
+}
+
 function test_http_parse_url() {
     let https = Http_ParseUrl("https://example.test/a/b?q=1");
     let plain = Http_ParseUrl("http://example.test:8080");

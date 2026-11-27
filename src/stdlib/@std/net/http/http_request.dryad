@@ -2,6 +2,7 @@
 // HTTP request builder
 
 import { HttpHeaders } from "@std/net/http/http_headers";
+import { _Http_toLowerAscii } from "@std/net/http/http_string";
 
 class HttpRequest {
     constructor(method, url, headers, body) {
@@ -20,10 +21,30 @@ class HttpRequest {
 
 function _HttpRequest_buildWire(request, host, path) {
     let wire = request.method + " " + path + " HTTP/1.1\r\n";
-    wire = wire + "Host: " + host + "\r\n";
+    let headers = request.headers;
+    if (headers == null || !headers.has("Host")) {
+        wire = wire + "Host: " + host + "\r\n";
+    }
+    // The client reads the response to EOF, so Connection is always close,
+    // and Content-Length always matches the body actually sent.
     wire = wire + "Connection: close\r\n";
     if (request.body != null && __string_length(request.body) > 0) {
         wire = wire + "Content-Length: " + __int_to_string(__string_length(request.body)) + "\r\n";
+    }
+    if (headers != null) {
+        let lines = [];
+        headers.forEach(function(name, value) {
+            let key = _Http_toLowerAscii(name);
+            if (key != "connection" && key != "content-length") {
+                __runtime_array_push(lines, name + ": " + value + "\r\n");
+            }
+            return null;
+        });
+        let i = 0;
+        while (i < __runtime_array_length(lines)) {
+            wire = wire + lines[i];
+            i = i + 1;
+        }
     }
     wire = wire + "\r\n";
     if (request.body != null && __string_length(request.body) > 0) {

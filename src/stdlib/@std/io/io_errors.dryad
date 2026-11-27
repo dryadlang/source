@@ -9,7 +9,7 @@ import {
     ArgumentException
 } from "@std/core/exceptions";
 
-import { Path_normalize } from "@std/io/path";
+import { _Path_normalize } from "@std/io/path";
 
 function InvalidPathError(path) {
     return IOException("Invalid path: " + path);
@@ -39,7 +39,7 @@ function NormalizePath(path) {
     if (path == null || path == "") {
         return path;
     }
-    let normalized = Path_normalize(path);
+    let normalized = _Path_normalize(path);
     if (normalized == null) {
         return path;
     }
@@ -50,7 +50,7 @@ function ValidatePath(path) {
     if (path == null || path == "") {
         return ArgumentException("Path cannot be null or empty");
     }
-    if (Path_normalize(path) == null) {
+    if (_Path_normalize(path) == null) {
         return ArgumentException("Path contains a null byte");
     }
     return null;

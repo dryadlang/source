@@ -4,14 +4,14 @@
 import { IEnumerable } from "@std/core/enumerable";
 import { IndexOutOfRangeException } from "@std/core/exceptions";
 
-function List_ensureIndex(list, index) {
+function _List_ensureIndex(list, index) {
     if (index < 0 || index >= list._count) {
         return IndexOutOfRangeException("List index out of range");
     }
     return null;
 }
 
-function List_ensureInsertIndex(list, index) {
+function _List_ensureInsertIndex(list, index) {
     if (index < 0 || index > list._count) {
         return IndexOutOfRangeException("List insert index out of range");
     }
@@ -38,7 +38,7 @@ class List implements IEnumerable {
     }
 
     get(index) {
-        let err = List_ensureIndex(this, index);
+        let err = _List_ensureIndex(this, index);
         if (err != null) {
             return err;
         }
@@ -46,7 +46,7 @@ class List implements IEnumerable {
     }
 
     set(index, value) {
-        let err = List_ensureIndex(this, index);
+        let err = _List_ensureIndex(this, index);
         if (err != null) {
             return err;
         }
@@ -68,7 +68,7 @@ class List implements IEnumerable {
     }
 
     insert(index, item) {
-        let err = List_ensureInsertIndex(this, index);
+        let err = _List_ensureInsertIndex(this, index);
         if (err != null) {
             return err;
         }
@@ -108,7 +108,7 @@ class List implements IEnumerable {
     }
 
     removeAt(index) {
-        let err = List_ensureIndex(this, index);
+        let err = _List_ensureIndex(this, index);
         if (err != null) {
             return err;
         }

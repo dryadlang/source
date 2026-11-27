@@ -1,28 +1,31 @@
 // @std/async/promise.dryad
 // Promise<T> — microtask-driven settlement (Phase 5.1+)
 
-import { EventLoop_schedule } from "@std/async/event_loop";
+import {
+    EventLoop_Schedule,
+    EventLoop_schedule
+} from "@std/async/event_loop";
 
-function Promise_queueSettlement(promise, fulfilled, payload) {
-    EventLoop_schedule(function() {
+function _Promise_queueSettlement(promise, fulfilled, payload) {
+    EventLoop_Schedule(function() {
         if (promise._state != "pending") {
             return null;
         }
         if (fulfilled) {
             promise._state = "fulfilled";
             promise._value = payload;
-            Promise_flushFulfilled(promise);
+            _Promise_flushFulfilled(promise);
         } else {
             promise._state = "rejected";
             promise._error = payload;
-            Promise_flushRejected(promise);
+            _Promise_flushRejected(promise);
         }
         return null;
     });
     return null;
 }
 
-function Promise_isPromise(value) {
+function _Promise_isPromise(value) {
     if (value == null) {
         return false;
     }
@@ -33,7 +36,7 @@ function Promise_isPromise(value) {
     return value._state != null;
 }
 
-function Promise_createDeferred() {
+function _Promise_createDeferred() {
     let deferred = __runtime_create_object();
     let promise = new Promise(function(resolve, reject) {
         __runtime_object_set(deferred, "resolve", resolve);
@@ -44,8 +47,8 @@ function Promise_createDeferred() {
     return deferred;
 }
 
-function Promise_adoptResolved(deferred, value) {
-    if (Promise_isPromise(value)) {
+function _Promise_adoptResolved(deferred, value) {
+    if (_Promise_isPromise(value)) {
         if (value._state == "fulfilled") {
             value = value._value;
         } else if (value._state == "rejected") {
@@ -70,13 +73,13 @@ function Promise_adoptResolved(deferred, value) {
     return null;
 }
 
-function Promise_adoptRejected(deferred, error) {
+function _Promise_adoptRejected(deferred, error) {
     let reject = __runtime_object_get(deferred, "reject");
     reject(error);
     return null;
 }
 
-function Promise_flushFulfilled(promise) {
+function _Promise_flushFulfilled(promise) {
     let i = 0;
     let count = __runtime_array_length(promise._callbacks);
     while (i < count) {
@@ -84,9 +87,9 @@ function Promise_flushFulfilled(promise) {
         let onFulfilled = entry[0];
         let deferred = entry[2];
         if (onFulfilled != null) {
-            Promise_adoptResolved(deferred, onFulfilled(promise._value));
+            _Promise_adoptResolved(deferred, onFulfilled(promise._value));
         } else {
-            Promise_adoptResolved(deferred, promise._value);
+            _Promise_adoptResolved(deferred, promise._value);
         }
         i = i + 1;
     }
@@ -94,7 +97,7 @@ function Promise_flushFulfilled(promise) {
     return null;
 }
 
-function Promise_flushRejected(promise) {
+function _Promise_flushRejected(promise) {
     let i = 0;
     let count = __runtime_array_length(promise._callbacks);
     while (i < count) {
@@ -102,9 +105,9 @@ function Promise_flushRejected(promise) {
         let onRejected = entry[1];
         let deferred = entry[2];
         if (onRejected != null) {
-            Promise_adoptResolved(deferred, onRejected(promise._error));
+            _Promise_adoptResolved(deferred, onRejected(promise._error));
         } else {
-            Promise_adoptRejected(deferred, promise._error);
+            _Promise_adoptRejected(deferred, promise._error);
         }
         i = i + 1;
     }
@@ -125,7 +128,7 @@ class Promise {
             if (self._state != "pending") {
                 return null;
             }
-            Promise_queueSettlement(self, true, value);
+            _Promise_queueSettlement(self, true, value);
             return null;
         }
 
@@ -133,7 +136,7 @@ class Promise {
             if (self._state != "pending") {
                 return null;
             }
-            Promise_queueSettlement(self, false, error);
+            _Promise_queueSettlement(self, false, error);
             return null;
         }
 
@@ -143,31 +146,31 @@ class Promise {
     then(onFulfilled, onRejected = null) {
         if (this._state == "rejected") {
             if (onRejected != null) {
-                let deferredRejected = Promise_createDeferred();
+                let deferredRejected = _Promise_createDeferred();
                 let err = this._error;
-                EventLoop_schedule(function() {
-                    Promise_adoptResolved(deferredRejected, onRejected(err));
+                EventLoop_Schedule(function() {
+                    _Promise_adoptResolved(deferredRejected, onRejected(err));
                     return null;
                 });
                 return __runtime_object_get(deferredRejected, "promise");
             }
-            return Promise_wrap(this);
+            return Promise_Wrap(this);
         }
         if (this._state == "fulfilled") {
-            let deferred = Promise_createDeferred();
+            let deferred = _Promise_createDeferred();
             let val = this._value;
-            EventLoop_schedule(function() {
+            EventLoop_Schedule(function() {
                 if (onFulfilled != null) {
-                    Promise_adoptResolved(deferred, onFulfilled(val));
+                    _Promise_adoptResolved(deferred, onFulfilled(val));
                 } else {
-                    Promise_adoptResolved(deferred, val);
+                    _Promise_adoptResolved(deferred, val);
                 }
                 return null;
             });
             return __runtime_object_get(deferred, "promise");
         }
 
-        let deferred = Promise_createDeferred();
+        let deferred = _Promise_createDeferred();
         __runtime_array_push(this._callbacks, [onFulfilled, onRejected, deferred]);
         return __runtime_object_get(deferred, "promise");
     }
@@ -197,16 +200,16 @@ class Promise {
     }
 }
 
-function Promise_resolve(value) {
-    if (Promise_isPromise(value)) {
+function Promise_Resolve(value) {
+    if (_Promise_isPromise(value)) {
         if (value._state == "fulfilled") {
-            return Promise_wrap(value);
+            return Promise_Wrap(value);
         }
         if (value._state == "rejected") {
-            return Promise_reject(value._error);
+            return Promise_Reject(value._error);
         }
         if (value._state == "pending") {
-            let deferred = Promise_createDeferred();
+            let deferred = _Promise_createDeferred();
             value.then(function(v) {
                 let resolve = __runtime_object_get(deferred, "resolve");
                 resolve(v);
@@ -225,14 +228,14 @@ function Promise_resolve(value) {
     });
 }
 
-function Promise_reject(error) {
+function Promise_Reject(error) {
     return new Promise(function(resolve, reject) {
         reject(error);
         return null;
     });
 }
 
-function Promise_wrap(promise) {
+function Promise_Wrap(promise) {
     return new Promise(function(resolve, reject) {
         if (promise._state == "fulfilled") {
             resolve(promise._value);
@@ -253,7 +256,7 @@ function Promise_wrap(promise) {
     });
 }
 
-function Promise_all(promises) {
+function Promise_All(promises) {
     return new Promise(function(resolve, reject) {
         let remaining = __runtime_array_length(promises);
         if (remaining == 0) {
@@ -289,16 +292,16 @@ function Promise_all(promises) {
     });
 }
 
-function Promise_flush() {
+function Promise_Flush() {
     __runtime_event_loop_pump_all();
     return null;
 }
 
-function Promise_await(promise) {
+function Promise_Await(promise) {
     return __runtime_await_promise(promise);
 }
 
-function Promise_race(promises) {
+function Promise_Race(promises) {
     return new Promise(function(resolve, reject) {
         let count = __runtime_array_length(promises);
         if (count == 0) {
@@ -328,3 +331,20 @@ function Promise_race(promises) {
         return null;
     });
 }
+
+// Deprecated pre-convention names, kept so existing code keeps working.
+// They will be removed in a future release; use the names on the right.
+// @deprecated Use Promise_All.
+let Promise_all = Promise_All;
+// @deprecated Use Promise_Await.
+let Promise_await = Promise_Await;
+// @deprecated Use Promise_Flush.
+let Promise_flush = Promise_Flush;
+// @deprecated Use Promise_Race.
+let Promise_race = Promise_Race;
+// @deprecated Use Promise_Reject.
+let Promise_reject = Promise_Reject;
+// @deprecated Use Promise_Resolve.
+let Promise_resolve = Promise_Resolve;
+// @deprecated Use Promise_Wrap.
+let Promise_wrap = Promise_Wrap;

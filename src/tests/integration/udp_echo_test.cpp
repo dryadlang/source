@@ -78,10 +78,10 @@ TEST(UdpEchoIntegration, DryadUdpClientEcho) {
     ASSERT_GT(port.load(), 0);
 
     const std::string source = R"(
-        import { UdpClient_create } from "@std/net/udp_client";
+        import { UdpClient_Create } from "@std/net/udp_client";
         import { Buffer_FromString, Buffer_AsString, Buffer_Dispose } from "@std/buffers/buffer";
 
-        let client = UdpClient_create();
+        let client = UdpClient_Create();
         let ok = false;
         if (client._lastError == null) {
             let buf = Buffer_FromString("echo");

@@ -8,7 +8,7 @@ using namespace dryad;
 TEST(CoreFoundation, BufferVfsAndExceptionsViaImports) {
     std::string source = R"(
         import { Buffer_New, Buffer_Write, Buffer_Read, Buffer_Dispose } from "@std/buffers/buffer";
-        import { VFS, MemoryBackend, VFS_writeFile, VFS_readFile } from "@std/io/vfs";
+        import { VFS, MemoryBackend, VFS_WriteFile, VFS_ReadFile } from "@std/io/vfs";
         import { ArgumentNullException } from "@std/core/exceptions";
 
         let buf = Buffer_New(4);
@@ -17,8 +17,8 @@ TEST(CoreFoundation, BufferVfsAndExceptionsViaImports) {
         Buffer_Dispose(buf);
 
         let vfs = VFS(MemoryBackend());
-        VFS_writeFile(vfs, "/core.txt", "foundation");
-        let ioOk = VFS_readFile(vfs, "/core.txt") == "foundation";
+        VFS_WriteFile(vfs, "/core.txt", "foundation");
+        let ioOk = VFS_ReadFile(vfs, "/core.txt") == "foundation";
 
         let err = ArgumentNullException("x");
         let errOk = err != null;

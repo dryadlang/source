@@ -4,7 +4,7 @@
 import { Stream } from "@std/io/stream";
 import { InvalidOperationException } from "@std/core/exceptions";
 
-function NetworkStream_ensureSocket(socket) {
+function _NetworkStream_ensureSocket(socket) {
     if (socket == null) {
         return InvalidOperationException("Socket cannot be null");
     }
@@ -85,10 +85,15 @@ class NetworkStream extends Stream {
     }
 }
 
-function NetworkStream_fromSocket(socket) {
-    let err = NetworkStream_ensureSocket(socket);
+function NetworkStream_FromSocket(socket) {
+    let err = _NetworkStream_ensureSocket(socket);
     if (err != null) {
         return err;
     }
     return new NetworkStream(socket);
 }
+
+// Deprecated pre-convention names, kept so existing code keeps working.
+// They will be removed in a future release; use the names on the right.
+// @deprecated Use NetworkStream_FromSocket.
+let NetworkStream_fromSocket = NetworkStream_FromSocket;

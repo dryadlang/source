@@ -88,8 +88,8 @@ TEST(HttpClientIntegration, GetOverHttpClient) {
     std::this_thread::sleep_for(std::chrono::milliseconds(50));
 
     const std::string source =
-        "import { HttpClient_create } from \"@std/net/http/http_client\";\n"
-        "let client = HttpClient_create();\n"
+        "import { HttpClient_Create } from \"@std/net/http/http_client\";\n"
+        "let client = HttpClient_Create();\n"
         "let response = client.get(\"http://127.0.0.1:" + std::to_string(port.load()) + "/\");\n"
         "let ok = false;\n"
         "if (__runtime_value_kind(response) == \"instance\") {\n"

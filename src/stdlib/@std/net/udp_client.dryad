@@ -3,8 +3,11 @@
 
 import { SocketDomain_IPv4, SocketType_Datagram } from "@std/net/constants";
 import { Socket } from "@std/net/socket";
-import { Net_resolveHostOrError } from "@std/net/dns";
-import { Net_validatePort } from "@std/net/net_errors";
+import {
+    Net_ResolveHostOrError,
+    Net_resolveHostOrError
+} from "@std/net/dns";
+import { _Net_validatePort } from "@std/net/net_errors";
 import {
     ArgumentNullException,
     InvalidOperationException,
@@ -29,12 +32,12 @@ class UdpClient implements IDisposable {
         if (buffer == null) {
             return ArgumentNullException("buffer");
         }
-        let portErr = Net_validatePort(port);
+        let portErr = _Net_validatePort(port);
         if (portErr != null) {
             return portErr;
         }
 
-        let lookup = Net_resolveHostOrError(host, "sendTo");
+        let lookup = Net_ResolveHostOrError(host, "sendTo");
         if (lookup[1] != null) {
             return lookup[1];
         }
@@ -65,6 +68,11 @@ class UdpClient implements IDisposable {
     }
 }
 
-function UdpClient_create() {
+function UdpClient_Create() {
     return new UdpClient();
 }
+
+// Deprecated pre-convention names, kept so existing code keeps working.
+// They will be removed in a future release; use the names on the right.
+// @deprecated Use UdpClient_Create.
+let UdpClient_create = UdpClient_Create;

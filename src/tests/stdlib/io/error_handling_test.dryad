@@ -3,36 +3,36 @@
 import {
     VFS,
     MemoryBackend,
-    VFS_readFile,
-    VFS_writeFile,
-    VFS_dispose
+    VFS_ReadFile,
+    VFS_WriteFile,
+    VFS_Dispose
 } from "@std/io/vfs";
 
 import { NormalizePath } from "@std/io/io_errors";
 
 function test_error_on_missing_file() {
     let vfs = VFS(MemoryBackend());
-    let result = VFS_readFile(vfs, "/nonexistent.txt");
+    let result = VFS_ReadFile(vfs, "/nonexistent.txt");
     return result != null;
 }
 
 function test_error_on_invalid_path() {
     let vfs = VFS(MemoryBackend());
-    let result = VFS_writeFile(vfs, "", "content");
+    let result = VFS_WriteFile(vfs, "", "content");
     return result != null;
 }
 
 function test_error_on_disposed_vfs() {
     let vfs = VFS(MemoryBackend());
-    VFS_dispose(vfs);
-    let result = VFS_readFile(vfs, "/test.txt");
+    VFS_Dispose(vfs);
+    let result = VFS_ReadFile(vfs, "/test.txt");
     return result != null;
 }
 
 function test_cross_platform_path_separators() {
     let vfs = VFS(MemoryBackend());
-    VFS_writeFile(vfs, "data\\file.txt", "test");
-    let result = VFS_readFile(vfs, "data/file.txt");
+    VFS_WriteFile(vfs, "data\\file.txt", "test");
+    let result = VFS_ReadFile(vfs, "data/file.txt");
     return result == "test";
 }
 
@@ -42,8 +42,8 @@ function test_normalize_path_helper() {
 
 function test_dotdot_is_one_file() {
     let vfs = VFS(MemoryBackend());
-    VFS_writeFile(vfs, "/tmp/../hello.txt", "x");
-    return VFS_readFile(vfs, "/hello.txt") == "x";
+    VFS_WriteFile(vfs, "/tmp/../hello.txt", "x");
+    return VFS_ReadFile(vfs, "/hello.txt") == "x";
 }
 
 function test_nul_byte_path_is_rejected() {
@@ -54,6 +54,6 @@ function test_nul_byte_path_is_rejected() {
     __buffer_set(raw, 2, 98);
     let path = __bytes_to_string(raw, 0, 3);
     __free_bytes(raw);
-    let err = VFS_writeFile(vfs, path, "x");
-    return err != null && VFS_readFile(vfs, "/a") != "x";
+    let err = VFS_WriteFile(vfs, path, "x");
+    return err != null && VFS_ReadFile(vfs, "/a") != "x";
 }

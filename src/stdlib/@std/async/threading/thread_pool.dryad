@@ -34,7 +34,7 @@ class ThreadPool {
     }
 }
 
-function ThreadPool_map(pool, fns) {
+function ThreadPool_Map(pool, fns) {
     let jobIds = [];
     let i = 0;
     let count = __runtime_array_length(fns);
@@ -51,3 +51,8 @@ function ThreadPool_map(pool, fns) {
     }
     return results;
 }
+
+// Deprecated pre-convention names, kept so existing code keeps working.
+// They will be removed in a future release; use the names on the right.
+// @deprecated Use ThreadPool_Map.
+let ThreadPool_map = ThreadPool_Map;

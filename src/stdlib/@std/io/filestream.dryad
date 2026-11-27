@@ -1,8 +1,17 @@
 // @std/io/filestream.dryad
 // FileStream — syscall-backed stream over an open file descriptor
 
-import { Stream, Stream_isError, SeekOrigin_Begin, SeekOrigin_End } from "@std/io/stream";
-import { Path_ensureParentForFile } from "@std/io/path";
+import {
+    Stream,
+    Stream_IsError,
+    Stream_isError,
+    SeekOrigin_Begin,
+    SeekOrigin_End
+} from "@std/io/stream";
+import {
+    Path_EnsureParentForFile,
+    Path_ensureParentForFile
+} from "@std/io/path";
 import { ValidatePath } from "@std/io/io_errors";
 import {
     Buffer_GetActualHandle,
@@ -28,7 +37,7 @@ let FileMode_Write = 1;
 let FileMode_ReadWrite = 2;
 let FileMode_Append = 3;
 
-function FileMode_Create() {
+function _FileMode_Create() {
     let modes = __runtime_create_object();
     __runtime_object_set(modes, "Read", 0);
     __runtime_object_set(modes, "Write", 1);
@@ -37,17 +46,17 @@ function FileMode_Create() {
     return modes;
 }
 
-let FileMode = FileMode_Create();
+let FileMode = _FileMode_Create();
 
-function FileStream_ensureOpen(stream) {
+function _FileStream_ensureOpen(stream) {
     if (stream._closed) {
         return ObjectDisposedException("FileStream");
     }
     return null;
 }
 
-function FileStream_ensureCanRead(stream) {
-    let err = FileStream_ensureOpen(stream);
+function _FileStream_ensureCanRead(stream) {
+    let err = _FileStream_ensureOpen(stream);
     if (err != null) {
         return err;
     }
@@ -57,8 +66,8 @@ function FileStream_ensureCanRead(stream) {
     return null;
 }
 
-function FileStream_ensureCanWrite(stream) {
-    let err = FileStream_ensureOpen(stream);
+function _FileStream_ensureCanWrite(stream) {
+    let err = _FileStream_ensureOpen(stream);
     if (err != null) {
         return err;
     }
@@ -68,7 +77,7 @@ function FileStream_ensureCanWrite(stream) {
     return null;
 }
 
-function FileStream_validateBufferArgs(buffer, offset, count) {
+function _FileStream_validateBufferArgs(buffer, offset, count) {
     if (buffer == null) {
         return ArgumentNullException("buffer");
     }
@@ -122,7 +131,7 @@ class FileStream extends Stream {
 
     length: number {
         get {
-            let err = FileStream_ensureOpen(this);
+            let err = _FileStream_ensureOpen(this);
             if (err != null) {
                 return err;
             }
@@ -144,11 +153,11 @@ class FileStream extends Stream {
     }
 
     read(buffer, offset, count) {
-        let err = FileStream_ensureCanRead(this);
+        let err = _FileStream_ensureCanRead(this);
         if (err != null) {
             return err;
         }
-        err = FileStream_validateBufferArgs(buffer, offset, count);
+        err = _FileStream_validateBufferArgs(buffer, offset, count);
         if (err != null) {
             return err;
         }
@@ -164,11 +173,11 @@ class FileStream extends Stream {
     }
 
     write(buffer, offset, count) {
-        let err = FileStream_ensureCanWrite(this);
+        let err = _FileStream_ensureCanWrite(this);
         if (err != null) {
             return err;
         }
-        err = FileStream_validateBufferArgs(buffer, offset, count);
+        err = _FileStream_validateBufferArgs(buffer, offset, count);
         if (err != null) {
             return err;
         }
@@ -184,7 +193,7 @@ class FileStream extends Stream {
     }
 
     seek(offset, origin) {
-        let err = FileStream_ensureOpen(this);
+        let err = _FileStream_ensureOpen(this);
         if (err != null) {
             return err;
         }
@@ -198,7 +207,7 @@ class FileStream extends Stream {
     }
 
     flush() {
-        let err = FileStream_ensureOpen(this);
+        let err = _FileStream_ensureOpen(this);
         if (err != null) {
             return err;
         }
@@ -218,7 +227,7 @@ class FileStream extends Stream {
     }
 }
 
-function File_open(path, mode) {
+function File_Open(path, mode) {
     let pathErr = ValidatePath(path);
     if (pathErr != null) {
         return pathErr;
@@ -228,7 +237,7 @@ function File_open(path, mode) {
     }
 
     if (mode == FileMode_Write || mode == FileMode_Append || mode == FileMode_ReadWrite) {
-        let dirErr = Path_ensureParentForFile(path);
+        let dirErr = Path_EnsureParentForFile(path);
         if (dirErr != null) {
             return dirErr;
         }
@@ -258,14 +267,14 @@ function File_open(path, mode) {
     return stream;
 }
 
-function File_exists(path) {
+function File_Exists(path) {
     if (ValidatePath(path) != null) {
         return false;
     }
     return __exists(path);
 }
 
-function File_delete(path) {
+function File_Delete(path) {
     let pathErr = ValidatePath(path);
     if (pathErr != null) {
         return pathErr;
@@ -280,9 +289,9 @@ function File_delete(path) {
     return null;
 }
 
-function File_readAllText(path) {
-    let stream = File_open(path, FileMode_Read);
-    if (Stream_isError(stream)) {
+function File_ReadAllText(path) {
+    let stream = File_Open(path, FileMode_Read);
+    if (Stream_IsError(stream)) {
         return stream;
     }
     let size = stream.length;
@@ -310,13 +319,13 @@ function File_readAllText(path) {
     return text;
 }
 
-function File_writeAllText(path, content) {
+function File_WriteAllText(path, content) {
     if (content == null) {
         content = "";
     }
 
-    let stream = File_open(path, FileMode_Write);
-    if (Stream_isError(stream)) {
+    let stream = File_Open(path, FileMode_Write);
+    if (Stream_IsError(stream)) {
         return stream;
     }
     let buf = Buffer_FromString(content);
@@ -333,3 +342,16 @@ function File_writeAllText(path, content) {
     }
     return null;
 }
+
+// Deprecated pre-convention names, kept so existing code keeps working.
+// They will be removed in a future release; use the names on the right.
+// @deprecated Use File_Delete.
+let File_delete = File_Delete;
+// @deprecated Use File_Exists.
+let File_exists = File_Exists;
+// @deprecated Use File_Open.
+let File_open = File_Open;
+// @deprecated Use File_ReadAllText.
+let File_readAllText = File_ReadAllText;
+// @deprecated Use File_WriteAllText.
+let File_writeAllText = File_WriteAllText;

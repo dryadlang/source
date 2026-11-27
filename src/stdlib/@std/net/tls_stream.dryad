@@ -11,7 +11,7 @@ import {
     NetworkException
 } from "@std/core/exceptions";
 
-function TlsStream_ensureOpen(stream) {
+function _TlsStream_ensureOpen(stream) {
     if (stream._closed) {
         return InvalidOperationException("TlsStream is closed");
     }
@@ -62,7 +62,7 @@ class TlsStream extends Stream {
     }
 
     read(buffer, offset, count) {
-        let err = TlsStream_ensureOpen(this);
+        let err = _TlsStream_ensureOpen(this);
         if (err != null) {
             return err;
         }
@@ -76,7 +76,7 @@ class TlsStream extends Stream {
     }
 
     write(buffer, offset, count) {
-        let err = TlsStream_ensureOpen(this);
+        let err = _TlsStream_ensureOpen(this);
         if (err != null) {
             return err;
         }
@@ -107,15 +107,15 @@ class TlsStream extends Stream {
     }
 }
 
-function TlsStream_isAvailable() {
+function TlsStream_IsAvailable() {
     return __tls_available();
 }
 
-function TlsStream_isTlsStream(value) {
+function _TlsStream_isTlsStream(value) {
     return value != null && value._tlsHandle != null;
 }
 
-function TlsStream_connect(fd, host) {
+function TlsStream_Connect(fd, host) {
     if (!__tls_available()) {
         return NetworkException("TLS is not available in this build");
     }
@@ -125,3 +125,10 @@ function TlsStream_connect(fd, host) {
     }
     return new TlsStream(tlsHandle, host);
 }
+
+// Deprecated pre-convention names, kept so existing code keeps working.
+// They will be removed in a future release; use the names on the right.
+// @deprecated Use TlsStream_Connect.
+let TlsStream_connect = TlsStream_Connect;
+// @deprecated Use TlsStream_IsAvailable.
+let TlsStream_isAvailable = TlsStream_IsAvailable;

@@ -48,8 +48,8 @@ function VFS(backend) {
     return vfs;
 }
 
-// VFS_readFile - Read entire file content as string
-function VFS_readFile(vfs, path) {
+// VFS_ReadFile - Read entire file content as string
+function VFS_ReadFile(vfs, path) {
     if (vfs == null) {
         return ArgumentNullException("vfs");
     }
@@ -64,11 +64,11 @@ function VFS_readFile(vfs, path) {
     }
     
     let backend = __runtime_object_get(vfs, "backend");
-    return FileSystemBackend_readFile(backend, path);
+    return _FileSystemBackend_readFile(backend, path);
 }
 
-// VFS_writeFile - Write content to file
-function VFS_writeFile(vfs, path, content) {
+// VFS_WriteFile - Write content to file
+function VFS_WriteFile(vfs, path, content) {
     if (vfs == null) {
         return ArgumentNullException("vfs");
     }
@@ -87,11 +87,11 @@ function VFS_writeFile(vfs, path, content) {
     }
     
     let backend = __runtime_object_get(vfs, "backend");
-    return FileSystemBackend_writeFile(backend, path, content);
+    return _FileSystemBackend_writeFile(backend, path, content);
 }
 
-// VFS_listDirectory - List files in directory
-function VFS_listDirectory(vfs, path) {
+// VFS_ListDirectory - List files in directory
+function VFS_ListDirectory(vfs, path) {
     if (vfs == null) {
         return ArgumentNullException("vfs");
     }
@@ -106,11 +106,11 @@ function VFS_listDirectory(vfs, path) {
     }
     
     let backend = __runtime_object_get(vfs, "backend");
-    return FileSystemBackend_listDirectory(backend, path);
+    return _FileSystemBackend_listDirectory(backend, path);
 }
 
-// VFS_removeFile - Delete file
-function VFS_removeFile(vfs, path) {
+// VFS_RemoveFile - Delete file
+function VFS_RemoveFile(vfs, path) {
     if (vfs == null) {
         return ArgumentNullException("vfs");
     }
@@ -125,11 +125,11 @@ function VFS_removeFile(vfs, path) {
     }
     
     let backend = __runtime_object_get(vfs, "backend");
-    return FileSystemBackend_removeFile(backend, path);
+    return _FileSystemBackend_removeFile(backend, path);
 }
 
-// VFS_exists - Check if file exists
-function VFS_exists(vfs, path) {
+// VFS_Exists - Check if file exists
+function VFS_Exists(vfs, path) {
     if (vfs == null) {
         return ArgumentNullException("vfs");
     }
@@ -144,11 +144,11 @@ function VFS_exists(vfs, path) {
     }
     
     let backend = __runtime_object_get(vfs, "backend");
-    return FileSystemBackend_exists(backend, path);
+    return _FileSystemBackend_exists(backend, path);
 }
 
-// VFS_mkdir - Create directory
-function VFS_mkdir(vfs, path) {
+// VFS_Mkdir - Create directory
+function VFS_Mkdir(vfs, path) {
     if (vfs == null) {
         return ArgumentNullException("vfs");
     }
@@ -163,11 +163,11 @@ function VFS_mkdir(vfs, path) {
     }
     
     let backend = __runtime_object_get(vfs, "backend");
-    return FileSystemBackend_mkdir(backend, path);
+    return _FileSystemBackend_mkdir(backend, path);
 }
 
-// VFS_dispose - Clean up VFS resources
-function VFS_dispose(vfs) {
+// VFS_Dispose - Clean up VFS resources
+function VFS_Dispose(vfs) {
     if (vfs == null) {
         return null;
     }
@@ -180,7 +180,7 @@ function VFS_dispose(vfs) {
     __runtime_object_set(vfs, "disposed", true);
     let backend = __runtime_object_get(vfs, "backend");
     if (backend != null) {
-        FileSystemBackend_dispose(backend);
+        _FileSystemBackend_dispose(backend);
     }
     return null;
 }
@@ -190,7 +190,7 @@ function VFS_dispose(vfs) {
 // ============================================================================
 // These functions route to the appropriate backend implementation
 
-function FileSystemBackend_readFile(backend, path) {
+function _FileSystemBackend_readFile(backend, path) {
     if (backend == null) {
         return ArgumentNullException("backend");
     }
@@ -204,15 +204,15 @@ function FileSystemBackend_readFile(backend, path) {
     let type = __runtime_object_get(backend, "type");
     
     if (type == "memory") {
-        return MemoryBackend_readFile(backend, normalizedPath);
+        return _MemoryBackend_readFile(backend, normalizedPath);
     } else if (type == "native") {
-        return NativeBackend_readFile(backend, normalizedPath);
+        return _NativeBackend_readFile(backend, normalizedPath);
     }
     
     return IOException("Unknown backend type: " + type);
 }
 
-function FileSystemBackend_writeFile(backend, path, content) {
+function _FileSystemBackend_writeFile(backend, path, content) {
     if (backend == null) {
         return ArgumentNullException("backend");
     }
@@ -226,15 +226,15 @@ function FileSystemBackend_writeFile(backend, path, content) {
     let type = __runtime_object_get(backend, "type");
     
     if (type == "memory") {
-        return MemoryBackend_writeFile(backend, normalizedPath, content);
+        return _MemoryBackend_writeFile(backend, normalizedPath, content);
     } else if (type == "native") {
-        return NativeBackend_writeFile(backend, normalizedPath, content);
+        return _NativeBackend_writeFile(backend, normalizedPath, content);
     }
     
     return IOException("Unknown backend type: " + type);
 }
 
-function FileSystemBackend_exists(backend, path) {
+function _FileSystemBackend_exists(backend, path) {
     if (backend == null) {
         return false;
     }
@@ -247,15 +247,15 @@ function FileSystemBackend_exists(backend, path) {
     let type = __runtime_object_get(backend, "type");
     
     if (type == "memory") {
-        return MemoryBackend_exists(backend, normalizedPath);
+        return _MemoryBackend_exists(backend, normalizedPath);
     } else if (type == "native") {
-        return NativeBackend_exists(backend, normalizedPath);
+        return _NativeBackend_exists(backend, normalizedPath);
     }
     
     return false;
 }
 
-function FileSystemBackend_removeFile(backend, path) {
+function _FileSystemBackend_removeFile(backend, path) {
     if (backend == null) {
         return ArgumentNullException("backend");
     }
@@ -269,15 +269,15 @@ function FileSystemBackend_removeFile(backend, path) {
     let type = __runtime_object_get(backend, "type");
     
     if (type == "memory") {
-        return MemoryBackend_removeFile(backend, normalizedPath);
+        return _MemoryBackend_removeFile(backend, normalizedPath);
     } else if (type == "native") {
-        return NativeBackend_removeFile(backend, normalizedPath);
+        return _NativeBackend_removeFile(backend, normalizedPath);
     }
     
     return IOException("Unknown backend type: " + type);
 }
 
-function FileSystemBackend_listDirectory(backend, path) {
+function _FileSystemBackend_listDirectory(backend, path) {
     if (backend == null) {
         return [];
     }
@@ -293,15 +293,15 @@ function FileSystemBackend_listDirectory(backend, path) {
     let type = __runtime_object_get(backend, "type");
     
     if (type == "memory") {
-        return MemoryBackend_listDirectory(backend, normalizedPath);
+        return _MemoryBackend_listDirectory(backend, normalizedPath);
     } else if (type == "native") {
-        return NativeBackend_listDirectory(backend, normalizedPath);
+        return _NativeBackend_listDirectory(backend, normalizedPath);
     }
     
     return [];
 }
 
-function FileSystemBackend_mkdir(backend, path) {
+function _FileSystemBackend_mkdir(backend, path) {
     if (backend == null) {
         return ArgumentNullException("backend");
     }
@@ -315,15 +315,15 @@ function FileSystemBackend_mkdir(backend, path) {
     let type = __runtime_object_get(backend, "type");
     
     if (type == "memory") {
-        return MemoryBackend_mkdir(backend, normalizedPath);
+        return _MemoryBackend_mkdir(backend, normalizedPath);
     } else if (type == "native") {
-        return NativeBackend_mkdir(backend, normalizedPath);
+        return _NativeBackend_mkdir(backend, normalizedPath);
     }
     
     return IOException("Unknown backend type: " + type);
 }
 
-function FileSystemBackend_dispose(backend) {
+function _FileSystemBackend_dispose(backend) {
     if (backend == null) {
         return null;
     }
@@ -331,9 +331,9 @@ function FileSystemBackend_dispose(backend) {
     let type = __runtime_object_get(backend, "type");
     
     if (type == "memory") {
-        return MemoryBackend_dispose(backend);
+        return _MemoryBackend_dispose(backend);
     } else if (type == "native") {
-        return NativeBackend_dispose(backend);
+        return _NativeBackend_dispose(backend);
     }
     
     return null;
@@ -353,8 +353,8 @@ function MemoryBackend() {
     return backend;
 }
 
-// MemoryBackend_readFile - Read file from memory storage
-function MemoryBackend_readFile(backend, path) {
+// _MemoryBackend_readFile - Read file from memory storage
+function _MemoryBackend_readFile(backend, path) {
     if (path == null || path == "") {
         return FileNotFoundException("Invalid path");
     }
@@ -374,8 +374,8 @@ function MemoryBackend_readFile(backend, path) {
     return content;
 }
 
-// MemoryBackend_writeFile - Write file to memory storage
-function MemoryBackend_writeFile(backend, path, content) {
+// _MemoryBackend_writeFile - Write file to memory storage
+function _MemoryBackend_writeFile(backend, path, content) {
     if (path == null || path == "") {
         return ArgumentException("Path cannot be empty");
     }
@@ -390,8 +390,8 @@ function MemoryBackend_writeFile(backend, path, content) {
     return null;
 }
 
-// MemoryBackend_exists - Check if file exists in memory storage
-function MemoryBackend_exists(backend, path) {
+// _MemoryBackend_exists - Check if file exists in memory storage
+function _MemoryBackend_exists(backend, path) {
     if (path == null || path == "") {
         return false;
     }
@@ -407,8 +407,8 @@ function MemoryBackend_exists(backend, path) {
     return content != null;
 }
 
-// MemoryBackend_removeFile - Delete file from memory storage
-function MemoryBackend_removeFile(backend, path) {
+// _MemoryBackend_removeFile - Delete file from memory storage
+function _MemoryBackend_removeFile(backend, path) {
     if (path == null || path == "") {
         return ArgumentException("Path cannot be empty");
     }
@@ -429,8 +429,8 @@ function MemoryBackend_removeFile(backend, path) {
     return null;
 }
 
-// MemoryBackend_listDirectory - List files under path
-function MemoryBackend_listDirectory(backend, path) {
+// _MemoryBackend_listDirectory - List files under path
+function _MemoryBackend_listDirectory(backend, path) {
     if (path == null || path == "") {
         path = "/";
     }
@@ -468,8 +468,8 @@ function MemoryBackend_listDirectory(backend, path) {
     return result;
 }
 
-// MemoryBackend_mkdir - Create directory (no-op for in-memory backend)
-function MemoryBackend_mkdir(backend, path) {
+// _MemoryBackend_mkdir - Create directory (no-op for in-memory backend)
+function _MemoryBackend_mkdir(backend, path) {
     if (path == null || path == "") {
         return ArgumentException("Path cannot be empty");
     }
@@ -484,8 +484,8 @@ function MemoryBackend_mkdir(backend, path) {
     return null;
 }
 
-// MemoryBackend_dispose - Clean up memory backend resources
-function MemoryBackend_dispose(backend) {
+// _MemoryBackend_dispose - Clean up memory backend resources
+function _MemoryBackend_dispose(backend) {
     if (backend == null) {
         return null;
     }
@@ -512,8 +512,8 @@ function NativeBackend() {
     return backend;
 }
 
-// NativeBackend_readFile - Read from real filesystem
-function NativeBackend_readFile(backend, path) {
+// _NativeBackend_readFile - Read from real filesystem
+function _NativeBackend_readFile(backend, path) {
     if (path == null || path == "") {
         return FileNotFoundException("Invalid path");
     }
@@ -545,8 +545,8 @@ function NativeBackend_readFile(backend, path) {
     return content;
 }
 
-// NativeBackend_writeFile - Write to real filesystem
-function NativeBackend_writeFile(backend, path, content) {
+// _NativeBackend_writeFile - Write to real filesystem
+function _NativeBackend_writeFile(backend, path, content) {
     if (path == null || path == "") {
         return ArgumentException("Path cannot be empty");
     }
@@ -569,8 +569,8 @@ function NativeBackend_writeFile(backend, path, content) {
     return null;
 }
 
-// NativeBackend_exists - Check if file exists on real filesystem
-function NativeBackend_exists(backend, path) {
+// _NativeBackend_exists - Check if file exists on real filesystem
+function _NativeBackend_exists(backend, path) {
     if (path == null || path == "") {
         return false;
     }
@@ -583,8 +583,8 @@ function NativeBackend_exists(backend, path) {
     return __exists(path);
 }
 
-// NativeBackend_removeFile - Delete from real filesystem
-function NativeBackend_removeFile(backend, path) {
+// _NativeBackend_removeFile - Delete from real filesystem
+function _NativeBackend_removeFile(backend, path) {
     if (path == null || path == "") {
         return ArgumentException("Path cannot be empty");
     }
@@ -605,8 +605,8 @@ function NativeBackend_removeFile(backend, path) {
     return null;
 }
 
-// NativeBackend_listDirectory - List files on real filesystem
-function NativeBackend_listDirectory(backend, path) {
+// _NativeBackend_listDirectory - List files on real filesystem
+function _NativeBackend_listDirectory(backend, path) {
     if (path == null || path == "") {
         path = ".";
     }
@@ -619,8 +619,8 @@ function NativeBackend_listDirectory(backend, path) {
     return __readdir(path);
 }
 
-// NativeBackend_mkdir - Create directory on real filesystem
-function NativeBackend_mkdir(backend, path) {
+// _NativeBackend_mkdir - Create directory on real filesystem
+function _NativeBackend_mkdir(backend, path) {
     if (path == null || path == "") {
         return ArgumentException("Path cannot be empty");
     }
@@ -637,8 +637,8 @@ function NativeBackend_mkdir(backend, path) {
     return null;
 }
 
-// NativeBackend_dispose - Clean up native backend resources
-function NativeBackend_dispose(backend) {
+// _NativeBackend_dispose - Clean up native backend resources
+function _NativeBackend_dispose(backend) {
     if (backend == null) {
         return null;
     }
@@ -651,3 +651,20 @@ function NativeBackend_dispose(backend) {
     __runtime_object_set(backend, "disposed", true);
     return null;
 }
+
+// Deprecated pre-convention names, kept so existing code keeps working.
+// They will be removed in a future release; use the names on the right.
+// @deprecated Use VFS_Dispose.
+let VFS_dispose = VFS_Dispose;
+// @deprecated Use VFS_Exists.
+let VFS_exists = VFS_Exists;
+// @deprecated Use VFS_ListDirectory.
+let VFS_listDirectory = VFS_ListDirectory;
+// @deprecated Use VFS_Mkdir.
+let VFS_mkdir = VFS_Mkdir;
+// @deprecated Use VFS_ReadFile.
+let VFS_readFile = VFS_ReadFile;
+// @deprecated Use VFS_RemoveFile.
+let VFS_removeFile = VFS_RemoveFile;
+// @deprecated Use VFS_WriteFile.
+let VFS_writeFile = VFS_WriteFile;

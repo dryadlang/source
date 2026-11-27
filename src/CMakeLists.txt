@@ -293,6 +293,7 @@ if(DRYAD_BUILD_TESTS)
         tests/integration/udp_echo_test.cpp
         tests/integration/http_client_test.cpp
         tests/integration/async_workflow_test.cpp
+        tests/integration/cli_test.cpp
     )
     target_link_libraries(integration_tests PRIVATE
         pthread
@@ -303,7 +304,10 @@ if(DRYAD_BUILD_TESTS)
     target_compile_definitions(integration_tests PRIVATE
         DRYAD_STDLIB_DIR="${PROJECT_SOURCE_DIR}/stdlib"
         DRYAD_EXAMPLE_DIR="${DRYAD_EXAMPLE_DIR}"
+        DRYAD_CLI_BINARY="$<TARGET_FILE:dryad>"
     )
+    # cli_test.cpp runs the built `dryad` binary.
+    add_dependencies(integration_tests dryad)
     gtest_discover_tests(integration_tests)
 endif()
 

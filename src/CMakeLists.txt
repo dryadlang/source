@@ -267,6 +267,14 @@ if(DRYAD_BUILD_TESTS)
         DRYAD_AOT_RUNTIME_SRC="${PROJECT_SOURCE_DIR}/src/aot/aot_runtime.c"
         DRYAD_INCLUDE_DIR="${PROJECT_SOURCE_DIR}/include"
     )
+    # StdlibDryadTest builds its case list from tests/stdlib/**/*.dryad at
+    # runtime, and ctest's list is captured when unit_tests links. Make the
+    # .dryad files dependencies of the runner so adding or editing one relinks
+    # unit_tests and refreshes the discovered tests.
+    file(GLOB_RECURSE DRYAD_STDLIB_TEST_SCRIPTS CONFIGURE_DEPENDS
+        ${CMAKE_CURRENT_SOURCE_DIR}/tests/stdlib/*.dryad)
+    set_property(SOURCE tests/unit/stdlib_dryad_test.cpp APPEND PROPERTY
+        OBJECT_DEPENDS ${DRYAD_STDLIB_TEST_SCRIPTS})
     gtest_discover_tests(unit_tests)
     
     # Integration tests

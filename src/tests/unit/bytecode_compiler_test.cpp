@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include <cstdio>
+#include <functional>
 #include "dryad/compiler/lexer.h"
 #include "dryad/compiler/parser.h"
 #include "dryad/compiler/interpreter.h"
@@ -438,12 +439,48 @@ TEST(BytecodeCompilerTest, StandaloneFunctionWithLambdaIsRejected) {
     EXPECT_THROW(compile_named_function(source, "make", nullptr), DryadException);
 }
 
-TEST(BytecodeCompilerTest, CallThroughLocalFunctionValueIsRejected) {
+TEST(BytecodeCompilerTest, CallThroughLocalFunctionValueUsesCallValue) {
     const std::string source = R"(
         function apply(f, x) {
             return f(x);
         }
     )";
 
-    EXPECT_THROW(compile_named_function(source, "apply", nullptr), DryadException);
+    auto fn = compile_named_function(source, "apply", nullptr);
+    EXPECT_TRUE(code_contains_opcode(fn.module, Opcode::CALL_VALUE));
+    EXPECT_FALSE(code_contains_opcode(fn.module, Opcode::CALL_GLOBAL));
+}
+
+TEST(BytecodeCompilerTest, OpcodeSizeMatchesBuilderEncoding) {
+    auto encoded_size = [](const std::function<void(BytecodeBuilder&)>& emit) {
+        BytecodeBuilder builder;
+        emit(builder);
+        const BytecodeModule module = builder.build();
+        EXPECT_FALSE(module.code.empty());
+        EXPECT_EQ(opcode_size(static_cast<Opcode>(module.code[0])), module.code.size())
+            << opcode_name(static_cast<Opcode>(module.code[0]));
+    };
+    encoded_size([](BytecodeBuilder& b) { b.emit_push_int(7); });
+    encoded_size([](BytecodeBuilder& b) { b.emit_push_float(1.5); });
+    encoded_size([](BytecodeBuilder& b) { b.emit_push_const(0); });
+    encoded_size([](BytecodeBuilder& b) { b.emit_load_fast(1); });
+    encoded_size([](BytecodeBuilder& b) { b.emit_store_fast(1); });
+    encoded_size([](BytecodeBuilder& b) { b.emit_load_global(0); });
+    encoded_size([](BytecodeBuilder& b) { b.emit_make_function(2); });
+    encoded_size([](BytecodeBuilder& b) { b.emit_make_closure(2, 1); });
+    encoded_size([](BytecodeBuilder& b) { b.emit_call_value(1); });
+    encoded_size([](BytecodeBuilder& b) { b.emit_call(0, 2); });
+    encoded_size([](BytecodeBuilder& b) { b.emit_call_global(0, 2); });
+    encoded_size([](BytecodeBuilder& b) { b.emit_method_call(0, 2); });
+    encoded_size([](BytecodeBuilder& b) { b.emit_new_instance(0, 2); });
+    encoded_size([](BytecodeBuilder& b) { b.emit_get_property(0); });
+    encoded_size([](BytecodeBuilder& b) { b.emit_set_property(0); });
+    encoded_size([](BytecodeBuilder& b) { b.emit_intrinsic_syscall(3, 1); });
+    encoded_size([](BytecodeBuilder& b) { b.emit_jump(Opcode::JUMP, 0); });
+    for (Opcode op : {Opcode::LOAD_CELL, Opcode::STORE_CELL, Opcode::NEW_CELL,
+                      Opcode::LOAD_UPVALUE, Opcode::STORE_UPVALUE, Opcode::LOAD_CELL_REF,
+                      Opcode::LOAD_UPVALUE_REF, Opcode::STORE_GLOBAL}) {
+        encoded_size([op](BytecodeBuilder& b) { b.emit_u16(op, 1); });
+    }
+    encoded_size([](BytecodeBuilder& b) { b.emit(Opcode::ADD); });
 }

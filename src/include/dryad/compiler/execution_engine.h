@@ -45,7 +45,9 @@ public:
     void set_jit_delegate(VmJitDelegate* delegate);
     void enable_jit(bool enabled) { jit_enabled_ = enabled; }
 
-    Value invoke_bytecode_by_index(uint16_t function_index, const std::vector<Value>& args);
+    Value invoke_bytecode_by_index(uint16_t function_index,
+                                   const std::vector<Value>& args,
+                                   const std::vector<Value>& upvalues = {});
 
 private:
     Interpreter* interpreter_;
@@ -72,7 +74,8 @@ private:
                                   const std::vector<Value>& args);
     Value invoke_bytecode_program(const CompiledProgram& program,
                                   uint16_t function_index,
-                                  const std::vector<Value>& args);
+                                  const std::vector<Value>& args,
+                                  const std::vector<Value>& upvalues = {});
     Value invoke_aot(FunctionDeclaration* decl, const std::vector<Value>& args);
 
     bool has_bytecode_function(const CompiledProgram& program, const std::string& name) const;

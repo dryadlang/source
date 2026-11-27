@@ -125,6 +125,7 @@ add_library(dryad_compiler STATIC
     src/compiler/library_compiler.cpp
     src/compiler/import_cycle_detector.cpp
     src/compiler/program_entry.cpp
+    src/compiler/closure_analysis.cpp
 )
 target_include_directories(dryad_compiler PUBLIC include)
 target_link_libraries(dryad_compiler PUBLIC dryad_runtime)
@@ -228,6 +229,7 @@ if(DRYAD_BUILD_TESTS)
         tests/unit/vm_test.cpp
         tests/unit/bytecode_compiler_test.cpp
         tests/unit/execution_engine_test.cpp
+        tests/unit/bytecode_closure_test.cpp
         tests/unit/aot_test.cpp
         tests/unit/bytecode_cache_test.cpp
         tests/unit/udp_test.cpp

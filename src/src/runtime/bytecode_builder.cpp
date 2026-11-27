@@ -64,6 +64,17 @@ void BytecodeBuilder::emit_make_function(uint16_t function_index) {
     emit_u16(Opcode::MAKE_FUNCTION, function_index);
 }
 
+void BytecodeBuilder::emit_make_closure(uint16_t function_index, uint8_t capture_count) {
+    emit(Opcode::MAKE_CLOSURE);
+    write_u16(function_index);
+    code_.push_back(capture_count);
+}
+
+void BytecodeBuilder::emit_call_value(uint8_t argc) {
+    emit(Opcode::CALL_VALUE);
+    code_.push_back(argc);
+}
+
 void BytecodeBuilder::emit_intrinsic_syscall(uint16_t intrinsic_id, uint8_t argc) {
     emit(Opcode::INTRINSIC_SYSCALL);
     code_.push_back(static_cast<uint8_t>((intrinsic_id >> 8) & 0xFF));

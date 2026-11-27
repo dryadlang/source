@@ -113,6 +113,24 @@ public:
         return interpreter_->execution_engine().invoke_bytecode_by_index(function_index, args);
     }
 
+    Value invoke_bytecode_closure(uint16_t function_index,
+                                  const std::vector<Value>& args,
+                                  const std::vector<Value>& upvalues) override {
+        return interpreter_->execution_engine().invoke_bytecode_by_index(function_index, args,
+                                                                         upvalues);
+    }
+
+    Value invoke_value(const Value& callee, const std::vector<Value>& args) override {
+        if (!callee.is_function()) {
+            throw DryadException("Cannot call non-function value");
+        }
+        return callee.as_function()->call(interpreter_, args);
+    }
+
+    void set_global(const std::string& name, const Value& value) override {
+        interpreter_->global_env()->assign(name, value);
+    }
+
 private:
     Interpreter* interpreter_;
 };
@@ -270,8 +288,9 @@ Value ExecutionEngine::invoke_interpreter(DryadFunction* function,
 }
 
 Value ExecutionEngine::invoke_bytecode_by_index(uint16_t function_index,
-                                                const std::vector<Value>& args) {
-    return invoke_bytecode_program(resolve_bytecode_program(), function_index, args);
+                                                const std::vector<Value>& args,
+                                                const std::vector<Value>& upvalues) {
+    return invoke_bytecode_program(resolve_bytecode_program(), function_index, args, upvalues);
 }
 
 Value ExecutionEngine::invoke_bytecode_program(const CompiledProgram& program,
@@ -283,9 +302,11 @@ Value ExecutionEngine::invoke_bytecode_program(const CompiledProgram& program,
 
 Value ExecutionEngine::invoke_bytecode_program(const CompiledProgram& program,
                                                uint16_t function_index,
-                                               const std::vector<Value>& args) {
+                                               const std::vector<Value>& args,
+                                               const std::vector<Value>& upvalues) {
     VM vm;
     vm.load_program(program, function_index);
+    vm.set_upvalues(upvalues);
     if (jit_delegate_) {
         jit_delegate_->bind_function(&program.functions[function_index]);
         vm.set_jit_delegate(jit_delegate_);

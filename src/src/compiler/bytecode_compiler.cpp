@@ -1,8 +1,10 @@
 #include "dryad/compiler/bytecode_compiler.h"
+#include "dryad/compiler/closure_analysis.h"
 #include "dryad/compiler/interpreter.h"
 #include "dryad/compiler/program_entry.h"
 #include "dryad/runtime/intrinsics_registry.h"
 #include "dryad/common/utils.h"
+#include <algorithm>
 
 namespace dryad {
 
@@ -54,7 +56,7 @@ uint16_t BytecodeCompiler::allocate_slot(const std::string& name, const std::str
 uint16_t BytecodeCompiler::slot_index(const std::string& name) const {
     auto it = slot_map_.find(name);
     if (it == slot_map_.end()) {
-        throw DryadException("Unknown slot in bytecode compiler: " + name);
+        throw BytecodeUnsupported("Unknown slot in bytecode compiler: " + name);
     }
     return it->second;
 }
@@ -235,18 +237,10 @@ void BytecodeCompiler::compile_expression(Expression* expr) {
             break;
         }
 
-        case ASTNodeType::Identifier: {
-            const std::string& name = static_cast<Identifier*>(expr)->name;
-            auto slot_it = slot_map_.find(name);
-            if (slot_it != slot_map_.end()) {
-                builder_.emit_load_fast(slot_it->second);
-            } else {
-                const uint16_t name_const = builder_.add_constant(Value(name));
-                builder_.emit_load_global(name_const);
-            }
+        case ASTNodeType::Identifier:
+            emit_load_name(static_cast<Identifier*>(expr)->name);
             push_stack();
             break;
-        }
 
         case ASTNodeType::BinaryExpression: {
             auto* binary = static_cast<BinaryExpression*>(expr);
@@ -263,6 +257,9 @@ void BytecodeCompiler::compile_expression(Expression* expr) {
             break;
 
         case ASTNodeType::ThisExpression:
+            if (slot_map_.count("this") == 0) {
+                throw BytecodeUnsupported("Bytecode compiler: this outside a method requires interpreter");
+            }
             builder_.emit_load_fast(slot_index("this"));
             push_stack();
             break;
@@ -297,7 +294,7 @@ void BytecodeCompiler::compile_expression(Expression* expr) {
             } else {
                 auto* prop = dynamic_cast<Identifier*>(member->property.get());
                 if (!prop) {
-                    throw DryadException("Bytecode compiler: property must be an identifier");
+                    throw BytecodeUnsupported("Bytecode compiler: property must be an identifier");
                 }
                 compile_expression(member->object.get());
                 const uint16_t name_const = builder_.add_constant(Value(prop->name));
@@ -310,7 +307,7 @@ void BytecodeCompiler::compile_expression(Expression* expr) {
         case ASTNodeType::NewExpression: {
             auto* new_expr = static_cast<NewExpression*>(expr);
             if (new_expr->arguments.size() > 255) {
-                throw DryadException("Bytecode compiler: too many constructor arguments");
+                throw BytecodeUnsupported("Bytecode compiler: too many constructor arguments");
             }
             for (const auto& arg : new_expr->arguments) {
                 compile_expression(arg.get());
@@ -326,24 +323,21 @@ void BytecodeCompiler::compile_expression(Expression* expr) {
             compile_call(static_cast<CallExpression*>(expr));
             break;
 
-        case ASTNodeType::FunctionExpression: {
+        case ASTNodeType::FunctionExpression:
             if (!allow_lambdas_) {
-                throw DryadException(
+                throw BytecodeUnsupported(
                     "Bytecode compiler: function expressions require interpreter");
             }
-            const uint16_t function_index =
-                compile_lambda(static_cast<FunctionExpression*>(expr));
-            builder_.emit_make_function(function_index);
+            compile_lambda(static_cast<FunctionExpression*>(expr));
             push_stack();
             break;
-        }
 
         case ASTNodeType::AwaitExpression: {
             auto* await_expr = static_cast<AwaitExpression*>(expr);
             compile_expression(await_expr->operand.get());
             uint16_t intrinsic_id = 0;
             if (!try_resolve_intrinsic_id("runtime.await_promise", intrinsic_id)) {
-                throw DryadException("Bytecode compiler: runtime.await_promise intrinsic not found");
+                throw BytecodeUnsupported("Bytecode compiler: runtime.await_promise intrinsic not found");
             }
             builder_.emit_intrinsic_syscall(intrinsic_id, 1);
             push_stack();
@@ -351,10 +345,10 @@ void BytecodeCompiler::compile_expression(Expression* expr) {
         }
 
         case ASTNodeType::SuperExpression:
-            throw DryadException("Bytecode compiler: super requires interpreter dispatch");
+            throw BytecodeUnsupported("Bytecode compiler: super requires interpreter dispatch");
 
         default:
-            throw DryadException("Bytecode compiler: unsupported expression type");
+            throw BytecodeUnsupported("Bytecode compiler: unsupported expression type");
     }
 }
 
@@ -377,7 +371,7 @@ void BytecodeCompiler::compile_unary(UnaryExpression* expr) {
             builder_.emit(Opcode::BIT_NOT);
             break;
         default:
-            throw DryadException("Bytecode compiler: unsupported unary operator");
+            throw BytecodeUnsupported("Bytecode compiler: unsupported unary operator");
     }
 }
 
@@ -405,25 +399,25 @@ void BytecodeCompiler::compile_logical(BinaryExpression* expr) {
         builder_.patch_u16(jump_true, builder_.current_pc());
         return;
     }
-    throw DryadException("Bytecode compiler: invalid logical expression");
+    throw BytecodeUnsupported("Bytecode compiler: invalid logical expression");
 }
 
 void BytecodeCompiler::compile_call(CallExpression* expr) {
     if (!expr) {
-        throw DryadException("Bytecode compiler: invalid call expression");
+        throw BytecodeUnsupported("Bytecode compiler: invalid call expression");
     }
 
     if (expr->callee->type == ASTNodeType::MemberExpression) {
         auto* member = static_cast<MemberExpression*>(expr->callee.get());
         if (member->computed) {
-            throw DryadException("Bytecode compiler: computed method calls are not supported");
+            throw BytecodeUnsupported("Bytecode compiler: computed method calls are not supported");
         }
         auto* prop = dynamic_cast<Identifier*>(member->property.get());
         if (!prop) {
-            throw DryadException("Bytecode compiler: method name must be an identifier");
+            throw BytecodeUnsupported("Bytecode compiler: method name must be an identifier");
         }
         if (expr->arguments.size() > 255) {
-            throw DryadException("Bytecode compiler: too many arguments for METHOD_CALL");
+            throw BytecodeUnsupported("Bytecode compiler: too many arguments for METHOD_CALL");
         }
         compile_expression(member->object.get());
         for (auto& arg : expr->arguments) {
@@ -436,25 +430,29 @@ void BytecodeCompiler::compile_call(CallExpression* expr) {
         return;
     }
 
-    if (expr->callee->type != ASTNodeType::Identifier) {
-        throw DryadException("Bytecode compiler: only direct function and method calls are supported");
+    if (expr->callee->type == ASTNodeType::SuperExpression) {
+        throw BytecodeUnsupported("Bytecode compiler: super requires interpreter dispatch");
     }
-    const std::string& name = static_cast<Identifier*>(expr->callee.get())->name;
-    // There is no opcode for calling a function value; CALL_GLOBAL on a local name
-    // would fail at runtime instead of falling back.
-    if (slot_map_.count(name) != 0) {
-        throw DryadException("Bytecode compiler: calling a local function value requires interpreter");
-    }
-
     if (expr->arguments.size() > 255) {
-        throw DryadException("Bytecode compiler: too many arguments for CALL");
+        throw BytecodeUnsupported("Bytecode compiler: too many arguments for CALL");
     }
+    const uint8_t argc = static_cast<uint8_t>(expr->arguments.size());
 
+    // Arguments are evaluated before the callee, matching the interpreter.
+    const bool callee_is_value =
+        expr->callee->type != ASTNodeType::Identifier ||
+        is_local_name(static_cast<Identifier*>(expr->callee.get())->name) ||
+        upvalue_index_.count(static_cast<Identifier*>(expr->callee.get())->name) != 0;
     for (auto& arg : expr->arguments) {
         compile_expression(arg.get());
     }
-
-    const uint8_t argc = static_cast<uint8_t>(expr->arguments.size());
+    if (callee_is_value) {
+        compile_expression(expr->callee.get());
+        builder_.emit_call_value(argc);
+        push_stack();
+        return;
+    }
+    const std::string& name = static_cast<Identifier*>(expr->callee.get())->name;
 
     uint16_t intrinsic_id = 0;
     if (try_resolve_intrinsic_id(name, intrinsic_id)) {
@@ -532,7 +530,7 @@ void BytecodeCompiler::compile_binary(BinaryExpression* expr) {
             builder_.emit(Opcode::NEQ);
             break;
         default:
-            throw DryadException("Bytecode compiler: unsupported binary operator");
+            throw BytecodeUnsupported("Bytecode compiler: unsupported binary operator");
     }
     pop_stack();
 }
@@ -549,7 +547,7 @@ void BytecodeCompiler::compile_assignment(AssignmentExpression* expr) {
         }
         auto* prop = dynamic_cast<Identifier*>(member->property.get());
         if (!prop) {
-            throw DryadException("Bytecode compiler: property must be an identifier");
+            throw BytecodeUnsupported("Bytecode compiler: property must be an identifier");
         }
         compile_expression(member->object.get());
         compile_expression(expr->value.get());
@@ -559,12 +557,52 @@ void BytecodeCompiler::compile_assignment(AssignmentExpression* expr) {
     }
 
     if (expr->target->type != ASTNodeType::Identifier) {
-        throw DryadException("Bytecode compiler: only identifier and member assignment is supported");
+        throw BytecodeUnsupported("Bytecode compiler: only identifier and member assignment is supported");
     }
     const std::string& name = static_cast<Identifier*>(expr->target.get())->name;
     compile_expression(expr->value.get());
     builder_.emit(Opcode::DUP);
-    builder_.emit_store_fast(slot_index(name));
+    emit_store_name(name);
+}
+
+bool BytecodeCompiler::is_local_name(const std::string& name) const {
+    return slot_map_.count(name) != 0;
+}
+
+void BytecodeCompiler::emit_load_name(const std::string& name) {
+    auto slot_it = slot_map_.find(name);
+    if (slot_it != slot_map_.end()) {
+        if (cell_names_.count(name) != 0) {
+            builder_.emit_u16(Opcode::LOAD_CELL, slot_it->second);
+        } else {
+            builder_.emit_load_fast(slot_it->second);
+        }
+        return;
+    }
+    auto upvalue_it = upvalue_index_.find(name);
+    if (upvalue_it != upvalue_index_.end()) {
+        builder_.emit_u16(Opcode::LOAD_UPVALUE, upvalue_it->second);
+        return;
+    }
+    builder_.emit_load_global(builder_.add_constant(Value(name)));
+}
+
+void BytecodeCompiler::emit_store_name(const std::string& name) {
+    auto slot_it = slot_map_.find(name);
+    if (slot_it != slot_map_.end()) {
+        if (cell_names_.count(name) != 0) {
+            builder_.emit_u16(Opcode::STORE_CELL, slot_it->second);
+        } else {
+            builder_.emit_store_fast(slot_it->second);
+        }
+        return;
+    }
+    auto upvalue_it = upvalue_index_.find(name);
+    if (upvalue_it != upvalue_index_.end()) {
+        builder_.emit_u16(Opcode::STORE_UPVALUE, upvalue_it->second);
+        return;
+    }
+    builder_.emit_u16(Opcode::STORE_GLOBAL, builder_.add_constant(Value(name)));
 }
 
 void BytecodeCompiler::compile_statement(Statement* stmt) {
@@ -575,12 +613,31 @@ void BytecodeCompiler::compile_statement(Statement* stmt) {
     switch (stmt->type) {
         case ASTNodeType::VariableDeclaration: {
             auto* decl = static_cast<VariableDeclaration*>(stmt);
-            allocate_slot(decl->name, decl->type_annotation);
-            if (decl->initializer) {
-                compile_expression(decl->initializer.get());
-                builder_.emit_store_fast(slot_index(decl->name));
+            const uint16_t slot = allocate_slot(decl->name, decl->type_annotation);
+            // Every execution of a declaration is a fresh binding, as in the
+            // interpreter: a `let` without initializer resets to null, and a
+            // captured one gets a new cell so closures from earlier loop
+            // iterations keep their own value. The cell exists before the
+            // initializer runs, so a lambda that calls itself captures it.
+            const bool is_cell = cell_names_.count(decl->name) != 0;
+            if (is_cell) {
+                builder_.emit(Opcode::PUSH_NULL);
+                push_stack();
+                builder_.emit_u16(Opcode::NEW_CELL, slot);
                 pop_stack();
             }
+            if (decl->initializer) {
+                compile_expression(decl->initializer.get());
+            } else {
+                builder_.emit(Opcode::PUSH_NULL);
+                push_stack();
+            }
+            if (is_cell) {
+                builder_.emit_u16(Opcode::STORE_CELL, slot);
+            } else {
+                builder_.emit_store_fast(slot);
+            }
+            pop_stack();
             break;
         }
 
@@ -686,7 +743,7 @@ void BytecodeCompiler::compile_statement(Statement* stmt) {
 
         case ASTNodeType::BreakStatement: {
             if (loop_stack_.empty()) {
-                throw DryadException("Bytecode compiler: break outside of loop");
+                throw BytecodeUnsupported("Bytecode compiler: break outside of loop");
             }
             const size_t patch = builder_.emit_jump_placeholder(Opcode::JUMP);
             loop_stack_.back().break_jump_patches.push_back(patch);
@@ -695,7 +752,7 @@ void BytecodeCompiler::compile_statement(Statement* stmt) {
 
         case ASTNodeType::ContinueStatement: {
             if (loop_stack_.empty()) {
-                throw DryadException("Bytecode compiler: continue outside of loop");
+                throw BytecodeUnsupported("Bytecode compiler: continue outside of loop");
             }
             const size_t patch = builder_.emit_jump_placeholder(Opcode::JUMP);
             loop_stack_.back().continue_jump_patches.push_back(patch);
@@ -711,7 +768,7 @@ void BytecodeCompiler::compile_statement(Statement* stmt) {
             break;
 
         default:
-            throw DryadException("Bytecode compiler: unsupported statement type");
+            throw BytecodeUnsupported("Bytecode compiler: unsupported statement type");
     }
 }
 
@@ -741,7 +798,7 @@ void BytecodeCompiler::finalize_metadata() {
 
 uint16_t BytecodeCompiler::compile_lambda(FunctionExpression* expr) {
     if (!expr) {
-        throw DryadException("Bytecode compiler: invalid function expression");
+        throw BytecodeUnsupported("Bytecode compiler: invalid function expression");
     }
 
     // The interpreter may already have taken ownership of the body (see
@@ -756,11 +813,32 @@ uint16_t BytecodeCompiler::compile_lambda(FunctionExpression* expr) {
         }
     }
     if (!body) {
-        throw DryadException("Bytecode compiler: invalid function expression");
+        throw BytecodeUnsupported("Bytecode compiler: invalid function expression");
+    }
+    const std::vector<Statement*> body_statements = block_statements_of(body);
+
+    // Free names that resolve to this function's cells or upvalues are captured;
+    // the rest stay globals inside the lambda.
+    std::vector<std::string> captures;
+    for (const std::string& name : free_names(*parameters, body_statements)) {
+        if (is_local_name(name)) {
+            if (cell_names_.count(name) == 0) {
+                throw BytecodeUnsupported("Bytecode compiler: captured local is not a cell: " + name);
+            }
+            captures.push_back(name);
+        } else if (upvalue_index_.count(name) != 0) {
+            captures.push_back(name);
+        }
+    }
+    if (captures.size() > 255) {
+        throw BytecodeUnsupported("Bytecode compiler: too many captured variables");
     }
 
     const std::string name = "__lambda_" + std::to_string(lambda_counter_++);
-    const auto index = static_cast<uint16_t>(lambda_base_index_ + lambda_functions_.size());
+    // Reserve the slot first so lambdas nested in this one get later indices.
+    const size_t reserved = lambda_functions_.size();
+    const auto index = static_cast<uint16_t>(lambda_base_index_ + reserved);
+    lambda_functions_.emplace_back();
 
     BytecodeBuilder saved_builder = std::move(builder_);
     auto saved_slot_map = slot_map_;
@@ -770,19 +848,15 @@ uint16_t BytecodeCompiler::compile_lambda(FunctionExpression* expr) {
     size_t saved_max_stack_depth = max_stack_depth_;
     auto saved_loop_stack = loop_stack_;
     const FunctionProfile* saved_profile = profile_;
+    auto saved_cell_names = cell_names_;
+    auto saved_upvalue_index = upvalue_index_;
 
-    // A nested lambda would need the enclosing lambda's locals, which bytecode
-    // closures cannot capture; keep such scripts on the interpreter.
-    const bool saved_allow_lambdas = allow_lambdas_;
-    allow_lambdas_ = false;
-    try {
-        lambda_functions_.push_back(
-            compile_function_body(name, *parameters, block_statements(body), nullptr));
-    } catch (...) {
-        allow_lambdas_ = saved_allow_lambdas;
-        throw;
+    upvalue_index_.clear();
+    for (size_t i = 0; i < captures.size(); ++i) {
+        upvalue_index_[captures[i]] = static_cast<uint16_t>(i);
     }
-    allow_lambdas_ = saved_allow_lambdas;
+    CompiledFunction compiled = compile_function_body(name, *parameters, body_statements, nullptr);
+    lambda_functions_[reserved] = std::move(compiled);
 
     builder_ = std::move(saved_builder);
     slot_map_ = std::move(saved_slot_map);
@@ -792,20 +866,25 @@ uint16_t BytecodeCompiler::compile_lambda(FunctionExpression* expr) {
     max_stack_depth_ = saved_max_stack_depth;
     loop_stack_ = std::move(saved_loop_stack);
     profile_ = saved_profile;
+    cell_names_ = std::move(saved_cell_names);
+    upvalue_index_ = std::move(saved_upvalue_index);
 
+    if (captures.empty()) {
+        builder_.emit_make_function(index);
+        return index;
+    }
+    for (const std::string& captured : captures) {
+        auto slot_it = slot_map_.find(captured);
+        if (slot_it != slot_map_.end()) {
+            builder_.emit_u16(Opcode::LOAD_CELL_REF, slot_it->second);
+        } else {
+            builder_.emit_u16(Opcode::LOAD_UPVALUE_REF, upvalue_index_.at(captured));
+        }
+        push_stack();
+    }
+    builder_.emit_make_closure(index, static_cast<uint8_t>(captures.size()));
+    pop_stack(captures.size());
     return index;
-}
-
-std::vector<Statement*> BytecodeCompiler::block_statements(const BlockStatement* block) {
-    std::vector<Statement*> statements;
-    if (!block) {
-        return statements;
-    }
-    statements.reserve(block->statements.size());
-    for (const auto& stmt : block->statements) {
-        statements.push_back(stmt.get());
-    }
-    return statements;
 }
 
 void BytecodeCompiler::begin_function(const std::string& name,
@@ -814,6 +893,7 @@ void BytecodeCompiler::begin_function(const std::string& name,
     builder_ = BytecodeBuilder{};
     slot_map_.clear();
     slot_annotations_.clear();
+    cell_names_.clear();
     profile_ = profile;
     metadata_ = FunctionMetadata{};
     metadata_.name = name;
@@ -821,6 +901,32 @@ void BytecodeCompiler::begin_function(const std::string& name,
     stack_depth_ = 0;
     max_stack_depth_ = 0;
     loop_stack_.clear();
+}
+
+void BytecodeCompiler::emit_cell_prologue(const std::vector<Parameter>& parameters,
+                                          const std::vector<Statement*>& body) {
+    if (!allow_lambdas_) {
+        return;
+    }
+    // Locals captured by a nested lambda live in cells from the start, so the
+    // function and its closures share one binding. Parameters keep their slot
+    // and are wrapped in place.
+    cell_names_ = captured_names(parameters, body);
+    for (const std::string& name : cell_names_) {
+        bool is_parameter = false;
+        for (const auto& param : parameters) {
+            is_parameter = is_parameter || param.name == name;
+        }
+        const uint16_t slot = allocate_slot(name);
+        if (is_parameter) {
+            builder_.emit_load_fast(slot);
+        } else {
+            builder_.emit(Opcode::PUSH_NULL);
+        }
+        push_stack();
+        builder_.emit_u16(Opcode::NEW_CELL, slot);
+        pop_stack();
+    }
 }
 
 CompiledFunction BytecodeCompiler::end_function(const std::vector<Statement*>& body) {
@@ -847,29 +953,59 @@ CompiledFunction BytecodeCompiler::compile_function_body(const std::string& name
     for (const auto& param : parameters) {
         allocate_slot(param.name, param.type_annotation);
     }
+    emit_cell_prologue(parameters, body);
     return end_function(body);
 }
 
 CompiledFunction BytecodeCompiler::compile_function(FunctionDeclaration* fn,
                                                     const FunctionProfile* profile) {
     if (!fn || !fn->body) {
-        throw DryadException("Bytecode compiler: invalid function declaration");
+        throw BytecodeUnsupported("Bytecode compiler: invalid function declaration");
     }
-    return compile_function_body(fn->name, fn->parameters, block_statements(fn->body.get()), profile);
+    upvalue_index_.clear();
+    return compile_function_body(fn->name, fn->parameters, block_statements_of(fn->body.get()),
+                                 profile);
 }
 
 CompiledFunction BytecodeCompiler::compile_instance_method(FunctionDeclaration* fn,
                                                            const FunctionProfile* profile) {
     if (!fn || !fn->body) {
-        throw DryadException("Bytecode compiler: invalid method declaration");
+        throw BytecodeUnsupported("Bytecode compiler: invalid method declaration");
     }
 
+    upvalue_index_.clear();
+    const std::vector<Statement*> body = block_statements_of(fn->body.get());
     begin_function(fn->name, fn->parameters.size(), profile);
     allocate_slot("this");
     for (const auto& param : fn->parameters) {
         allocate_slot(param.name, param.type_annotation);
     }
-    return end_function(block_statements(fn->body.get()));
+    emit_cell_prologue(fn->parameters, body);
+    return end_function(body);
+}
+
+std::vector<CompiledFunction> BytecodeCompiler::compile_named_functions(
+    const std::vector<std::pair<FunctionDeclaration*, const FunctionProfile*>>& named,
+    std::vector<FunctionDeclaration*>* compiled_decls) {
+    function_indices_.clear();
+    lambda_functions_.clear();
+    lambda_counter_ = 0;
+    std::vector<CompiledFunction> compiled;
+    uint16_t next_index = 0;
+    for (const auto& [fn, profile] : named) {
+        const size_t lambdas_before = lambda_functions_.size();
+        try {
+            compiled.push_back(compile_function(fn, profile));
+        } catch (const BytecodeUnsupported&) {
+            lambda_functions_.resize(lambdas_before);
+            continue;
+        }
+        function_indices_[fn->name] = next_index++;
+        if (compiled_decls) {
+            compiled_decls->push_back(fn);
+        }
+    }
+    return compiled;
 }
 
 CompiledProgram BytecodeCompiler::compile_program(Program* program, const TypeProfiler& profiler) {
@@ -878,12 +1014,7 @@ CompiledProgram BytecodeCompiler::compile_program(Program* program, const TypePr
         return result;
     }
 
-    function_indices_.clear();
-    uint16_t next_index = 0;
-
-    // Named functions that close over locals stay on the interpreter:
-    // allow_lambdas_ is false outside the script entry, whose lambdas are the only
-    // ones appended to the program.
+    std::vector<std::pair<FunctionDeclaration*, const FunctionProfile*>> named;
     for (auto& stmt : program->statements) {
         if (stmt->type != ASTNodeType::FunctionDeclaration) {
             continue;
@@ -896,48 +1027,66 @@ CompiledProgram BytecodeCompiler::compile_program(Program* program, const TypePr
                 break;
             }
         }
-        try {
-            result.functions.push_back(compile_function(fn, profile));
-            function_indices_[fn->name] = next_index++;
-        } catch (const DryadException& ex) {
-            const std::string message = ex.what();
-            if (message.find("function expressions") != std::string::npos ||
-                message.find("await is not supported") != std::string::npos ||
-                message.find("super requires interpreter") != std::string::npos ||
-                message.find("local function value requires interpreter") != std::string::npos) {
-                continue;
+        named.emplace_back(fn, profile);
+    }
+
+    allow_lambdas_ = true;
+    try {
+        // Named functions take indices [0, k) and their lambdas follow, so every
+        // MAKE_FUNCTION/MAKE_CLOSURE index depends on k. k is only known once we
+        // see which functions compile: a discovery pass, then the real one.
+        lambda_base_index_ = 0;
+        std::vector<FunctionDeclaration*> compilable;
+        compile_named_functions(named, &compilable);
+        if (compilable.size() != named.size()) {
+            std::vector<std::pair<FunctionDeclaration*, const FunctionProfile*>> kept;
+            for (const auto& entry : named) {
+                if (std::find(compilable.begin(), compilable.end(), entry.first) !=
+                    compilable.end()) {
+                    kept.push_back(entry);
+                }
             }
-            throw;
+            named = std::move(kept);
         }
-    }
+        lambda_base_index_ = named.size();
+        result.functions = compile_named_functions(named, nullptr);
+        if (result.functions.size() != named.size()) {
+            throw DryadException("Bytecode compiler: named functions compiled inconsistently");
+        }
+        result.functions.insert(result.functions.end(), lambda_functions_.begin(),
+                                lambda_functions_.end());
 
-    // Compile the script body from borrowed statement pointers. Program::statements
-    // must not be touched: ExecutionEngine::execute_program may be iterating it
-    // when a bytecode function triggers this compile mid-script.
-    const std::vector<Statement*> script_body = script_level_statements(program);
-    if (!script_body.empty()) {
-        const FunctionProfile script_profile =
-            profiler.build_script_function_profile(kScriptEntryFunctionName);
-        const FunctionProfile* profile_ptr = script_profile.slots.empty() ? nullptr : &script_profile;
-        lambda_functions_.clear();
-        lambda_counter_ = 0;
-        lambda_base_index_ = result.functions.size();
-        allow_lambdas_ = true;
-        try {
-            CompiledFunction main_fn =
-                compile_function_body(kScriptEntryFunctionName, {}, script_body, profile_ptr);
-            result.functions.insert(result.functions.end(), lambda_functions_.begin(),
-                                    lambda_functions_.end());
-            result.functions.push_back(main_fn);
-        } catch (const DryadException&) {
-            // Not a swallowed error: a script body with constructs that are
-            // only valid at top level (or not supported by the bytecode
-            // compiler yet) stays interpreter-only. The body was compiled
-            // from borrowed statements, so there is nothing to restore.
+        // Compile the script body from borrowed statement pointers.
+        // Program::statements must not be touched: ExecutionEngine::execute_program
+        // may be iterating it when a bytecode function triggers this compile.
+        const std::vector<Statement*> script_body = script_level_statements(program);
+        if (!script_body.empty()) {
+            const FunctionProfile script_profile =
+                profiler.build_script_function_profile(kScriptEntryFunctionName);
+            const FunctionProfile* profile_ptr =
+                script_profile.slots.empty() ? nullptr : &script_profile;
+            lambda_functions_.clear();
+            lambda_counter_ = 0;
+            lambda_base_index_ = result.functions.size();
+            upvalue_index_.clear();
+            try {
+                CompiledFunction main_fn = compile_function_body(kScriptEntryFunctionName, {},
+                                                                 script_body, profile_ptr);
+                result.functions.insert(result.functions.end(), lambda_functions_.begin(),
+                                        lambda_functions_.end());
+                result.functions.push_back(main_fn);
+            } catch (const DryadException&) {
+                // Not a swallowed error: a script body with constructs that are
+                // only valid at top level (or not supported by the bytecode
+                // compiler yet) stays interpreter-only. The body was compiled
+                // from borrowed statements, so there is nothing to restore.
+            }
         }
+    } catch (...) {
         allow_lambdas_ = false;
+        throw;
     }
-
+    allow_lambdas_ = false;
     return result;
 }
 

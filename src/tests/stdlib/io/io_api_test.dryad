@@ -10,6 +10,7 @@ import {
     MemoryStream_ToString, MemoryStream_GetBuffer,
     Stream_IsStream, Stream_IsError, SeekOrigin, SeekOrigin_Begin, SeekOrigin_Current, SeekOrigin_End,
     FileMode, FileMode_Read, FileMode_Write, FileMode_ReadWrite, FileMode_Append, File_Exists,
+    File_ReadAllText, File_WriteAllText, File_Delete,
     FileHandle, FileHandle_IsOpen, FileHandle_GetPath, FileHandle_GetMode, FileHandle_Dispose,
     FileLock, FileLock_Acquire, FileLock_Release,
     ThreadSafeVFS, ThreadSafeVFS_ReadFile, ThreadSafeVFS_WriteFile, ThreadSafeVFS_Exists,
@@ -290,4 +291,29 @@ function test_fs_async_wrappers_resolve_with_sync_results() {
     Fs_RemoveFileAsync("/a/f.txt").then(__note("remove"));
     Promise_Flush();
     return expectEq("async log", __async_log, "mkdir=null;write=null;read=data;exists=true;list=1;remove=null;");
+}
+
+// ── whole-file helpers: failures are error strings, never thrown ────────
+
+function test_read_all_text_round_trip() {
+    let path = "/tmp/dryad_io_api_test_text/round.txt";
+    let err = File_WriteAllText(path, "line one\nline two");
+    if (err != null) {
+        return "write: " + show(err);
+    }
+    let text = File_ReadAllText(path);
+    File_Delete(path);
+    return expectEq("text", text, "line one\nline two");
+}
+
+function test_read_all_text_on_a_directory_returns_an_error() {
+    // open(2) succeeds on a directory but read(2) fails with EISDIR.
+    return expectEq("read dir", File_ReadAllText("/tmp"), "Failed to read file: /tmp");
+}
+
+function test_write_all_text_on_a_full_device_returns_an_error() {
+    if (!File_Exists("/dev/full")) {
+        return true;
+    }
+    return expectEq("write /dev/full", File_WriteAllText("/dev/full", "x"), "Failed to write file: /dev/full");
 }

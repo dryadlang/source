@@ -1,0 +1,94 @@
+// @auto-test
+// @allow-net
+// Socket members the coverage map listed as untested: the listening getter
+// and shutdown(how). Sockets stay on 127.0.0.1 with kernel-chosen ports.
+
+import {
+    Socket, TcpListener, TcpClient_Connect,
+    SocketDomain_IPv4, SocketType_Stream, Shutdown_Write, Shutdown_Both
+} from "@std/net";
+import { Buffer_New } from "@std/buffers";
+
+// Renders any value for failure messages (Dryad has no implicit string conversion).
+function show(value) {
+    let kind = __runtime_value_kind(value);
+    if (kind == "string") {
+        return "\"" + value + "\"";
+    }
+    if (kind == "integer") {
+        return __int_to_string(value);
+    }
+    if (kind == "boolean") {
+        if (value) {
+            return "true";
+        }
+        return "false";
+    }
+    if (kind == "null") {
+        return "null";
+    }
+    return "<" + kind + ">";
+}
+
+function expectEq(label, actual, expected) {
+    if (actual == expected) {
+        return true;
+    }
+    return label + ": expected " + show(expected) + ", got " + show(actual);
+}
+
+function all(checks) {
+    let i = 0;
+    while (i < __runtime_array_length(checks)) {
+        let check = checks[i];
+        let result = expectEq(check[0], check[1], check[2]);
+        if (result != true) {
+            return result;
+        }
+        i = i + 1;
+    }
+    return true;
+}
+
+function test_socket_listening_follows_listen_and_close() {
+    let socket = new Socket(SocketDomain_IPv4, SocketType_Stream);
+    let before = socket.listening;
+    let bound = socket.bind("127.0.0.1", 0);
+    let listened = socket.listen(4);
+    let during = socket.listening;
+    socket.close();
+    return all([
+        ["before listen", before, false],
+        ["bind", bound, null],
+        ["listen", listened, null],
+        ["after listen", during, true],
+        ["after close", socket.listening, false]
+    ]);
+}
+
+function test_socket_shutdown_write_signals_eof() {
+    let listener = new TcpListener("127.0.0.1", 0);
+    let started = listener.start();
+    if (started != null) {
+        return "listener: " + show(started);
+    }
+    let client = TcpClient_Connect("127.0.0.1", listener.port);
+    let server = listener.accept();
+    let socket = client._socket;
+    let shut = socket.shutdown(Shutdown_Write);
+    let n = server.receive(Buffer_New(8), 0, 8);
+    let badHow = socket.shutdown(7);
+    let notInt = socket.shutdown("both");
+    client.close();
+    server.close();
+    listener.stop();
+    let closed = socket.shutdown(Shutdown_Both);
+    let message = "how must be Shutdown_Read, Shutdown_Write or Shutdown_Both";
+    return all([
+        ["shutdown", shut, null],
+        ["server reads EOF", n, 0],
+        ["out-of-range how", badHow, message],
+        ["non-integer how", notInt, message],
+        ["after close", closed, "Cannot access disposed object: Socket"]
+    ]);
+}

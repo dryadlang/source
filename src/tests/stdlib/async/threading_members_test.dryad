@@ -1,0 +1,94 @@
+// @auto-test
+// Thread and ThreadPool members the coverage map listed as untested:
+// Thread.isStarted, ThreadPool.submit, wait and submitAsync. threading_test.dryad
+// is driven function by function from threading_test.cpp, so new cases live here.
+
+import { Thread, ThreadPool, Promise_Await } from "@std/async";
+
+// Renders any value for failure messages (Dryad has no implicit string conversion).
+function show(value) {
+    let kind = __runtime_value_kind(value);
+    if (kind == "string") {
+        return "\"" + value + "\"";
+    }
+    if (kind == "integer") {
+        return __int_to_string(value);
+    }
+    if (kind == "boolean") {
+        if (value) {
+            return "true";
+        }
+        return "false";
+    }
+    if (kind == "null") {
+        return "null";
+    }
+    return "<" + kind + ">";
+}
+
+function expectEq(label, actual, expected) {
+    if (actual == expected) {
+        return true;
+    }
+    return label + ": expected " + show(expected) + ", got " + show(actual);
+}
+
+function all(checks) {
+    let i = 0;
+    while (i < __runtime_array_length(checks)) {
+        let check = checks[i];
+        let result = expectEq(check[0], check[1], check[2]);
+        if (result != true) {
+            return result;
+        }
+        i = i + 1;
+    }
+    return true;
+}
+
+function add(a, b) {
+    return a + b;
+}
+
+function test_thread_isStarted() {
+    let thread = new Thread(add, [1, 2]);
+    let before = thread.isStarted();
+    thread.start();
+    let after = thread.isStarted();
+    let outcome = thread.join();
+    return all([
+        ["before start", before, false],
+        ["after start", after, true],
+        ["value", __runtime_object_get(outcome, "value"), 3]
+    ]);
+}
+
+function test_thread_pool_submit_and_wait_out_of_order() {
+    let pool = new ThreadPool(2);
+    let first = pool.submit(add, [1, 1]);
+    let second = pool.submit(add, [2, 2]);
+    let secondValue = pool.wait(second);
+    let firstValue = pool.wait(first);
+    pool.destroy();
+    return all([
+        ["distinct job ids", first != second, true],
+        ["second job", secondValue, 4],
+        ["first job", firstValue, 2]
+    ]);
+}
+
+function test_thread_pool_submitAsync_resolves_and_rejects() {
+    let pool = new ThreadPool(1);
+    let value = Promise_Await(pool.submitAsync(add, [20, 22]));
+    let failed = Promise_Await(pool.submitAsync(function() {
+        let items = [1];
+        return items[5];
+    }, []).catchError(function(e) {
+        return "caught: " + e;
+    }));
+    pool.destroy();
+    return all([
+        ["resolved", value, 42],
+        ["rejected", failed, "caught: Array index out of bounds"]
+    ]);
+}

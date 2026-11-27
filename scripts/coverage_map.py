@@ -77,11 +77,18 @@ def strip_comment(line: str) -> str:
     return line
 
 
+DEPRECATED = re.compile(r"//\s*@deprecated")
+
+
 def parse_module(path: Path) -> list[dict]:
     apis: list[dict] = []
     current_class: dict | None = None
     depth = 0
+    deprecated_next = False
     for raw in path.read_text(encoding="utf-8").splitlines():
+        if depth == 0 and DEPRECATED.search(raw):
+            deprecated_next = True
+            continue
         line = strip_comment(raw)
         if depth == 0:
             current_class = None
@@ -90,11 +97,15 @@ def parse_module(path: Path) -> list[dict]:
                 match = pattern.match(line)
                 if match:
                     entry = {"name": match.group(1), "kind": kind}
+                    if deprecated_next and kind == "value":
+                        entry["deprecated"] = True
                     if kind == "class":
                         entry["methods"] = []
                         current_class = entry
                     apis.append(entry)
                     break
+            if line.strip():
+                deprecated_next = False
         elif depth == 1 and current_class is not None:
             match = METHOD.match(line) or PROPERTY.match(line)
             if match:
@@ -106,6 +117,11 @@ def parse_module(path: Path) -> list[dict]:
         if depth == 0 and current_class is not None and "}" in line:
             current_class = None
     return apis
+
+
+def has_helper_convention() -> bool:
+    """True once the `_` helper convention is enforced (StdlibNamingTest exists)."""
+    return (TESTS / "unit" / "stdlib_naming_test.cpp").exists()
 
 
 def read_corpus(directory: Path, suffixes: tuple[str, ...]) -> str:
@@ -129,22 +145,23 @@ def stdlib_section() -> dict:
     doc_texts = {p.name: p.read_text(encoding="utf-8") for p in (DOCS / "stdlib").glob("*.md")}
     example_corpus = read_corpus(DOCS / "examples", (".dryad", ".dyd"))
     sources = {path: path.read_text(encoding="utf-8") for path in sorted(STDLIB.rglob("*.dryad"))}
+    by_convention = has_helper_convention()
     modules = []
     for path in sources:
         module = module_name(path)
         page = doc_page_for(module)
         doc_corpus = doc_texts.get(page, "") if page else ""
-        # The stdlib has no export keyword and its naming is not consistent
-        # (Path_join is public, List_ensureIndex is a helper), so visibility
-        # is inferred from use: a name nothing outside its own file refers
-        # to is reported as an internal helper.
-        outside = "\n".join([test_corpus, example_corpus, *doc_texts.values(),
-                             *(text for other, text in sources.items() if other != path)])
+        # With the convention, `_name` is a helper. Older trees have no marker,
+        # so a name nothing outside its own file refers to counts as internal.
+        outside = "" if by_convention else "\n".join(
+            [test_corpus, example_corpus, *doc_texts.values(),
+             *(text for other, text in sources.items() if other != path)])
         apis = parse_module(path)
         for api in apis:
             api["tested"] = mentions(test_corpus, api["name"])
             api["documented"] = mentions(doc_corpus, api["name"])
-            api["internal"] = api["name"].startswith("_") or not mentions(outside, api["name"])
+            api["internal"] = api["name"].startswith("_") or (
+                not by_convention and not mentions(outside, api["name"]))
             for method in api.get("methods", []):
                 method["tested"] = method_mentioned(test_corpus, method["name"])
                 method["documented"] = mentions(doc_corpus, method["name"])
@@ -155,13 +172,14 @@ def stdlib_section() -> dict:
             "apis": apis,
         })
 
-    public = [a for m in modules for a in m["apis"] if not a["internal"]]
+    public = [a for m in modules for a in m["apis"] if not a["internal"] and not a.get("deprecated")]
     methods = [mt for a in public for mt in a.get("methods", [])]
     return {
         "summary": {
             "modules": len(modules),
             "publicApis": len(public),
             "internalHelpers": sum(1 for m in modules for a in m["apis"] if a["internal"]),
+            "deprecatedAliases": sum(1 for m in modules for a in m["apis"] if a.get("deprecated")),
             "tested": sum(1 for a in public if a["tested"]),
             "documented": sum(1 for a in public if a["documented"]),
             "methods": len(methods),
@@ -262,7 +280,7 @@ def gaps(lines: dict | None, stdlib: dict) -> list[dict]:
                                 "item": f["file"], "detail": f"{f['line']}% lines"})
     for module in stdlib["modules"]:
         for api in module["apis"]:
-            if api["internal"]:
+            if api["internal"] or api.get("deprecated"):
                 continue
             if not api["documented"]:
                 out.append({"area": "stdlib", "kind": "undocumented",

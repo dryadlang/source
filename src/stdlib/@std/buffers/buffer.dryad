@@ -17,7 +17,7 @@ import {
 //
 // Errors are returned as values (strings from exceptions.dryad), never thrown.
 
-function Buffer_CreateInternal(handle, length, capacity, ownsMemory, parentBuffer) {
+function _Buffer_CreateInternal(handle, length, capacity, ownsMemory, parentBuffer) {
     let buf = __runtime_create_object();
     __runtime_object_set(buf, "_handle", handle);
     __runtime_object_set(buf, "_length", length);
@@ -34,20 +34,20 @@ function Buffer_New(size) {
         return ArgumentOutOfRangeException("Buffer size must be non-negative");
     }
     if (size == 0) {
-        return Buffer_CreateInternal(0, 0, 0, false, null);
+        return _Buffer_CreateInternal(0, 0, 0, false, null);
     }
     let handle = __alloc_bytes(size);
     if (handle == null) {
         return Exception("Failed to allocate buffer memory");
     }
-    return Buffer_CreateInternal(handle, size, size, true, null);
+    return _Buffer_CreateInternal(handle, size, size, true, null);
 }
 
 function Buffer_FromPtr(ptr, size, ownsMemory) {
     if (size < 0) {
         return ArgumentOutOfRangeException("Buffer size must be non-negative");
     }
-    return Buffer_CreateInternal(ptr, size, size, ownsMemory, null);
+    return _Buffer_CreateInternal(ptr, size, size, ownsMemory, null);
 }
 
 function Buffer_GetActualHandle(buf) {
@@ -151,7 +151,7 @@ function Buffer_Slice(buf, start, end) {
         return IndexOutOfRangeException("Slice end out of range");
     }
     let sliceLength = end - start;
-    let slicedBuf = Buffer_CreateInternal(
+    let slicedBuf = _Buffer_CreateInternal(
         __runtime_object_get(buf, "_handle"),
         sliceLength,
         __runtime_object_get(buf, "_capacity") - start,
@@ -242,13 +242,13 @@ function Buffer_FromString(str) {
     }
     let length = __string_length(str);
     if (length == 0) {
-        return Buffer_CreateInternal(0, 0, 0, false, null);
+        return _Buffer_CreateInternal(0, 0, 0, false, null);
     }
     let handle = __alloc_bytes(length);
     if (handle == null) {
         return Exception("Failed to allocate buffer memory");
     }
-    let buf = Buffer_CreateInternal(handle, length, length, true, null);
+    let buf = _Buffer_CreateInternal(handle, length, length, true, null);
     let written = __string_to_bytes(str, handle, 0);
     if (written == null) {
         __free_bytes(handle);

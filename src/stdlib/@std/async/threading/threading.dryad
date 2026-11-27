@@ -3,13 +3,18 @@
 
 import {
     Thread,
+    Thread_Parallel,
     Thread_parallel,
+    Thread_SleepMs,
     Thread_sleepMs,
+    Thread_HardwareConcurrency,
     Thread_hardwareConcurrency,
+    Thread_StartAsync,
     Thread_startAsync
 } from "@std/async/threading/thread";
 
 import {
     ThreadPool,
+    ThreadPool_Map,
     ThreadPool_map
 } from "@std/async/threading/thread_pool";

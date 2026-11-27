@@ -3,7 +3,7 @@
 
 import { Promise } from "@std/async/promise";
 
-function Thread_makeOutcome(ok, payload) {
+function _Thread_makeOutcome(ok, payload) {
     let outcome = __runtime_create_object();
     __runtime_object_set(outcome, "ok", ok);
     if (ok) {
@@ -33,11 +33,11 @@ class Thread {
 
     join() {
         if (!this._started) {
-            return Thread_makeOutcome(false, "thread not started");
+            return _Thread_makeOutcome(false, "thread not started");
         }
         let value = __thread_join(this._jobId);
         this._started = false;
-        return Thread_makeOutcome(true, value);
+        return _Thread_makeOutcome(true, value);
     }
 
     isStarted() {
@@ -45,7 +45,7 @@ class Thread {
     }
 }
 
-function Thread_parallel(fns) {
+function Thread_Parallel(fns) {
     let threads = [];
     let i = 0;
     let count = __runtime_array_length(fns);
@@ -66,21 +66,32 @@ function Thread_parallel(fns) {
         __runtime_array_push(results, __runtime_object_get(outcome, "value"));
         i = i + 1;
     }
-    return Thread_makeOutcome(true, results);
+    return _Thread_makeOutcome(true, results);
 }
 
-function Thread_sleepMs(milliseconds) {
+function Thread_SleepMs(milliseconds) {
     __thread_sleep_ms(milliseconds);
     return null;
 }
 
-function Thread_hardwareConcurrency() {
+function Thread_HardwareConcurrency() {
     return __thread_hardware_concurrency();
 }
 
-function Thread_startAsync(fn, args = []) {
+function Thread_StartAsync(fn, args = []) {
     return new Promise(function(resolve, reject) {
         __thread_spawn_async(fn, resolve, reject, args);
         return null;
     });
 }
+
+// Deprecated pre-convention names, kept so existing code keeps working.
+// They will be removed in a future release; use the names on the right.
+// @deprecated Use Thread_HardwareConcurrency.
+let Thread_hardwareConcurrency = Thread_HardwareConcurrency;
+// @deprecated Use Thread_Parallel.
+let Thread_parallel = Thread_Parallel;
+// @deprecated Use Thread_SleepMs.
+let Thread_sleepMs = Thread_SleepMs;
+// @deprecated Use Thread_StartAsync.
+let Thread_startAsync = Thread_StartAsync;

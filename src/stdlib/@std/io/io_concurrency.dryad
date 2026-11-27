@@ -1,7 +1,21 @@
 // @std/io/io_concurrency.dryad
 // Cooperative lock wrapper for shared VFS access (single-threaded runtime today)
 
-import { VFS, VFS_readFile, VFS_writeFile, VFS_exists, VFS_removeFile, VFS_listDirectory, VFS_mkdir } from "@std/io/vfs";
+import {
+    VFS,
+    VFS_ReadFile,
+    VFS_readFile,
+    VFS_WriteFile,
+    VFS_writeFile,
+    VFS_Exists,
+    VFS_exists,
+    VFS_RemoveFile,
+    VFS_removeFile,
+    VFS_ListDirectory,
+    VFS_listDirectory,
+    VFS_Mkdir,
+    VFS_mkdir
+} from "@std/io/vfs";
 import { ArgumentNullException, InvalidOperationException } from "@std/core/exceptions";
 
 function FileLock() {
@@ -10,7 +24,7 @@ function FileLock() {
     return lock;
 }
 
-function FileLock_acquire(lock) {
+function FileLock_Acquire(lock) {
     if (lock == null) {
         return ArgumentNullException("lock");
     }
@@ -21,7 +35,7 @@ function FileLock_acquire(lock) {
     return null;
 }
 
-function FileLock_release(lock) {
+function FileLock_Release(lock) {
     __runtime_object_set(lock, "locked", false);
     return null;
 }
@@ -32,49 +46,68 @@ function ThreadSafeVFS(backend) {
     return vfs;
 }
 
-function ThreadSafeVFS_withLock(vfs, operation) {
+function _ThreadSafeVFS_withLock(vfs, operation) {
     let lock = __runtime_object_get(vfs, "lock");
-    let err = FileLock_acquire(lock);
+    let err = FileLock_Acquire(lock);
     if (err != null) {
         return err;
     }
     let result = operation();
-    FileLock_release(lock);
+    FileLock_Release(lock);
     return result;
 }
 
-function ThreadSafeVFS_readFile(vfs, path) {
-    return ThreadSafeVFS_withLock(vfs, function() {
-        return VFS_readFile(vfs, path);
+function ThreadSafeVFS_ReadFile(vfs, path) {
+    return _ThreadSafeVFS_withLock(vfs, function() {
+        return VFS_ReadFile(vfs, path);
     });
 }
 
-function ThreadSafeVFS_writeFile(vfs, path, content) {
-    return ThreadSafeVFS_withLock(vfs, function() {
-        return VFS_writeFile(vfs, path, content);
+function ThreadSafeVFS_WriteFile(vfs, path, content) {
+    return _ThreadSafeVFS_withLock(vfs, function() {
+        return VFS_WriteFile(vfs, path, content);
     });
 }
 
-function ThreadSafeVFS_exists(vfs, path) {
-    return ThreadSafeVFS_withLock(vfs, function() {
-        return VFS_exists(vfs, path);
+function ThreadSafeVFS_Exists(vfs, path) {
+    return _ThreadSafeVFS_withLock(vfs, function() {
+        return VFS_Exists(vfs, path);
     });
 }
 
-function ThreadSafeVFS_removeFile(vfs, path) {
-    return ThreadSafeVFS_withLock(vfs, function() {
-        return VFS_removeFile(vfs, path);
+function ThreadSafeVFS_RemoveFile(vfs, path) {
+    return _ThreadSafeVFS_withLock(vfs, function() {
+        return VFS_RemoveFile(vfs, path);
     });
 }
 
-function ThreadSafeVFS_listDirectory(vfs, path) {
-    return ThreadSafeVFS_withLock(vfs, function() {
-        return VFS_listDirectory(vfs, path);
+function ThreadSafeVFS_ListDirectory(vfs, path) {
+    return _ThreadSafeVFS_withLock(vfs, function() {
+        return VFS_ListDirectory(vfs, path);
     });
 }
 
-function ThreadSafeVFS_mkdir(vfs, path) {
-    return ThreadSafeVFS_withLock(vfs, function() {
-        return VFS_mkdir(vfs, path);
+function ThreadSafeVFS_Mkdir(vfs, path) {
+    return _ThreadSafeVFS_withLock(vfs, function() {
+        return VFS_Mkdir(vfs, path);
     });
 }
+
+// Deprecated pre-convention names, kept so existing code keeps working.
+// They will be removed in a future release; use the names on the right.
+// @deprecated Use FileLock_Acquire.
+let FileLock_acquire = FileLock_Acquire;
+// @deprecated Use FileLock_Release.
+let FileLock_release = FileLock_Release;
+// @deprecated Use ThreadSafeVFS_Exists.
+let ThreadSafeVFS_exists = ThreadSafeVFS_Exists;
+// @deprecated Use ThreadSafeVFS_ListDirectory.
+let ThreadSafeVFS_listDirectory = ThreadSafeVFS_ListDirectory;
+// @deprecated Use ThreadSafeVFS_Mkdir.
+let ThreadSafeVFS_mkdir = ThreadSafeVFS_Mkdir;
+// @deprecated Use ThreadSafeVFS_ReadFile.
+let ThreadSafeVFS_readFile = ThreadSafeVFS_ReadFile;
+// @deprecated Use ThreadSafeVFS_RemoveFile.
+let ThreadSafeVFS_removeFile = ThreadSafeVFS_RemoveFile;
+// @deprecated Use ThreadSafeVFS_WriteFile.
+let ThreadSafeVFS_writeFile = ThreadSafeVFS_WriteFile;

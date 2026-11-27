@@ -1,7 +1,7 @@
 // @std/net/http/http_string.dryad
 // String helpers for HTTP parsing
 
-function Http_charAt(text, index) {
+function _Http_charAt(text, index) {
     let len = __string_length(text);
     let handle = __alloc_bytes(len);
     __string_to_bytes(text, handle, 0);
@@ -10,7 +10,7 @@ function Http_charAt(text, index) {
     return ch;
 }
 
-function Http_startsWith(text, prefix) {
+function _Http_startsWith(text, prefix) {
     let prefixLen = __string_length(prefix);
     let textLen = __string_length(text);
     if (prefixLen > textLen) {
@@ -18,7 +18,7 @@ function Http_startsWith(text, prefix) {
     }
     let i = 0;
     while (i < prefixLen) {
-        if (Http_charAt(text, i) != Http_charAt(prefix, i)) {
+        if (_Http_charAt(text, i) != _Http_charAt(prefix, i)) {
             return false;
         }
         i = i + 1;
@@ -26,7 +26,7 @@ function Http_startsWith(text, prefix) {
     return true;
 }
 
-function Http_indexOf(text, needle) {
+function _Http_indexOf(text, needle) {
     let textLen = __string_length(text);
     let needleLen = __string_length(needle);
     if (needleLen == 0) {
@@ -37,7 +37,7 @@ function Http_indexOf(text, needle) {
         let j = 0;
         let match = true;
         while (j < needleLen) {
-            if (Http_charAt(text, i + j) != Http_charAt(needle, j)) {
+            if (_Http_charAt(text, i + j) != _Http_charAt(needle, j)) {
                 match = false;
             }
             j = j + 1;
@@ -50,7 +50,7 @@ function Http_indexOf(text, needle) {
     return -1;
 }
 
-function Http_substring(text, start, end) {
+function _Http_substring(text, start, end) {
     let len = end - start;
     if (len <= 0) {
         return "";
@@ -70,12 +70,12 @@ function Http_substring(text, start, end) {
     return result;
 }
 
-function Http_trim(text) {
+function _Http_trim(text) {
     let start = 0;
     let end = __string_length(text);
     let trimmingStart = true;
     while (start < end && trimmingStart) {
-        let ch = Http_charAt(text, start);
+        let ch = _Http_charAt(text, start);
         if (ch == " " || ch == "\t" || ch == "\r" || ch == "\n") {
             start = start + 1;
         } else {
@@ -84,12 +84,12 @@ function Http_trim(text) {
     }
     let trimmingEnd = true;
     while (end > start && trimmingEnd) {
-        let ch = Http_charAt(text, end - 1);
+        let ch = _Http_charAt(text, end - 1);
         if (ch == " " || ch == "\t" || ch == "\r" || ch == "\n") {
             end = end - 1;
         } else {
             trimmingEnd = false;
         }
     }
-    return Http_substring(text, start, end);
+    return _Http_substring(text, start, end);
 }

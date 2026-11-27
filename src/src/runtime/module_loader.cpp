@@ -27,6 +27,20 @@ bool is_relative_specifier(const std::string& specifier) {
     return starts_with(specifier, "./") || starts_with(specifier, "../");
 }
 
+std::string package_barrel(const std::string& base_path) {
+    if (!std::filesystem::is_directory(base_path)) {
+        return "";
+    }
+    const std::string barrel = base_path + "/" + std::filesystem::path(base_path).filename().string();
+    if (file_exists(barrel + ".dyd")) {
+        return barrel + ".dyd";
+    }
+    if (file_exists(barrel + ".dryad")) {
+        return barrel + ".dryad";
+    }
+    return "";
+}
+
 std::string resolve_with_extensions(const std::string& base_path) {
     if (has_source_extension(base_path)) {
         if (file_exists(base_path)) {
@@ -45,7 +59,13 @@ std::string resolve_with_extensions(const std::string& base_path) {
         return dryad_path;
     }
 
-    throw DryadException("Cannot open module file: " + base_path + " (.dyd or .dryad)");
+    // A package directory resolves to its barrel: "@std/net" -> @std/net/net.dryad.
+    const std::string barrel = package_barrel(base_path);
+    if (!barrel.empty()) {
+        return barrel;
+    }
+
+    throw DryadException("Cannot open module file: " + base_path + " (.dyd, .dryad, or a package barrel)");
 }
 
 std::vector<std::string> library_paths_from_env() {
@@ -155,7 +175,8 @@ std::string ModuleLoader::resolve_module_path(const std::string& specifier) cons
                 if (file_exists(candidate)) {
                     return candidate;
                 }
-            } else if (file_exists(candidate + ".dyd") || file_exists(candidate + ".dryad")) {
+            } else if (file_exists(candidate + ".dyd") || file_exists(candidate + ".dryad") ||
+                       !package_barrel(candidate).empty()) {
                 return resolve_with_extensions(candidate);
             }
         }

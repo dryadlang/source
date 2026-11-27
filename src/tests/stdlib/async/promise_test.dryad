@@ -2,47 +2,47 @@
 
 import {
     Promise,
-    Promise_resolve,
-    Promise_reject,
-    Promise_all,
-    Promise_race,
-    Promise_flush
+    Promise_Resolve,
+    Promise_Reject,
+    Promise_All,
+    Promise_Race,
+    Promise_Flush
 } from "@std/async/promise";
 
 function test_promise_resolve() {
-    let p = Promise_resolve(42);
-    Promise_flush();
+    let p = Promise_Resolve(42);
+    Promise_Flush();
     return p._state == "fulfilled" && p._value == 42;
 }
 
 function test_promise_reject() {
-    let p = Promise_reject("error");
-    Promise_flush();
+    let p = Promise_Reject("error");
+    Promise_Flush();
     return p._state == "rejected" && p._error == "error";
 }
 
 function test_promise_then() {
-    let p = Promise_resolve(10);
+    let p = Promise_Resolve(10);
     let chained = p.then(function(value) {
         return value + 5;
     });
-    Promise_flush();
+    Promise_Flush();
     return chained._state == "fulfilled" && chained._value == 15;
 }
 
 function test_promise_all() {
-    let p1 = Promise_resolve(1);
-    let p2 = Promise_resolve(2);
-    let all = Promise_all([p1, p2]);
-    Promise_flush();
+    let p1 = Promise_Resolve(1);
+    let p2 = Promise_Resolve(2);
+    let all = Promise_All([p1, p2]);
+    Promise_Flush();
     return all._state == "fulfilled" && __runtime_array_length(all._value) == 2;
 }
 
 function test_promise_race() {
-    let p1 = Promise_resolve("first");
-    let p2 = Promise_resolve("second");
-    let race = Promise_race([p1, p2]);
-    Promise_flush();
+    let p1 = Promise_Resolve("first");
+    let p2 = Promise_Resolve("second");
+    let race = Promise_Race([p1, p2]);
+    Promise_Flush();
     return race._state == "fulfilled" && race._value == "first";
 }
 
@@ -57,27 +57,27 @@ function test_promise_deferred_then_resolve() {
     });
     let resolve = __runtime_object_get(holder, "resolve");
     resolve(41);
-    Promise_flush();
+    Promise_Flush();
     return chained._state == "fulfilled" && chained._value == 42;
 }
 
 function test_promise_catch_alias() {
-    let p = Promise_reject("err");
+    let p = Promise_Reject("err");
     let chained = p.catch(function(e) {
         return "recovered";
     });
-    Promise_flush();
+    Promise_Flush();
     return chained._state == "fulfilled" && chained._value == "recovered";
 }
 
 function test_promise_finally_alias() {
     let flag = 0;
-    let p = Promise_resolve(1);
+    let p = Promise_Resolve(1);
     let chained = p.finally(function() {
         flag = 1;
         return null;
     });
-    Promise_flush();
+    Promise_Flush();
     return chained._state == "fulfilled" && chained._value == 1 && flag == 1;
 }
 
@@ -92,13 +92,13 @@ function test_promise_all_deferred() {
         __runtime_object_set(holder2, "resolve", resolve);
         return null;
     });
-    let all = Promise_all([p1, p2]);
+    let all = Promise_All([p1, p2]);
     if (all._state != "pending") {
         return false;
     }
     __runtime_object_get(holder1, "resolve")(10);
     __runtime_object_get(holder2, "resolve")(20);
-    Promise_flush();
+    Promise_Flush();
     return all._state == "fulfilled"
         && all._value[0] == 10
         && all._value[1] == 20;

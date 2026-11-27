@@ -1,0 +1,101 @@
+// @std/io/io
+// Barrel module: files, paths, streams and the virtual file system. Import from "@std/io".
+
+import {
+    Fs_ReadFile,
+    Fs_WriteFile,
+    Fs_Exists,
+    Fs_RemoveFile,
+    Fs_ListDirectory,
+    Fs_Mkdir,
+    Fs_SetBackend,
+    Fs_ReadFileAsync,
+    Fs_WriteFileAsync,
+    Fs_ExistsAsync,
+    Fs_RemoveFileAsync,
+    Fs_ListDirectoryAsync,
+    Fs_MkdirAsync
+} from "@std/io/file";
+import {
+    Path_Join,
+    Path_Dirname,
+    Path_Basename,
+    Path_Extension,
+    Path_EnsureDirectory,
+    Path_EnsureParentForFile,
+    Path
+} from "@std/io/path";
+import {
+    FileSystemBackend,
+    VFS,
+    VFS_ReadFile,
+    VFS_WriteFile,
+    VFS_ListDirectory,
+    VFS_RemoveFile,
+    VFS_Exists,
+    VFS_Mkdir,
+    VFS_Dispose,
+    MemoryBackend,
+    NativeBackend
+} from "@std/io/vfs";
+import {
+    SeekOrigin_Begin,
+    SeekOrigin_Current,
+    SeekOrigin_End,
+    SeekOrigin,
+    Stream_IsStream,
+    Stream_IsError
+} from "@std/io/stream";
+import {
+    FileMode_Read,
+    FileMode_Write,
+    FileMode_ReadWrite,
+    FileMode_Append,
+    FileMode,
+    FileStream,
+    File_Open,
+    File_Exists,
+    File_Delete,
+    File_ReadAllText,
+    File_WriteAllText
+} from "@std/io/filestream";
+import {
+    FileHandle,
+    FileHandle_IsOpen,
+    FileHandle_Read,
+    FileHandle_Write,
+    FileHandle_Close,
+    FileHandle_Dispose,
+    FileHandle_GetPath,
+    FileHandle_GetMode
+} from "@std/io/filehandle";
+import {
+    MemoryStream,
+    MemoryStream_New,
+    MemoryStream_FromString,
+    MemoryStream_FromBuffer,
+    MemoryStream_ToString,
+    MemoryStream_GetBuffer
+} from "@std/io/memory_stream";
+import {
+    InvalidPathError,
+    FileNotFoundError,
+    DirectoryNotFoundError,
+    AccessDeniedError,
+    FileAlreadyExistsError,
+    InvalidOperationError,
+    NormalizePath,
+    ValidatePath
+} from "@std/io/io_errors";
+import {
+    FileLock,
+    FileLock_Acquire,
+    FileLock_Release,
+    ThreadSafeVFS,
+    ThreadSafeVFS_ReadFile,
+    ThreadSafeVFS_WriteFile,
+    ThreadSafeVFS_Exists,
+    ThreadSafeVFS_RemoveFile,
+    ThreadSafeVFS_ListDirectory,
+    ThreadSafeVFS_Mkdir
+} from "@std/io/io_concurrency";

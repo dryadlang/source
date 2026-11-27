@@ -26,20 +26,20 @@ Value run_workflow(const std::string& source) {
 
 TEST(FileIOWorkflow, CompleteFileWorkflow) {
     const std::string source = R"(
-        import { File_open, File_exists, File_delete, File_readAllText, File_writeAllText, FileMode } from "@std/io/file";
+        import { File_Open, File_Exists, File_Delete, File_ReadAllText, File_WriteAllText, FileMode } from "@std/io/file";
         import { Path } from "@std/io/path";
         import { Buffer_New, Buffer_Dispose } from "@std/buffers/buffer";
 
         let path = Path.join("dryad_workflow", "nested.txt");
-        File_writeAllText(path, "Test content");
-        let exists = File_exists(path);
-        let content = File_readAllText(path);
-        File_delete(path);
-        let removed = !File_exists(path);
+        File_WriteAllText(path, "Test content");
+        let Fs_Exists = File_Exists(path);
+        let content = File_ReadAllText(path);
+        File_Delete(path);
+        let removed = !File_Exists(path);
 
-        File_writeAllText("dryad_src.txt", "Source");
-        let src = File_open("dryad_src.txt", FileMode.Read);
-        let dst = File_open("dryad_dst.txt", FileMode.Write);
+        File_WriteAllText("dryad_src.txt", "Source");
+        let src = File_Open("dryad_src.txt", FileMode.Read);
+        let dst = File_Open("dryad_dst.txt", FileMode.Write);
         let buf = Buffer_New(1024);
         let n = src.read(buf, 0, 1024);
         dst.write(buf, 0, n);
@@ -47,11 +47,11 @@ TEST(FileIOWorkflow, CompleteFileWorkflow) {
         src.close();
         dst.close();
 
-        let copied = File_readAllText("dryad_dst.txt");
-        File_delete("dryad_src.txt");
-        File_delete("dryad_dst.txt");
+        let copied = File_ReadAllText("dryad_dst.txt");
+        File_Delete("dryad_src.txt");
+        File_Delete("dryad_dst.txt");
 
-        let ok = exists && content == "Test content" && removed && copied == "Source";
+        let ok = Fs_Exists && content == "Test content" && removed && copied == "Source";
     )";
 
     EXPECT_TRUE(run_workflow(source).is_truthy());

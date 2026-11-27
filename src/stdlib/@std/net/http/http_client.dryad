@@ -1,13 +1,32 @@
 // @std/net/http/http_client.dryad
 // HTTP/1.1 client (cleartext + optional TLS)
 
-import { TcpClient_connect } from "@std/net/tcp_client";
-import { TlsStream_connect, TlsStream_isAvailable } from "@std/net/tls_stream";
-import { Http_parseUrl } from "@std/net/http/http_url";
-import { HttpRequest, HttpRequest_buildWire } from "@std/net/http/http_request";
-import { HttpResponse, HttpResponse_parse } from "@std/net/http/http_response";
+import {
+    TcpClient_Connect,
+    TcpClient_connect
+} from "@std/net/tcp_client";
+import {
+    TlsStream_Connect,
+    TlsStream_connect,
+    TlsStream_IsAvailable,
+    TlsStream_isAvailable
+} from "@std/net/tls_stream";
+import {
+    Http_ParseUrl,
+    Http_parseUrl
+} from "@std/net/http/http_url";
+import { HttpRequest, _HttpRequest_buildWire } from "@std/net/http/http_request";
+import {
+    HttpResponse,
+    HttpResponse_Parse,
+    HttpResponse_parse
+} from "@std/net/http/http_response";
 import { HttpHeaders } from "@std/net/http/http_headers";
-import { Promise, Promise_resolve } from "@std/async/promise";
+import {
+    Promise,
+    Promise_Resolve,
+    Promise_resolve
+} from "@std/async/promise";
 import {
     Buffer_FromString,
     Buffer_New,
@@ -18,7 +37,7 @@ import {
 } from "@std/buffers/buffer";
 import { NetworkException } from "@std/core/exceptions";
 
-function HttpClient_isStream(value) {
+function _HttpClient_isStream(value) {
     return value != null && __runtime_value_kind(value) == "instance";
 }
 
@@ -28,7 +47,7 @@ class HttpClient {
     }
 
     send(request) {
-        let parsed = Http_parseUrl(request.url);
+        let parsed = Http_ParseUrl(request.url);
         let scheme = __runtime_object_get(parsed, "scheme");
         if (scheme == null) {
             this._lastError = parsed;
@@ -39,12 +58,12 @@ class HttpClient {
         let port = __runtime_object_get(parsed, "port");
         let path = __runtime_object_get(parsed, "path");
 
-        if (scheme == "https" && !TlsStream_isAvailable()) {
+        if (scheme == "https" && !TlsStream_IsAvailable()) {
             this._lastError = NetworkException("HTTPS requires TLS support in this build");
             return this._lastError;
         }
 
-        let client = TcpClient_connect(host, port);
+        let client = TcpClient_Connect(host, port);
         if (client._lastError != null) {
             this._lastError = client._lastError;
             return client._lastError;
@@ -52,44 +71,58 @@ class HttpClient {
 
         let stream = null;
         if (scheme == "https") {
-            stream = TlsStream_connect(client._socket._fd, host);
+            stream = TlsStream_Connect(client._socket._fd, host);
         } else {
             stream = client.getStream();
         }
 
-        if (!HttpClient_isStream(stream)) {
+        if (!_HttpClient_isStream(stream)) {
             client.close();
             this._lastError = stream;
             return stream;
         }
 
-        let wire = HttpRequest_buildWire(request, host, path);
+        let wire = _HttpRequest_buildWire(request, host, path);
         let reqBuf = Buffer_FromString(wire);
         let reqLen = Buffer_Len(reqBuf);
         let wrote = stream.write(reqBuf, 0, reqLen);
         Buffer_Dispose(reqBuf);
-        if (wrote == null || wrote < 0) {
+        if (wrote != reqLen) {
+            // An error string or a short count: the request did not go out whole.
             stream.close();
             client.close();
             this._lastError = NetworkException("HTTP request write failed");
             return this._lastError;
         }
 
+        // The request sends `Connection: close`, so the response ends at EOF.
+        // One read returns whatever arrived so far, so keep reading until then.
         let respBuf = Buffer_New(8192);
-        let read = stream.read(respBuf, 0, 8192);
-        let respSlice = Buffer_Slice(respBuf, 0, read);
-        let raw = Buffer_AsString(respSlice);
-        Buffer_Dispose(respSlice);
+        let raw = "";
+        let failed = false;
+        while (true) {
+            let read = stream.read(respBuf, 0, 8192);
+            if (__runtime_value_kind(read) != "integer" || read < 0) {
+                failed = true;
+                break;
+            }
+            if (read == 0) {
+                break;
+            }
+            let chunk = Buffer_Slice(respBuf, 0, read);
+            raw = raw + Buffer_AsString(chunk);
+            Buffer_Dispose(chunk);
+        }
         Buffer_Dispose(respBuf);
         stream.close();
         client.close();
 
-        if (read == null || read <= 0) {
+        if (failed || raw == "") {
             this._lastError = NetworkException("HTTP response read failed");
             return this._lastError;
         }
 
-        return HttpResponse_parse(raw);
+        return HttpResponse_Parse(raw);
     }
 
     get(url) {
@@ -103,14 +136,19 @@ class HttpClient {
     }
 
     getAsync(url) {
-        return Promise_resolve(this.get(url));
+        return Promise_Resolve(this.get(url));
     }
 
     postAsync(url, body) {
-        return Promise_resolve(this.post(url, body));
+        return Promise_Resolve(this.post(url, body));
     }
 }
 
-function HttpClient_create() {
+function HttpClient_Create() {
     return new HttpClient();
 }
+
+// Deprecated pre-convention names, kept so existing code keeps working.
+// They will be removed in a future release; use the names on the right.
+// @deprecated Use HttpClient_Create.
+let HttpClient_create = HttpClient_Create;

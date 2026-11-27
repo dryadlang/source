@@ -26,7 +26,7 @@ let SeekOrigin_Begin = 0;
 let SeekOrigin_Current = 1;
 let SeekOrigin_End = 2;
 
-function SeekOrigin_Create() {
+function _SeekOrigin_Create() {
     let origin = __runtime_create_object();
     __runtime_object_set(origin, "Begin", 0);
     __runtime_object_set(origin, "Current", 1);
@@ -34,15 +34,24 @@ function SeekOrigin_Create() {
     return origin;
 }
 
-let SeekOrigin = SeekOrigin_Create();
+let SeekOrigin = _SeekOrigin_Create();
 
-function Stream_isStream(value) {
-    if (value == null) {
+// True for stream instances. io functions return an error message string on
+// failure, so this must not touch members of non-instances.
+function Stream_IsStream(value) {
+    if (__runtime_value_kind(value) != "instance") {
         return false;
     }
     return value.canRead != null && value.read != null && value.close != null;
 }
 
-function Stream_isError(value) {
-    return !Stream_isStream(value);
+function Stream_IsError(value) {
+    return !Stream_IsStream(value);
 }
+
+// Deprecated pre-convention names, kept so existing code keeps working.
+// They will be removed in a future release; use the names on the right.
+// @deprecated Use Stream_IsError.
+let Stream_isError = Stream_IsError;
+// @deprecated Use Stream_IsStream.
+let Stream_isStream = Stream_IsStream;

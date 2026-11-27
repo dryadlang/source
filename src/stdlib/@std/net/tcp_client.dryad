@@ -3,7 +3,10 @@
 
 import { SocketDomain_IPv4, SocketType_Stream } from "@std/net/constants";
 import { Socket } from "@std/net/socket";
-import { NetworkStream_fromSocket } from "@std/net/network_stream";
+import {
+    NetworkStream_FromSocket,
+    NetworkStream_fromSocket
+} from "@std/net/network_stream";
 import { SocketException } from "@std/core/exceptions";
 import { IDisposable } from "@std/core/disposable";
 
@@ -32,7 +35,7 @@ class TcpClient implements IDisposable {
         if (this._socket == null || !this._socket.connected) {
             return SocketException("Client is not connected");
         }
-        return NetworkStream_fromSocket(this._socket);
+        return NetworkStream_FromSocket(this._socket);
     }
 
     send(buffer, offset, count) {
@@ -68,7 +71,7 @@ class TcpClient implements IDisposable {
     }
 }
 
-function TcpClient_connect(host, port) {
+function TcpClient_Connect(host, port) {
     let client = new TcpClient();
     let socket = new Socket(SocketDomain_IPv4, SocketType_Stream);
     if (socket._fd < 0) {
@@ -87,8 +90,15 @@ function TcpClient_connect(host, port) {
     return client;
 }
 
-function TcpClient_wrap(socket) {
+function _TcpClient_wrap(socket) {
     let client = new TcpClient();
     client._socket = socket;
     return client;
 }
+
+// Deprecated pre-convention names, kept so existing code keeps working.
+// They will be removed in a future release; use the names on the right.
+// @deprecated Use TcpClient_Connect.
+let TcpClient_connect = TcpClient_Connect;
+// @deprecated Internal helper that was re-exported by @std/net; will be removed.
+let TcpClient_wrap = _TcpClient_wrap;

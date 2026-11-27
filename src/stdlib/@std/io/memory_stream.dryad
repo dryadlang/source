@@ -26,15 +26,15 @@ import {
     ObjectDisposedException
 } from "@std/core/exceptions";
 
-function MemoryStream_ensureOpen(stream) {
+function _MemoryStream_ensureOpen(stream) {
     if (stream._closed) {
         return ObjectDisposedException("MemoryStream");
     }
     return null;
 }
 
-function MemoryStream_ensureCanRead(stream) {
-    let err = MemoryStream_ensureOpen(stream);
+function _MemoryStream_ensureCanRead(stream) {
+    let err = _MemoryStream_ensureOpen(stream);
     if (err != null) {
         return err;
     }
@@ -44,8 +44,8 @@ function MemoryStream_ensureCanRead(stream) {
     return null;
 }
 
-function MemoryStream_ensureCanWrite(stream) {
-    let err = MemoryStream_ensureOpen(stream);
+function _MemoryStream_ensureCanWrite(stream) {
+    let err = _MemoryStream_ensureOpen(stream);
     if (err != null) {
         return err;
     }
@@ -55,7 +55,7 @@ function MemoryStream_ensureCanWrite(stream) {
     return null;
 }
 
-function MemoryStream_validateBufferArgs(buffer, offset, count) {
+function _MemoryStream_validateBufferArgs(buffer, offset, count) {
     if (buffer == null) {
         return ArgumentNullException("buffer");
     }
@@ -102,7 +102,7 @@ class MemoryStream extends Stream {
 
     length: number {
         get {
-            let err = MemoryStream_ensureOpen(this);
+            let err = _MemoryStream_ensureOpen(this);
             if (err != null) {
                 return err;
             }
@@ -120,11 +120,11 @@ class MemoryStream extends Stream {
     }
 
     read(buffer, offset, count) {
-        let err = MemoryStream_ensureCanRead(this);
+        let err = _MemoryStream_ensureCanRead(this);
         if (err != null) {
             return err;
         }
-        err = MemoryStream_validateBufferArgs(buffer, offset, count);
+        err = _MemoryStream_validateBufferArgs(buffer, offset, count);
         if (err != null) {
             return err;
         }
@@ -149,11 +149,11 @@ class MemoryStream extends Stream {
     }
 
     write(buffer, offset, count) {
-        let err = MemoryStream_ensureCanWrite(this);
+        let err = _MemoryStream_ensureCanWrite(this);
         if (err != null) {
             return err;
         }
-        err = MemoryStream_validateBufferArgs(buffer, offset, count);
+        err = _MemoryStream_validateBufferArgs(buffer, offset, count);
         if (err != null) {
             return err;
         }
@@ -182,7 +182,7 @@ class MemoryStream extends Stream {
     }
 
     seek(offset, origin) {
-        let err = MemoryStream_ensureOpen(this);
+        let err = _MemoryStream_ensureOpen(this);
         if (err != null) {
             return err;
         }
@@ -208,7 +208,7 @@ class MemoryStream extends Stream {
     }
 
     flush() {
-        return MemoryStream_ensureOpen(this);
+        return _MemoryStream_ensureOpen(this);
     }
 
     close() {
@@ -222,7 +222,7 @@ class MemoryStream extends Stream {
     }
 }
 
-function MemoryStream_new(capacity) {
+function MemoryStream_New(capacity) {
     if (capacity == null || capacity < 0) {
         capacity = 0;
     }
@@ -230,7 +230,7 @@ function MemoryStream_new(capacity) {
     return new MemoryStream(buffer, true, true);
 }
 
-function MemoryStream_fromString(text) {
+function MemoryStream_FromString(text) {
     if (text == null) {
         text = "";
     }
@@ -238,25 +238,38 @@ function MemoryStream_fromString(text) {
     return new MemoryStream(buffer, false, true);
 }
 
-function MemoryStream_fromBuffer(buffer, writable) {
+function MemoryStream_FromBuffer(buffer, writable) {
     if (writable == null) {
         writable = false;
     }
     return new MemoryStream(buffer, writable, false);
 }
 
-function MemoryStream_toString(stream) {
-    let err = MemoryStream_ensureOpen(stream);
+function MemoryStream_ToString(stream) {
+    let err = _MemoryStream_ensureOpen(stream);
     if (err != null) {
         return err;
     }
     return Buffer_AsString(stream._buffer);
 }
 
-function MemoryStream_getBuffer(stream) {
-    let err = MemoryStream_ensureOpen(stream);
+function MemoryStream_GetBuffer(stream) {
+    let err = _MemoryStream_ensureOpen(stream);
     if (err != null) {
         return err;
     }
     return stream._buffer;
 }
+
+// Deprecated pre-convention names, kept so existing code keeps working.
+// They will be removed in a future release; use the names on the right.
+// @deprecated Use MemoryStream_FromBuffer.
+let MemoryStream_fromBuffer = MemoryStream_FromBuffer;
+// @deprecated Use MemoryStream_FromString.
+let MemoryStream_fromString = MemoryStream_FromString;
+// @deprecated Use MemoryStream_GetBuffer.
+let MemoryStream_getBuffer = MemoryStream_GetBuffer;
+// @deprecated Use MemoryStream_New.
+let MemoryStream_new = MemoryStream_New;
+// @deprecated Use MemoryStream_ToString.
+let MemoryStream_toString = MemoryStream_ToString;

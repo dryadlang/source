@@ -2,12 +2,18 @@
 // Async wrappers for socket operations (microtask + optional epoll)
 
 import { Promise } from "@std/async/promise";
-import { EventLoop_schedule } from "@std/async/event_loop";
-import { TcpClient_connect } from "@std/net/tcp_client";
+import {
+    EventLoop_Schedule,
+    EventLoop_schedule
+} from "@std/async/event_loop";
+import {
+    TcpClient_Connect,
+    TcpClient_connect
+} from "@std/net/tcp_client";
 
-function Socket_connectAsync(socket, host, port) {
+function Socket_ConnectAsync(socket, host, port) {
     return new Promise(function(resolve, reject) {
-        EventLoop_schedule(function() {
+        EventLoop_Schedule(function() {
             let err = socket.connect(host, port);
             if (err != null) {
                 reject(err);
@@ -20,15 +26,12 @@ function Socket_connectAsync(socket, host, port) {
     });
 }
 
-function Socket_sendAsync(socket, buffer, offset, count) {
+function Socket_SendAsync(socket, buffer, offset, count) {
     return new Promise(function(resolve, reject) {
-        EventLoop_schedule(function() {
+        EventLoop_Schedule(function() {
             let result = socket.send(buffer, offset, count);
-            if (result != null && result < 0) {
-                reject(result);
-                return null;
-            }
-            if (result != null && result >= 0) {
+            // A byte count resolves; an error string (or anything else) rejects.
+            if (__runtime_value_kind(result) == "integer" && result >= 0) {
                 resolve(result);
                 return null;
             }
@@ -39,15 +42,12 @@ function Socket_sendAsync(socket, buffer, offset, count) {
     });
 }
 
-function Socket_receiveAsync(socket, buffer, offset, count) {
+function Socket_ReceiveAsync(socket, buffer, offset, count) {
     return new Promise(function(resolve, reject) {
-        EventLoop_schedule(function() {
+        EventLoop_Schedule(function() {
             let result = socket.receive(buffer, offset, count);
-            if (result != null && result < 0) {
-                reject(result);
-                return null;
-            }
-            if (result != null && result >= 0) {
+            // A byte count resolves; an error string (or anything else) rejects.
+            if (__runtime_value_kind(result) == "integer" && result >= 0) {
                 resolve(result);
                 return null;
             }
@@ -58,10 +58,10 @@ function Socket_receiveAsync(socket, buffer, offset, count) {
     });
 }
 
-function TcpClient_connectAsync(host, port) {
+function TcpClient_ConnectAsync(host, port) {
     return new Promise(function(resolve, reject) {
-        EventLoop_schedule(function() {
-            let client = TcpClient_connect(host, port);
+        EventLoop_Schedule(function() {
+            let client = TcpClient_Connect(host, port);
             if (client._lastError != null) {
                 reject(client._lastError);
                 return null;
@@ -72,3 +72,14 @@ function TcpClient_connectAsync(host, port) {
         return null;
     });
 }
+
+// Deprecated pre-convention names, kept so existing code keeps working.
+// They will be removed in a future release; use the names on the right.
+// @deprecated Use Socket_ConnectAsync.
+let Socket_connectAsync = Socket_ConnectAsync;
+// @deprecated Use Socket_ReceiveAsync.
+let Socket_receiveAsync = Socket_ReceiveAsync;
+// @deprecated Use Socket_SendAsync.
+let Socket_sendAsync = Socket_SendAsync;
+// @deprecated Use TcpClient_ConnectAsync.
+let TcpClient_connectAsync = TcpClient_ConnectAsync;

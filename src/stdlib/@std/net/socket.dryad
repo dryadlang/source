@@ -4,12 +4,15 @@
 import { IDisposable } from "@std/core/disposable";
 import { SocketDomain_IPv4, SocketType_Stream, Shutdown_Both } from "@std/net/constants";
 import {
-    Net_validatePort,
-    Net_validateConnectHost,
-    Net_normalizeBindHost,
-    Net_socketError
+    _Net_validatePort,
+    _Net_validateConnectHost,
+    _Net_normalizeBindHost,
+    _Net_socketError
 } from "@std/net/net_errors";
-import { Net_resolveHostOrError } from "@std/net/dns";
+import {
+    Net_ResolveHostOrError,
+    Net_resolveHostOrError
+} from "@std/net/dns";
 import {
     Buffer_GetActualHandle,
     Buffer_GetOffset,
@@ -22,7 +25,7 @@ import {
     ObjectDisposedException
 } from "@std/core/exceptions";
 
-function Socket_ensureOpen(socket) {
+function _Socket_ensureOpen(socket) {
     if (socket._closed) {
         return ObjectDisposedException("Socket");
     }
@@ -32,8 +35,8 @@ function Socket_ensureOpen(socket) {
     return null;
 }
 
-function Socket_ensureConnected(socket) {
-    let err = Socket_ensureOpen(socket);
+function _Socket_ensureConnected(socket) {
+    let err = _Socket_ensureOpen(socket);
     if (err != null) {
         return err;
     }
@@ -43,7 +46,7 @@ function Socket_ensureConnected(socket) {
     return null;
 }
 
-function Socket_validateBufferArgs(buffer, offset, count) {
+function _Socket_validateBufferArgs(buffer, offset, count) {
     if (buffer == null) {
         return ArgumentNullException("buffer");
     }
@@ -88,59 +91,59 @@ class Socket implements IDisposable {
     }
 
     localPort() {
-        let err = Socket_ensureOpen(this);
+        let err = _Socket_ensureOpen(this);
         if (err != null) {
             return err;
         }
         let port = __getsockname(this._fd);
         if (port < 0) {
-            return Net_socketError("getsockname");
+            return _Net_socketError("getsockname");
         }
         return port;
     }
 
     connect(host, port) {
-        let err = Socket_ensureOpen(this);
+        let err = _Socket_ensureOpen(this);
         if (err != null) {
             return err;
         }
-        err = Net_validateConnectHost(host);
+        err = _Net_validateConnectHost(host);
         if (err != null) {
             return err;
         }
-        err = Net_validatePort(port);
+        err = _Net_validatePort(port);
         if (err != null) {
             return err;
         }
 
-        let lookup = Net_resolveHostOrError(host, "connect");
+        let lookup = Net_ResolveHostOrError(host, "connect");
         if (lookup[1] != null) {
             return lookup[1];
         }
 
         let result = __connect(this._fd, lookup[0], port);
         if (result < 0) {
-            return Net_socketError("connect");
+            return _Net_socketError("connect");
         }
         this._connected = true;
         return null;
     }
 
     sendTo(host, port, buffer, offset, count) {
-        let err = Socket_ensureOpen(this);
+        let err = _Socket_ensureOpen(this);
         if (err != null) {
             return err;
         }
-        err = Net_validatePort(port);
+        err = _Net_validatePort(port);
         if (err != null) {
             return err;
         }
-        err = Socket_validateBufferArgs(buffer, offset, count);
+        err = _Socket_validateBufferArgs(buffer, offset, count);
         if (err != null) {
             return err;
         }
 
-        let lookup = Net_resolveHostOrError(host, "sendTo");
+        let lookup = Net_ResolveHostOrError(host, "sendTo");
         if (lookup[1] != null) {
             return lookup[1];
         }
@@ -149,17 +152,17 @@ class Socket implements IDisposable {
         let baseOffset = Buffer_GetOffset(buffer);
         let nbytes = __sendto_buffer(this._fd, handle, baseOffset + offset, count, lookup[0], port);
         if (nbytes < 0) {
-            return Net_socketError("sendTo");
+            return _Net_socketError("sendTo");
         }
         return nbytes;
     }
 
     receiveFrom(buffer, offset, count) {
-        let err = Socket_ensureOpen(this);
+        let err = _Socket_ensureOpen(this);
         if (err != null) {
             return err;
         }
-        err = Socket_validateBufferArgs(buffer, offset, count);
+        err = _Socket_validateBufferArgs(buffer, offset, count);
         if (err != null) {
             return err;
         }
@@ -168,11 +171,11 @@ class Socket implements IDisposable {
         let baseOffset = Buffer_GetOffset(buffer);
         let result = __recvfrom_buffer(this._fd, handle, baseOffset + offset, count);
         if (result == null) {
-            return Net_socketError("receiveFrom");
+            return _Net_socketError("receiveFrom");
         }
         let nbytes = __runtime_object_get(result, "nbytes");
         if (nbytes < 0) {
-            return Net_socketError("receiveFrom");
+            return _Net_socketError("receiveFrom");
         }
 
         let endpoint = __runtime_create_object();
@@ -183,26 +186,26 @@ class Socket implements IDisposable {
     }
 
     bind(host, port) {
-        let err = Socket_ensureOpen(this);
+        let err = _Socket_ensureOpen(this);
         if (err != null) {
             return err;
         }
-        err = Net_validatePort(port);
+        err = _Net_validatePort(port);
         if (err != null) {
             return err;
         }
 
-        let bindHost = Net_normalizeBindHost(host);
+        let bindHost = _Net_normalizeBindHost(host);
         __set_reuseaddr(this._fd, true);
         let result = __bind(this._fd, bindHost, port);
         if (result < 0) {
-            return Net_socketError("bind");
+            return _Net_socketError("bind");
         }
         return null;
     }
 
     listen(backlog = 128) {
-        let err = Socket_ensureOpen(this);
+        let err = _Socket_ensureOpen(this);
         if (err != null) {
             return err;
         }
@@ -212,14 +215,14 @@ class Socket implements IDisposable {
 
         let result = __listen(this._fd, backlog);
         if (result < 0) {
-            return Net_socketError("listen");
+            return _Net_socketError("listen");
         }
         this._listening = true;
         return null;
     }
 
     accept() {
-        let err = Socket_ensureOpen(this);
+        let err = _Socket_ensureOpen(this);
         if (err != null) {
             return err;
         }
@@ -231,15 +234,15 @@ class Socket implements IDisposable {
         if (clientFd < 0) {
             return null;
         }
-        return Socket_fromFd(clientFd);
+        return _Socket_fromFd(clientFd);
     }
 
     send(buffer, offset, count) {
-        let err = Socket_ensureConnected(this);
+        let err = _Socket_ensureConnected(this);
         if (err != null) {
             return err;
         }
-        err = Socket_validateBufferArgs(buffer, offset, count);
+        err = _Socket_validateBufferArgs(buffer, offset, count);
         if (err != null) {
             return err;
         }
@@ -248,17 +251,17 @@ class Socket implements IDisposable {
         let baseOffset = Buffer_GetOffset(buffer);
         let nbytes = __send_buffer(this._fd, handle, baseOffset + offset, count);
         if (nbytes < 0) {
-            return Net_socketError("send");
+            return _Net_socketError("send");
         }
         return nbytes;
     }
 
     receive(buffer, offset, count) {
-        let err = Socket_ensureConnected(this);
+        let err = _Socket_ensureConnected(this);
         if (err != null) {
             return err;
         }
-        err = Socket_validateBufferArgs(buffer, offset, count);
+        err = _Socket_validateBufferArgs(buffer, offset, count);
         if (err != null) {
             return err;
         }
@@ -267,19 +270,19 @@ class Socket implements IDisposable {
         let baseOffset = Buffer_GetOffset(buffer);
         let nbytes = __recv_buffer(this._fd, handle, baseOffset + offset, count);
         if (nbytes < 0) {
-            return Net_socketError("receive");
+            return _Net_socketError("receive");
         }
         return nbytes;
     }
 
     shutdown(how) {
-        let err = Socket_ensureOpen(this);
+        let err = _Socket_ensureOpen(this);
         if (err != null) {
             return err;
         }
         let result = __shutdown(this._fd, how);
         if (result < 0) {
-            return Net_socketError("shutdown");
+            return _Net_socketError("shutdown");
         }
         return null;
     }
@@ -301,14 +304,16 @@ class Socket implements IDisposable {
     }
 }
 
-function Socket_isSocket(value) {
-    if (value == null) {
+// True for Socket instances. Socket functions return an error message string
+// on failure, so this must not touch members of non-instances.
+function Socket_IsSocket(value) {
+    if (__runtime_value_kind(value) != "instance") {
         return false;
     }
     return value._fd != null && value.close != null;
 }
 
-function Socket_fromFd(fd) {
+function _Socket_fromFd(fd) {
     let socket = new Socket(SocketDomain_IPv4, SocketType_Stream);
     let leakedFd = socket._fd;
     socket._fd = fd;
@@ -320,3 +325,10 @@ function Socket_fromFd(fd) {
     socket._listening = false;
     return socket;
 }
+
+// Deprecated pre-convention names, kept so existing code keeps working.
+// They will be removed in a future release; use the names on the right.
+// @deprecated Use Socket_IsSocket.
+let Socket_isSocket = Socket_IsSocket;
+// @deprecated Internal helper that was re-exported by @std/net; will be removed.
+let Socket_fromFd = _Socket_fromFd;

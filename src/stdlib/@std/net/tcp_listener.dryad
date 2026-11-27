@@ -3,7 +3,7 @@
 
 import { SocketDomain_IPv4, SocketType_Stream } from "@std/net/constants";
 import { Socket } from "@std/net/socket";
-import { TcpClient_wrap } from "@std/net/tcp_client";
+import { _TcpClient_wrap } from "@std/net/tcp_client";
 import {
     InvalidOperationException,
     SocketException
@@ -74,7 +74,7 @@ class TcpListener implements IDisposable {
         if (clientSocket == null) {
             return SocketException("Accept failed");
         }
-        return TcpClient_wrap(clientSocket);
+        return _TcpClient_wrap(clientSocket);
     }
 
     stop() {

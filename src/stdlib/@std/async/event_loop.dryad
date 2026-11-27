@@ -1,19 +1,30 @@
 // @std/async/event_loop.dryad
 // Microtask scheduler (Phase 5 foundation)
 
-function EventLoop_schedule(callback) {
+function EventLoop_Schedule(callback) {
     __runtime_schedule_microtask(callback);
     return null;
 }
 
-function EventLoop_pendingCount() {
+function EventLoop_PendingCount() {
     return __runtime_event_loop_pending();
 }
 
-function EventLoop_pump() {
+function EventLoop_Pump() {
     return __runtime_event_loop_pump_all();
 }
 
-function EventLoop_runTurn() {
+function EventLoop_RunTurn() {
     return __runtime_event_loop_run_turn();
 }
+
+// Deprecated pre-convention names, kept so existing code keeps working.
+// They will be removed in a future release; use the names on the right.
+// @deprecated Use EventLoop_PendingCount.
+let EventLoop_pendingCount = EventLoop_PendingCount;
+// @deprecated Use EventLoop_Pump.
+let EventLoop_pump = EventLoop_Pump;
+// @deprecated Use EventLoop_RunTurn.
+let EventLoop_runTurn = EventLoop_RunTurn;
+// @deprecated Use EventLoop_Schedule.
+let EventLoop_schedule = EventLoop_Schedule;

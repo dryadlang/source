@@ -1,9 +1,9 @@
 // MemoryStream tests
 
 import {
-    MemoryStream_new,
-    MemoryStream_fromString,
-    MemoryStream_toString
+    MemoryStream_New,
+    MemoryStream_FromString,
+    MemoryStream_ToString
 } from "@std/io/memory_stream";
 
 import {
@@ -17,7 +17,7 @@ import {
 import { SeekOrigin } from "@std/io/stream";
 
 function test_memory_stream_read_write() {
-    let stream = MemoryStream_new(16);
+    let stream = MemoryStream_New(16);
     let input = Buffer_FromString("Hello");
     let written = stream.write(input, 0, Buffer_Len(input));
     Buffer_Dispose(input);
@@ -33,7 +33,7 @@ function test_memory_stream_read_write() {
 }
 
 function test_memory_stream_from_string() {
-    let stream = MemoryStream_fromString("Dryad");
+    let stream = MemoryStream_FromString("Dryad");
     let buf = Buffer_New(5);
     let n = stream.read(buf, 0, 5);
     let text = Buffer_AsString(buf);
@@ -43,7 +43,7 @@ function test_memory_stream_from_string() {
 }
 
 function test_memory_stream_seek() {
-    let stream = MemoryStream_fromString("0123456789");
+    let stream = MemoryStream_FromString("0123456789");
     stream.seek(4, SeekOrigin.Begin);
     let pos1 = stream.position;
     stream.seek(2, SeekOrigin.Current);
@@ -53,14 +53,14 @@ function test_memory_stream_seek() {
 }
 
 function test_memory_stream_to_string() {
-    let stream = MemoryStream_fromString("payload");
-    let text = MemoryStream_toString(stream);
+    let stream = MemoryStream_FromString("payload");
+    let text = MemoryStream_ToString(stream);
     stream.close();
     return text == "payload";
 }
 
 function test_memory_stream_grows_on_write() {
-    let stream = MemoryStream_new(2);
+    let stream = MemoryStream_New(2);
     let input = Buffer_FromString("ABCDE");
     let written = stream.write(input, 0, 5);
     let len = stream.length;
@@ -70,7 +70,7 @@ function test_memory_stream_grows_on_write() {
 }
 
 function test_memory_stream_readonly_rejects_write() {
-    let stream = MemoryStream_fromString("locked");
+    let stream = MemoryStream_FromString("locked");
     let input = Buffer_FromString("x");
     let result = stream.write(input, 0, 1);
     Buffer_Dispose(input);

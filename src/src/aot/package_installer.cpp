@@ -12,14 +12,14 @@ namespace dryad {
 namespace {
 
 std::filesystem::path resolve_dependency_source(const PackageDependency& dependency) {
-    const std::filesystem::path source_root = dependency.path;
+    std::filesystem::path source_root = dependency.path;
     if (std::filesystem::is_regular_file(source_root)) {
         return source_root;
     }
 
-    const std::filesystem::path sibling_dyd =
+    std::filesystem::path sibling_dyd =
         std::filesystem::path(source_root.string() + ".dyd");
-    const std::filesystem::path sibling_dryad =
+    std::filesystem::path sibling_dryad =
         std::filesystem::path(source_root.string() + ".dryad");
     if (std::filesystem::exists(sibling_dyd)) {
         return sibling_dyd;
@@ -30,10 +30,10 @@ std::filesystem::path resolve_dependency_source(const PackageDependency& depende
 
     const std::string base_name =
         dependency.name.substr(dependency.name.find_last_of('/') + 1);
-    const std::filesystem::path dyd = source_root / (base_name + ".dyd");
-    const std::filesystem::path dryad = source_root / (base_name + ".dryad");
-    const std::filesystem::path index_dyd = source_root / "index.dyd";
-    const std::filesystem::path index_dryad = source_root / "index.dryad";
+    std::filesystem::path dyd = source_root / (base_name + ".dyd");
+    std::filesystem::path dryad = source_root / (base_name + ".dryad");
+    std::filesystem::path index_dyd = source_root / "index.dyd";
+    std::filesystem::path index_dryad = source_root / "index.dryad";
 
     if (std::filesystem::exists(dyd)) {
         return dyd;

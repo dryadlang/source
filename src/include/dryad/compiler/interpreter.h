@@ -58,10 +58,10 @@ public:
     void set_library_paths(const std::vector<std::string>& paths);
     void set_network_allowed(bool allowed);
     
-    std::shared_ptr<Environment> runtime_env() const { return runtime_; }
-    std::shared_ptr<Environment> global_env() const { return global_; }
-    std::shared_ptr<Environment> current_env() const { return current_; }
-    void set_current_env(std::shared_ptr<Environment> env) { current_ = env; }
+    std::shared_ptr<Environment> runtime_env() { return runtime_; }
+    std::shared_ptr<Environment> global_env() { return global_; }
+    std::shared_ptr<Environment> current_env() { return current_; }
+    void set_current_env(std::shared_ptr<Environment> env) { current_ = std::move(env); }
     ModuleLoader& module_loader() { return *module_loader_; }
 
     std::shared_ptr<DryadClass> executing_class() const { return executing_class_; }

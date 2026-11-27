@@ -13,7 +13,7 @@ class Function;
 class DryadClass;
 class ClassInstance;
 
-enum class ValueType {
+enum class ValueType : std::uint8_t {
     Null,
     Boolean,
     Integer,

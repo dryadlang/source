@@ -259,6 +259,7 @@ Value ExpressionEvaluator::evaluate_unary(UnaryExpression* expr) {
 
 Value ExpressionEvaluator::evaluate_call(CallExpression* expr) {
     std::vector<Value> arguments;
+    arguments.reserve(expr->arguments.size());
     for (auto& arg : expr->arguments) {
         arguments.push_back(evaluate(arg.get()));
     }
@@ -443,6 +444,7 @@ Value ExpressionEvaluator::evaluate_new(NewExpression* expr) {
     }
     
     std::vector<Value> args;
+    args.reserve(expr->arguments.size());
     for (const auto& arg_expr : expr->arguments) {
         args.push_back(evaluate(arg_expr.get()));
     }

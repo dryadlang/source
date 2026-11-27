@@ -1,12 +1,13 @@
 #ifndef DRYAD_COMPILER_TOKEN_H
 #define DRYAD_COMPILER_TOKEN_H
 
+#include <cstdint>
 #include <string>
 #include <unordered_map>
 
 namespace dryad {
 
-enum class TokenType {
+enum class TokenType : std::uint8_t {
     EndOfFile,
     
     Identifier,

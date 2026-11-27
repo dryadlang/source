@@ -897,7 +897,15 @@ CompiledProgram BytecodeCompiler::compile_program(Program* program, const TypePr
                                     lambda_functions_.end());
             result.functions.push_back(main_fn);
         } catch (const DryadException&) {
-            // Fall through to statement restore below.
+            // Intentional, not a swallowed error: synthesizing the script
+            // body as a regular function can fail for constructs that are
+            // only valid at top level (e.g. top-level await, or bare
+            // `super`/function-expression forms rejected outside a real
+            // function declaration). That failure is expected here and is
+            // handled by the fallback below, which restores the original
+            // top-level statements and compiles them without wrapping them
+            // in a function -- so the exception carries no information the
+            // caller needs.
         }
 
         auto* body = dynamic_cast<BlockStatement*>(script_entry->body.get());

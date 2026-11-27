@@ -101,7 +101,11 @@ void DryadClass::run_constructor(const std::shared_ptr<ClassInstance>& instance,
     try {
         interpreter->execute_block(dryad_ctor->declaration()->body->statements, ctor_env);
     } catch (const ReturnException&) {
-        // Constructors ignore return values
+        // Intentional, not a swallowed error: ReturnException is this
+        // interpreter's control-flow mechanism for an explicit `return;` in
+        // a constructor body (constructors cannot return a value), so
+        // catching it here just means "stop executing the body early" --
+        // there is no error information to report.
     } catch (...) {
         interpreter->set_executing_class(prev_class);
         interpreter->set_in_constructor(prev_in_constructor);

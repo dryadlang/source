@@ -4,13 +4,14 @@
 #include "dryad/compiler/execution_mode.h"
 #include "dryad/compiler/token.h"
 #include "dryad/runtime/value.h"
+#include <cstdint>
 #include <memory>
 #include <vector>
 #include <string>
 
 namespace dryad {
 
-enum class ASTNodeType {
+enum class ASTNodeType : std::uint8_t {
     Program,
     
     IntegerLiteral,

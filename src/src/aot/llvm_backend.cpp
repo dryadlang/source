@@ -15,7 +15,10 @@ const char* llvm_type(IrType type) {
         case IrType::I32:     return "i32";
         case IrType::F64:     return "double";
         case IrType::Bool:    return "i1";
-        case IrType::Ptr:     return "i8*";
+        // Ptr and Variant both lower to an untyped LLVM pointer: Variant's
+        // tag/payload live behind the pointer at runtime, so there is no
+        // separate LLVM-level representation to distinguish them.
+        case IrType::Ptr:
         case IrType::Variant: return "i8*";
         case IrType::Void:    return "void";
     }

@@ -81,13 +81,12 @@ Value PromiseRuntime::error(const Value& promise) {
 }
 
 Value PromiseRuntime::await_value(Interpreter* interpreter, const Value& promise) {
-    Value current = promise;
-    if (!is_promise(current)) {
-        return PromiseRuntime::resolve(interpreter, current);
+    if (!is_promise(promise)) {
+        return PromiseRuntime::resolve(interpreter, promise);
     }
 
     int idle_spins = 0;
-    while (state(current) == "pending") {
+    while (state(promise) == "pending") {
         if (EventLoop::instance().run_turn(interpreter)) {
             idle_spins = 0;
             continue;
@@ -99,15 +98,15 @@ Value PromiseRuntime::await_value(Interpreter* interpreter, const Value& promise
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 
-    if (state(current) == "rejected") {
-        Value err = error(current);
+    if (state(promise) == "rejected") {
+        Value err = error(promise);
         if (err.is_string()) {
             throw DryadException(err.as_string());
         }
         throw DryadException("await: promise rejected");
     }
 
-    return value(current);
+    return value(promise);
 }
 
 } // namespace dryad

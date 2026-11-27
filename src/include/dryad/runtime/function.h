@@ -49,9 +49,9 @@ public:
     
     virtual Value call(Interpreter* interp, const std::vector<Value>& args) override;
     virtual Value call_with_receiver(Interpreter* interp, const std::vector<Value>& args,
-                                     std::shared_ptr<ClassInstance> receiver);
+                                     const std::shared_ptr<ClassInstance>& receiver);
     Value call_interpreted(Interpreter* interp, const std::vector<Value>& args,
-                           std::shared_ptr<ClassInstance> receiver = nullptr);
+                           const std::shared_ptr<ClassInstance>& receiver = nullptr);
     
     FunctionDeclaration* declaration() const { return declaration_; }
     std::shared_ptr<Environment> closure() const { return closure_; }
@@ -64,7 +64,7 @@ private:
     std::shared_ptr<DryadClass> home_class_;
 
     Value call_impl(Interpreter* interp, const std::vector<Value>& args,
-                    std::shared_ptr<ClassInstance> receiver);
+                    const std::shared_ptr<ClassInstance>& receiver);
 };
 
 } // namespace dryad

@@ -259,11 +259,14 @@ private:
 
     int64_t read_i64(size_t offset) const {
         const auto& code = function_.module.code;
-        int64_t value = 0;
+        // Accumulate in uint64_t: shifting the top byte into bit 63 of a
+        // signed int64_t would be undefined behavior pre-C++20 (the shifted
+        // value would not fit in the positive range of the signed type).
+        uint64_t value = 0;
         for (int i = 0; i < 8; ++i) {
-            value |= static_cast<int64_t>(code[offset + i]) << (i * 8);
+            value |= static_cast<uint64_t>(code[offset + i]) << (i * 8);
         }
-        return value;
+        return static_cast<int64_t>(value);
     }
 
     double read_f64(size_t offset) const {

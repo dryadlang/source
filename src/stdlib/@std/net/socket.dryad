@@ -304,8 +304,10 @@ class Socket implements IDisposable {
     }
 }
 
+// True for Socket instances. Socket functions return an error message string
+// on failure, so this must not touch members of non-instances.
 function Socket_IsSocket(value) {
-    if (value == null) {
+    if (__runtime_value_kind(value) != "instance") {
         return false;
     }
     return value._fd != null && value.close != null;

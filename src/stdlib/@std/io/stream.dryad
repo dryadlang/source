@@ -36,8 +36,10 @@ function _SeekOrigin_Create() {
 
 let SeekOrigin = _SeekOrigin_Create();
 
+// True for stream instances. io functions return an error message string on
+// failure, so this must not touch members of non-instances.
 function Stream_IsStream(value) {
-    if (value == null) {
+    if (__runtime_value_kind(value) != "instance") {
         return false;
     }
     return value.canRead != null && value.read != null && value.close != null;

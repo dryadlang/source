@@ -1,8 +1,8 @@
 // @std/net/http/http_response.dryad
 // HTTP response parser
 
-import { HttpHeaders, HttpHeaders_fromLines } from "@std/net/http/http_headers";
-import { Http_indexOf, Http_substring, Http_trim, Http_startsWith, Http_charAt } from "@std/net/http/http_string";
+import { HttpHeaders, _HttpHeaders_fromLines } from "@std/net/http/http_headers";
+import { _Http_indexOf, _Http_substring, _Http_trim, _Http_startsWith, _Http_charAt } from "@std/net/http/http_string";
 import { ArgumentException } from "@std/core/exceptions";
 
 class HttpResponse {
@@ -14,26 +14,26 @@ class HttpResponse {
     }
 }
 
-function HttpResponse_parse(raw) {
+function HttpResponse_Parse(raw) {
     if (raw == null || raw == "") {
         return ArgumentException("Empty HTTP response");
     }
 
-    let headerEnd = Http_indexOf(raw, "\r\n\r\n");
+    let headerEnd = _Http_indexOf(raw, "\r\n\r\n");
     if (headerEnd < 0) {
         return ArgumentException("Malformed HTTP response");
     }
 
-    let headerBlock = Http_substring(raw, 0, headerEnd);
-    let body = Http_substring(raw, headerEnd + 4, __string_length(raw));
+    let headerBlock = _Http_substring(raw, 0, headerEnd);
+    let body = _Http_substring(raw, headerEnd + 4, __string_length(raw));
 
-    let lines = HttpResponse_splitLines(headerBlock);
+    let lines = _HttpResponse_splitLines(headerBlock);
     if (__runtime_array_length(lines) < 1) {
         return ArgumentException("Malformed HTTP status line");
     }
 
     let statusLine = lines[0];
-    let statusParts = HttpResponse_parseStatusLine(statusLine);
+    let statusParts = _HttpResponse_parseStatusLine(statusLine);
     if (statusParts == null) {
         return ArgumentException("Malformed HTTP status line");
     }
@@ -45,18 +45,18 @@ function HttpResponse_parse(raw) {
         i = i + 1;
     }
 
-    let headers = HttpHeaders_fromLines(headerLines);
+    let headers = _HttpHeaders_fromLines(headerLines);
     return new HttpResponse(statusParts[0], statusParts[1], headers, body);
 }
 
-function HttpResponse_splitLines(block) {
+function _HttpResponse_splitLines(block) {
     let lines = [];
     let current = "";
     let i = 0;
     let len = __string_length(block);
     while (i < len) {
-        let ch = Http_charAt(block, i);
-        if (ch == "\r" && i + 1 < len && Http_charAt(block, i + 1) == "\n") {
+        let ch = _Http_charAt(block, i);
+        if (ch == "\r" && i + 1 < len && _Http_charAt(block, i + 1) == "\n") {
             __runtime_array_push(lines, current);
             current = "";
             i = i + 2;
@@ -71,22 +71,22 @@ function HttpResponse_splitLines(block) {
     return lines;
 }
 
-function HttpResponse_parseStatusLine(line) {
-    if (!Http_startsWith(line, "HTTP/")) {
+function _HttpResponse_parseStatusLine(line) {
+    if (!_Http_startsWith(line, "HTTP/")) {
         return null;
     }
-    let firstSpace = Http_indexOf(line, " ");
+    let firstSpace = _Http_indexOf(line, " ");
     if (firstSpace < 0) {
         return null;
     }
-    let secondSpace = Http_indexOf(Http_substring(line, firstSpace + 1, __string_length(line)), " ");
-    let codeText = Http_substring(line, firstSpace + 1, firstSpace + 4);
-    let code = HttpResponse_parseInt(codeText);
-    let text = Http_trim(Http_substring(line, firstSpace + 4, __string_length(line)));
+    let secondSpace = _Http_indexOf(_Http_substring(line, firstSpace + 1, __string_length(line)), " ");
+    let codeText = _Http_substring(line, firstSpace + 1, firstSpace + 4);
+    let code = _HttpResponse_parseInt(codeText);
+    let text = _Http_trim(_Http_substring(line, firstSpace + 4, __string_length(line)));
     return [code, text];
 }
 
-function HttpResponse_parseInt(text) {
+function _HttpResponse_parseInt(text) {
     let value = 0;
     let i = 0;
     let len = __string_length(text);
@@ -104,3 +104,8 @@ function HttpResponse_parseInt(text) {
     __free_bytes(handle);
     return value;
 }
+
+// Deprecated pre-convention names, kept so existing code keeps working.
+// They will be removed in a future release; use the names on the right.
+// @deprecated Use HttpResponse_Parse.
+let HttpResponse_parse = HttpResponse_Parse;

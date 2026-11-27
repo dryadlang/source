@@ -7,27 +7,27 @@ import {
     SocketException
 } from "@std/core/exceptions";
 
-function Net_validatePort(port) {
+function _Net_validatePort(port) {
     if (port < 0 || port > 65535) {
         return ArgumentOutOfRangeException("Port must be between 0 and 65535");
     }
     return null;
 }
 
-function Net_validateConnectHost(host) {
+function _Net_validateConnectHost(host) {
     if (host == null || host == "") {
         return ArgumentException("Host cannot be null or empty");
     }
     return null;
 }
 
-function Net_normalizeBindHost(host) {
+function _Net_normalizeBindHost(host) {
     if (host == null || host == "") {
         return "0.0.0.0";
     }
     return host;
 }
 
-function Net_socketError(operation) {
+function _Net_socketError(operation) {
     return SocketException(operation + " failed");
 }

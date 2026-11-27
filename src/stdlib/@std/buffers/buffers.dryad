@@ -1,0 +1,20 @@
+// @std/buffers/buffers
+// Barrel module: managed byte buffers. Import from "@std/buffers".
+
+import {
+    Buffer_New,
+    Buffer_FromPtr,
+    Buffer_GetActualHandle,
+    Buffer_GetOffset,
+    Buffer_Len,
+    Buffer_Capacity,
+    Buffer_Read,
+    Buffer_Write,
+    Buffer_Fill,
+    Buffer_Slice,
+    Buffer_Resize,
+    Buffer_CopyTo,
+    Buffer_FromString,
+    Buffer_AsString,
+    Buffer_Dispose
+} from "@std/buffers/buffer";

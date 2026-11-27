@@ -8,16 +8,16 @@ using namespace dryad;
 
 TEST(AsyncWorkflowTest, AsyncFunctionReturnsPromise) {
     const std::string source = R"(
-        import { Promise_resolve, Promise_flush } from "@std/async/promise";
+        import { Promise_Resolve, Promise_Flush } from "@std/async/promise";
 
         async function compute() {
-            let a = await Promise_resolve(20);
-            let b = await Promise_resolve(22);
+            let a = await Promise_Resolve(20);
+            let b = await Promise_Resolve(22);
             return a + b;
         }
 
         let result = compute();
-        Promise_flush();
+        Promise_Flush();
         let ok = result._state == "fulfilled" && result._value == 42;
     )";
 

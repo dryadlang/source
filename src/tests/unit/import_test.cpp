@@ -1,4 +1,7 @@
 #include <gtest/gtest.h>
+#include <unistd.h>
+#include <fstream>
+#include <filesystem>
 #include "dryad/compiler/lexer.h"
 #include "dryad/compiler/parser.h"
 #include "dryad/compiler/interpreter.h"
@@ -41,6 +44,28 @@ TEST(ImportTest, LoadsStdlibModule) {
     interpreter.execute(program.get());
 
     EXPECT_TRUE(interpreter.global_env()->get("ok").is_truthy());
+}
+
+TEST(ImportTest, LibraryPackageDirectoryResolvesToItsBarrel) {
+    namespace fs = std::filesystem;
+    const fs::path base = fs::temp_directory_path() / ("dryad_barrel_" + std::to_string(::getpid()));
+    // First root: a package directory with no barrel; it must not shadow the second root.
+    fs::create_directories(base / "first" / "@demo" / "pkg");
+    fs::create_directories(base / "second" / "@demo" / "pkg");
+    std::ofstream(base / "second" / "@demo" / "pkg" / "pkg.dryad") << "function Pkg_Answer() { return 42; }\n";
+
+    Lexer lexer(R"(import { Pkg_Answer } from "@demo/pkg"; let ok = Pkg_Answer() == 42;)");
+    Parser parser(lexer.tokenize());
+    auto program = parser.parse();
+    ASSERT_FALSE(parser.has_error());
+
+    Interpreter interpreter;
+    interpreter.set_stdlib_root(DRYAD_STDLIB_DIR);
+    interpreter.set_library_paths({(base / "first").string(), (base / "second").string()});
+    interpreter.execute(program.get());
+    EXPECT_TRUE(interpreter.global_env()->get("ok").is_truthy());
+
+    fs::remove_all(base);
 }
 
 TEST(ImportTest, RejectsInternalMembers) {

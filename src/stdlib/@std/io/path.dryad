@@ -3,7 +3,7 @@
 
 import { ArgumentException, IOException } from "@std/core/exceptions";
 
-function Path_charAt(path, index) {
+function _Path_charAt(path, index) {
     let len = __string_length(path);
     if (index < 0 || index >= len) {
         return "";
@@ -15,11 +15,11 @@ function Path_charAt(path, index) {
     return ch;
 }
 
-function Path_isSeparator(byte) {
+function _Path_isSeparator(byte) {
     return byte == 47 || byte == 92;
 }
 
-function Path_pop(parts) {
+function _Path_pop(parts) {
     let next = [];
     let n = __runtime_array_length(parts);
     let i = 0;
@@ -30,7 +30,7 @@ function Path_pop(parts) {
     return next;
 }
 
-function Path_joinParts(absolute, parts) {
+function _Path_joinParts(absolute, parts) {
     let n = __runtime_array_length(parts);
     if (n == 0) {
         if (absolute) {
@@ -56,7 +56,7 @@ function Path_joinParts(absolute, parts) {
 
 // Lexical clean: swap separators, drop "." and empty segments, apply "..".
 // Returns null when the path contains a 0 byte (that byte would truncate a syscall).
-function Path_normalize(path) {
+function _Path_normalize(path) {
     if (path == null) {
         return null;
     }
@@ -77,7 +77,7 @@ function Path_normalize(path) {
         i = i + 1;
     }
 
-    let absolute = Path_isSeparator(__buffer_get(raw, 0));
+    let absolute = _Path_isSeparator(__buffer_get(raw, 0));
     let parts = [];
     let start = 0;
     i = 0;
@@ -85,7 +85,7 @@ function Path_normalize(path) {
         let atEnd = i == len;
         let sep = false;
         if (!atEnd) {
-            sep = Path_isSeparator(__buffer_get(raw, i));
+            sep = _Path_isSeparator(__buffer_get(raw, i));
         }
         if (atEnd || sep) {
             let segLen = i - start;
@@ -94,7 +94,7 @@ function Path_normalize(path) {
                 if (seg == "..") {
                     let count = __runtime_array_length(parts);
                     if (count > 0) {
-                        parts = Path_pop(parts);
+                        parts = _Path_pop(parts);
                     } else {
                         if (!absolute) {
                             __runtime_array_push(parts, seg);
@@ -111,34 +111,34 @@ function Path_normalize(path) {
         i = i + 1;
     }
     __free_bytes(raw);
-    return Path_joinParts(absolute, parts);
+    return _Path_joinParts(absolute, parts);
 }
 
-function Path_join(a, b) {
+function Path_Join(a, b) {
     if (a == null || a == "") {
         return ArgumentException("Path segment cannot be empty");
     }
-    if (Path_normalize(a) == null) {
+    if (_Path_normalize(a) == null) {
         return ArgumentException("Path contains a null byte");
     }
     if (b == null || b == "") {
-        return Path_normalize(a);
+        return _Path_normalize(a);
     }
-    if (Path_normalize(b) == null) {
+    if (_Path_normalize(b) == null) {
         return ArgumentException("Path contains a null byte");
     }
-    let bNorm = Path_normalize(b);
-    if (__string_length(bNorm) > 0 && Path_charAt(bNorm, 0) == "/") {
+    let bNorm = _Path_normalize(b);
+    if (__string_length(bNorm) > 0 && _Path_charAt(bNorm, 0) == "/") {
         return bNorm;
     }
-    return Path_normalize(a + "/" + b);
+    return _Path_normalize(a + "/" + b);
 }
 
-function Path_dirname(path) {
+function Path_Dirname(path) {
     if (path == null || path == "") {
         return ".";
     }
-    path = Path_normalize(path);
+    path = _Path_normalize(path);
     if (path == null || path == "") {
         return ".";
     }
@@ -146,7 +146,7 @@ function Path_dirname(path) {
 
     let i = len - 1;
     while (i >= 0) {
-        let ch = Path_charAt(path, i);
+        let ch = _Path_charAt(path, i);
         if (ch == "/") {
             if (i == 0) {
                 return "/";
@@ -162,11 +162,11 @@ function Path_dirname(path) {
     return ".";
 }
 
-function Path_basename(path) {
+function Path_Basename(path) {
     if (path == null || path == "") {
         return "";
     }
-    path = Path_normalize(path);
+    path = _Path_normalize(path);
     if (path == null || path == "") {
         return "";
     }
@@ -174,7 +174,7 @@ function Path_basename(path) {
 
     let i = len - 1;
     while (i >= 0) {
-        let ch = Path_charAt(path, i);
+        let ch = _Path_charAt(path, i);
         if (ch == "/") {
             let nameLen = len - i - 1;
             if (nameLen <= 0) {
@@ -191,8 +191,8 @@ function Path_basename(path) {
     return path;
 }
 
-function Path_extension(path) {
-    let name = Path_basename(path);
+function Path_Extension(path) {
+    let name = Path_Basename(path);
     let len = __string_length(name);
     if (len == 0) {
         return "";
@@ -200,7 +200,7 @@ function Path_extension(path) {
 
     let i = len - 1;
     while (i >= 0) {
-        let ch = Path_charAt(name, i);
+        let ch = _Path_charAt(name, i);
         if (ch == ".") {
             if (i == 0) {
                 return "";
@@ -216,12 +216,12 @@ function Path_extension(path) {
     return "";
 }
 
-function Path_ensureDirectory(path) {
+function Path_EnsureDirectory(path) {
     if (path == null || path == "") {
         return ArgumentException("Path cannot be null or empty");
     }
 
-    path = Path_normalize(path);
+    path = _Path_normalize(path);
     if (path == null) {
         return ArgumentException("Path contains a null byte");
     }
@@ -233,9 +233,9 @@ function Path_ensureDirectory(path) {
         return null;
     }
 
-    let parent = Path_dirname(path);
+    let parent = Path_Dirname(path);
     if (parent != "." && parent != path) {
-        let parentErr = Path_ensureDirectory(parent);
+        let parentErr = Path_EnsureDirectory(parent);
         if (parentErr != null) {
             return parentErr;
         }
@@ -248,27 +248,42 @@ function Path_ensureDirectory(path) {
     return null;
 }
 
-function Path_ensureParentForFile(path) {
+function Path_EnsureParentForFile(path) {
     if (path == null || path == "") {
         return ArgumentException("Path cannot be null or empty");
     }
 
-    let dir = Path_dirname(path);
+    let dir = Path_Dirname(path);
     if (dir == "." || dir == "") {
         return null;
     }
-    return Path_ensureDirectory(dir);
+    return Path_EnsureDirectory(dir);
 }
 
-function Path_Create() {
+function _Path_Create() {
     let path = __runtime_create_object();
-    __runtime_object_set(path, "join", Path_join);
-    __runtime_object_set(path, "dirname", Path_dirname);
-    __runtime_object_set(path, "basename", Path_basename);
-    __runtime_object_set(path, "extension", Path_extension);
-    __runtime_object_set(path, "ensureDirectory", Path_ensureDirectory);
-    __runtime_object_set(path, "ensureParentForFile", Path_ensureParentForFile);
+    __runtime_object_set(path, "join", Path_Join);
+    __runtime_object_set(path, "dirname", Path_Dirname);
+    __runtime_object_set(path, "basename", Path_Basename);
+    __runtime_object_set(path, "extension", Path_Extension);
+    __runtime_object_set(path, "ensureDirectory", Path_EnsureDirectory);
+    __runtime_object_set(path, "ensureParentForFile", Path_EnsureParentForFile);
     return path;
 }
 
-let Path = Path_Create();
+let Path = _Path_Create();
+
+// Deprecated pre-convention names, kept so existing code keeps working.
+// They will be removed in a future release; use the names on the right.
+// @deprecated Use Path_Basename.
+let Path_basename = Path_Basename;
+// @deprecated Use Path_Dirname.
+let Path_dirname = Path_Dirname;
+// @deprecated Use Path_EnsureDirectory.
+let Path_ensureDirectory = Path_EnsureDirectory;
+// @deprecated Use Path_EnsureParentForFile.
+let Path_ensureParentForFile = Path_EnsureParentForFile;
+// @deprecated Use Path_Extension.
+let Path_extension = Path_Extension;
+// @deprecated Use Path_Join.
+let Path_join = Path_Join;

@@ -18,7 +18,7 @@ class HttpRequest {
     }
 }
 
-function HttpRequest_buildWire(request, host, path) {
+function _HttpRequest_buildWire(request, host, path) {
     let wire = request.method + " " + path + " HTTP/1.1\r\n";
     wire = wire + "Host: " + host + "\r\n";
     wire = wire + "Connection: close\r\n";

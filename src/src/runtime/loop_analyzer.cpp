@@ -11,33 +11,7 @@ uint16_t read_u16(const std::vector<uint8_t>& code, size_t offset) {
 }
 
 size_t instruction_size(Opcode op) {
-    switch (op) {
-        case Opcode::PUSH_INT:
-        case Opcode::PUSH_FLOAT:
-            return 9;
-        case Opcode::LOAD_FAST:
-        case Opcode::STORE_FAST:
-        case Opcode::LOAD_GLOBAL:
-        case Opcode::MAKE_FUNCTION:
-        case Opcode::JUMP:
-        case Opcode::JUMP_IF_FALSE:
-        case Opcode::JUMP_IF_TRUE:
-            return 3;
-        case Opcode::CALL:
-        case Opcode::INTRINSIC_SYSCALL:
-        case Opcode::METHOD_CALL:
-        case Opcode::NEW_INSTANCE:
-        case Opcode::CALL_GLOBAL:
-            return 4;
-        case Opcode::GET_PROPERTY:
-        case Opcode::SET_PROPERTY:
-            return 3;
-        default:
-            // NEW_ARRAY/ARRAY_PUSH/SET_ELEMENT/NOT/DIV_I32 (and anything
-            // else) are single-byte opcodes with no operand, same as the
-            // fallback default — merged since they are not distinguished.
-            return 1;
-    }
+    return opcode_size(op);
 }
 
 bool find_while_body(const std::vector<uint8_t>& code,

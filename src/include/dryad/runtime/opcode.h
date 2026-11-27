@@ -1,6 +1,7 @@
 #ifndef DRYAD_RUNTIME_OPCODE_H
 #define DRYAD_RUNTIME_OPCODE_H
 
+#include <cstddef>
 #include <cstdint>
 
 namespace dryad {
@@ -60,12 +61,25 @@ enum class Opcode : uint8_t {
     HALT        = 0x53,
     CALL        = 0x54,
     RET         = 0x55,
+    CALL_VALUE  = 0x56,  // argc:u8; callee on top of the arguments
 
     // Variables — fast locals / globals (0x60–0x63)
     LOAD_FAST   = 0x60,
     STORE_FAST  = 0x61,
     LOAD_GLOBAL = 0x62,
     MAKE_FUNCTION = 0x63,
+
+    // Closures (0x64–0x6C). A cell is a one-element array shared between the
+    // declaring frame and every closure that captured it.
+    LOAD_CELL        = 0x64,  // slot:u16
+    STORE_CELL       = 0x65,  // slot:u16; pops the value
+    NEW_CELL         = 0x66,  // slot:u16; pops the value into a fresh cell
+    LOAD_UPVALUE     = 0x67,  // index:u16
+    STORE_UPVALUE    = 0x68,  // index:u16; pops the value
+    LOAD_CELL_REF    = 0x69,  // slot:u16; pushes the cell itself
+    LOAD_UPVALUE_REF = 0x6A,  // index:u16; pushes the cell itself
+    MAKE_CLOSURE     = 0x6B,  // function:u16 captures:u8; pops that many cells
+    STORE_GLOBAL     = 0x6C,  // name:u16; pops the value
 
     // Array / object / class (0x80–0x88)
     NEW_ARRAY           = 0x80,
@@ -84,6 +98,10 @@ enum class Opcode : uint8_t {
 };
 
 const char* opcode_name(Opcode op);
+
+// Encoded length in bytes, including the opcode itself. Every bytecode walker
+// (VM, loop analyzer, micro IR, analyze pass) must agree on this.
+size_t opcode_size(Opcode op);
 
 } // namespace dryad
 

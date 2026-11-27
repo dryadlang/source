@@ -1,73 +1,73 @@
 // FileHandle tests loaded via import system.
 
-import { setVFSBackend } from "@std/io/file";
+import { Fs_SetBackend } from "@std/io/file";
 import { MemoryBackend } from "@std/io/vfs";
 import {
     FileHandle,
-    FileHandle_write,
-    FileHandle_read,
-    FileHandle_close,
-    FileHandle_isOpen
+    FileHandle_Write,
+    FileHandle_Read,
+    FileHandle_Close,
+    FileHandle_IsOpen
 } from "@std/io/filehandle";
 
 function test_filehandle_write_then_read() {
-    setVFSBackend(MemoryBackend());
+    Fs_SetBackend(MemoryBackend());
     let writer = FileHandle("/handled.txt", "write");
-    FileHandle_write(writer, "payload");
-    FileHandle_close(writer);
+    FileHandle_Write(writer, "payload");
+    FileHandle_Close(writer);
     let reader = FileHandle("/handled.txt", "read");
-    let content = FileHandle_read(reader);
-    FileHandle_close(reader);
+    let content = FileHandle_Read(reader);
+    FileHandle_Close(reader);
     return content == "payload";
 }
 
 function test_filehandle_rejects_read_on_write_mode() {
-    setVFSBackend(MemoryBackend());
+    Fs_SetBackend(MemoryBackend());
     let handle = FileHandle("/rw.txt", "write");
-    let err = FileHandle_read(handle);
-    FileHandle_close(handle);
+    let err = FileHandle_Read(handle);
+    FileHandle_Close(handle);
     return err != null;
 }
 
 function test_filehandle_closed_is_not_open() {
-    setVFSBackend(MemoryBackend());
+    Fs_SetBackend(MemoryBackend());
     let handle = FileHandle("/c.txt", "write");
-    let before = FileHandle_isOpen(handle);
-    FileHandle_close(handle);
-    return before && !FileHandle_isOpen(handle);
+    let before = FileHandle_IsOpen(handle);
+    FileHandle_Close(handle);
+    return before && !FileHandle_IsOpen(handle);
 }
 
 function test_filehandle_use_after_close() {
-    setVFSBackend(MemoryBackend());
+    Fs_SetBackend(MemoryBackend());
     let handle = FileHandle("/closed.txt", "write");
-    FileHandle_close(handle);
-    let err = FileHandle_write(handle, "nope");
+    FileHandle_Close(handle);
+    let err = FileHandle_Write(handle, "nope");
     return err != null;
 }
 
 function test_filehandle_write_accumulates() {
-    setVFSBackend(MemoryBackend());
+    Fs_SetBackend(MemoryBackend());
     let writer = FileHandle("/twice.txt", "write");
-    FileHandle_write(writer, "ab");
-    FileHandle_write(writer, "cd");
-    FileHandle_close(writer);
+    FileHandle_Write(writer, "ab");
+    FileHandle_Write(writer, "cd");
+    FileHandle_Close(writer);
     let reader = FileHandle("/twice.txt", "read");
-    let content = FileHandle_read(reader);
-    FileHandle_close(reader);
+    let content = FileHandle_Read(reader);
+    FileHandle_Close(reader);
     return content == "abcd";
 }
 
 function test_filehandle_append() {
-    setVFSBackend(MemoryBackend());
+    Fs_SetBackend(MemoryBackend());
     let writer = FileHandle("/app.txt", "write");
-    FileHandle_write(writer, "ab");
-    FileHandle_close(writer);
+    FileHandle_Write(writer, "ab");
+    FileHandle_Close(writer);
     let appender = FileHandle("/app.txt", "append");
-    FileHandle_write(appender, "cd");
-    FileHandle_close(appender);
+    FileHandle_Write(appender, "cd");
+    FileHandle_Close(appender);
     let reader = FileHandle("/app.txt", "read");
-    let content = FileHandle_read(reader);
-    FileHandle_close(reader);
+    let content = FileHandle_Read(reader);
+    FileHandle_Close(reader);
     return content == "abcd";
 }
 

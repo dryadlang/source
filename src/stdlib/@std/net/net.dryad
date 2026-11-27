@@ -1,12 +1,67 @@
 // @std/net/net.dryad
 // Barrel module for networking
 
-import { SocketDomain, SocketType, Shutdown } from "@std/net/constants";
-import { Socket, Socket_fromFd } from "@std/net/socket";
-import { NetworkStream, NetworkStream_fromSocket } from "@std/net/network_stream";
-import { TcpClient, TcpClient_connect, TcpClient_wrap } from "@std/net/tcp_client";
-import { TcpListener } from "@std/net/tcp_listener";
-import { UdpClient, UdpClient_create } from "@std/net/udp_client";
-import { Net_resolveHost, Net_resolveHostOrError } from "@std/net/dns";
-import { TlsStream, TlsStream_connect, TlsStream_isAvailable } from "@std/net/tls_stream";
-import { HttpClient, HttpClient_create } from "@std/net/http/http_client";
+import {
+    SocketDomain,
+    SocketDomain_IPv4,
+    SocketDomain_IPv6,
+    SocketType,
+    SocketType_Stream,
+    SocketType_Datagram,
+    Shutdown,
+    Shutdown_Read,
+    Shutdown_Write,
+    Shutdown_Both
+} from "@std/net/constants";
+import {
+    Socket,
+    Socket_IsSocket,
+    Socket_fromFd
+} from "@std/net/socket";
+import {
+    Socket_ConnectAsync,
+    Socket_SendAsync,
+    Socket_ReceiveAsync,
+    TcpClient_ConnectAsync
+} from "@std/net/socket_async";
+import {
+    NetworkStream,
+    NetworkStream_FromSocket,
+    NetworkStream_fromSocket
+} from "@std/net/network_stream";
+import {
+    TcpClient,
+    TcpClient_Connect,
+    TcpClient_connect,
+    TcpClient_wrap
+} from "@std/net/tcp_client";
+import {
+    TcpListener
+} from "@std/net/tcp_listener";
+import {
+    UdpClient,
+    UdpClient_Create,
+    UdpClient_create
+} from "@std/net/udp_client";
+import {
+    Net_ResolveHost,
+    Net_resolveHost,
+    Net_ResolveHostOrError,
+    Net_resolveHostOrError
+} from "@std/net/dns";
+import {
+    TlsStream,
+    TlsStream_Connect,
+    TlsStream_connect,
+    TlsStream_IsAvailable,
+    TlsStream_isAvailable
+} from "@std/net/tls_stream";
+import {
+    HttpClient,
+    HttpClient_Create,
+    HttpClient_create
+} from "@std/net/http/http_client";
+import { HttpHeaders } from "@std/net/http/http_headers";
+import { HttpRequest } from "@std/net/http/http_request";
+import { HttpResponse, HttpResponse_Parse } from "@std/net/http/http_response";
+import { Http_ParseUrl } from "@std/net/http/http_url";

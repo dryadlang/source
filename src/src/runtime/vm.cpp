@@ -21,6 +21,7 @@ void VM::load(const BytecodeModule& module) {
     halted_ = false;
     stack_.clear();
     slots_.clear();
+    upvalues_.clear();
 }
 
 void VM::load_program(const CompiledProgram& program, size_t entry_index) {
@@ -32,6 +33,7 @@ void VM::load_program(const CompiledProgram& program, size_t entry_index) {
     frames_.clear();
     stack_.clear();
     slots_.clear();
+    upvalues_.clear();
     halted_ = false;
     activate_function(entry_index);
     loops_ = analyze_loops(bytecode_);
@@ -83,6 +85,7 @@ void VM::reset() {
     halted_ = false;
     stack_.clear();
     slots_.clear();
+    upvalues_.clear();
     bytecode_.clear();
     constants_.clear();
 }
@@ -126,7 +129,9 @@ void VM::execute_impl() {
 }
 
 bool VM::try_run_jit_body() {
-    if (!jit_enabled_ || !jit_delegate_) {
+    // loops_ and the delegate's compiled bodies describe the entry function
+    // only; a CALLed function's pcs would alias them.
+    if (!jit_enabled_ || !jit_delegate_ || !frames_.empty()) {
         return false;
     }
     const size_t loop_index = jit_delegate_->loop_index_for_body(static_cast<uint16_t>(pc_));
@@ -141,7 +146,7 @@ bool VM::try_run_jit_body() {
 }
 
 void VM::handle_back_edge(uint16_t back_edge_pc, uint16_t target_pc) {
-    if (jit_enabled_ && jit_delegate_) {
+    if (jit_enabled_ && jit_delegate_ && frames_.empty()) {
         const size_t loop_index = jit_delegate_->loop_index_for_back_edge(back_edge_pc);
         if (loop_index != loops_.size()) {
             jit_delegate_->on_back_edge(loop_index);
@@ -614,6 +619,110 @@ void VM::dispatch_opcode(Opcode op) {
             break;
         }
 
+        case Opcode::MAKE_CLOSURE: {
+            if (!runtime_delegate_) {
+                throw DryadException("MAKE_CLOSURE requires a runtime delegate");
+            }
+            uint16_t function_index = read_u16_at(pc_ + 1);
+            uint8_t capture_count = bytecode_[pc_ + 3];
+            validate_stack(capture_count, "MAKE_CLOSURE");
+            std::vector<Value> cells = pop_args(capture_count);
+            VmRuntimeDelegate* delegate = runtime_delegate_;
+            auto native_fn = std::make_shared<NativeFunction>(
+                [delegate, function_index, cells](const std::vector<Value>& args) -> Value {
+                    return delegate->invoke_bytecode_closure(function_index, args, cells);
+                });
+            stack_.push_back(Value(native_fn));
+            advance(4);
+            break;
+        }
+
+        case Opcode::CALL_VALUE: {
+            if (!runtime_delegate_) {
+                throw DryadException("CALL_VALUE requires a runtime delegate");
+            }
+            uint8_t argc = bytecode_[pc_ + 1];
+            validate_stack(static_cast<size_t>(argc) + 1, "CALL_VALUE");
+            Value callee = stack_.back();
+            stack_.pop_back();
+            std::vector<Value> args = pop_args(argc);
+            advance(2);
+            stack_.push_back(runtime_delegate_->invoke_value(callee, args));
+            break;
+        }
+
+        case Opcode::LOAD_CELL: {
+            Value& cell = cell_at_slot(read_u16_at(pc_ + 1), "LOAD_CELL");
+            stack_.push_back(cell.array_get(0));
+            advance(3);
+            break;
+        }
+
+        case Opcode::STORE_CELL: {
+            validate_stack(1, "STORE_CELL");
+            Value& cell = cell_at_slot(read_u16_at(pc_ + 1), "STORE_CELL");
+            cell.array_set(0, stack_.back());
+            stack_.pop_back();
+            advance(3);
+            break;
+        }
+
+        case Opcode::NEW_CELL: {
+            validate_stack(1, "NEW_CELL");
+            uint16_t slot = read_u16_at(pc_ + 1);
+            if (slot >= slots_.size()) {
+                slots_.resize(static_cast<size_t>(slot) + 1);
+            }
+            Value cell = Value::create_array();
+            cell.array_push(stack_.back());
+            stack_.pop_back();
+            slots_[slot] = cell;
+            advance(3);
+            break;
+        }
+
+        case Opcode::LOAD_UPVALUE: {
+            Value& cell = cell_at_upvalue(read_u16_at(pc_ + 1), "LOAD_UPVALUE");
+            stack_.push_back(cell.array_get(0));
+            advance(3);
+            break;
+        }
+
+        case Opcode::STORE_UPVALUE: {
+            validate_stack(1, "STORE_UPVALUE");
+            Value& cell = cell_at_upvalue(read_u16_at(pc_ + 1), "STORE_UPVALUE");
+            cell.array_set(0, stack_.back());
+            stack_.pop_back();
+            advance(3);
+            break;
+        }
+
+        case Opcode::LOAD_CELL_REF:
+            stack_.push_back(cell_at_slot(read_u16_at(pc_ + 1), "LOAD_CELL_REF"));
+            advance(3);
+            break;
+
+        case Opcode::LOAD_UPVALUE_REF:
+            stack_.push_back(cell_at_upvalue(read_u16_at(pc_ + 1), "LOAD_UPVALUE_REF"));
+            advance(3);
+            break;
+
+        case Opcode::STORE_GLOBAL: {
+            if (!runtime_delegate_) {
+                throw DryadException("STORE_GLOBAL requires a runtime delegate");
+            }
+            validate_stack(1, "STORE_GLOBAL");
+            uint16_t name_index = read_u16_at(pc_ + 1);
+            if (name_index >= constants_.size() || !constants_[name_index].is_string()) {
+                throw DryadException("STORE_GLOBAL invalid name constant");
+            }
+            Value value = stack_.back();
+            stack_.pop_back();
+            runtime_delegate_->set_global(constants_[name_index].as_string(), value);
+            advance(3);
+            break;
+        }
+
         case Opcode::NEW_ARRAY:
             stack_.push_back(Value::create_array());
             advance(1);
@@ -812,11 +921,13 @@ void VM::enter_function(size_t function_index, uint8_t argc) {
     VmCallFrame frame;
     frame.return_pc = pc_;
     frame.slots = std::move(slots_);
+    frame.upvalues = std::move(upvalues_);
     frame.function_index = current_function_index_;
     frames_.push_back(std::move(frame));
 
     activate_function(function_index);
     slots_.clear();
+    upvalues_.clear();
     if (argc > 0) {
         slots_.resize(argc);
         for (int i = static_cast<int>(argc) - 1; i >= 0; --i) {
@@ -843,8 +954,34 @@ void VM::return_from_function() {
     frames_.pop_back();
     activate_function(frame.function_index);
     slots_ = std::move(frame.slots);
+    upvalues_ = std::move(frame.upvalues);
     pc_ = frame.return_pc;
     stack_.push_back(result);
+}
+
+Value& VM::cell_at_slot(uint16_t slot, const char* context) {
+    if (slot >= slots_.size() || !slots_[slot].is_array()) {
+        throw DryadException(std::string(context) + ": slot " + std::to_string(slot) +
+                             " does not hold a cell");
+    }
+    return slots_[slot];
+}
+
+Value& VM::cell_at_upvalue(uint16_t index, const char* context) {
+    if (index >= upvalues_.size() || !upvalues_[index].is_array()) {
+        throw DryadException(std::string(context) + ": upvalue " + std::to_string(index) +
+                             " out of range");
+    }
+    return upvalues_[index];
+}
+
+std::vector<Value> VM::pop_args(uint8_t argc) {
+    std::vector<Value> args(argc);
+    for (int i = static_cast<int>(argc) - 1; i >= 0; --i) {
+        args[static_cast<size_t>(i)] = stack_.back();
+        stack_.pop_back();
+    }
+    return args;
 }
 
 void VM::handle_intrinsic_syscall() {

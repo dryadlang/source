@@ -4,7 +4,7 @@
 import { Exception, ArgumentNullException, ArgumentOutOfRangeException } from "@std/core/exceptions";
 import { Buffer_New, Buffer_Len, Buffer_Read, Buffer_Write, Buffer_FromString, Buffer_Slice, Buffer_Dispose, Buffer_GetActualHandle, Buffer_GetOffset } from "@std/buffers/buffer";
 
-function Bytes_ValidateRange(buf, offset, count) {
+function _Bytes_ValidateRange(buf, offset, count) {
     if (buf == null) {
         return ArgumentNullException("buffer");
     }
@@ -19,11 +19,11 @@ function Bytes_ValidateRange(buf, offset, count) {
 }
 
 function Bytes_Copy(dst, dstOffset, src, srcOffset, count) {
-    let err = Bytes_ValidateRange(dst, dstOffset, count);
+    let err = _Bytes_ValidateRange(dst, dstOffset, count);
     if (err != null) {
         return err;
     }
-    err = Bytes_ValidateRange(src, srcOffset, count);
+    err = _Bytes_ValidateRange(src, srcOffset, count);
     if (err != null) {
         return err;
     }
@@ -32,7 +32,7 @@ function Bytes_Copy(dst, dstOffset, src, srcOffset, count) {
 }
 
 function Bytes_Fill(buf, offset, count, value) {
-    let err = Bytes_ValidateRange(buf, offset, count);
+    let err = _Bytes_ValidateRange(buf, offset, count);
     if (err != null) {
         return err;
     }
@@ -51,11 +51,11 @@ function Bytes_Fill(buf, offset, count, value) {
 }
 
 function Bytes_Compare(a, b) {
-    let errA = Bytes_ValidateRange(a, 0, 0);
+    let errA = _Bytes_ValidateRange(a, 0, 0);
     if (errA != null) {
         return [0, errA];
     }
-    let errB = Bytes_ValidateRange(b, 0, 0);
+    let errB = _Bytes_ValidateRange(b, 0, 0);
     if (errB != null) {
         return [0, errB];
     }
@@ -89,11 +89,11 @@ function Bytes_Compare(a, b) {
 }
 
 function Bytes_Equals(a, b) {
-    let errA = Bytes_ValidateRange(a, 0, 0);
+    let errA = _Bytes_ValidateRange(a, 0, 0);
     if (errA != null) {
         return [false, errA];
     }
-    let errB = Bytes_ValidateRange(b, 0, 0);
+    let errB = _Bytes_ValidateRange(b, 0, 0);
     if (errB != null) {
         return [false, errB];
     }
@@ -108,7 +108,7 @@ function Bytes_Equals(a, b) {
 }
 
 function Bytes_IndexOf(buf, byte) {
-    let err = Bytes_ValidateRange(buf, 0, 0);
+    let err = _Bytes_ValidateRange(buf, 0, 0);
     if (err != null) {
         return [-1, err];
     }
@@ -130,7 +130,7 @@ function Bytes_IndexOf(buf, byte) {
 }
 
 function Bytes_LastIndexOf(buf, byte) {
-    let err = Bytes_ValidateRange(buf, 0, 0);
+    let err = _Bytes_ValidateRange(buf, 0, 0);
     if (err != null) {
         return [-1, err];
     }
@@ -159,7 +159,7 @@ function Bytes_Contains(buf, byte) {
     return [r[0] >= 0, null];
 }
 
-function Bytes_MatchesAt(buf, pos, affix) {
+function _Bytes_MatchesAt(buf, pos, affix) {
     let ha = Buffer_GetActualHandle(buf);
     let hb = Buffer_GetActualHandle(affix);
     let oa = Buffer_GetOffset(buf) + pos;
@@ -174,26 +174,26 @@ function Bytes_MatchesAt(buf, pos, affix) {
 }
 
 function Bytes_StartsWith(buf, prefix) {
-    let errA = Bytes_ValidateRange(buf, 0, 0);
+    let errA = _Bytes_ValidateRange(buf, 0, 0);
     if (errA != null) {
         return [false, errA];
     }
-    let errB = Bytes_ValidateRange(prefix, 0, 0);
+    let errB = _Bytes_ValidateRange(prefix, 0, 0);
     if (errB != null) {
         return [false, errB];
     }
     if (Buffer_Len(prefix) > Buffer_Len(buf)) {
         return [false, null];
     }
-    return [Bytes_MatchesAt(buf, 0, prefix), null];
+    return [_Bytes_MatchesAt(buf, 0, prefix), null];
 }
 
 function Bytes_EndsWith(buf, suffix) {
-    let errA = Bytes_ValidateRange(buf, 0, 0);
+    let errA = _Bytes_ValidateRange(buf, 0, 0);
     if (errA != null) {
         return [false, errA];
     }
-    let errB = Bytes_ValidateRange(suffix, 0, 0);
+    let errB = _Bytes_ValidateRange(suffix, 0, 0);
     if (errB != null) {
         return [false, errB];
     }
@@ -201,15 +201,15 @@ function Bytes_EndsWith(buf, suffix) {
     if (start < 0) {
         return [false, null];
     }
-    return [Bytes_MatchesAt(buf, start, suffix), null];
+    return [_Bytes_MatchesAt(buf, start, suffix), null];
 }
 
 function Bytes_Concat(a, b) {
-    let errA = Bytes_ValidateRange(a, 0, 0);
+    let errA = _Bytes_ValidateRange(a, 0, 0);
     if (errA != null) {
         return [null, errA];
     }
-    let errB = Bytes_ValidateRange(b, 0, 0);
+    let errB = _Bytes_ValidateRange(b, 0, 0);
     if (errB != null) {
         return [null, errB];
     }
@@ -231,7 +231,7 @@ function Bytes_Concat(a, b) {
 }
 
 function Bytes_Repeat(buf, count) {
-    let err = Bytes_ValidateRange(buf, 0, 0);
+    let err = _Bytes_ValidateRange(buf, 0, 0);
     if (err != null) {
         return [null, err];
     }
@@ -270,33 +270,33 @@ function Bytes_Repeat(buf, count) {
 
 // Trim, TrimStart and TrimEnd return a non-owning, zero-copy view of buf:
 // the parent buffer must outlive the result. Whitespace is 0x20, 0x09, 0x0A, 0x0D.
-function Bytes_IsWhitespace(b) {
+function _Bytes_IsWhitespace(b) {
     return b == 32 || b == 9 || b == 10 || b == 13;
 }
 
-function Bytes_FirstNonWhitespace(buf, len) {
+function _Bytes_FirstNonWhitespace(buf, len) {
     let handle = Buffer_GetActualHandle(buf);
     let base = Buffer_GetOffset(buf);
     for (let i = 0; i < len; i = i + 1) {
-        if (!Bytes_IsWhitespace(__buffer_get(handle, base + i))) {
+        if (!_Bytes_IsWhitespace(__buffer_get(handle, base + i))) {
             return i;
         }
     }
     return len;
 }
 
-function Bytes_LastNonWhitespace(buf, len) {
+function _Bytes_LastNonWhitespace(buf, len) {
     let handle = Buffer_GetActualHandle(buf);
     let base = Buffer_GetOffset(buf);
     for (let i = len - 1; i >= 0; i = i - 1) {
-        if (!Bytes_IsWhitespace(__buffer_get(handle, base + i))) {
+        if (!_Bytes_IsWhitespace(__buffer_get(handle, base + i))) {
             return i;
         }
     }
     return -1;
 }
 
-function Bytes_SliceResult(buf, start, end) {
+function _Bytes_SliceResult(buf, start, end) {
     let r = Buffer_Slice(buf, start, end);
     if (__runtime_value_kind(r) == "string") {
         return [null, r];
@@ -305,38 +305,38 @@ function Bytes_SliceResult(buf, start, end) {
 }
 
 function Bytes_Trim(buf) {
-    let err = Bytes_ValidateRange(buf, 0, 0);
+    let err = _Bytes_ValidateRange(buf, 0, 0);
     if (err != null) {
         return [null, err];
     }
     let len = Buffer_Len(buf);
-    let first = Bytes_FirstNonWhitespace(buf, len);
+    let first = _Bytes_FirstNonWhitespace(buf, len);
     if (first == len) {
-        return Bytes_SliceResult(buf, 0, 0);
+        return _Bytes_SliceResult(buf, 0, 0);
     }
-    return Bytes_SliceResult(buf, first, Bytes_LastNonWhitespace(buf, len) + 1);
+    return _Bytes_SliceResult(buf, first, _Bytes_LastNonWhitespace(buf, len) + 1);
 }
 
 function Bytes_TrimStart(buf) {
-    let err = Bytes_ValidateRange(buf, 0, 0);
+    let err = _Bytes_ValidateRange(buf, 0, 0);
     if (err != null) {
         return [null, err];
     }
     let len = Buffer_Len(buf);
-    return Bytes_SliceResult(buf, Bytes_FirstNonWhitespace(buf, len), len);
+    return _Bytes_SliceResult(buf, _Bytes_FirstNonWhitespace(buf, len), len);
 }
 
 function Bytes_TrimEnd(buf) {
-    let err = Bytes_ValidateRange(buf, 0, 0);
+    let err = _Bytes_ValidateRange(buf, 0, 0);
     if (err != null) {
         return [null, err];
     }
     let len = Buffer_Len(buf);
-    return Bytes_SliceResult(buf, 0, Bytes_LastNonWhitespace(buf, len) + 1);
+    return _Bytes_SliceResult(buf, 0, _Bytes_LastNonWhitespace(buf, len) + 1);
 }
 
 function Bytes_ToHex(buf) {
-    let err = Bytes_ValidateRange(buf, 0, 0);
+    let err = _Bytes_ValidateRange(buf, 0, 0);
     if (err != null) {
         return [null, err];
     }
@@ -350,7 +350,7 @@ function Bytes_ToHex(buf) {
     return [out, null];
 }
 
-function Bytes_HexValue(c) {
+function _Bytes_HexValue(c) {
     if (c >= 48 && c <= 57) {
         return c - 48;
     }
@@ -385,8 +385,8 @@ function Bytes_FromHex(text) {
         return [null, out];
     }
     for (let i = 0; i < len; i = i + 2) {
-        let hi = Bytes_HexValue(Buffer_Read(src, i));
-        let lo = Bytes_HexValue(Buffer_Read(src, i + 1));
+        let hi = _Bytes_HexValue(Buffer_Read(src, i));
+        let lo = _Bytes_HexValue(Buffer_Read(src, i + 1));
         if (hi < 0 || lo < 0) {
             Buffer_Dispose(src);
             Buffer_Dispose(out);

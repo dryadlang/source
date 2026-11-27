@@ -87,10 +87,10 @@ TEST(NetEchoIntegration, DryadTcpClientEcho) {
     ASSERT_GT(port.load(), 0);
 
     const std::string source = R"(
-        import { TcpClient_connect } from "@std/net/tcp_client";
+        import { TcpClient_Connect } from "@std/net/tcp_client";
         import { Buffer_FromString, Buffer_AsString, Buffer_Dispose } from "@std/buffers/buffer";
 
-        let client = TcpClient_connect("127.0.0.1", )" + std::to_string(port.load()) + R"();
+        let client = TcpClient_Connect("127.0.0.1", )" + std::to_string(port.load()) + R"();
         let ok = false;
         if (client._lastError == null && client.connected) {
             let buf = Buffer_FromString("echo");

@@ -1,0 +1,116 @@
+// @auto-test
+// @std/async and @std/buffers: the remaining untested public functions.
+
+import {
+    Promise, Promise_Resolve, Promise_Reject, Promise_Await, Promise_Wrap, Promise_Flush,
+    EventLoop_Schedule, EventLoop_RunTurn, EventLoop_PendingCount
+} from "@std/async";
+import {
+    Buffer_FromString, Buffer_Slice, Buffer_GetActualHandle, Buffer_GetOffset
+} from "@std/buffers";
+
+// Renders any value for failure messages (Dryad has no implicit string conversion).
+function show(value) {
+    let kind = __runtime_value_kind(value);
+    if (kind == "string") {
+        return "\"" + value + "\"";
+    }
+    if (kind == "integer") {
+        return __int_to_string(value);
+    }
+    if (kind == "boolean") {
+        if (value) {
+            return "true";
+        }
+        return "false";
+    }
+    if (kind == "null") {
+        return "null";
+    }
+    return "<" + kind + ">";
+}
+
+function expectEq(label, actual, expected) {
+    if (actual == expected) {
+        return true;
+    }
+    return label + ": expected " + show(expected) + ", got " + show(actual);
+}
+
+function all(checks) {
+    let i = 0;
+    while (i < __runtime_array_length(checks)) {
+        let c = checks[i];
+        let r = expectEq(c[0], c[1], c[2]);
+        if (r != true) {
+            return r;
+        }
+        i = i + 1;
+    }
+    return true;
+}
+
+function test_event_loop_run_turn_runs_one_task() {
+    Promise_Flush();
+    let ran = [];
+    EventLoop_Schedule(function() { __runtime_array_push(ran, "a"); return null; });
+    EventLoop_Schedule(function() { __runtime_array_push(ran, "b"); return null; });
+    let pendingBefore = EventLoop_PendingCount();
+    let first = EventLoop_RunTurn();
+    let afterOne = __runtime_array_length(ran);
+    EventLoop_RunTurn();
+    let idle = EventLoop_RunTurn();
+    return all([
+        ["pending before", pendingBefore, 2],
+        ["first turn did work", first, 1],
+        ["one task per turn", afterOne, 1],
+        ["both ran", __runtime_array_length(ran), 2],
+        ["idle turn", idle, 0]
+    ]);
+}
+
+function test_promise_await_returns_value() {
+    return all([
+        ["resolved", Promise_Await(Promise_Resolve(42)), 42],
+        ["deferred", Promise_Await(new Promise(function(resolve, reject) {
+            EventLoop_Schedule(function() { resolve("later"); return null; });
+            return null;
+        })), "later"]
+    ]);
+}
+
+function test_promise_wrap_mirrors_every_state() {
+    let log = [];
+    Promise_Wrap(Promise_Resolve("ok")).then(function(v) { __runtime_array_push(log, v); return v; });
+    Promise_Wrap(Promise_Reject("bad")).then(null, function(e) { __runtime_array_push(log, e); return e; });
+    let settleLater = null;
+    let pending = new Promise(function(resolve, reject) {
+        settleLater = resolve;
+        return null;
+    });
+    Promise_Wrap(pending).then(function(v) { __runtime_array_push(log, v); return v; });
+    Promise_Flush();
+    settleLater("late");
+    Promise_Flush();
+    if (__runtime_array_length(log) != 3) {
+        return "expected 3 settlements, got " + show(__runtime_array_length(log));
+    }
+    return all([
+        ["fulfilled", log[0], "ok"],
+        ["rejected", log[1], "bad"],
+        ["pending then fulfilled", log[2], "late"]
+    ]);
+}
+
+function test_buffer_handle_and_offset_follow_slices() {
+    let root = Buffer_FromString("abcdefgh");
+    let mid = Buffer_Slice(root, 2, 7);
+    let inner = Buffer_Slice(mid, 1, 4);
+    return all([
+        ["root offset", Buffer_GetOffset(root), 0],
+        ["slice offset", Buffer_GetOffset(mid), 2],
+        ["nested offset adds up", Buffer_GetOffset(inner), 3],
+        ["slice shares the handle", Buffer_GetActualHandle(mid), Buffer_GetActualHandle(root)],
+        ["nested shares the handle", Buffer_GetActualHandle(inner), Buffer_GetActualHandle(root)]
+    ]);
+}

@@ -2,7 +2,7 @@
 // HTTP header collection
 
 import { Map } from "@std/collections/map";
-import { Http_charAt, Http_substring } from "@std/net/http/http_string";
+import { _Http_charAt, _Http_substring } from "@std/net/http/http_string";
 
 class HttpHeaders {
     constructor() {
@@ -23,16 +23,16 @@ class HttpHeaders {
     }
 }
 
-function HttpHeaders_fromLines(lines) {
+function _HttpHeaders_fromLines(lines) {
     let headers = new HttpHeaders();
     let i = 0;
     let count = __runtime_array_length(lines);
     while (i < count) {
         let line = lines[i];
-        let colon = HttpHeaders_indexOfColon(line);
+        let colon = _HttpHeaders_indexOfColon(line);
         if (colon > 0) {
-            let name = Http_substring(line, 0, colon);
-            let value = HttpHeaders_trim(Http_substring(line, colon + 1, __string_length(line)));
+            let name = _Http_substring(line, 0, colon);
+            let value = _HttpHeaders_trim(_Http_substring(line, colon + 1, __string_length(line)));
             headers.set(name, value);
         }
         i = i + 1;
@@ -40,11 +40,11 @@ function HttpHeaders_fromLines(lines) {
     return headers;
 }
 
-function HttpHeaders_indexOfColon(text) {
+function _HttpHeaders_indexOfColon(text) {
     let i = 0;
     let len = __string_length(text);
     while (i < len) {
-        if (Http_charAt(text, i) == ":") {
+        if (_Http_charAt(text, i) == ":") {
             return i;
         }
         i = i + 1;
@@ -52,12 +52,12 @@ function HttpHeaders_indexOfColon(text) {
     return -1;
 }
 
-function HttpHeaders_trim(text) {
+function _HttpHeaders_trim(text) {
     let start = 0;
     let end = __string_length(text);
     let trimmingStart = true;
     while (start < end && trimmingStart) {
-        let ch = Http_charAt(text, start);
+        let ch = _Http_charAt(text, start);
         if (ch == " " || ch == "\t") {
             start = start + 1;
         } else {
@@ -66,12 +66,12 @@ function HttpHeaders_trim(text) {
     }
     let trimmingEnd = true;
     while (end > start && trimmingEnd) {
-        let ch = Http_charAt(text, end - 1);
+        let ch = _Http_charAt(text, end - 1);
         if (ch == " " || ch == "\t") {
             end = end - 1;
         } else {
             trimmingEnd = false;
         }
     }
-    return Http_substring(text, start, end);
+    return _Http_substring(text, start, end);
 }

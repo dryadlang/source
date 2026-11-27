@@ -1,0 +1,26 @@
+// @std/core/core
+// Barrel module: IDisposable, IEnumerable and the exception factories. Import from "@std/core".
+
+import {
+    IDisposable
+} from "@std/core/disposable";
+import {
+    IEnumerable
+} from "@std/core/enumerable";
+import {
+    Exception,
+    ArgumentException,
+    ArgumentNullException,
+    ArgumentOutOfRangeException,
+    IOException,
+    FileNotFoundException,
+    DirectoryNotFoundException,
+    EndOfStreamException,
+    InvalidOperationException,
+    ObjectDisposedException,
+    IndexOutOfRangeException,
+    KeyNotFoundException,
+    NetworkException,
+    SocketException,
+    HttpException
+} from "@std/core/exceptions";

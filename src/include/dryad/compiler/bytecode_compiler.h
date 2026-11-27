@@ -1,11 +1,13 @@
 #ifndef DRYAD_COMPILER_BYTECODE_COMPILER_H
 #define DRYAD_COMPILER_BYTECODE_COMPILER_H
 
+#include "dryad/common/utils.h"
 #include "dryad/compiler/ast.h"
 #include "dryad/compiler/type_profiler.h"
 #include "dryad/runtime/bytecode_module.h"
 #include "dryad/runtime/bytecode_builder.h"
 #include <memory>
+#include <set>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -18,6 +20,13 @@ struct LoopCompileContext {
 };
 
 class Interpreter;
+
+// Thrown when a construct cannot be compiled to bytecode. Callers fall back to
+// the interpreter for the affected function or script body.
+class BytecodeUnsupported : public DryadException {
+public:
+    using DryadException::DryadException;
+};
 
 class BytecodeCompiler {
 public:
@@ -41,14 +50,32 @@ private:
     size_t max_stack_depth_ = 0;
     std::vector<LoopCompileContext> loop_stack_;
     std::vector<CompiledFunction> lambda_functions_;
-    std::vector<std::unique_ptr<FunctionDeclaration>> owned_lambdas_;
     size_t lambda_counter_ = 0;
     size_t lambda_base_index_ = 0;
-    bool allow_lambdas_ = true;
+    // Lambdas are only emitted by compile_program, which appends them to the
+    // program; a standalone compile_function has nowhere to put them.
+    bool allow_lambdas_ = false;
+    std::set<std::string> cell_names_;
+    std::unordered_map<std::string, uint16_t> upvalue_index_;
     Interpreter* interpreter_ = nullptr;
 
     uint16_t allocate_slot(const std::string& name, const std::string& annotation = "");
     uint16_t compile_lambda(FunctionExpression* expr);
+    void begin_function(const std::string& name, size_t parameter_count,
+                        const FunctionProfile* profile);
+    void emit_cell_prologue(const std::vector<Parameter>& parameters,
+                            const std::vector<Statement*>& body);
+    CompiledFunction end_function(const std::vector<Statement*>& body);
+    std::vector<CompiledFunction> compile_named_functions(
+        const std::vector<std::pair<FunctionDeclaration*, const FunctionProfile*>>& named,
+        std::vector<FunctionDeclaration*>* compiled_decls);
+    void emit_load_name(const std::string& name);
+    void emit_store_name(const std::string& name);
+    bool is_local_name(const std::string& name) const;
+    CompiledFunction compile_function_body(const std::string& name,
+                                           const std::vector<Parameter>& parameters,
+                                           const std::vector<Statement*>& body,
+                                           const FunctionProfile* profile);
     uint16_t slot_index(const std::string& name) const;
     SlotProfile slot_profile(const std::string& name) const;
 

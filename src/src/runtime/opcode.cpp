@@ -45,10 +45,20 @@ const char* opcode_name(Opcode op) {
         case Opcode::HALT:             return "HALT";
         case Opcode::CALL:             return "CALL";
         case Opcode::RET:              return "RET";
+        case Opcode::CALL_VALUE:       return "CALL_VALUE";
         case Opcode::LOAD_FAST:        return "LOAD_FAST";
         case Opcode::STORE_FAST:       return "STORE_FAST";
         case Opcode::LOAD_GLOBAL:      return "LOAD_GLOBAL";
         case Opcode::MAKE_FUNCTION:    return "MAKE_FUNCTION";
+        case Opcode::LOAD_CELL:        return "LOAD_CELL";
+        case Opcode::STORE_CELL:       return "STORE_CELL";
+        case Opcode::NEW_CELL:         return "NEW_CELL";
+        case Opcode::LOAD_UPVALUE:     return "LOAD_UPVALUE";
+        case Opcode::STORE_UPVALUE:    return "STORE_UPVALUE";
+        case Opcode::LOAD_CELL_REF:    return "LOAD_CELL_REF";
+        case Opcode::LOAD_UPVALUE_REF: return "LOAD_UPVALUE_REF";
+        case Opcode::MAKE_CLOSURE:     return "MAKE_CLOSURE";
+        case Opcode::STORE_GLOBAL:     return "STORE_GLOBAL";
         case Opcode::NEW_ARRAY:        return "NEW_ARRAY";
         case Opcode::ARRAY_PUSH:       return "ARRAY_PUSH";
         case Opcode::SET_ELEMENT:      return "SET_ELEMENT";
@@ -62,6 +72,44 @@ const char* opcode_name(Opcode op) {
         case Opcode::INTRINSIC_SYSCALL: return "INTRINSIC_SYSCALL";
     }
     return "UNKNOWN";
+}
+
+size_t opcode_size(Opcode op) {
+    switch (op) {
+        case Opcode::PUSH_INT:
+        case Opcode::PUSH_FLOAT:
+            return 9;
+        case Opcode::PUSH_CONST:
+        case Opcode::LOAD_FAST:
+        case Opcode::STORE_FAST:
+        case Opcode::LOAD_GLOBAL:
+        case Opcode::STORE_GLOBAL:
+        case Opcode::MAKE_FUNCTION:
+        case Opcode::JUMP:
+        case Opcode::JUMP_IF_FALSE:
+        case Opcode::JUMP_IF_TRUE:
+        case Opcode::GET_PROPERTY:
+        case Opcode::SET_PROPERTY:
+        case Opcode::LOAD_CELL:
+        case Opcode::STORE_CELL:
+        case Opcode::NEW_CELL:
+        case Opcode::LOAD_UPVALUE:
+        case Opcode::STORE_UPVALUE:
+        case Opcode::LOAD_CELL_REF:
+        case Opcode::LOAD_UPVALUE_REF:
+            return 3;
+        case Opcode::CALL:
+        case Opcode::METHOD_CALL:
+        case Opcode::NEW_INSTANCE:
+        case Opcode::CALL_GLOBAL:
+        case Opcode::MAKE_CLOSURE:
+        case Opcode::INTRINSIC_SYSCALL:
+            return 4;
+        case Opcode::CALL_VALUE:
+            return 2;
+        default:
+            return 1;
+    }
 }
 
 } // namespace dryad

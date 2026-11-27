@@ -376,6 +376,59 @@ TEST(AotTest, JitHotLoopAcceleratesIntegerWhile) {
     std::remove(input.c_str());
 }
 
+TEST(AotTest, JitLoopIsNotReusedInsideCalledFunction) {
+    if (!clang_available()) {
+        GTEST_SKIP() << "clang not available";
+    }
+
+    // Both loops start at the same pc; only the step differs. If the callee's
+    // loop ran the entry loop's native body it would step by 1 and return 3.
+    const std::string source = R"(
+        function step_by_two() {
+            let i = 0;
+            while (i < 3) {
+                i = i + 2;
+            }
+            return i;
+        }
+        function count() {
+            let i = 0;
+            while (i < 200) {
+                i = i + 1;
+            }
+            return i + step_by_two();
+        }
+        count();
+    )";
+
+    const std::string input = "/tmp/dryad_jit_nested_input.dryad";
+    {
+        std::ofstream file(input);
+        file << source;
+    }
+
+    CompileOptions options;
+    options.run_profiler = true;
+    CompiledProgram program = compile_file_to_bytecode(input, options);
+    ASSERT_GE(program.functions.size(), 2u);
+    ASSERT_EQ(program.functions[1].metadata.name, "count");
+
+    JitCompiler jit;
+    jit.configure(DRYAD_AOT_RUNTIME_SRC, DRYAD_INCLUDE_DIR);
+    jit.set_threshold(5);
+    jit.bind_function(&program.functions[1]);
+
+    VM vm;
+    vm.set_jit_delegate(&jit);
+    vm.enable_jit(true);
+    vm.load_program(program, 1);
+    vm.execute();
+
+    EXPECT_EQ(vm.get_stack_top().as_integer(), 204);
+
+    std::remove(input.c_str());
+}
+
 TEST(AotTest, NativeExecutableReturnsBinaryAndRuns) {
     if (!clang_available()) {
         GTEST_SKIP() << "clang not available";

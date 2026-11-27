@@ -126,7 +126,9 @@ void VM::execute_impl() {
 }
 
 bool VM::try_run_jit_body() {
-    if (!jit_enabled_ || !jit_delegate_) {
+    // loops_ and the delegate's compiled bodies describe the entry function
+    // only; a CALLed function's pcs would alias them.
+    if (!jit_enabled_ || !jit_delegate_ || !frames_.empty()) {
         return false;
     }
     const size_t loop_index = jit_delegate_->loop_index_for_body(static_cast<uint16_t>(pc_));
@@ -141,7 +143,7 @@ bool VM::try_run_jit_body() {
 }
 
 void VM::handle_back_edge(uint16_t back_edge_pc, uint16_t target_pc) {
-    if (jit_enabled_ && jit_delegate_) {
+    if (jit_enabled_ && jit_delegate_ && frames_.empty()) {
         const size_t loop_index = jit_delegate_->loop_index_for_back_edge(back_edge_pc);
         if (loop_index != loops_.size()) {
             jit_delegate_->on_back_edge(loop_index);

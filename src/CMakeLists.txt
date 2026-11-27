@@ -188,6 +188,7 @@ if(DRYAD_BUILD_TESTS)
         tests/unit/sample_test.cpp
         tests/unit/value_test.cpp
         tests/unit/lexer_test.cpp
+        tests/unit/token_test.cpp
         tests/unit/parser_test.cpp
         tests/unit/interpreter_test.cpp
         tests/unit/intrinsics_test.cpp
@@ -230,6 +231,7 @@ if(DRYAD_BUILD_TESTS)
         tests/unit/type_profiler_test.cpp
         tests/unit/vm_test.cpp
         tests/unit/bytecode_compiler_test.cpp
+        tests/unit/opcode_test.cpp
         tests/unit/execution_engine_test.cpp
         tests/unit/bytecode_closure_test.cpp
         tests/unit/aot_test.cpp

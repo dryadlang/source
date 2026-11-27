@@ -1,4 +1,5 @@
 // @auto-test
+// @allow-net
 // @std/net: offline checks (no sockets opened) for the public API.
 
 import {
@@ -7,8 +8,9 @@ import {
     Shutdown, Shutdown_Read, Shutdown_Write, Shutdown_Both,
     Net_ResolveHost, Net_ResolveHostOrError,
     HttpHeaders, HttpRequest, HttpResponse, HttpResponse_Parse, Http_ParseUrl,
-    NetworkStream_FromSocket, TlsStream_IsAvailable, TlsStream_Connect
+    NetworkStream_FromSocket, TlsStream, TlsStream_IsAvailable, TlsStream_Connect
 } from "@std/net";
+import { Buffer_New } from "@std/buffers/buffer";
 
 // Renders any value for failure messages (Dryad has no implicit string conversion).
 function show(value) {
@@ -144,4 +146,55 @@ function test_tls_connect_reports_unavailable_or_bad_fd() {
         return expectEq("bad fd", result, "TlsStream_Connect requires an open socket descriptor");
     }
     return expectEq("unavailable", result, "TLS is not available in this build");
+}
+
+function test_tls_stream_closed_or_invalid_session_rejects_io() {
+    // A handle of -1 means "no session": every Stream trait getter must
+    // report accordingly, and read/write must fail without touching the
+    // (here, deliberately absent) buffer argument.
+    let invalid = new TlsStream(-1, "example.test");
+    return all([
+        ["not readable", invalid.canRead, false],
+        ["not writable", invalid.canWrite, false],
+        ["not seekable", invalid.canSeek, false],
+        ["length unsupported", invalid.length, "TlsStream does not support length"],
+        ["position unsupported", invalid.position, "TlsStream is not seekable"],
+        ["seek unsupported", invalid.seek(0, 0), "TlsStream is not seekable"],
+        ["flush is a no-op", invalid.flush(), null],
+        ["read on invalid session", invalid.read(null, 0, 0), "Invalid TLS session"],
+        ["write on invalid session", invalid.write(null, 0, 0), "Invalid TLS session"],
+        // close() on an already-"closed" (negative handle) session is a no-op,
+        // not an error, and stays idempotent.
+        ["close is a no-op", invalid.close(), null]
+    ]);
+}
+
+function test_tls_stream_direct_construction_and_close() {
+    if (!TlsStream_IsAvailable()) {
+        return true;
+    }
+    // A handle that was never produced by a real handshake: the session
+    // lookup intrinsics (tls_send_buffer/tls_recv_buffer/tls_close) all treat
+    // an unknown handle as "not found" rather than crashing, so this
+    // exercises the full TlsStream surface without a real TLS connection.
+    let stream = new TlsStream(999999, "example.test");
+    let buf = Buffer_New(4);
+    let result = all([
+        ["readable while open", stream.canRead, true],
+        ["writable while open", stream.canWrite, true],
+        ["not seekable", stream.canSeek, false],
+        ["read on unknown session fails", stream.read(buf, 0, 4), "TLS read failed"],
+        ["write on unknown session fails", stream.write(buf, 0, 4), "TLS write failed"]
+    ]);
+    if (result != true) {
+        return result;
+    }
+
+    stream.close();
+    return all([
+        ["closed after close()", stream.canRead, false],
+        ["read after close", stream.read(buf, 0, 4), "TlsStream is closed"],
+        ["write after close", stream.write(buf, 0, 4), "TlsStream is closed"],
+        ["close is idempotent", stream.close(), null]
+    ]);
 }

@@ -41,6 +41,8 @@ private:
         std::vector<std::string> parameter_types;
         size_t required_parameter_count = 0;
         std::string return_type;
+        // Accepts any number of arguments past the required ones (print).
+        bool variadic = false;
     };
 
     std::unordered_set<std::string> globals_;

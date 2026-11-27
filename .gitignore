@@ -6,3 +6,4 @@ build/
 Testing/
 build-*/
 /coverage/
+__pycache__/

@@ -67,11 +67,17 @@ class Map {
             return false;
         }
 
-        let i = index;
-        while (i < this._size - 1) {
-            this._entries[i] = this._entries[i + 1];
+        // Rebuild instead of shifting in place: put() pushes onto the
+        // backing array, so it must stay exactly _size long.
+        let kept = [];
+        let i = 0;
+        while (i < this._size) {
+            if (i != index) {
+                __runtime_array_push(kept, this._entries[i]);
+            }
             i = i + 1;
         }
+        this._entries = kept;
         this._size = this._size - 1;
         return true;
     }

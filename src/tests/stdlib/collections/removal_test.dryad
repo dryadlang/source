@@ -1,0 +1,129 @@
+// @auto-test
+// Removing from a collection and then adding again. List.removeAt and
+// Map.delete used to shift entries down without shrinking the backing array,
+// so the next add/put landed past the logical end and was lost.
+
+import { List, Map, Set } from "@std/collections";
+
+// Renders any value for failure messages (Dryad has no implicit string conversion).
+function show(value) {
+    let kind = __runtime_value_kind(value);
+    if (kind == "string") {
+        return "\"" + value + "\"";
+    }
+    if (kind == "integer") {
+        return __int_to_string(value);
+    }
+    if (kind == "boolean") {
+        if (value) {
+            return "true";
+        }
+        return "false";
+    }
+    if (kind == "null") {
+        return "null";
+    }
+    return "<" + kind + ">";
+}
+
+function expectEq(label, actual, expected) {
+    if (actual == expected) {
+        return true;
+    }
+    return label + ": expected " + show(expected) + ", got " + show(actual);
+}
+
+function all(checks) {
+    let i = 0;
+    while (i < __runtime_array_length(checks)) {
+        let check = checks[i];
+        let result = expectEq(check[0], check[1], check[2]);
+        if (result != true) {
+            return result;
+        }
+        i = i + 1;
+    }
+    return true;
+}
+
+function test_list_add_after_removeAt() {
+    let list = new List();
+    list.add(1);
+    list.add(2);
+    list.add(3);
+    list.removeAt(0);
+    list.add(4);
+    return all([
+        ["count", list.count, 3],
+        ["get(0)", list.get(0), 2],
+        ["get(1)", list.get(1), 3],
+        ["get(2)", list.get(2), 4]
+    ]);
+}
+
+function test_list_insert_after_remove() {
+    let list = new List();
+    list.add("a");
+    list.add("b");
+    list.add("c");
+    list.remove("c");
+    list.insert(1, "x");
+    return all([
+        ["count", list.count, 3],
+        ["get(0)", list.get(0), "a"],
+        ["get(1)", list.get(1), "x"],
+        ["get(2)", list.get(2), "b"]
+    ]);
+}
+
+function test_list_count_contains_indexOf() {
+    let list = new List();
+    list.add(10);
+    list.add(20);
+    list.add(30);
+    list.removeAt(1);
+    list.add(40);
+    return all([
+        ["count", list.count, 3],
+        ["contains(40)", list.contains(40), true],
+        ["contains(20)", list.contains(20), false],
+        ["indexOf(40)", list.indexOf(40), 2],
+        ["indexOf(20)", list.indexOf(20), -1]
+    ]);
+}
+
+function test_map_put_after_delete() {
+    let map = new Map();
+    map.put("a", 1);
+    map.put("b", 2);
+    map.delete("a");
+    map.put("c", 3);
+    let seen = [];
+    map.forEach(function(key, value) {
+        __runtime_array_push(seen, key);
+        return null;
+    });
+    return all([
+        ["size", map.size, 2],
+        ["get(b)", map.get("b"), 2],
+        ["get(c)", map.get("c"), 3],
+        ["has(a)", map.has("a"), false],
+        ["forEach visits", __runtime_array_length(seen), 2],
+        ["first key", seen[0], "b"],
+        ["second key", seen[1], "c"]
+    ]);
+}
+
+function test_set_add_after_delete() {
+    let unique = new Set();
+    unique.add("x");
+    unique.add("y");
+    unique.delete("x");
+    unique.add("z");
+    return all([
+        ["size", unique.size, 2],
+        ["has(y)", unique.has("y"), true],
+        ["has(z)", unique.has("z"), true],
+        ["has(x)", unique.has("x"), false]
+    ]);
+}

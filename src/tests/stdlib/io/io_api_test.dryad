@@ -1,0 +1,272 @@
+// @auto-test
+// @std/io: the public API not covered by the older io test files.
+
+import {
+    Path, Path_Join, Path_Dirname, Path_Basename, Path_Extension,
+    Path_EnsureDirectory, Path_EnsureParentForFile,
+    InvalidPathError, FileNotFoundError, DirectoryNotFoundError, AccessDeniedError,
+    FileAlreadyExistsError, InvalidOperationError, NormalizePath, ValidatePath,
+    MemoryStream_New, MemoryStream_FromString, MemoryStream_FromBuffer,
+    MemoryStream_ToString, MemoryStream_GetBuffer,
+    Stream_IsStream, Stream_IsError, SeekOrigin, SeekOrigin_Begin, SeekOrigin_Current, SeekOrigin_End,
+    FileMode, FileMode_Read, FileMode_Write, FileMode_ReadWrite, FileMode_Append, File_Exists,
+    FileHandle, FileHandle_IsOpen, FileHandle_GetPath, FileHandle_GetMode, FileHandle_Dispose,
+    FileLock, FileLock_Acquire, FileLock_Release,
+    ThreadSafeVFS, ThreadSafeVFS_ReadFile, ThreadSafeVFS_WriteFile, ThreadSafeVFS_Exists,
+    ThreadSafeVFS_RemoveFile, ThreadSafeVFS_ListDirectory, ThreadSafeVFS_Mkdir,
+    VFS, MemoryBackend, VFS_WriteFile, VFS_ListDirectory, VFS_Mkdir, VFS_RemoveFile, VFS_Exists,
+    Fs_SetBackend, Fs_WriteFileAsync, Fs_ReadFileAsync, Fs_ExistsAsync,
+    Fs_RemoveFileAsync, Fs_ListDirectoryAsync, Fs_MkdirAsync
+} from "@std/io";
+import { Buffer_FromString, Buffer_AsString } from "@std/buffers";
+import { Promise_Flush } from "@std/async";
+
+function expectEq(label, actual, expected) {
+    if (actual == expected) {
+        return true;
+    }
+    return label + ": expected \"" + expected + "\", got \"" + actual + "\"";
+}
+
+// Runs a list of [label, actual, expected] checks and reports the first miss.
+function all(checks) {
+    let i = 0;
+    while (i < __runtime_array_length(checks)) {
+        let c = checks[i];
+        let r = expectEq(c[0], c[1], c[2]);
+        if (r != true) {
+            return r;
+        }
+        i = i + 1;
+    }
+    return true;
+}
+
+// ── path ────────────────────────────────────────────────────────────────
+
+function test_path_functions() {
+    return all([
+        ["join", Path_Join("a/b", "c.txt"), "a/b/c.txt"],
+        ["join absolute rhs", Path_Join("a", "/tmp/x"), "/tmp/x"],
+        ["join dot-dot", Path_Join("a/b", "../c"), "a/c"],
+        ["dirname", Path_Dirname("/srv/app/log.txt"), "/srv/app"],
+        ["dirname root", Path_Dirname("/file"), "/"],
+        ["dirname bare", Path_Dirname("file"), "."],
+        ["basename", Path_Basename("/srv/app/log.txt"), "log.txt"],
+        ["basename trailing slash", Path_Basename("/srv/app/"), "app"],
+        ["extension", Path_Extension("archive.tar.gz"), ".gz"],
+        ["extension dotfile", Path_Extension(".bashrc"), ""],
+        ["extension none", Path_Extension("README"), ""]
+    ]);
+}
+
+function test_path_object_matches_functions() {
+    return all([
+        ["Path.join", Path.join("x", "y"), Path_Join("x", "y")],
+        ["Path.dirname", Path.dirname("/a/b"), Path_Dirname("/a/b")],
+        ["Path.basename", Path.basename("/a/b"), Path_Basename("/a/b")],
+        ["Path.extension", Path.extension("f.md"), Path_Extension("f.md")]
+    ]);
+}
+
+function test_path_rejects_empty_segments() {
+    return expectEq("join empty", Path_Join("", "x"), "Path segment cannot be empty");
+}
+
+function test_path_ensure_directory_creates_nested_dirs() {
+    let root = "/tmp/dryad_io_api_test_dirs";
+    let err = Path_EnsureDirectory(root + "/a/b/c");
+    if (err != null) {
+        return "EnsureDirectory: " + err;
+    }
+    if (!File_Exists(root + "/a/b/c")) {
+        return "directory was not created";
+    }
+    let again = Path_EnsureDirectory(root + "/a/b/c");
+    if (again != null) {
+        return "EnsureDirectory is not idempotent: " + again;
+    }
+    let parentErr = Path_EnsureParentForFile(root + "/d/e/file.txt");
+    if (parentErr != null) {
+        return "EnsureParentForFile: " + parentErr;
+    }
+    return expectEq("parent exists", File_Exists(root + "/d/e"), true);
+}
+
+// ── io_errors ───────────────────────────────────────────────────────────
+
+function test_io_error_factories() {
+    return all([
+        ["InvalidPathError", InvalidPathError("x"), "Invalid path: x"],
+        ["FileNotFoundError", FileNotFoundError("x"), "File not found: x"],
+        ["DirectoryNotFoundError", DirectoryNotFoundError("x"), "Directory not found: x"],
+        ["AccessDeniedError", AccessDeniedError("x"), "Access denied: x"],
+        ["FileAlreadyExistsError", FileAlreadyExistsError("x"), "File already exists: x"],
+        ["InvalidOperationError", InvalidOperationError("seek", "closed"), "seek failed: closed"]
+    ]);
+}
+
+function test_normalize_and_validate_path() {
+    return all([
+        ["NormalizePath", NormalizePath("a//b/./c/../d"), "a/b/d"],
+        ["NormalizePath empty", NormalizePath(""), ""],
+        ["ValidatePath ok", ValidatePath("/tmp/x"), null],
+        ["ValidatePath empty", ValidatePath(""), "Path cannot be null or empty"]
+    ]);
+}
+
+// ── streams ─────────────────────────────────────────────────────────────
+
+function test_memory_stream_constructors() {
+    let fromText = MemoryStream_FromString("hello");
+    let written = MemoryStream_New(4);
+    let buf = Buffer_FromString("raw");
+    let fromBuf = MemoryStream_FromBuffer(buf, false);
+    return all([
+        ["FromString content", MemoryStream_ToString(fromText), "hello"],
+        ["FromString read-only", fromText.canWrite, false],
+        ["New writable", written.canWrite, true],
+        ["FromBuffer shares buffer", Buffer_AsString(MemoryStream_GetBuffer(fromBuf)), "raw"],
+        ["FromBuffer read-only by default", fromBuf.canWrite, false]
+    ]);
+}
+
+function test_memory_stream_after_close() {
+    let s = MemoryStream_FromString("x");
+    s.close();
+    return expectEq("ToString after close", MemoryStream_ToString(s),
+                    "Cannot access disposed object: MemoryStream");
+}
+
+function test_stream_helpers_and_seek_origin() {
+    let s = MemoryStream_FromString("x");
+    return all([
+        ["IsStream stream", Stream_IsStream(s), true],
+        ["IsStream string", Stream_IsStream("error text"), false],
+        ["IsStream null", Stream_IsStream(null), false],
+        ["IsStream plain object", Stream_IsStream(SeekOrigin), false],
+        ["IsError string", Stream_IsError("error text"), true],
+        ["IsError stream", Stream_IsError(s), false],
+        ["SeekOrigin.Begin", SeekOrigin.Begin, SeekOrigin_Begin],
+        ["SeekOrigin.Current", SeekOrigin.Current, SeekOrigin_Current],
+        ["SeekOrigin.End", SeekOrigin.End, SeekOrigin_End],
+        ["POSIX whence", SeekOrigin_End, 2]
+    ]);
+}
+
+function test_file_mode_constants() {
+    return all([
+        ["Read", FileMode.Read, FileMode_Read],
+        ["Write", FileMode.Write, FileMode_Write],
+        ["ReadWrite", FileMode.ReadWrite, FileMode_ReadWrite],
+        ["Append", FileMode.Append, FileMode_Append],
+        ["distinct", FileMode_Read != FileMode_Write && FileMode_ReadWrite != FileMode_Append, true]
+    ]);
+}
+
+// ── file handles ────────────────────────────────────────────────────────
+
+function test_file_handle_accessors_and_dispose() {
+    Fs_SetBackend(MemoryBackend());
+    let h = FileHandle("/notes.txt", "write");
+    let checks = all([
+        ["GetPath", FileHandle_GetPath(h), "/notes.txt"],
+        ["GetMode", FileHandle_GetMode(h), "write"],
+        ["open", FileHandle_IsOpen(h), true]
+    ]);
+    if (checks != true) {
+        return checks;
+    }
+    FileHandle_Dispose(h);
+    return all([
+        ["closed after Dispose", FileHandle_IsOpen(h), false],
+        ["GetPath null", FileHandle_GetPath(null), null]
+    ]);
+}
+
+function test_file_exists_native() {
+    return all([
+        ["missing", File_Exists("/tmp/dryad_io_api_definitely_missing"), false],
+        ["empty path", File_Exists(""), false]
+    ]);
+}
+
+// ── locks and thread-safe VFS ───────────────────────────────────────────
+
+function test_file_lock_rejects_reentry() {
+    let lock = FileLock();
+    let first = FileLock_Acquire(lock);
+    let second = FileLock_Acquire(lock);
+    FileLock_Release(lock);
+    let third = FileLock_Acquire(lock);
+    return all([
+        ["first acquire", first, null],
+        ["second acquire", second, "FileLock already held"],
+        ["acquire after release", third, null]
+    ]);
+}
+
+function test_thread_safe_vfs_operations() {
+    let vfs = ThreadSafeVFS(MemoryBackend());
+    ThreadSafeVFS_Mkdir(vfs, "/d");
+    ThreadSafeVFS_WriteFile(vfs, "/d/a.txt", "A");
+    let listed = ThreadSafeVFS_ListDirectory(vfs, "/d");
+    let checks = all([
+        ["read", ThreadSafeVFS_ReadFile(vfs, "/d/a.txt"), "A"],
+        ["exists", ThreadSafeVFS_Exists(vfs, "/d/a.txt"), true],
+        ["listed one", __runtime_array_length(listed), 1]
+    ]);
+    if (checks != true) {
+        return checks;
+    }
+    ThreadSafeVFS_RemoveFile(vfs, "/d/a.txt");
+    return expectEq("removed", ThreadSafeVFS_Exists(vfs, "/d/a.txt"), false);
+}
+
+function test_vfs_directory_operations() {
+    let vfs = VFS(MemoryBackend());
+    VFS_Mkdir(vfs, "/logs");
+    VFS_WriteFile(vfs, "/logs/1.txt", "one");
+    VFS_WriteFile(vfs, "/logs/2.txt", "two");
+    let listed = VFS_ListDirectory(vfs, "/logs");
+    VFS_RemoveFile(vfs, "/logs/1.txt");
+    return all([
+        ["listed", __runtime_array_length(listed), 2],
+        ["memory backend lists full keys", listed[0] == "/logs/1.txt" || listed[1] == "/logs/1.txt", true],
+        ["removed", VFS_Exists(vfs, "/logs/1.txt"), false],
+        ["kept", VFS_Exists(vfs, "/logs/2.txt"), true]
+    ]);
+}
+
+// ── async facade ────────────────────────────────────────────────────────
+
+let __async_log = "";
+
+function __note(label) {
+    return function(value) {
+        let shown = "null";
+        if (value == true) {
+            shown = "true";
+        } else if (value != null) {
+            shown = value;
+        }
+        __async_log = __async_log + label + "=" + shown + ";";
+        return value;
+    };
+}
+
+function test_fs_async_wrappers_resolve_with_sync_results() {
+    Fs_SetBackend(MemoryBackend());
+    __async_log = "";
+    Fs_MkdirAsync("/a").then(__note("mkdir"));
+    Fs_WriteFileAsync("/a/f.txt", "data").then(__note("write"));
+    Fs_ReadFileAsync("/a/f.txt").then(__note("read"));
+    Fs_ExistsAsync("/a/f.txt").then(__note("exists"));
+    Fs_ListDirectoryAsync("/a").then(function(items) {
+        __async_log = __async_log + "list=" + __int_to_string(__runtime_array_length(items)) + ";";
+        return items;
+    });
+    Fs_RemoveFileAsync("/a/f.txt").then(__note("remove"));
+    Promise_Flush();
+    return expectEq("async log", __async_log, "mkdir=null;write=null;read=data;exists=true;list=1;remove=null;");
+}

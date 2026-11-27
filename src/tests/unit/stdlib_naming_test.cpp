@@ -152,3 +152,45 @@ TEST(StdlibNamingTest, EveryPackageHasABarrel) {
         EXPECT_FALSE(interp.global_env()->get(name).is_null()) << name;
     }
 }
+
+TEST(StdlibNamingTest, BarrelsExportTheWholePublicApi) {
+    // Every public name (not `_`-prefixed, not a deprecated alias) defined in a
+    // package's modules is importable from the package barrel, so users never
+    // have to know which file a function lives in.
+    static const std::regex definition(R"(^(?:async\s+)?(?:function|class|interface|let)\s+([A-Za-z]\w*))");
+    const fs::path root = fs::path(DRYAD_STDLIB_DIR) / "@std";
+    Interpreter interp;
+    interp.set_stdlib_root(DRYAD_STDLIB_DIR);
+    // bytes and text are single-module packages: the module is the barrel.
+    for (const std::string package : {"core", "buffers", "io", "async", "net"}) {
+        std::vector<std::string> names;
+        for (const auto& path : stdlib_files()) {
+            const std::string module = module_of(path);
+            if (module.rfind("@std/" + package + "/", 0) != 0 || module == "@std/" + package + "/" + package) {
+                continue;
+            }
+            std::istringstream lines(read_file(path));
+            std::string line;
+            std::string previous;
+            while (std::getline(lines, line)) {
+                std::smatch match;
+                if (std::regex_search(line, match, definition) && previous.find("@deprecated") == std::string::npos) {
+                    names.push_back(match[1]);
+                }
+                previous = line;
+            }
+        }
+        ASSERT_FALSE(names.empty()) << package;
+        for (const auto& name : names) {
+            const std::string source = "import { " + name + " } from \"@std/" + package + "\";\n";
+            Lexer lexer(source);
+            Parser parser(lexer.tokenize());
+            auto program = parser.parse();
+            try {
+                interp.execute(program.get());
+            } catch (const std::exception& error) {
+                ADD_FAILURE() << "@std/" << package << " does not export " << name;
+            }
+        }
+    }
+}

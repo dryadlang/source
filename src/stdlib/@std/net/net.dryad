@@ -3,13 +3,27 @@
 
 import {
     SocketDomain,
+    SocketDomain_IPv4,
+    SocketDomain_IPv6,
     SocketType,
-    Shutdown
+    SocketType_Stream,
+    SocketType_Datagram,
+    Shutdown,
+    Shutdown_Read,
+    Shutdown_Write,
+    Shutdown_Both
 } from "@std/net/constants";
 import {
     Socket,
+    Socket_IsSocket,
     Socket_fromFd
 } from "@std/net/socket";
+import {
+    Socket_ConnectAsync,
+    Socket_SendAsync,
+    Socket_ReceiveAsync,
+    TcpClient_ConnectAsync
+} from "@std/net/socket_async";
 import {
     NetworkStream,
     NetworkStream_FromSocket,
@@ -47,3 +61,7 @@ import {
     HttpClient_Create,
     HttpClient_create
 } from "@std/net/http/http_client";
+import { HttpHeaders } from "@std/net/http/http_headers";
+import { HttpRequest } from "@std/net/http/http_request";
+import { HttpResponse, HttpResponse_Parse } from "@std/net/http/http_response";
+import { Http_ParseUrl } from "@std/net/http/http_url";

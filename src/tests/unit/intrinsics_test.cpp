@@ -10,6 +10,7 @@
 #include <atomic>
 #include <cstdint>
 #include <limits>
+#include <string>
 #include <thread>
 #include <vector>
 
@@ -37,18 +38,25 @@ protected:
     void SetUp() override {
         auto& registry = IntrinsicsRegistry::instance();
         registry.register_all();
+        // ctest runs each case in its own process, in parallel: a shared path
+        // let one case's TearDown unlink another's file mid-test.
+        path_ = std::string("/tmp/dryad_test_") +
+                ::testing::UnitTest::GetInstance()->current_test_info()->name() + "_" +
+                std::to_string(::getpid()) + ".txt";
     }
     
     void TearDown() override {
-        ::unlink("/tmp/dryad_test.txt");
+        ::unlink(path_.c_str());
     }
+
+    std::string path_;
 };
 
 TEST_F(IntrinsicsTest, FileOpenClose) {
     auto& registry = IntrinsicsRegistry::instance();
     
     Value fd = registry.call("syscall.open", {
-        Value("/tmp/dryad_test.txt"),
+        Value(path_),
         Value(static_cast<int64_t>(O_CREAT | O_WRONLY | O_TRUNC))
     });
     
@@ -63,7 +71,7 @@ TEST_F(IntrinsicsTest, FileWriteRead) {
     auto& registry = IntrinsicsRegistry::instance();
     
     Value fd_write = registry.call("syscall.open", {
-        Value("/tmp/dryad_test.txt"),
+        Value(path_),
         Value(static_cast<int64_t>(O_CREAT | O_WRONLY | O_TRUNC))
     });
     
@@ -78,7 +86,7 @@ TEST_F(IntrinsicsTest, FileWriteRead) {
     registry.call("syscall.close", {fd_write});
     
     Value fd_read = registry.call("syscall.open", {
-        Value("/tmp/dryad_test.txt"),
+        Value(path_),
         Value(static_cast<int64_t>(O_RDONLY))
     });
     
@@ -96,15 +104,15 @@ TEST_F(IntrinsicsTest, FileWriteRead) {
 TEST_F(IntrinsicsTest, FileUnlink) {
     auto& registry = IntrinsicsRegistry::instance();
     
-    std::ofstream("/tmp/dryad_test.txt") << "test";
+    std::ofstream(path_) << "test";
     
     Value result = registry.call("syscall.unlink", {
-        Value("/tmp/dryad_test.txt")
+        Value(path_)
     });
     
     EXPECT_EQ(result.as_integer(), 0);
     
-    EXPECT_FALSE(std::ifstream("/tmp/dryad_test.txt").good());
+    EXPECT_FALSE(std::ifstream(path_).good());
 }
 
 TEST_F(IntrinsicsTest, TimeIntrinsic) {

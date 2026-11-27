@@ -137,9 +137,11 @@ function test_network_stream_rejects_non_sockets() {
 }
 
 function test_tls_connect_reports_unavailable_or_bad_fd() {
+    // Runs offline: with TLS built in, a bad descriptor must be rejected before
+    // the handshake (which would need network access).
     let result = TlsStream_Connect(-1, "example.test");
     if (TlsStream_IsAvailable()) {
-        return expectEq("bad fd is an error string", __runtime_value_kind(result), "string");
+        return expectEq("bad fd", result, "TlsStream_Connect requires an open socket descriptor");
     }
     return expectEq("unavailable", result, "TLS is not available in this build");
 }

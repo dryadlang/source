@@ -7,6 +7,7 @@ import {
     Buffer_GetOffset
 } from "@std/buffers/buffer";
 import {
+    ArgumentException,
     InvalidOperationException,
     NetworkException
 } from "@std/core/exceptions";
@@ -119,8 +120,12 @@ function TlsStream_Connect(fd, host) {
     if (!__tls_available()) {
         return NetworkException("TLS is not available in this build");
     }
+    // Reject a bad descriptor before the handshake, which needs network access.
+    if (__runtime_value_kind(fd) != "integer" || fd < 0) {
+        return ArgumentException("TlsStream_Connect requires an open socket descriptor");
+    }
     let tlsHandle = __tls_client_handshake(fd, host);
-    if (tlsHandle < 0) {
+    if (__runtime_value_kind(tlsHandle) != "integer" || tlsHandle < 0) {
         return NetworkException("TLS handshake failed");
     }
     return new TlsStream(tlsHandle, host);

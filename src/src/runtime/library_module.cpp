@@ -300,8 +300,8 @@ public:
 
     Value call_with_receiver(Interpreter* interp,
                              const std::vector<Value>& args,
-                             std::shared_ptr<ClassInstance> receiver) override {
-        return invoke_with_slots(interp, args, std::move(receiver));
+                             const std::shared_ptr<ClassInstance>& receiver) override {
+        return invoke_with_slots(interp, args, receiver);
     }
 
     void invoke_constructor(const std::shared_ptr<ClassInstance>& instance,
@@ -556,7 +556,7 @@ LibraryMaterialization materialize_library(CompiledLibrary& library, Interpreter
         module_env->define(fn_export.name, Value(fn));
     }
 
-    result.environment = module_env;
+    result.environment = std::move(module_env);
     return result;
 }
 

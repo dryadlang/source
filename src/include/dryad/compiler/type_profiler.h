@@ -10,13 +10,13 @@
 
 namespace dryad {
 
-enum class TypeConfidence {
+enum class TypeConfidence : std::uint8_t {
     STATIC,
     OBSERVED,
     UNKNOWN
 };
 
-enum class ObservedType {
+enum class ObservedType : std::uint8_t {
     Null,
     Bool,
     I32,

@@ -23,6 +23,7 @@ std::string ValidationResult::message() const {
 
 std::vector<std::string> ValidationResult::errors() const {
     std::vector<std::string> messages;
+    messages.reserve(diagnostics.size());
     for (const auto& diagnostic : diagnostics) {
         messages.push_back(diagnostic.format());
     }

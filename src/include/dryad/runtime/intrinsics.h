@@ -8,7 +8,7 @@
 
 namespace dryad {
 
-enum class IoBufferMode {
+enum class IoBufferMode : std::uint8_t {
     Read,
     Write
 };

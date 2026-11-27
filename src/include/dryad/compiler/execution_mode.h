@@ -1,11 +1,12 @@
 #ifndef DRYAD_COMPILER_EXECUTION_MODE_H
 #define DRYAD_COMPILER_EXECUTION_MODE_H
 
+#include <cstdint>
 #include <string>
 
 namespace dryad {
 
-enum class ExecutionMode {
+enum class ExecutionMode : std::uint8_t {
     Inherit,
     Interpreter,
     Bytecode,

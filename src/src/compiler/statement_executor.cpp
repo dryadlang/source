@@ -168,7 +168,7 @@ void StatementExecutor::execute_block_statement(BlockStatement* stmt) {
 void StatementExecutor::execute_block(const std::vector<std::unique_ptr<Statement>>& statements,
                                      std::shared_ptr<Environment> env) {
     auto previous = interpreter_->current_env();
-    interpreter_->set_current_env(env);
+    interpreter_->set_current_env(std::move(env));
     
     try {
         for (auto& statement : statements) {

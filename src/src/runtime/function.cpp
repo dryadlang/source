@@ -12,17 +12,17 @@ Value DryadFunction::call(Interpreter* interp, const std::vector<Value>& args) {
 }
 
 Value DryadFunction::call_with_receiver(Interpreter* interp, const std::vector<Value>& args,
-                                        std::shared_ptr<ClassInstance> receiver) {
-    return call_impl(interp, args, std::move(receiver));
+                                        const std::shared_ptr<ClassInstance>& receiver) {
+    return call_impl(interp, args, receiver);
 }
 
 Value DryadFunction::call_impl(Interpreter* interp, const std::vector<Value>& args,
-                               std::shared_ptr<ClassInstance> receiver) {
+                               const std::shared_ptr<ClassInstance>& receiver) {
     return interp->execution_engine().invoke_function(declaration_, this, args, receiver);
 }
 
 Value DryadFunction::call_interpreted(Interpreter* interp, const std::vector<Value>& args,
-                                      std::shared_ptr<ClassInstance> receiver) {
+                                      const std::shared_ptr<ClassInstance>& receiver) {
     const auto& parameters = declaration_->parameters;
     size_t required_count = 0;
     for (const auto& param : parameters) {

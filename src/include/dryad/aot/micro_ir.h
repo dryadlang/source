@@ -8,7 +8,7 @@
 
 namespace dryad {
 
-enum class IrType {
+enum class IrType : std::uint8_t {
     Void,
     I32,
     F64,
@@ -17,7 +17,7 @@ enum class IrType {
     Variant
 };
 
-enum class IrOpcode {
+enum class IrOpcode : std::uint8_t {
     ConstI32,
     ConstF64,
     ConstBool,

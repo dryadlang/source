@@ -7,12 +7,12 @@
 
 namespace dryad {
 
-enum class NativeLinkKind {
+enum class NativeLinkKind : std::uint8_t {
     SharedObject,
     Executable,
 };
 
-enum class NativeBinaryFormat {
+enum class NativeBinaryFormat : std::uint8_t {
     Unknown,
     Elf,
     Pe,

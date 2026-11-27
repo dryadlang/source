@@ -80,6 +80,7 @@ uint16_t IntrinsicsRegistry::get_id(const std::string& name) const {
 std::vector<std::pair<uint16_t, std::string>> IntrinsicsRegistry::list_all_intrinsics() const {
     std::shared_lock<std::shared_mutex> lock(mutex_);
     std::vector<std::pair<uint16_t, std::string>> result;
+    result.reserve(name_to_id_.size());
     for (const auto& pair : name_to_id_) {
         result.emplace_back(pair.second, pair.first);
     }

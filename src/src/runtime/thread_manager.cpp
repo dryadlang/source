@@ -87,7 +87,7 @@ int64_t ThreadManager::spawn(Value function, const std::vector<Value>& arguments
 }
 
 void ThreadManager::spawn_async(Value function, const std::vector<Value>& arguments,
-                                Value resolve, Value reject) {
+                                const Value& resolve, const Value& reject) {
     if (!function.is_function()) {
         throw DryadException("thread spawn_async requires a function");
     }
@@ -167,7 +167,7 @@ int64_t ThreadPool::submit(Value function, const std::vector<Value>& arguments) 
     }
 
     PoolJob pool_job;
-    pool_job.job = job;
+    pool_job.job = std::move(job);
 
     {
         std::lock_guard<std::mutex> lock(queue_mutex_);

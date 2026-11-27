@@ -584,6 +584,7 @@ private:
                 pc += 1;
                 break;
             }
+            case Opcode::NEG:
             case Opcode::BIT_NOT: {
                 inst.lhs = pop();
                 inst.op = IrOpcode::IntrinsicSlow;

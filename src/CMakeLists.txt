@@ -199,6 +199,7 @@ if(DRYAD_BUILD_TESTS)
         tests/unit/object_test.cpp
         tests/unit/class_test.cpp
         tests/unit/validator_test.cpp
+        tests/unit/integer_semantics_test.cpp
         tests/unit/poo_foundation_test.cpp
         tests/unit/lsp_foundation_test.cpp
         tests/unit/buffer_intrinsics_test.cpp

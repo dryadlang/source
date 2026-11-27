@@ -21,6 +21,7 @@ bool is_slow_opcode(Opcode op) {
         case Opcode::BIT_OR:
         case Opcode::BIT_XOR:
         case Opcode::BIT_NOT:
+        case Opcode::NEG:
         case Opcode::SHL:
         case Opcode::SHR:
         case Opcode::GET_ELEMENT:

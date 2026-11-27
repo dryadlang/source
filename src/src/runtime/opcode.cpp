@@ -33,6 +33,7 @@ const char* opcode_name(Opcode op) {
         case Opcode::BIT_NOT:          return "BIT_NOT";
         case Opcode::SHL:              return "SHL";
         case Opcode::SHR:              return "SHR";
+        case Opcode::NEG:              return "NEG";
         case Opcode::EQ:               return "EQ";
         case Opcode::NEQ:              return "NEQ";
         case Opcode::LT:               return "LT";

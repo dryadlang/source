@@ -11,6 +11,7 @@ TEST(OpcodeTest, OpcodeNameCoversRepresentativeOpcodes) {
     // without needing to provoke those error paths end to end.
     EXPECT_EQ(std::string(opcode_name(Opcode::PUSH_NULL)), "PUSH_NULL");
     EXPECT_EQ(std::string(opcode_name(Opcode::ADD)), "ADD");
+    EXPECT_EQ(std::string(opcode_name(Opcode::NEG)), "NEG");
     EXPECT_EQ(std::string(opcode_name(Opcode::JUMP_IF_FALSE)), "JUMP_IF_FALSE");
     EXPECT_EQ(std::string(opcode_name(Opcode::CALL_VALUE)), "CALL_VALUE");
     EXPECT_EQ(std::string(opcode_name(Opcode::MAKE_CLOSURE)), "MAKE_CLOSURE");
@@ -34,5 +35,6 @@ TEST(OpcodeTest, OpcodeSizeMatchesEncodingWidth) {
     // no operand (default case)
     EXPECT_EQ(opcode_size(Opcode::POP), 1u);
     EXPECT_EQ(opcode_size(Opcode::ADD), 1u);
+    EXPECT_EQ(opcode_size(Opcode::NEG), 1u);
     EXPECT_EQ(opcode_size(Opcode::HALT), 1u);
 }

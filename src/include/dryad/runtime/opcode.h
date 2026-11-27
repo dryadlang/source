@@ -46,6 +46,9 @@ enum class Opcode : uint8_t {
     SHL         = 0x25,
     SHR         = 0x26,
 
+    // Unary arithmetic (0x27): -x, same rules as the interpreter
+    NEG         = 0x27,
+
     // Comparison (0x40–0x45)
     EQ          = 0x40,
     NEQ         = 0x41,

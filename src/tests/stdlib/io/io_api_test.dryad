@@ -14,10 +14,11 @@ import {
     FileHandle, FileHandle_IsOpen, FileHandle_GetPath, FileHandle_GetMode, FileHandle_Dispose,
     FileLock, FileLock_Acquire, FileLock_Release,
     ThreadSafeVFS, ThreadSafeVFS_ReadFile, ThreadSafeVFS_WriteFile, ThreadSafeVFS_Exists,
-    ThreadSafeVFS_RemoveFile, ThreadSafeVFS_ListDirectory, ThreadSafeVFS_Mkdir,
-    VFS, MemoryBackend, VFS_WriteFile, VFS_ListDirectory, VFS_Mkdir, VFS_RemoveFile, VFS_Exists,
+    ThreadSafeVFS_RemoveFile, ThreadSafeVFS_RenameFile, ThreadSafeVFS_ListDirectory, ThreadSafeVFS_Mkdir,
+    VFS, MemoryBackend, VFS_WriteFile, VFS_ListDirectory, VFS_Mkdir, VFS_RemoveFile, VFS_RenameFile, VFS_Exists,
     Fs_SetBackend, Fs_WriteFileAsync, Fs_ReadFileAsync, Fs_ExistsAsync,
-    Fs_RemoveFileAsync, Fs_ListDirectoryAsync, Fs_MkdirAsync
+    Fs_RemoveFileAsync, Fs_RenameFileAsync, Fs_ListDirectoryAsync, Fs_MkdirAsync,
+    Fs_Exists, Fs_ReadFile
 } from "@std/io";
 import { Buffer_FromString, Buffer_AsString } from "@std/buffers";
 import { Promise_Flush } from "@std/async";
@@ -241,8 +242,17 @@ function test_thread_safe_vfs_operations() {
     if (checks != true) {
         return checks;
     }
-    ThreadSafeVFS_RemoveFile(vfs, "/d/a.txt");
-    return expectEq("removed", ThreadSafeVFS_Exists(vfs, "/d/a.txt"), false);
+    let renamed = ThreadSafeVFS_RenameFile(vfs, "/d/a.txt", "/d/b.txt");
+    let renameChecks = all([
+        ["rename ok", renamed, null],
+        ["old gone", ThreadSafeVFS_Exists(vfs, "/d/a.txt"), false],
+        ["new present", ThreadSafeVFS_ReadFile(vfs, "/d/b.txt"), "A"]
+    ]);
+    if (renameChecks != true) {
+        return renameChecks;
+    }
+    ThreadSafeVFS_RemoveFile(vfs, "/d/b.txt");
+    return expectEq("removed", ThreadSafeVFS_Exists(vfs, "/d/b.txt"), false);
 }
 
 function test_vfs_directory_operations() {
@@ -252,11 +262,32 @@ function test_vfs_directory_operations() {
     VFS_WriteFile(vfs, "/logs/2.txt", "two");
     let listed = VFS_ListDirectory(vfs, "/logs");
     VFS_RemoveFile(vfs, "/logs/1.txt");
-    return all([
+    let checks = all([
         ["listed", __runtime_array_length(listed), 2],
         ["memory backend lists full keys", listed[0] == "/logs/1.txt" || listed[1] == "/logs/1.txt", true],
         ["removed", VFS_Exists(vfs, "/logs/1.txt"), false],
         ["kept", VFS_Exists(vfs, "/logs/2.txt"), true]
+    ]);
+    if (checks != true) {
+        return checks;
+    }
+    let renamed = VFS_RenameFile(vfs, "/logs/2.txt", "/logs/3.txt");
+    return all([
+        ["rename ok", renamed, null],
+        ["renamed gone", VFS_Exists(vfs, "/logs/2.txt"), false],
+        ["renamed present", VFS_Exists(vfs, "/logs/3.txt"), true]
+    ]);
+}
+
+function test_fs_rename_file_async() {
+    Fs_SetBackend(MemoryBackend());
+    Fs_WriteFileAsync("/async-old.txt", "payload");
+    Promise_Flush();
+    Fs_RenameFileAsync("/async-old.txt", "/async-new.txt");
+    Promise_Flush();
+    return all([
+        ["old gone", Fs_Exists("/async-old.txt"), false],
+        ["new content", Fs_ReadFile("/async-new.txt"), "payload"]
     ]);
 }
 
@@ -288,9 +319,12 @@ function test_fs_async_wrappers_resolve_with_sync_results() {
         __async_log = __async_log + "list=" + __int_to_string(__runtime_array_length(items)) + ";";
         return items;
     });
-    Fs_RemoveFileAsync("/a/f.txt").then(__note("remove"));
+    Fs_RenameFileAsync("/a/f.txt", "/a/g.txt").then(__note("rename"));
+    Fs_ExistsAsync("/a/g.txt").then(__note("renamedExists"));
+    Fs_RemoveFileAsync("/a/g.txt").then(__note("remove"));
     Promise_Flush();
-    return expectEq("async log", __async_log, "mkdir=null;write=null;read=data;exists=true;list=1;remove=null;");
+    return expectEq("async log", __async_log,
+        "mkdir=null;write=null;read=data;exists=true;list=1;rename=null;renamedExists=true;remove=null;");
 }
 
 // ── whole-file helpers: failures are error strings, never thrown ────────

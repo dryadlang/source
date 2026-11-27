@@ -9,6 +9,7 @@ import {
     VFS_ReadFile,
     VFS_Exists,
     VFS_RemoveFile,
+    VFS_RenameFile,
     VFS_Dispose,
     VFS_ListDirectory,
     VFS_Mkdir
@@ -153,5 +154,44 @@ function test_native_backend_mkdir_and_list() {
 function test_native_backend_missing_file() {
     let vfs = VFS(NativeBackend());
     let err = VFS_ReadFile(vfs, "dryad_vfs_does_not_exist.txt");
+    return err != null;
+}
+
+function test_memory_backend_rename_file() {
+    let vfs = VFS(MemoryBackend());
+    VFS_WriteFile(vfs, "/old.txt", "payload");
+    let result = VFS_RenameFile(vfs, "/old.txt", "/new.txt");
+    return result == null && !VFS_Exists(vfs, "/old.txt") &&
+        VFS_ReadFile(vfs, "/new.txt") == "payload";
+}
+
+function test_memory_backend_rename_missing_file() {
+    let vfs = VFS(MemoryBackend());
+    let err = VFS_RenameFile(vfs, "/nope.txt", "/dest.txt");
+    return err != null && !VFS_Exists(vfs, "/dest.txt");
+}
+
+function test_native_backend_rename_file() {
+    let vfs = VFS(NativeBackend());
+    let oldPath = "dryad_vfs_native_rename_old.txt";
+    let newPath = "dryad_vfs_native_rename_new.txt";
+    if (VFS_Exists(vfs, oldPath)) {
+        VFS_RemoveFile(vfs, oldPath);
+    }
+    if (VFS_Exists(vfs, newPath)) {
+        VFS_RemoveFile(vfs, newPath);
+    }
+    VFS_WriteFile(vfs, oldPath, "native rename");
+    let result = VFS_RenameFile(vfs, oldPath, newPath);
+    let oldGone = !VFS_Exists(vfs, oldPath);
+    let newExists = VFS_Exists(vfs, newPath);
+    let content = VFS_ReadFile(vfs, newPath);
+    VFS_RemoveFile(vfs, newPath);
+    return result == null && oldGone && newExists && content == "native rename";
+}
+
+function test_native_backend_rename_missing_file() {
+    let vfs = VFS(NativeBackend());
+    let err = VFS_RenameFile(vfs, "dryad_vfs_rename_does_not_exist.txt", "dryad_vfs_rename_dest.txt");
     return err != null;
 }

@@ -147,6 +147,28 @@ function VFS_Exists(vfs, path) {
     return _FileSystemBackend_exists(backend, path);
 }
 
+// VFS_RenameFile - Rename/move a file to a new path
+function VFS_RenameFile(vfs, oldPath, newPath) {
+    if (vfs == null) {
+        return ArgumentNullException("vfs");
+    }
+
+    let disposed = __runtime_object_get(vfs, "disposed");
+    if (disposed) {
+        return ObjectDisposedException("VFS");
+    }
+
+    if (oldPath == null || oldPath == "") {
+        return ArgumentException("Old path cannot be null or empty");
+    }
+    if (newPath == null || newPath == "") {
+        return ArgumentException("New path cannot be null or empty");
+    }
+
+    let backend = __runtime_object_get(vfs, "backend");
+    return _FileSystemBackend_renameFile(backend, oldPath, newPath);
+}
+
 // VFS_Mkdir - Create directory
 function VFS_Mkdir(vfs, path) {
     if (vfs == null) {
@@ -272,6 +294,33 @@ function _FileSystemBackend_removeFile(backend, path) {
         return _MemoryBackend_removeFile(backend, normalizedPath);
     } else if (type == "native") {
         return _NativeBackend_removeFile(backend, normalizedPath);
+    }
+    
+    return IOException("Unknown backend type: " + type);
+}
+
+function _FileSystemBackend_renameFile(backend, oldPath, newPath) {
+    if (backend == null) {
+        return ArgumentNullException("backend");
+    }
+
+    let oldPathErr = ValidatePath(oldPath);
+    if (oldPathErr != null) {
+        return oldPathErr;
+    }
+    let newPathErr = ValidatePath(newPath);
+    if (newPathErr != null) {
+        return newPathErr;
+    }
+
+    let normalizedOldPath = NormalizePath(oldPath);
+    let normalizedNewPath = NormalizePath(newPath);
+    let type = __runtime_object_get(backend, "type");
+    
+    if (type == "memory") {
+        return _MemoryBackend_renameFile(backend, normalizedOldPath, normalizedNewPath);
+    } else if (type == "native") {
+        return _NativeBackend_renameFile(backend, normalizedOldPath, normalizedNewPath);
     }
     
     return IOException("Unknown backend type: " + type);
@@ -426,6 +475,32 @@ function _MemoryBackend_removeFile(backend, path) {
     }
     
     __runtime_object_set(files, path, null);
+    return null;
+}
+
+// _MemoryBackend_renameFile - Move file to a new key in memory storage
+function _MemoryBackend_renameFile(backend, oldPath, newPath) {
+    if (oldPath == null || oldPath == "") {
+        return ArgumentException("Old path cannot be empty");
+    }
+    if (newPath == null || newPath == "") {
+        return ArgumentException("New path cannot be empty");
+    }
+    
+    let disposed = __runtime_object_get(backend, "disposed");
+    if (disposed) {
+        return ObjectDisposedException("MemoryBackend");
+    }
+    
+    let files = __runtime_object_get(backend, "files");
+    let content = __runtime_object_get(files, oldPath);
+    
+    if (content == null) {
+        return FileNotFoundException("File not found: " + oldPath);
+    }
+    
+    __runtime_object_set(files, newPath, content);
+    __runtime_object_set(files, oldPath, null);
     return null;
 }
 
@@ -601,6 +676,31 @@ function _NativeBackend_removeFile(backend, path) {
     let result = __unlink(path);
     if (result < 0) {
         return IOException("Failed to remove file: " + path);
+    }
+    return null;
+}
+
+// _NativeBackend_renameFile - Rename/move a file on the real filesystem
+function _NativeBackend_renameFile(backend, oldPath, newPath) {
+    if (oldPath == null || oldPath == "") {
+        return ArgumentException("Old path cannot be empty");
+    }
+    if (newPath == null || newPath == "") {
+        return ArgumentException("New path cannot be empty");
+    }
+    
+    let disposed = __runtime_object_get(backend, "disposed");
+    if (disposed) {
+        return ObjectDisposedException("NativeBackend");
+    }
+
+    if (!__exists(oldPath)) {
+        return FileNotFoundException("File not found: " + oldPath);
+    }
+
+    let result = __rename(oldPath, newPath);
+    if (result < 0) {
+        return IOException("Failed to rename file: " + oldPath + " -> " + newPath);
     }
     return null;
 }

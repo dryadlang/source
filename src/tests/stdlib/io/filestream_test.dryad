@@ -154,3 +154,25 @@ function test_write_to_readonly_stream_fails() {
     File_Delete(path);
     return result != 1;
 }
+
+function test_file_open_readwrite_mode() {
+    let path = "dryad_filestream_readwrite.txt";
+    File_WriteAllText(path, "0123456789");
+
+    let fs = File_Open(path, FileMode.ReadWrite);
+    let modeOk = fs.canRead && fs.canWrite;
+
+    let buf = Buffer_FromString("AB");
+    let written = fs.write(buf, 0, 2);
+    Buffer_Dispose(buf);
+
+    fs.seek(0, SeekOrigin.Begin);
+    let readBuf = Buffer_New(10);
+    let nbytes = fs.read(readBuf, 0, 10);
+    let text = Buffer_AsString(readBuf);
+    Buffer_Dispose(readBuf);
+    fs.close();
+    File_Delete(path);
+
+    return modeOk && written == 2 && nbytes == 10 && text == "AB23456789";
+}

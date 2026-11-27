@@ -6,6 +6,7 @@ import {
     Fs_WriteFile,
     Fs_Exists,
     Fs_RemoveFile,
+    Fs_RenameFile,
     Fs_ListDirectory,
     Fs_Mkdir,
     Fs_SetBackend,
@@ -13,6 +14,7 @@ import {
     Fs_WriteFileAsync,
     Fs_ExistsAsync,
     Fs_RemoveFileAsync,
+    Fs_RenameFileAsync,
     Fs_ListDirectoryAsync,
     Fs_MkdirAsync
 } from "@std/io/file";
@@ -32,6 +34,7 @@ import {
     VFS_WriteFile,
     VFS_ListDirectory,
     VFS_RemoveFile,
+    VFS_RenameFile,
     VFS_Exists,
     VFS_Mkdir,
     VFS_Dispose,
@@ -96,6 +99,7 @@ import {
     ThreadSafeVFS_WriteFile,
     ThreadSafeVFS_Exists,
     ThreadSafeVFS_RemoveFile,
+    ThreadSafeVFS_RenameFile,
     ThreadSafeVFS_ListDirectory,
     ThreadSafeVFS_Mkdir
 } from "@std/io/io_concurrency";

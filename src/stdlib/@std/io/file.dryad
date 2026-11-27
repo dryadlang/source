@@ -17,6 +17,7 @@ import {
     VFS_exists,
     VFS_RemoveFile,
     VFS_removeFile,
+    VFS_RenameFile,
     VFS_ListDirectory,
     VFS_listDirectory,
     VFS_Mkdir,
@@ -157,6 +158,28 @@ function Fs_RemoveFile(path) {
     return VFS_RemoveFile(vfs, path);
 }
 
+// Fs_RenameFile(oldPath: string, newPath: string): void
+// Rename/move a file to a new path
+// Parameters:
+//   oldPath - Existing file path
+//   newPath - Destination path
+// Returns:
+//   null on success, exception string on error
+// Throws:
+//   FileNotFoundException if oldPath doesn't exist
+//   ArgumentException if either path is invalid
+function Fs_RenameFile(oldPath, newPath) {
+    if (oldPath == null || oldPath == "") {
+        return ArgumentException("Old path cannot be null or empty");
+    }
+    if (newPath == null || newPath == "") {
+        return ArgumentException("New path cannot be null or empty");
+    }
+    
+    let vfs = _getGlobalVFS();
+    return VFS_RenameFile(vfs, oldPath, newPath);
+}
+
 // Fs_ListDirectory(path: string): array
 // List files in directory
 // Parameters:
@@ -222,6 +245,10 @@ function Fs_ExistsAsync(path) {
 
 function Fs_RemoveFileAsync(path) {
     return Promise_Resolve(Fs_RemoveFile(path));
+}
+
+function Fs_RenameFileAsync(oldPath, newPath) {
+    return Promise_Resolve(Fs_RenameFile(oldPath, newPath));
 }
 
 function Fs_ListDirectoryAsync(path) {

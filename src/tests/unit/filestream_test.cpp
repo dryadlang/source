@@ -88,3 +88,7 @@ TEST(FileStreamTest, WriteNestedPath) {
 TEST(FileStreamTest, AppendModePosition) {
     EXPECT_TRUE(run_filestream_test("test_file_append_mode_position").is_truthy());
 }
+
+TEST(FileStreamTest, OpenReadWriteMode) {
+    EXPECT_TRUE(run_filestream_test("test_file_open_readwrite_mode").is_truthy());
+}

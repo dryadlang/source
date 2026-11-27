@@ -14,36 +14,27 @@ Value::Value(int64_t i) : type_(ValueType::Integer), integer_(i), string_(nullpt
 
 Value::Value(double d) : type_(ValueType::Float), float_(d), string_(nullptr), array_(nullptr), object_(nullptr), function_(nullptr), class_(nullptr), instance_(nullptr) {}
 
-Value::Value(const std::string& s) : type_(ValueType::String), integer_(0), string_(new std::string(s)), array_(nullptr), object_(nullptr), function_(nullptr), class_(nullptr), instance_(nullptr) {}
+Value::Value(const std::string& s) : type_(ValueType::String), integer_(0), string_(std::make_unique<std::string>(s)), array_(nullptr), object_(nullptr), function_(nullptr), class_(nullptr), instance_(nullptr) {}
 
-Value::Value(const char* s) : type_(ValueType::String), integer_(0), string_(new std::string(s)), array_(nullptr), object_(nullptr), function_(nullptr), class_(nullptr), instance_(nullptr) {}
+Value::Value(const char* s) : type_(ValueType::String), integer_(0), string_(std::make_unique<std::string>(s)), array_(nullptr), object_(nullptr), function_(nullptr), class_(nullptr), instance_(nullptr) {}
 
-Value::Value(std::shared_ptr<Function> func) : type_(ValueType::Function), integer_(0), string_(nullptr), array_(nullptr), object_(nullptr), function_(new std::shared_ptr<Function>(std::move(func))), class_(nullptr), instance_(nullptr) {}
+Value::Value(std::shared_ptr<Function> func) : type_(ValueType::Function), integer_(0), string_(nullptr), array_(nullptr), object_(nullptr), function_(std::make_unique<std::shared_ptr<Function>>(std::move(func))), class_(nullptr), instance_(nullptr) {}
 
-Value::Value(std::shared_ptr<DryadClass> klass) : type_(ValueType::Class), integer_(0), string_(nullptr), array_(nullptr), object_(nullptr), function_(nullptr), class_(new std::shared_ptr<DryadClass>(std::move(klass))), instance_(nullptr) {}
+Value::Value(std::shared_ptr<DryadClass> klass) : type_(ValueType::Class), integer_(0), string_(nullptr), array_(nullptr), object_(nullptr), function_(nullptr), class_(std::make_unique<std::shared_ptr<DryadClass>>(std::move(klass))), instance_(nullptr) {}
 
-Value::Value(std::shared_ptr<ClassInstance> inst) : type_(ValueType::Instance), integer_(0), string_(nullptr), array_(nullptr), object_(nullptr), function_(nullptr), class_(nullptr), instance_(new std::shared_ptr<ClassInstance>(std::move(inst))) {}
+Value::Value(std::shared_ptr<ClassInstance> inst) : type_(ValueType::Instance), integer_(0), string_(nullptr), array_(nullptr), object_(nullptr), function_(nullptr), class_(nullptr), instance_(std::make_unique<std::shared_ptr<ClassInstance>>(std::move(inst))) {}
 
 Value::~Value() {
     clear_data();
 }
 
 void Value::clear_data() {
-    if (type_ == ValueType::String) {
-        delete string_;
-    } else if (type_ == ValueType::Function) {
-        delete function_;
-    } else if (type_ == ValueType::Class) {
-        delete class_;
-    } else if (type_ == ValueType::Instance) {
-        delete instance_;
-    }
-    string_ = nullptr;
+    string_.reset();
     array_ = nullptr;
     object_ = nullptr;
-    function_ = nullptr;
-    class_ = nullptr;
-    instance_ = nullptr;
+    function_.reset();
+    class_.reset();
+    instance_.reset();
 }
 
 Value::Value(const Value& other) : type_(other.type_), integer_(0), string_(nullptr), array_(nullptr), object_(nullptr), function_(nullptr) {
@@ -60,7 +51,7 @@ Value::Value(const Value& other) : type_(other.type_), integer_(0), string_(null
             float_ = other.float_;
             break;
         case ValueType::String:
-            string_ = new std::string(*other.string_);
+            string_ = std::make_unique<std::string>(*other.string_);
             break;
         case ValueType::Array:
             array_ = other.array_;
@@ -69,13 +60,13 @@ Value::Value(const Value& other) : type_(other.type_), integer_(0), string_(null
             object_ = other.object_;
             break;
         case ValueType::Function:
-            function_ = new std::shared_ptr<Function>(*other.function_);
+            function_ = std::make_unique<std::shared_ptr<Function>>(*other.function_);
             break;
         case ValueType::Class:
-            class_ = new std::shared_ptr<DryadClass>(*other.class_);
+            class_ = std::make_unique<std::shared_ptr<DryadClass>>(*other.class_);
             break;
         case ValueType::Instance:
-            instance_ = new std::shared_ptr<ClassInstance>(*other.instance_);
+            instance_ = std::make_unique<std::shared_ptr<ClassInstance>>(*other.instance_);
             break;
     }
 }
@@ -98,7 +89,7 @@ Value& Value::operator=(const Value& other) {
                 float_ = other.float_;
                 break;
             case ValueType::String:
-                string_ = new std::string(*other.string_);
+                string_ = std::make_unique<std::string>(*other.string_);
                 break;
             case ValueType::Array:
                 array_ = other.array_;
@@ -107,27 +98,21 @@ Value& Value::operator=(const Value& other) {
                 object_ = other.object_;
                 break;
             case ValueType::Function:
-                function_ = new std::shared_ptr<Function>(*other.function_);
+                function_ = std::make_unique<std::shared_ptr<Function>>(*other.function_);
                 break;
             case ValueType::Class:
-                class_ = new std::shared_ptr<DryadClass>(*other.class_);
+                class_ = std::make_unique<std::shared_ptr<DryadClass>>(*other.class_);
                 break;
             case ValueType::Instance:
-                instance_ = new std::shared_ptr<ClassInstance>(*other.instance_);
+                instance_ = std::make_unique<std::shared_ptr<ClassInstance>>(*other.instance_);
                 break;
         }
     }
     return *this;
 }
 
-Value::Value(Value&& other) noexcept : type_(other.type_), integer_(other.integer_), string_(other.string_), array_(other.array_), object_(other.object_), function_(other.function_), class_(other.class_), instance_(other.instance_) {
+Value::Value(Value&& other) noexcept : type_(other.type_), integer_(other.integer_), string_(std::move(other.string_)), array_(std::move(other.array_)), object_(std::move(other.object_)), function_(std::move(other.function_)), class_(std::move(other.class_)), instance_(std::move(other.instance_)) {
     other.type_ = ValueType::Null;
-    other.string_ = nullptr;
-    other.array_ = nullptr;
-    other.object_ = nullptr;
-    other.function_ = nullptr;
-    other.class_ = nullptr;
-    other.instance_ = nullptr;
 }
 
 Value& Value::operator=(Value&& other) noexcept {
@@ -135,20 +120,14 @@ Value& Value::operator=(Value&& other) noexcept {
         clear_data();
         type_ = other.type_;
         integer_ = other.integer_;
-        string_ = other.string_;
-        array_ = other.array_;
-        object_ = other.object_;
-        function_ = other.function_;
-        class_ = other.class_;
-        instance_ = other.instance_;
-        
+        string_ = std::move(other.string_);
+        array_ = std::move(other.array_);
+        object_ = std::move(other.object_);
+        function_ = std::move(other.function_);
+        class_ = std::move(other.class_);
+        instance_ = std::move(other.instance_);
+
         other.type_ = ValueType::Null;
-        other.string_ = nullptr;
-        other.array_ = nullptr;
-        other.object_ = nullptr;
-        other.function_ = nullptr;
-        other.class_ = nullptr;
-        other.instance_ = nullptr;
     }
     return *this;
 }

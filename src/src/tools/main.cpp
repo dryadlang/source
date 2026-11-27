@@ -46,7 +46,7 @@ void print_help() {
     std::cout << "  --vm            Default to bytecode VM execution mode\n";
     std::cout << "  --no-profile    Skip interpreter profiling during compile/analyze\n";
     std::cout << "  --link          Link LLVM IR to native .so (requires --aot)\n";
-    std::cout << "  --executable    Link to native ELF executable (requires --aot --link)\n";
+    std::cout << "  --executable    Link to native ELF executable (implies --aot --link)\n";
     std::cout << "  --entry <fn>    Entry function for --executable (default: first function)\n";
     std::cout << "  --lib           Compile Dryad library to .dyl (importable binary)\n";
     std::cout << "  --native        With --lib, also emit native .so companion\n";
@@ -284,10 +284,6 @@ int run_compile_command(int argc, char** argv) {
     }
     if (compile_lib_native && !compile_lib) {
         std::cerr << "Error: --native requires --lib\n";
-        return 1;
-    }
-    if (link_executable && !aot) {
-        std::cerr << "Error: --executable requires --aot\n";
         return 1;
     }
     if (link_native && !aot) {

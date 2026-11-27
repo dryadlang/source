@@ -280,6 +280,9 @@ class Socket implements IDisposable {
         if (err != null) {
             return err;
         }
+        if (__runtime_value_kind(how) != "integer" || how < 0 || how > 2) {
+            return ArgumentOutOfRangeException("how must be Shutdown_Read, Shutdown_Write or Shutdown_Both");
+        }
         let result = __shutdown(this._fd, how);
         if (result < 0) {
             return _Net_socketError("shutdown");

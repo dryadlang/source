@@ -635,3 +635,26 @@ TEST(AotTest, MicroIrLowersBitwiseOpcodes) {
 
     std::remove(input.c_str());
 }
+
+TEST(AotTest, AnalyzeSummaryCountsEverySlowPathFinding) {
+    // print() lowers to a slow intrinsic call in micro IR. Those findings were
+    // listed as [SLOW PATH] while the summary still said 0 slow sites.
+    const std::string input = "/tmp/dryad_analyze_summary.dryad";
+    {
+        std::ofstream file(input);
+        file << "function add(a, b) {\n    return a + b;\n}\nprint(add(1, 2));\n";
+    }
+    CompileOptions options;
+    options.run_profiler = false;
+    AnalyzeReport report = run_analyze_pass(input, options);
+    std::remove(input.c_str());
+
+    size_t slow_findings = 0;
+    for (const auto& finding : report.findings) {
+        if (finding.path_kind == AnalyzePathKind::SlowPath) {
+            ++slow_findings;
+        }
+    }
+    EXPECT_GT(slow_findings, 0u);
+    EXPECT_EQ(report.slow_path_sites, slow_findings);
+}

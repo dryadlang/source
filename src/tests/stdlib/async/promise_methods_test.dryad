@@ -1,0 +1,67 @@
+// @auto-test
+// Promise methods that the alias tests in promise_test.dryad do not reach:
+// catchError and finallyDo under their own names, and finallyDo semantics
+// (runs after settlement, keeps the original outcome).
+
+import { Promise, Promise_Resolve, Promise_Reject, Promise_Flush } from "@std/async";
+
+function test_promise_catchError_recovers() {
+    let p = Promise_Reject("boom");
+    let chained = p.catchError(function(e) {
+        return "recovered from " + e;
+    });
+    Promise_Flush();
+    return chained._state == "fulfilled" && chained._value == "recovered from boom";
+}
+
+function test_promise_catchError_passes_fulfilment_through() {
+    let chained = Promise_Resolve(7).catchError(function(e) {
+        return -1;
+    });
+    Promise_Flush();
+    return chained._state == "fulfilled" && chained._value == 7;
+}
+
+function test_promise_finallyDo_runs_after_settlement() {
+    let calls = [];
+    let holder = __runtime_create_object();
+    let p = new Promise(function(resolve, reject) {
+        __runtime_object_set(holder, "resolve", resolve);
+        return null;
+    });
+    let chained = p.finallyDo(function() {
+        __runtime_array_push(calls, "finally");
+        return null;
+    });
+    if (__runtime_array_length(calls) != 0) {
+        return "finallyDo ran its callback before the promise settled";
+    }
+    __runtime_object_get(holder, "resolve")(5);
+    Promise_Flush();
+    if (__runtime_array_length(calls) != 1) {
+        return "finallyDo callback did not run exactly once after settlement";
+    }
+    return chained._state == "fulfilled" && chained._value == 5;
+}
+
+function test_promise_finallyDo_keeps_rejection() {
+    let ran = [];
+    let chained = Promise_Reject("bad").finallyDo(function() {
+        __runtime_array_push(ran, true);
+        return null;
+    });
+    Promise_Flush();
+    if (__runtime_array_length(ran) != 1) {
+        return "finallyDo callback did not run on rejection";
+    }
+    if (chained._state != "rejected") {
+        return "finallyDo turned a rejection into state " + chained._state;
+    }
+    return chained._error == "bad";
+}
+
+function test_promise_finallyDo_null_callback() {
+    let chained = Promise_Resolve(3).finallyDo(null);
+    Promise_Flush();
+    return chained._state == "fulfilled" && chained._value == 3;
+}

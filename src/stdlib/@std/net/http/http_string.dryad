@@ -93,3 +93,38 @@ function _Http_trim(text) {
     }
     return _Http_substring(text, start, end);
 }
+
+// ASCII-only lowercase (header names are ASCII); other bytes are unchanged.
+function _Http_toLowerAscii(text) {
+    let len = __string_length(text);
+    if (len == 0) {
+        return "";
+    }
+    let handle = __alloc_bytes(len);
+    __string_to_bytes(text, handle, 0);
+    let i = 0;
+    while (i < len) {
+        let b = __buffer_get(handle, i);
+        if (b >= 65 && b <= 90) {
+            __buffer_set(handle, i, b + 32);
+        }
+        i = i + 1;
+    }
+    let result = __bytes_to_string(handle, 0, len);
+    __free_bytes(handle);
+    return result;
+}
+
+// Value of one hex digit byte (0-9, a-f, A-F), or -1.
+function _Http_hexDigit(b) {
+    if (b >= 48 && b <= 57) {
+        return b - 48;
+    }
+    if (b >= 97 && b <= 102) {
+        return b - 87;
+    }
+    if (b >= 65 && b <= 70) {
+        return b - 55;
+    }
+    return -1;
+}

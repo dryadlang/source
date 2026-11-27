@@ -56,7 +56,7 @@ std::vector<Diagnostic> SemanticAnalyzer::analyze(Program* program) {
 
     register_builtin_types();
     globals_.insert("print");
-    function_signatures_["print"] = FunctionSignature{{}, 0, "void"};
+    function_signatures_["print"] = FunctionSignature{{}, 0, "void", true};
 
     collect_globals(program);
 
@@ -261,7 +261,7 @@ void SemanticAnalyzer::analyze_call(CallExpression* call, const std::shared_ptr<
 
     const auto& signature = signature_it->second;
     if (call->arguments.size() < signature.required_parameter_count ||
-        call->arguments.size() > signature.parameter_types.size()) {
+        (!signature.variadic && call->arguments.size() > signature.parameter_types.size())) {
         report_error("Function '" + ident->name + "' expects between " +
                          std::to_string(signature.required_parameter_count) + " and " +
                          std::to_string(signature.parameter_types.size()) + " arguments, got " +

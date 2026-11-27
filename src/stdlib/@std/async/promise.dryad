@@ -187,16 +187,21 @@ class Promise {
         return this.finallyDo(onFinally);
     }
 
+    // onFinally runs once the promise settles (not at call time) and the
+    // returned promise keeps the original outcome: a rejection stays a
+    // rejection with the same error.
     finallyDo(onFinally) {
-        let result = this.then(function(value) {
+        return this.then(function(value) {
+            if (onFinally != null) {
+                onFinally();
+            }
             return value;
         }, function(error) {
-            return error;
+            if (onFinally != null) {
+                onFinally();
+            }
+            return Promise_Reject(error);
         });
-        if (onFinally != null) {
-            onFinally();
-        }
-        return result;
     }
 }
 

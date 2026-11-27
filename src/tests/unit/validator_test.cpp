@@ -133,3 +133,10 @@ TEST(ValidatorTest, ValidateFileReportsMissingFile) {
     EXPECT_FALSE(result.ok);
     EXPECT_NE(result.message().find("Cannot open file"), std::string::npos);
 }
+
+TEST(ValidatorTest, PrintAcceptsAnyNumberOfArguments) {
+    // print is variadic at runtime (args joined by spaces); `dryad check`
+    // used to reject every print with an argument.
+    auto result = ProgramValidator::validate_source("print();\nprint(1);\nprint(\"a\", 2, true);\n");
+    EXPECT_TRUE(result.ok) << result.message();
+}

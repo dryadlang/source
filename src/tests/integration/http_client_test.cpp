@@ -10,6 +10,7 @@
 #include <chrono>
 #include <thread>
 #include <functional>
+#include <mutex>
 #include <string>
 #include <unistd.h>
 
@@ -68,8 +69,11 @@ public:
             if (client_fd < 0) {
                 return;
             }
-            char request[1024] = {};
-            ::recv(client_fd, request, sizeof(request), 0);
+            std::string request = read_request(client_fd);
+            {
+                std::lock_guard<std::mutex> lock(mutex_);
+                request_ = request;
+            }
             respond(client_fd);
             close_fd(client_fd);
         });
@@ -86,11 +90,48 @@ public:
 
     int port() const { return port_.load(); }
 
+    // The raw request the server received (head and Content-Length body).
+    std::string request() const {
+        std::lock_guard<std::mutex> lock(mutex_);
+        return request_;
+    }
+
 private:
+    // Reads the request head, then as many body bytes as Content-Length says.
+    static std::string read_request(int fd) {
+        std::string data;
+        char chunk[1024];
+        size_t body_start = std::string::npos;
+        size_t wanted = 0;
+        while (true) {
+            if (body_start != std::string::npos && data.size() >= body_start + wanted) {
+                return data;
+            }
+            ssize_t n = ::recv(fd, chunk, sizeof(chunk), 0);
+            if (n <= 0) {
+                return data;
+            }
+            data.append(chunk, static_cast<size_t>(n));
+            if (body_start == std::string::npos) {
+                size_t head_end = data.find("\r\n\r\n");
+                if (head_end == std::string::npos) {
+                    continue;
+                }
+                body_start = head_end + 4;
+                size_t length_at = data.find("Content-Length: ");
+                if (length_at != std::string::npos && length_at < head_end) {
+                    wanted = std::stoul(data.substr(length_at + 16));
+                }
+            }
+        }
+    }
+
     std::thread thread_;
     std::atomic<int> port_{0};
     std::atomic<bool> ready_{false};
     int server_fd_ = -1;
+    mutable std::mutex mutex_;
+    std::string request_;
 };
 
 void send_all(int fd, const std::string& data) {
@@ -207,4 +248,101 @@ TEST(HttpClientIntegration, EmptyResponseIsAnError) {
         "let ok = HttpClient_Create().get(\"http://127.0.0.1:" + std::to_string(server.port()) + "/\") ==\n"
         "         \"HTTP response read failed\";\n";
     EXPECT_TRUE(run_source(source).is_truthy());
+}
+
+namespace {
+
+const char* kOkResponse = "HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nOK";
+
+std::string url_for(const LoopbackServer& server, const std::string& path) {
+    return "http://127.0.0.1:" + std::to_string(server.port()) + path;
+}
+
+} // namespace
+
+TEST(HttpClientIntegration, PostSendsBodyWithByteContentLength) {
+    LoopbackServer server([](int fd) { send_all(fd, kOkResponse); });
+    ASSERT_GT(server.port(), 0);
+    // "olá" is 3 characters but 4 bytes: Content-Length counts bytes.
+    const std::string source =
+        "import { HttpClient_Create } from \"@std/net\";\n"
+        "let response = HttpClient_Create().post(\"" + url_for(server, "/submit") + "\", \"ol\u00e1\");\n"
+        "let ok = __runtime_value_kind(response) == \"instance\" && response.statusCode == 200 &&\n"
+        "         response.body == \"OK\";\n";
+    EXPECT_TRUE(run_source(source).is_truthy());
+    const std::string request = server.request();
+    EXPECT_EQ(request.rfind("POST /submit HTTP/1.1\r\n", 0), 0u) << request;
+    EXPECT_NE(request.find("\r\nContent-Length: 4\r\n"), std::string::npos) << request;
+    EXPECT_EQ(request.substr(request.size() - 4), "ol\u00e1") << request;
+}
+
+TEST(HttpClientIntegration, SendWritesTheRequestHeaders) {
+    LoopbackServer server([](int fd) { send_all(fd, kOkResponse); });
+    ASSERT_GT(server.port(), 0);
+    const std::string source =
+        "import { HttpClient_Create, HttpRequest, HttpHeaders } from \"@std/net\";\n"
+        "let headers = new HttpHeaders();\n"
+        "headers.set(\"X-Token\", \"abc\");\n"
+        "headers.set(\"Accept\", \"text/plain\");\n"
+        "let request = new HttpRequest(\"GET\", \"" + url_for(server, "/h") + "\", headers, \"\");\n"
+        "let response = HttpClient_Create().send(request);\n"
+        "let ok = __runtime_value_kind(response) == \"instance\" && response.statusCode == 200;\n";
+    EXPECT_TRUE(run_source(source).is_truthy());
+    const std::string request = server.request();
+    EXPECT_NE(request.find("\r\nX-Token: abc\r\n"), std::string::npos) << request;
+    EXPECT_NE(request.find("\r\nAccept: text/plain\r\n"), std::string::npos) << request;
+    // Host and Connection are still written exactly once.
+    EXPECT_EQ(request.find("Host: "), request.rfind("Host: ")) << request;
+}
+
+TEST(HttpClientIntegration, ResponseHeaderLookupIgnoresCase) {
+    LoopbackServer server([](int fd) {
+        send_all(fd, "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\nContent-Length: 2\r\n"
+                     "Connection: close\r\n\r\nOK");
+    });
+    ASSERT_GT(server.port(), 0);
+    const std::string source =
+        "import { HttpClient_Create } from \"@std/net\";\n"
+        "let response = HttpClient_Create().get(\"" + url_for(server, "/") + "\");\n"
+        "let ok = __runtime_value_kind(response) == \"instance\" &&\n"
+        "         response.headers.get(\"content-type\") == \"text/plain\" &&\n"
+        "         response.headers.get(\"CONTENT-LENGTH\") == \"2\" &&\n"
+        "         response.headers.has(\"Content-Type\");\n";
+    EXPECT_TRUE(run_source(source).is_truthy());
+}
+
+TEST(HttpClientIntegration, DecodesChunkedBodies) {
+    LoopbackServer server([](int fd) {
+        send_all(fd, "HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n"
+                     "5\r\nHello\r\n"
+                     "6;ext=1\r\n World\r\n"
+                     "b\r\n from Dryad\r\n"
+                     "0\r\n\r\n");
+    });
+    ASSERT_GT(server.port(), 0);
+    const std::string source =
+        "import { HttpClient_Create } from \"@std/net\";\n"
+        "let response = HttpClient_Create().get(\"" + url_for(server, "/chunked") + "\");\n"
+        "let ok = __runtime_value_kind(response) == \"instance\" &&\n"
+        "         response.body == \"Hello World from Dryad\";\n";
+    EXPECT_TRUE(run_source(source).is_truthy());
+}
+
+TEST(HttpClientIntegration, GetAsyncAndPostAsyncResolveWithTheResponse) {
+    LoopbackServer get_server([](int fd) { send_all(fd, kOkResponse); });
+    LoopbackServer post_server([](int fd) { send_all(fd, kOkResponse); });
+    ASSERT_GT(get_server.port(), 0);
+    ASSERT_GT(post_server.port(), 0);
+    const std::string source =
+        "import { HttpClient_Create } from \"@std/net\";\n"
+        "import { Promise_Await } from \"@std/async\";\n"
+        "let client = HttpClient_Create();\n"
+        "let got = Promise_Await(client.getAsync(\"" + url_for(get_server, "/a") + "\"));\n"
+        "let posted = Promise_Await(client.postAsync(\"" + url_for(post_server, "/b") + "\", \"x=1\"));\n"
+        "let ok = got.statusCode == 200 && posted.statusCode == 200 && posted.body == \"OK\";\n";
+    EXPECT_TRUE(run_source(source).is_truthy());
+    EXPECT_EQ(get_server.request().rfind("GET /a HTTP/1.1\r\n", 0), 0u);
+    const std::string posted = post_server.request();
+    EXPECT_EQ(posted.rfind("POST /b HTTP/1.1\r\n", 0), 0u) << posted;
+    EXPECT_EQ(posted.substr(posted.size() - 3), "x=1") << posted;
 }

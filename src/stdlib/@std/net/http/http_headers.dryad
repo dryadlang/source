@@ -2,24 +2,58 @@
 // HTTP header collection
 
 import { Map } from "@std/collections/map";
-import { _Http_charAt, _Http_substring } from "@std/net/http/http_string";
+import { _Http_charAt, _Http_substring, _Http_toLowerAscii, _Http_indexOf } from "@std/net/http/http_string";
+import { ArgumentException } from "@std/core/exceptions";
 
+// Error message for a header name or value that cannot go on the wire, or null.
+// CR/LF would end the header early and let the value inject more headers.
+function _HttpHeaders_invalid(label, text) {
+    if (__runtime_value_kind(text) != "string") {
+        return ArgumentException("Header " + label + " must be a string");
+    }
+    if (_Http_indexOf(text, "\r") >= 0 || _Http_indexOf(text, "\n") >= 0) {
+        return ArgumentException("Header " + label + " must not contain CR or LF");
+    }
+    return null;
+}
+
+// Header names are case-insensitive (RFC 9110): lookups ignore case, and the
+// name as last set is kept for writing the request.
 class HttpHeaders {
     constructor() {
         this._map = new Map();
+        this._names = new Map();
     }
 
     set(name, value) {
-        this._map.put(name, value);
+        let err = _HttpHeaders_invalid("name", name);
+        if (err == null) {
+            err = _HttpHeaders_invalid("value", value);
+        }
+        if (err != null) {
+            return err;
+        }
+        let key = _Http_toLowerAscii(name);
+        this._map.put(key, value);
+        this._names.put(key, name);
         return null;
     }
 
     get(name) {
-        return this._map.get(name);
+        return this._map.get(_Http_toLowerAscii(name));
     }
 
     has(name) {
-        return this._map.has(name);
+        return this._map.has(_Http_toLowerAscii(name));
+    }
+
+    forEach(callback) {
+        let names = this._names;
+        this._map.forEach(function(key, value) {
+            callback(names.get(key), value);
+            return null;
+        });
+        return null;
     }
 }
 

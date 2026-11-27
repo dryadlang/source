@@ -112,11 +112,17 @@ class List implements IEnumerable {
         if (err != null) {
             return err;
         }
-        let i = index;
-        while (i < this._count - 1) {
-            this._items[i] = this._items[i + 1];
+        // Rebuild instead of shifting in place: add() and insert() push onto
+        // the backing array, so it must stay exactly _count long.
+        let kept = [];
+        let i = 0;
+        while (i < this._count) {
+            if (i != index) {
+                __runtime_array_push(kept, this._items[i]);
+            }
             i = i + 1;
         }
+        this._items = kept;
         this._count = this._count - 1;
         return null;
     }

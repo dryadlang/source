@@ -208,6 +208,7 @@ if(DRYAD_BUILD_TESTS)
         tests/unit/vfs_test.cpp
         tests/unit/io_functions_test.cpp
         tests/unit/stdlib_naming_test.cpp
+        tests/unit/stdlib_dryad_test.cpp
         tests/unit/filehandle_test.cpp
         tests/unit/io_errors_test.cpp
         tests/unit/io_concurrency_test.cpp

@@ -1,0 +1,49 @@
+// @auto-test
+// @std/core/exceptions: every factory, imported from the stdlib (not redefined).
+
+import {
+    Exception, ArgumentException, ArgumentNullException, ArgumentOutOfRangeException,
+    IOException, FileNotFoundException, DirectoryNotFoundException, EndOfStreamException,
+    InvalidOperationException, ObjectDisposedException, IndexOutOfRangeException,
+    KeyNotFoundException, NetworkException, SocketException, HttpException
+} from "@std/core";
+
+function expectEq(actual, expected) {
+    if (actual == expected) {
+        return true;
+    }
+    return "expected \"" + expected + "\", got \"" + actual + "\"";
+}
+
+function test_message_factories_return_their_message() {
+    let factories = [
+        Exception, ArgumentException, ArgumentOutOfRangeException, IOException,
+        FileNotFoundException, DirectoryNotFoundException, EndOfStreamException,
+        InvalidOperationException, IndexOutOfRangeException, KeyNotFoundException,
+        NetworkException, SocketException, HttpException
+    ];
+    let names = [
+        "Exception", "ArgumentException", "ArgumentOutOfRangeException", "IOException",
+        "FileNotFoundException", "DirectoryNotFoundException", "EndOfStreamException",
+        "InvalidOperationException", "IndexOutOfRangeException", "KeyNotFoundException",
+        "NetworkException", "SocketException", "HttpException"
+    ];
+    let i = 0;
+    while (i < 13) {
+        let factory = factories[i];
+        let result = expectEq(factory("boom"), "boom");
+        if (result != true) {
+            return names[i] + ": " + result;
+        }
+        i = i + 1;
+    }
+    return true;
+}
+
+function test_argument_null_names_the_parameter() {
+    return expectEq(ArgumentNullException("path"), "path cannot be null");
+}
+
+function test_object_disposed_names_the_object() {
+    return expectEq(ObjectDisposedException("FileStream"), "Cannot access disposed object: FileStream");
+}

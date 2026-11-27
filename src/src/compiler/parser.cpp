@@ -1,6 +1,7 @@
 #include "dryad/compiler/parser.h"
 #include "dryad/common/utils.h"
 #include <sstream>
+#include <stdexcept>
 
 namespace dryad {
 
@@ -684,8 +685,15 @@ std::unique_ptr<Expression> Parser::parse_primary() {
     }
     
     if (match(TokenType::IntegerLiteral)) {
-        int64_t value = std::stoll(previous().lexeme);
-        return std::make_unique<IntegerLiteral>(value, previous().location);
+        const Token literal = previous();
+        int64_t value = 0;
+        try {
+            value = std::stoll(literal.lexeme);
+        } catch (const std::out_of_range&) {
+            // Recorded at the literal; parsing continues with a 0 placeholder.
+            error_at(literal.location, "Integer literal out of range: " + literal.lexeme);
+        }
+        return std::make_unique<IntegerLiteral>(value, literal.location);
     }
     
     if (match(TokenType::FloatLiteral)) {

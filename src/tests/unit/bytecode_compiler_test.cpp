@@ -311,13 +311,16 @@ TEST(BytecodeCompilerTest, UnaryNotAndNegation) {
     const std::string source = R"(
         function test() {
             let a = !false;
-            let b = -5;
-            return a && b == -5;
+            let b = 5;
+            return a && -b < 0;
         }
     )";
 
+    // The old check `b == -5` with `let b = -5` passed even though negation
+    // was a no-op (both sides stayed 5); compare against 0 instead.
     auto compiled = compile_named_function(source, "test", nullptr);
     EXPECT_TRUE(code_contains_opcode(compiled.module, Opcode::NOT));
+    EXPECT_TRUE(code_contains_opcode(compiled.module, Opcode::NEG));
 
     VM vm;
     vm.load(compiled.module);

@@ -362,10 +362,9 @@ void BytecodeCompiler::compile_unary(UnaryExpression* expr) {
             builder_.emit(Opcode::NOT);
             break;
         case TokenType::Minus:
-            builder_.emit_push_int(0);
-            push_stack();
-            builder_.emit(Opcode::SUB);
-            pop_stack();
+            // A dedicated opcode: `0 - x` would turn -0.0 into 0.0 and report
+            // a SUB error for non-numbers instead of the interpreter's message.
+            builder_.emit(Opcode::NEG);
             break;
         case TokenType::Tilde:
             builder_.emit(Opcode::BIT_NOT);

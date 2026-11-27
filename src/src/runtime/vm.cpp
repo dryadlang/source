@@ -2,6 +2,7 @@
 #include "dryad/runtime/class.h"
 #include "dryad/runtime/function.h"
 #include "dryad/runtime/intrinsics_registry.h"
+#include "dryad/common/int_math.h"
 #include "dryad/common/utils.h"
 #include <cmath>
 #include <cstdlib>
@@ -228,7 +229,7 @@ void VM::dispatch_opcode(Opcode op) {
             Value left = stack_.back();
             stack_.pop_back();
             if (left.is_integer() && right.is_integer()) {
-                stack_.push_back(Value(left.as_integer() + right.as_integer()));
+                stack_.push_back(Value(wrapping_add(left.as_integer(), right.as_integer())));
             } else if (left.is_number() && right.is_number()) {
                 stack_.push_back(Value(as_f64(left) + as_f64(right)));
             } else if (left.is_string() && right.is_string()) {
@@ -252,7 +253,7 @@ void VM::dispatch_opcode(Opcode op) {
             if (left.is_float() || right.is_float()) {
                 stack_.push_back(Value(as_f64(left) - as_f64(right)));
             } else {
-                stack_.push_back(Value(left.as_integer() - right.as_integer()));
+                stack_.push_back(Value(wrapping_sub(left.as_integer(), right.as_integer())));
             }
             advance(1);
             break;
@@ -270,7 +271,7 @@ void VM::dispatch_opcode(Opcode op) {
             if (left.is_float() || right.is_float()) {
                 stack_.push_back(Value(as_f64(left) * as_f64(right)));
             } else {
-                stack_.push_back(Value(left.as_integer() * right.as_integer()));
+                stack_.push_back(Value(wrapping_mul(left.as_integer(), right.as_integer())));
             }
             advance(1);
             break;
@@ -289,7 +290,7 @@ void VM::dispatch_opcode(Opcode op) {
                 if (right.as_integer() == 0) {
                     throw DryadException("Division by zero");
                 }
-                stack_.push_back(Value(left.as_integer() / right.as_integer()));
+                stack_.push_back(Value(wrapping_div(left.as_integer(), right.as_integer())));
             } else {
                 stack_.push_back(Value(as_f64(left) / as_f64(right)));
             }
@@ -309,7 +310,7 @@ void VM::dispatch_opcode(Opcode op) {
             if (right.as_integer() == 0) {
                 throw DryadException("Modulo by zero");
             }
-            stack_.push_back(Value(left.as_integer() % right.as_integer()));
+            stack_.push_back(Value(wrapping_rem(left.as_integer(), right.as_integer())));
             advance(1);
             break;
         }
@@ -339,6 +340,21 @@ void VM::dispatch_opcode(Opcode op) {
                 default:              throw DryadException("Invalid bitwise opcode");
             }
             stack_.push_back(Value(result));
+            advance(1);
+            break;
+        }
+
+        case Opcode::NEG: {
+            validate_stack(1, "NEG");
+            Value operand = stack_.back();
+            stack_.pop_back();
+            if (operand.is_integer()) {
+                stack_.push_back(Value(wrapping_neg(operand.as_integer())));
+            } else if (operand.is_float()) {
+                stack_.push_back(Value(-operand.as_float()));
+            } else {
+                throw DryadException("Unary minus requires numeric operand");
+            }
             advance(1);
             break;
         }
@@ -405,7 +421,7 @@ void VM::dispatch_opcode(Opcode op) {
             stack_.pop_back();
             int64_t a = as_i32_slot(stack_.back());
             stack_.pop_back();
-            stack_.push_back(Value(a + b));
+            stack_.push_back(Value(wrapping_add(a, b)));
             advance(1);
             break;
         }
@@ -416,7 +432,7 @@ void VM::dispatch_opcode(Opcode op) {
             stack_.pop_back();
             int64_t a = as_i32_slot(stack_.back());
             stack_.pop_back();
-            stack_.push_back(Value(a - b));
+            stack_.push_back(Value(wrapping_sub(a, b)));
             advance(1);
             break;
         }
@@ -427,7 +443,7 @@ void VM::dispatch_opcode(Opcode op) {
             stack_.pop_back();
             int64_t a = as_i32_slot(stack_.back());
             stack_.pop_back();
-            stack_.push_back(Value(a * b));
+            stack_.push_back(Value(wrapping_mul(a, b)));
             advance(1);
             break;
         }
@@ -441,7 +457,7 @@ void VM::dispatch_opcode(Opcode op) {
             if (b == 0) {
                 throw DryadException("Division by zero");
             }
-            stack_.push_back(Value(a / b));
+            stack_.push_back(Value(wrapping_div(a, b)));
             advance(1);
             break;
         }

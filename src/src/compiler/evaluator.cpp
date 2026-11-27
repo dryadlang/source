@@ -2,6 +2,7 @@
 #include "dryad/compiler/interpreter.h"
 #include "dryad/runtime/function.h"
 #include "dryad/runtime/class.h"
+#include "dryad/common/int_math.h"
 #include "dryad/common/utils.h"
 
 namespace dryad {
@@ -123,7 +124,7 @@ Value ExpressionEvaluator::evaluate_binary(BinaryExpression* expr) {
 Value ExpressionEvaluator::evaluate_arithmetic(TokenType op, const Value& left, const Value& right) {
     if (op == TokenType::Plus) {
         if (left.is_integer() && right.is_integer()) {
-            return Value(left.as_integer() + right.as_integer());
+            return Value(wrapping_add(left.as_integer(), right.as_integer()));
         }
         if (left.is_number() && right.is_number()) {
             return Value(left.as_float() + right.as_float());
@@ -143,10 +144,10 @@ Value ExpressionEvaluator::evaluate_arithmetic(TokenType op, const Value& left, 
     switch (op) {
         case TokenType::Minus:
             return is_float ? Value(left.as_float() - right.as_float()) 
-                           : Value(left.as_integer() - right.as_integer());
+                           : Value(wrapping_sub(left.as_integer(), right.as_integer()));
         case TokenType::Star:
             return is_float ? Value(left.as_float() * right.as_float())
-                           : Value(left.as_integer() * right.as_integer());
+                           : Value(wrapping_mul(left.as_integer(), right.as_integer()));
         case TokenType::Slash:
             if (is_float) {
                 return Value(left.as_float() / right.as_float());
@@ -154,13 +155,13 @@ Value ExpressionEvaluator::evaluate_arithmetic(TokenType op, const Value& left, 
             if (right.as_integer() == 0) {
                 throw DryadException("Division by zero");
             }
-            return Value(left.as_integer() / right.as_integer());
+            return Value(wrapping_div(left.as_integer(), right.as_integer()));
         case TokenType::Percent:
             if (is_float) throw DryadException("Modulo requires integer operands");
             if (right.as_integer() == 0) {
                 throw DryadException("Modulo by zero");
             }
-            return Value(left.as_integer() % right.as_integer());
+            return Value(wrapping_rem(left.as_integer(), right.as_integer()));
         default:
             throw DryadException("Unknown arithmetic operator");
     }
@@ -248,7 +249,7 @@ Value ExpressionEvaluator::evaluate_unary(UnaryExpression* expr) {
     switch (expr->op) {
         case TokenType::Minus:
             if (operand.is_integer()) {
-                return Value(-operand.as_integer());
+                return Value(wrapping_neg(operand.as_integer()));
             }
             if (operand.is_float()) {
                 return Value(-operand.as_float());

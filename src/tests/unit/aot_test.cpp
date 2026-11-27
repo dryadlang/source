@@ -599,7 +599,7 @@ TEST(AotTest, ScriptEntryUsesDryadMainSymbol) {
 TEST(AotTest, MicroIrLowersBitwiseOpcodes) {
     const std::string source = R"(
         function bits(a, b) {
-            return (a & b) | (a ^ b) | (a << b) | (a >> b) | ~a;
+            return (a & b) | (a ^ b) | (a << b) | (a >> b) | ~a | -b;
         }
         bits(6, 3);
     )";
@@ -631,7 +631,8 @@ TEST(AotTest, MicroIrLowersBitwiseOpcodes) {
             ++slow_sites;
         }
     }
-    EXPECT_EQ(slow_sites, 9);
+    // 9 bitwise sites + NEG (-b) + the | that combines it.
+    EXPECT_EQ(slow_sites, 11);
 
     std::remove(input.c_str());
 }

@@ -99,6 +99,9 @@ void analyze_micro_ir(const IrModule& module, AnalyzeReport& report) {
                 finding.reason = "AOT would emit Variant/slow intrinsic dispatch";
                 finding.suggestion = "resolve slot types to STATIC or OBSERVED";
                 report.findings.push_back(finding);
+                // Every SLOW PATH finding counts in the summary; it used to
+                // list these yet report "Slow Path sites: 0".
+                report.slow_path_sites++;
             }
         }
     }

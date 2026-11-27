@@ -25,6 +25,29 @@ class UdpClient implements IDisposable {
         }
     }
 
+    // bind(host, port) - receive on a fixed address. Port 0 picks a free
+    // port; read it back with localPort(). Returns null or an error string.
+    bind(host, port) {
+        if (this._lastError != null) {
+            return this._lastError;
+        }
+        if (this._socket == null) {
+            return InvalidOperationException("UDP socket is not available");
+        }
+        return this._socket.bind(host, port);
+    }
+
+    // localPort() - the bound (or, after the first sendTo, ephemeral) port.
+    localPort() {
+        if (this._lastError != null) {
+            return this._lastError;
+        }
+        if (this._socket == null) {
+            return InvalidOperationException("UDP socket is not available");
+        }
+        return this._socket.localPort();
+    }
+
     sendTo(host, port, buffer, offset, count) {
         if (this._lastError != null) {
             return this._lastError;

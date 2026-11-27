@@ -1,0 +1,245 @@
+// @auto-test
+// @allow-net
+// @std/net over 127.0.0.1: TCP listener/client/streams, the async socket
+// helpers and UDP. Single-threaded: connect() completes against the listen
+// backlog before accept(), and loopback send() is buffered by the kernel.
+
+import {
+    TcpListener, TcpClient_Connect, TcpClient_ConnectAsync, Socket, NetworkStream,
+    Socket_ConnectAsync, Socket_SendAsync, Socket_ReceiveAsync,
+    SocketDomain_IPv4, SocketType_Stream, UdpClient, UdpClient_Create
+} from "@std/net";
+import { Buffer_New, Buffer_FromString, Buffer_AsString, Buffer_Slice } from "@std/buffers";
+import { Promise_Flush } from "@std/async";
+
+// Renders any value for failure messages (Dryad has no implicit string conversion).
+function show(value) {
+    let kind = __runtime_value_kind(value);
+    if (kind == "string") {
+        return "\"" + value + "\"";
+    }
+    if (kind == "integer") {
+        return __int_to_string(value);
+    }
+    if (kind == "boolean") {
+        if (value) {
+            return "true";
+        }
+        return "false";
+    }
+    if (kind == "null") {
+        return "null";
+    }
+    return "<" + kind + ">";
+}
+
+function expectEq(label, actual, expected) {
+    if (actual == expected) {
+        return true;
+    }
+    return label + ": expected " + show(expected) + ", got " + show(actual);
+}
+
+function startListener() {
+    let listener = new TcpListener("127.0.0.1", 0);
+    let err = listener.start();
+    if (err != null) {
+        return err;
+    }
+    return listener;
+}
+
+// Receives exactly `count` bytes with `receiveFn(buf, offset, n)`.
+function receiveText(receiveFn, count) {
+    let buf = Buffer_New(count);
+    let got = 0;
+    while (got < count) {
+        let n = receiveFn(buf, got, count - got);
+        if (__runtime_value_kind(n) == "string") {
+            return "receive failed: " + show(n);
+        }
+        if (n <= 0) {
+            return "receive returned " + show(n);
+        }
+        got = got + n;
+    }
+    return Buffer_AsString(buf);
+}
+
+function test_tcp_listener_client_round_trip() {
+    let listener = startListener();
+    if (__runtime_value_kind(listener) == "string") {
+        return listener;
+    }
+    let client = TcpClient_Connect("127.0.0.1", listener.port);
+    let server = listener.accept();
+    if (__runtime_value_kind(server) == "string") {
+        return "accept: " + server;
+    }
+    client.send(Buffer_FromString("ping"), 0, 4);
+    let atServer = receiveText(function(b, o, n) { return server.receive(b, o, n); }, 4);
+    server.send(Buffer_FromString("pong"), 0, 4);
+    let atClient = receiveText(function(b, o, n) { return client.receive(b, o, n); }, 4);
+    let wasConnected = client.connected && server.connected;
+    client.close();
+    server.close();
+    listener.stop();
+    if (!wasConnected) {
+        return "both ends should report connected";
+    }
+    let r = expectEq("server got", atServer, "ping");
+    if (r != true) {
+        return r;
+    }
+    r = expectEq("client got", atClient, "pong");
+    if (r != true) {
+        return r;
+    }
+    return expectEq("listening after stop", listener.isListening, false);
+}
+
+function test_network_stream_read_write() {
+    let listener = startListener();
+    if (__runtime_value_kind(listener) == "string") {
+        return listener;
+    }
+    let client = TcpClient_Connect("127.0.0.1", listener.port);
+    let server = listener.accept();
+    let out = client.getStream();
+    let input = server.getStream();
+    if (__runtime_value_kind(out) != "instance") {
+        return "getStream: " + out;
+    }
+    let flags = [out.canRead, out.canWrite, out.canSeek];
+    out.write(Buffer_FromString("streamed"), 0, 8);
+    let text = receiveText(function(b, o, n) { return input.read(b, o, n); }, 8);
+    out.close();
+    server.close();
+    listener.stop();
+    if (flags[0] != true || flags[1] != true || flags[2] != false) {
+        return "NetworkStream should be readable, writable and not seekable";
+    }
+    return expectEq("streamed", text, "streamed");
+}
+
+function test_socket_async_helpers() {
+    let listener = startListener();
+    if (__runtime_value_kind(listener) == "string") {
+        return listener;
+    }
+    let socket = new Socket(SocketDomain_IPv4, SocketType_Stream);
+    let log = [];
+    Socket_ConnectAsync(socket, "127.0.0.1", listener.port).then(function(v) {
+        __runtime_array_push(log, "connected");
+        return v;
+    });
+    Promise_Flush();
+    let server = listener.accept();
+    Socket_SendAsync(socket, Buffer_FromString("hey"), 0, 3).then(function(n) {
+        __runtime_array_push(log, n);
+        return n;
+    });
+    Promise_Flush();
+    let reply = Buffer_New(2);
+    server.send(Buffer_FromString("ok"), 0, 2);
+    Socket_ReceiveAsync(socket, reply, 0, 2).then(function(n) {
+        __runtime_array_push(log, n);
+        return n;
+    });
+    Promise_Flush();
+    let atServer = receiveText(function(b, o, n) { return server.receive(b, o, n); }, 3);
+    socket.close();
+    server.close();
+    listener.stop();
+    if (__runtime_array_length(log) != 3) {
+        return "expected connect, send and receive to resolve";
+    }
+    if (log[0] != "connected" || log[1] != 3 || log[2] != 2) {
+        return "unexpected resolution values";
+    }
+    let r = expectEq("server got", atServer, "hey");
+    if (r != true) {
+        return r;
+    }
+    return expectEq("client got", Buffer_AsString(reply), "ok");
+}
+
+function test_tcp_connect_async_rejects_closed_port() {
+    // Bind then stop a listener to get a port nothing listens on.
+    let listener = startListener();
+    if (__runtime_value_kind(listener) == "string") {
+        return listener;
+    }
+    let port = listener.port;
+    listener.stop();
+    let outcome = "pending";
+    TcpClient_ConnectAsync("127.0.0.1", port).then(function(c) {
+        outcome = "resolved";
+        return c;
+    }, function(err) {
+        outcome = "rejected";
+        return err;
+    });
+    Promise_Flush();
+    return expectEq("outcome", outcome, "rejected");
+}
+
+function test_tcp_connect_async_resolves() {
+    let listener = startListener();
+    if (__runtime_value_kind(listener) == "string") {
+        return listener;
+    }
+    let client = null;
+    TcpClient_ConnectAsync("127.0.0.1", listener.port).then(function(c) {
+        client = c;
+        return c;
+    });
+    Promise_Flush();
+    let ok = client != null && client.connected;
+    if (client != null) {
+        client.close();
+    }
+    listener.stop();
+    return expectEq("connected", ok, true);
+}
+
+function test_udp_bind_and_round_trip() {
+    let receiver = new UdpClient();
+    let err = receiver.bind("127.0.0.1", 0);
+    if (err != null) {
+        return "bind: " + err;
+    }
+    let port = receiver.localPort();
+    if (__runtime_value_kind(port) != "integer" || port <= 0) {
+        return "localPort: " + port;
+    }
+    let sender = UdpClient_Create();
+    let sent = sender.sendTo("127.0.0.1", port, Buffer_FromString("datagram"), 0, 8);
+    let buf = Buffer_New(16);
+    let endpoint = receiver.receiveFrom(buf, 0, 16);
+    let senderPort = sender.localPort();
+    sender.close();
+    receiver.close();
+    if (__runtime_value_kind(endpoint) != "object") {
+        return "receiveFrom: " + endpoint;
+    }
+    let r = expectEq("sent", sent, 8);
+    if (r != true) {
+        return r;
+    }
+    r = expectEq("nbytes", endpoint.nbytes, 8);
+    if (r != true) {
+        return r;
+    }
+    r = expectEq("from port", endpoint.port, senderPort);
+    if (r != true) {
+        return r;
+    }
+    return expectEq("payload", Buffer_AsString(Buffer_Slice(buf, 0, 8)), "datagram");
+}
+
+function test_udp_closed_client_reports_errors() {
+    let client = new UdpClient();
+    client.close();
+    return expectEq("bind after close", client.bind("127.0.0.1", 0), "UDP socket is not available");
+}

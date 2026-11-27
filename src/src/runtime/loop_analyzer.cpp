@@ -32,13 +32,10 @@ size_t instruction_size(Opcode op) {
         case Opcode::GET_PROPERTY:
         case Opcode::SET_PROPERTY:
             return 3;
-        case Opcode::NEW_ARRAY:
-        case Opcode::ARRAY_PUSH:
-        case Opcode::SET_ELEMENT:
-        case Opcode::NOT:
-        case Opcode::DIV_I32:
-            return 1;
         default:
+            // NEW_ARRAY/ARRAY_PUSH/SET_ELEMENT/NOT/DIV_I32 (and anything
+            // else) are single-byte opcodes with no operand, same as the
+            // fallback default — merged since they are not distinguished.
             return 1;
     }
 }

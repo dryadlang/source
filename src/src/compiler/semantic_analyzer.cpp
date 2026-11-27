@@ -407,10 +407,9 @@ std::string SemanticAnalyzer::analyze_expression(Expression* expr, const std::sh
         case ASTNodeType::BooleanLiteral:
         case ASTNodeType::NullLiteral:
             return infer_literal_type(expr);
-        case ASTNodeType::ThisExpression:
-        case ASTNodeType::SuperExpression:
-            return "unknown";
         default:
+            // Includes ThisExpression/SuperExpression: their type depends on
+            // the enclosing class, which this pass does not track yet.
             return "unknown";
     }
 }
@@ -554,9 +553,10 @@ void SemanticAnalyzer::analyze_statement(Statement* stmt, const std::shared_ptr<
             }
             break;
         }
-        case ASTNodeType::ImportDeclaration:
-            break;
         default:
+            // Includes ImportDeclaration: imports are resolved by the
+            // module loader before semantic analysis runs, so there is
+            // nothing left to check here.
             break;
     }
 }

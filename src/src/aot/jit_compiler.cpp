@@ -4,6 +4,7 @@
 #include "dryad/aot/native_linker.h"
 #include <dlfcn.h>
 #include <cstdio>
+#include <iostream>
 
 namespace dryad {
 
@@ -137,7 +138,14 @@ bool JitCompiler::compile_loop(size_t loop_index) {
 
     NativeLinkResult link = link_native_shared_object(
         llvm_path, so_path, runtime_source_, include_dir_);
-    std::remove(llvm_path.c_str());
+    if (std::remove(llvm_path.c_str()) != 0) {
+        // Best-effort temp-file cleanup: a failure here (e.g. the file was
+        // already removed, or /tmp is read-only) must not abort the JIT
+        // compile, but it should not be silently discarded either, since a
+        // buildup of leftover /tmp/dryad_jit_loop_*.ll files is a sign of a
+        // real problem worth surfacing.
+        std::cerr << "warning: failed to remove JIT temp IR file: " << llvm_path << "\n";
+    }
     if (!link.success) {
         return false;
     }

@@ -152,7 +152,12 @@ void IntrinsicsRegistry::register_network_intrinsics() {
         int64_t fd = args[0].as_integer();
         const std::string& data = args[1].as_string();
 
-        int n = ::send(static_cast<int>(fd), data.c_str(), static_cast<int>(data.size()), 0);
+        // send() returns ssize_t; the actual byte count sent can never
+        // exceed the requested length, which was already cast to int above,
+        // so narrowing to int here is lossless in practice. Cast made
+        // explicit to document the invariant and silence the warning.
+        const ssize_t sent = ::send(static_cast<int>(fd), data.c_str(), static_cast<int>(data.size()), 0);
+        int n = static_cast<int>(sent);
         return Value(static_cast<int64_t>(n));
     });
 
@@ -166,7 +171,12 @@ void IntrinsicsRegistry::register_network_intrinsics() {
         int64_t size = args[1].as_integer();
 
         std::string buffer(static_cast<size_t>(size), '\0');
-        int n = ::recv(static_cast<int>(fd), &buffer[0], static_cast<int>(size), 0);
+        // recv() returns ssize_t; the actual byte count received can never
+        // exceed the requested buffer size, which was already cast to int
+        // above, so narrowing to int here is lossless in practice. Cast made
+        // explicit to document the invariant and silence the warning.
+        const ssize_t received = ::recv(static_cast<int>(fd), &buffer[0], static_cast<int>(size), 0);
+        int n = static_cast<int>(received);
 
         if (n < 0) {
             return Value(static_cast<int64_t>(n));

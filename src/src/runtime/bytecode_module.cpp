@@ -53,7 +53,13 @@ std::string read_string(const std::vector<uint8_t>& data, size_t& offset) {
     if (offset + len > data.size()) {
         throw DryadException("dryadc: truncated string");
     }
-    std::string value(data.begin() + offset, data.begin() + offset + len);
+    // size_t -> vector::difference_type is implementation-defined if it
+    // overflows ptrdiff_t, but offset/len are bounds-checked against
+    // data.size() above, so on any realistic (in-memory) file this is a
+    // lossless, well-defined conversion; the cast makes that explicit.
+    const auto begin = static_cast<std::vector<uint8_t>::difference_type>(offset);
+    const auto count = static_cast<std::vector<uint8_t>::difference_type>(len);
+    std::string value(data.begin() + begin, data.begin() + begin + count);
     offset += len;
     return value;
 }
@@ -110,20 +116,24 @@ Value read_constant(const std::vector<uint8_t>& data, size_t& offset) {
             if (offset + 8 > data.size()) {
                 throw DryadException("dryadc: truncated integer constant");
             }
-            int64_t value = 0;
+            // Accumulate in uint64_t: left-shifting the top byte into bit 63
+            // of a signed int64_t is undefined behavior pre-C++20 (the
+            // shifted value would not fit in the positive range of the
+            // signed type).
+            uint64_t value = 0;
             for (int i = 0; i < 8; ++i) {
-                value |= static_cast<int64_t>(data[offset + i]) << (i * 8);
+                value |= static_cast<uint64_t>(data[offset + i]) << (i * 8);
             }
             offset += 8;
-            return Value(value);
+            return Value(static_cast<int64_t>(value));
         }
         case 3: {
             if (offset + 8 > data.size()) {
                 throw DryadException("dryadc: truncated float constant");
             }
-            int64_t bits = 0;
+            uint64_t bits = 0;
             for (int i = 0; i < 8; ++i) {
-                bits |= static_cast<int64_t>(data[offset + i]) << (i * 8);
+                bits |= static_cast<uint64_t>(data[offset + i]) << (i * 8);
             }
             offset += 8;
             double value = 0.0;
@@ -199,7 +209,14 @@ CompiledProgram deserialize_program(const std::vector<uint8_t>& data) {
         if (offset + code_len > data.size()) {
             throw DryadException("dryadc: truncated code section");
         }
-        fn.module.code.assign(data.begin() + offset, data.begin() + offset + code_len);
+        // Bounds-checked above against data.size(), so the size_t ->
+        // difference_type conversion is lossless for any realistic
+        // in-memory bytecode file; cast made explicit for clarity.
+        {
+            const auto begin = static_cast<std::vector<uint8_t>::difference_type>(offset);
+            const auto count = static_cast<std::vector<uint8_t>::difference_type>(code_len);
+            fn.module.code.assign(data.begin() + begin, data.begin() + begin + count);
+        }
         offset += code_len;
         const uint32_t const_count = read_u32(data, offset);
         fn.module.constants.reserve(const_count);

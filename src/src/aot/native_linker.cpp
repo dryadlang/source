@@ -2,56 +2,156 @@
 #include <cstdlib>
 #include <fstream>
 #include <iterator>
+#include <vector>
+
+#if defined(_WIN32)
+#include <process.h>
+#else
+#include <fcntl.h>
+#include <spawn.h>
+#include <sys/wait.h>
+#include <unistd.h>
+extern char** environ;
+#endif
 
 namespace dryad {
 
 namespace {
 
-int run_command(const std::string& command) {
-    return std::system(command.c_str());
-}
+// Runs `argv[0]` with the given arguments directly via exec (posix_spawn on
+// POSIX, _spawnvp on Windows) -- NOT through a shell. link_native_binary()
+// below builds command lines out of caller-controlled file paths (source
+// file names, -o output paths, library paths), which on a shell-string path
+// (the previous implementation used std::system()) would be an arbitrary
+// command injection vector: a path like `out.ll"; rm -rf ~; echo "` or one
+// containing `$(...)`/backticks would be interpreted by /bin/sh even though
+// each argument was individually double-quoted, since double quotes do not
+// suppress command substitution. Passing an argv vector straight to exec
+// avoids any shell parsing, so such paths are inert data again.
+int run_command(const std::vector<std::string>& args) {
+    if (args.empty()) {
+        return -1;
+    }
 
-std::string platform_link_flags(NativeLinkKind kind) {
 #if defined(_WIN32)
-    if (kind == NativeLinkKind::SharedObject) {
-        return "-shared";
+    std::vector<const char*> argv;
+    argv.reserve(args.size() + 1);
+    for (const auto& arg : args) {
+        argv.push_back(arg.c_str());
     }
-    return "";
+    argv.push_back(nullptr);
+    return _spawnvp(_P_WAIT, args[0].c_str(), argv.data());
 #else
-    if (kind == NativeLinkKind::SharedObject) {
-        return "-fPIC -shared";
+    std::vector<char*> argv;
+    argv.reserve(args.size() + 1);
+    for (const auto& arg : args) {
+        argv.push_back(const_cast<char*>(arg.c_str()));
     }
-    return "";
+    argv.push_back(nullptr);
+
+    pid_t pid = 0;
+    const int spawn_rc =
+        posix_spawnp(&pid, args[0].c_str(), nullptr, nullptr, argv.data(), environ);
+    if (spawn_rc != 0) {
+        return -1;
+    }
+
+    int status = 0;
+    if (waitpid(pid, &status, 0) != pid) {
+        return -1;
+    }
+    if (WIFEXITED(status)) {
+        return WEXITSTATUS(status);
+    }
+    return -1;
 #endif
 }
 
-std::string platform_link_libraries() {
+// Runs a command silently (stdout/stderr discarded), used only for the
+// `clang --version` availability probe. Still goes through exec, not a
+// shell, and this particular call has no caller-controlled arguments.
+int run_command_quiet(const std::vector<std::string>& args) {
+    if (args.empty()) {
+        return -1;
+    }
+
 #if defined(_WIN32)
-    return "";
+    // No portable redirection via _spawnvp; the probe's stdout/stderr are
+    // inherited, which is harmless noise for `clang --version`.
+    return run_command(args);
 #else
-    return "-ldl -pthread";
+    std::vector<char*> argv;
+    argv.reserve(args.size() + 1);
+    for (const auto& arg : args) {
+        argv.push_back(const_cast<char*>(arg.c_str()));
+    }
+    argv.push_back(nullptr);
+
+    posix_spawn_file_actions_t actions;
+    posix_spawn_file_actions_init(&actions);
+    posix_spawn_file_actions_addopen(&actions, STDOUT_FILENO, "/dev/null", O_WRONLY, 0);
+    posix_spawn_file_actions_addopen(&actions, STDERR_FILENO, "/dev/null", O_WRONLY, 0);
+
+    pid_t pid = 0;
+    const int spawn_rc =
+        posix_spawnp(&pid, args[0].c_str(), &actions, nullptr, argv.data(), environ);
+    posix_spawn_file_actions_destroy(&actions);
+    if (spawn_rc != 0) {
+        return -1;
+    }
+
+    int status = 0;
+    if (waitpid(pid, &status, 0) != pid) {
+        return -1;
+    }
+    if (WIFEXITED(status)) {
+        return WEXITSTATUS(status);
+    }
+    return -1;
 #endif
 }
 
-std::string target_cpu_flags() {
+std::vector<std::string> platform_link_flags(NativeLinkKind kind) {
+#if defined(_WIN32)
+    if (kind == NativeLinkKind::SharedObject) {
+        return {"-shared"};
+    }
+    return {};
+#else
+    if (kind == NativeLinkKind::SharedObject) {
+        return {"-fPIC", "-shared"};
+    }
+    return {};
+#endif
+}
+
+std::vector<std::string> platform_link_libraries() {
+#if defined(_WIN32)
+    return {};
+#else
+    return {"-ldl", "-pthread"};
+#endif
+}
+
+std::vector<std::string> target_cpu_flags() {
 #if defined(__x86_64__) || defined(_M_X64)
     const char* march = std::getenv("DRYAD_AOT_MARCH");
     if (march != nullptr && march[0] != '\0') {
-        return std::string("-march=") + march;
+        return {std::string("-march=") + march};
     }
     // Portable default: avoid x86-64-v3/v4 binaries that fail on common CPUs.
-    return "-march=x86-64-v2";
+    return {"-march=x86-64-v2"};
 #elif defined(__aarch64__)
-    return "";
+    return {};
 #else
-    return "";
+    return {};
 #endif
 }
 
 } // namespace
 
 bool clang_available() {
-    return run_command("clang --version >/dev/null 2>&1") == 0;
+    return run_command_quiet({"clang", "--version"}) == 0;
 }
 
 const char* default_shared_extension() {
@@ -119,22 +219,29 @@ NativeLinkResult link_native_binary(NativeLinkKind kind,
         return result;
     }
 
-    const std::string kind_flags = platform_link_flags(kind);
-    const std::string cpu_flags = target_cpu_flags();
-    std::string command = "clang -O2";
-    if (!cpu_flags.empty()) {
-        command += " " + cpu_flags;
+    // Build the argv vector directly instead of a shell command string:
+    // output_path, llvm_ir_paths, aot_runtime_source and include_dir are all
+    // ultimately derived from CLI-supplied file paths (see tools/main.cpp),
+    // so they must never be interpolated into text a shell will re-parse.
+    std::vector<std::string> args = {"clang", "-O2"};
+    for (auto& flag : target_cpu_flags()) {
+        args.push_back(std::move(flag));
     }
-    if (!kind_flags.empty()) {
-        command += " " + kind_flags;
+    for (auto& flag : platform_link_flags(kind)) {
+        args.push_back(std::move(flag));
     }
-    command += " -I\"" + include_dir + "\" -o \"" + output_path + "\"";
+    args.push_back("-I" + include_dir);
+    args.push_back("-o");
+    args.push_back(output_path);
     for (const auto& llvm_ir_path : llvm_ir_paths) {
-        command += " \"" + llvm_ir_path + "\"";
+        args.push_back(llvm_ir_path);
     }
-    command += " \"" + aot_runtime_source + "\" " + platform_link_libraries() + " 2>&1";
+    args.push_back(aot_runtime_source);
+    for (auto& flag : platform_link_libraries()) {
+        args.push_back(std::move(flag));
+    }
 
-    const int status = run_command(command);
+    const int status = run_command(args);
     if (status != 0) {
         result.message = "clang linking failed with exit code " + std::to_string(status);
         return result;

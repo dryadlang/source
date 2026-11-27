@@ -897,11 +897,14 @@ int64_t VM::read_i64_at(size_t offset) const {
     if (offset + 8 > bytecode_.size()) {
         throw DryadException("Bytecode bounds violation reading i64");
     }
-    int64_t value = 0;
+    // Accumulate in uint64_t: left-shifting the top byte into bit 63 of a
+    // signed int64_t is undefined behavior pre-C++20 (the shifted value
+    // would not fit in the positive range of the signed type).
+    uint64_t value = 0;
     for (int i = 0; i < 8; ++i) {
-        value |= static_cast<int64_t>(bytecode_[offset + i]) << (i * 8);
+        value |= static_cast<uint64_t>(bytecode_[offset + i]) << (i * 8);
     }
-    return value;
+    return static_cast<int64_t>(value);
 }
 
 double VM::read_f64_at(size_t offset) const {

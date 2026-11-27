@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 #include "dryad/compiler/validator.h"
+#include <cstdio>
+#include <fstream>
 
 using namespace dryad;
 
@@ -17,6 +19,12 @@ let p = new Point(1, 2);
 
     auto result = ProgramValidator::validate_source(source);
     EXPECT_TRUE(result.ok);
+}
+
+TEST(ValidatorTest, MessageIsEmptyWhenThereAreNoDiagnosticsAtAll) {
+    auto result = ProgramValidator::validate_source("let x = 1;\nx = x + 1;");
+    EXPECT_TRUE(result.ok);
+    EXPECT_EQ(result.message(), "");
 }
 
 TEST(ValidatorTest, RejectsInvalidSyntax) {
@@ -95,4 +103,33 @@ class Child extends Parent {
 
     auto result = ProgramValidator::validate_source(source);
     EXPECT_TRUE(result.ok);
+}
+
+TEST(ValidatorTest, ErrorsReturnsOneMessagePerDiagnostic) {
+    const std::string source = "let x = ;";
+
+    auto result = ProgramValidator::validate_source(source);
+    auto errors = result.errors();
+    EXPECT_FALSE(errors.empty());
+    EXPECT_EQ(errors.size(), result.diagnostics.size());
+}
+
+TEST(ValidatorTest, ValidateFileAcceptsAnExistingValidFile) {
+    const std::string path = "dryad_validator_test_valid.dryad";
+    {
+        std::ofstream file(path);
+        file << "let x = 1;";
+    }
+
+    auto result = ProgramValidator::validate_file(path);
+    std::remove(path.c_str());
+
+    EXPECT_TRUE(result.ok);
+}
+
+TEST(ValidatorTest, ValidateFileReportsMissingFile) {
+    auto result = ProgramValidator::validate_file("dryad_validator_test_missing_file.dryad");
+
+    EXPECT_FALSE(result.ok);
+    EXPECT_NE(result.message().find("Cannot open file"), std::string::npos);
 }

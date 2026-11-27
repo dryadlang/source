@@ -1,6 +1,6 @@
 // Socket unit tests
 
-import { Socket, Socket_isSocket } from "@std/net/socket";
+import { Socket, Socket_IsSocket } from "@std/net/socket";
 import { SocketDomain_IPv4, SocketType_Stream } from "@std/net/constants";
 import { Buffer_New, Buffer_FromString, Buffer_AsString, Buffer_Dispose } from "@std/buffers/buffer";
 
@@ -23,7 +23,7 @@ function test_socket_connect_invalid_port() {
 
 function test_socket_is_socket_helper() {
     let socket = new Socket(SocketDomain_IPv4, SocketType_Stream);
-    let isSocket = Socket_isSocket(socket);
+    let isSocket = Socket_IsSocket(socket);
     socket.close();
     return isSocket;
 }

@@ -84,6 +84,11 @@ Value ExpressionEvaluator::evaluate_identifier(Identifier* expr) {
 }
 
 Value ExpressionEvaluator::evaluate_binary(BinaryExpression* expr) {
+    if (expr->op == TokenType::AmpersandAmpersand || expr->op == TokenType::PipePipe) {
+        Value left = evaluate(expr->left.get());
+        return evaluate_logical(expr->op, left, expr->right.get());
+    }
+
     Value left = evaluate(expr->left.get());
     Value right = evaluate(expr->right.get());
     
@@ -109,10 +114,6 @@ Value ExpressionEvaluator::evaluate_binary(BinaryExpression* expr) {
         case TokenType::EqualEqual:
         case TokenType::BangEqual:
             return evaluate_comparison(expr->op, left, right);
-        
-        case TokenType::AmpersandAmpersand:
-        case TokenType::PipePipe:
-            return evaluate_logical(expr->op, left, right);
         
         default:
             throw DryadException("Unknown binary operator");
@@ -147,10 +148,18 @@ Value ExpressionEvaluator::evaluate_arithmetic(TokenType op, const Value& left, 
             return is_float ? Value(left.as_float() * right.as_float())
                            : Value(left.as_integer() * right.as_integer());
         case TokenType::Slash:
-            return is_float ? Value(left.as_float() / right.as_float())
-                           : Value(left.as_integer() / right.as_integer());
+            if (is_float) {
+                return Value(left.as_float() / right.as_float());
+            }
+            if (right.as_integer() == 0) {
+                throw DryadException("Division by zero");
+            }
+            return Value(left.as_integer() / right.as_integer());
         case TokenType::Percent:
             if (is_float) throw DryadException("Modulo requires integer operands");
+            if (right.as_integer() == 0) {
+                throw DryadException("Modulo by zero");
+            }
             return Value(left.as_integer() % right.as_integer());
         default:
             throw DryadException("Unknown arithmetic operator");
@@ -220,15 +229,16 @@ Value ExpressionEvaluator::evaluate_comparison(TokenType op, const Value& left, 
     }
 }
 
-Value ExpressionEvaluator::evaluate_logical(TokenType op, const Value& left, const Value& right) {
+Value ExpressionEvaluator::evaluate_logical(TokenType op, const Value& left, Expression* right) {
     bool left_truthy = left.is_truthy();
-    
+
     if (op == TokenType::AmpersandAmpersand) {
-        return left_truthy ? right : left;
-    } else if (op == TokenType::PipePipe) {
-        return left_truthy ? left : right;
+        return left_truthy ? evaluate(right) : left;
     }
-    
+    if (op == TokenType::PipePipe) {
+        return left_truthy ? left : evaluate(right);
+    }
+
     throw DryadException("Unknown logical operator");
 }
 

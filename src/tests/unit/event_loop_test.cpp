@@ -30,11 +30,11 @@ TEST(EventLoopTest, ScheduleAndPump) {
 
 TEST(EventLoopTest, DryadPendingCount) {
     std::string source = R"(
-        import { EventLoop_schedule, EventLoop_pendingCount } from "@std/async/event_loop";
+        import { EventLoop_Schedule, EventLoop_PendingCount } from "@std/async/event_loop";
         function noop() { return null; }
-        EventLoop_schedule(noop);
-        EventLoop_schedule(noop);
-        let pending = EventLoop_pendingCount();
+        EventLoop_Schedule(noop);
+        EventLoop_Schedule(noop);
+        let pending = EventLoop_PendingCount();
     )";
 
     Lexer lexer(source);

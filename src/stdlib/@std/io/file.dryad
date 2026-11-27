@@ -9,12 +9,19 @@ import {
     VFS,
     MemoryBackend,
     NativeBackend,
+    VFS_ReadFile,
     VFS_readFile,
+    VFS_WriteFile,
     VFS_writeFile,
+    VFS_Exists,
     VFS_exists,
+    VFS_RemoveFile,
     VFS_removeFile,
+    VFS_ListDirectory,
     VFS_listDirectory,
+    VFS_Mkdir,
     VFS_mkdir,
+    VFS_Dispose,
     VFS_dispose
 } from "@std/io/vfs";
 
@@ -23,24 +30,43 @@ import { ArgumentException, IOException } from "@std/core/exceptions";
 import {
     FileMode,
     FileStream,
+    File_Open,
     File_open,
+    File_Exists,
     File_exists,
+    File_Delete,
     File_delete,
+    File_ReadAllText,
     File_readAllText,
+    File_WriteAllText,
     File_writeAllText
 } from "@std/io/filestream";
 
 import {
     MemoryStream,
+    MemoryStream_New,
     MemoryStream_new,
+    MemoryStream_FromString,
     MemoryStream_fromString,
+    MemoryStream_FromBuffer,
     MemoryStream_fromBuffer,
+    MemoryStream_ToString,
     MemoryStream_toString
 } from "@std/io/memory_stream";
 
-import { Stream_isStream, Stream_isError, SeekOrigin } from "@std/io/stream";
+import {
+    Stream_IsStream,
+    Stream_isStream,
+    Stream_IsError,
+    Stream_isError,
+    SeekOrigin
+} from "@std/io/stream";
 import { Path } from "@std/io/path";
-import { Promise, Promise_resolve } from "@std/async/promise";
+import {
+    Promise,
+    Promise_Resolve,
+    Promise_resolve
+} from "@std/async/promise";
 
 // Global default VFS instance (uses NativeBackend by default)
 let _globalVFS = null;
@@ -58,7 +84,7 @@ function _getGlobalVFS() {
 // Core I/O Functions
 // ============================================================================
 
-// readFile(path: string): string
+// Fs_ReadFile(path: string): string
 // Read entire file content as string
 // Parameters:
 //   path - File path to read
@@ -67,16 +93,16 @@ function _getGlobalVFS() {
 // Throws:
 //   FileNotFoundException if file doesn't exist
 //   ArgumentException if path is invalid
-function readFile(path) {
+function Fs_ReadFile(path) {
     if (path == null || path == "") {
         return ArgumentException("Path cannot be null or empty");
     }
     
     let vfs = _getGlobalVFS();
-    return VFS_readFile(vfs, path);
+    return VFS_ReadFile(vfs, path);
 }
 
-// writeFile(path: string, content: string): void
+// Fs_WriteFile(path: string, content: string): void
 // Write content to file, creating or overwriting as needed
 // Parameters:
 //   path - File path to write
@@ -85,7 +111,7 @@ function readFile(path) {
 //   null on success, exception string on error
 // Throws:
 //   ArgumentException if path is invalid
-function writeFile(path, content) {
+function Fs_WriteFile(path, content) {
     if (path == null || path == "") {
         return ArgumentException("Path cannot be null or empty");
     }
@@ -95,25 +121,25 @@ function writeFile(path, content) {
     }
     
     let vfs = _getGlobalVFS();
-    return VFS_writeFile(vfs, path, content);
+    return VFS_WriteFile(vfs, path, content);
 }
 
-// exists(path: string): boolean
-// Check if file exists
+// Fs_Exists(path: string): boolean
+// Check if file Fs_Exists
 // Parameters:
 //   path - File path to check
 // Returns:
-//   true if file exists, false otherwise
-function exists(path) {
+//   true if file Fs_Exists, false otherwise
+function Fs_Exists(path) {
     if (path == null || path == "") {
         return false;
     }
     
     let vfs = _getGlobalVFS();
-    return VFS_exists(vfs, path);
+    return VFS_Exists(vfs, path);
 }
 
-// removeFile(path: string): void
+// Fs_RemoveFile(path: string): void
 // Delete file
 // Parameters:
 //   path - File path to delete
@@ -122,57 +148,57 @@ function exists(path) {
 // Throws:
 //   FileNotFoundException if file doesn't exist
 //   ArgumentException if path is invalid
-function removeFile(path) {
+function Fs_RemoveFile(path) {
     if (path == null || path == "") {
         return ArgumentException("Path cannot be null or empty");
     }
     
     let vfs = _getGlobalVFS();
-    return VFS_removeFile(vfs, path);
+    return VFS_RemoveFile(vfs, path);
 }
 
-// listDirectory(path: string): array
+// Fs_ListDirectory(path: string): array
 // List files in directory
 // Parameters:
 //   path - Directory path to list (defaults to ".")
 // Returns:
 //   Array of file names in directory
-function listDirectory(path) {
+function Fs_ListDirectory(path) {
     if (path == null || path == "") {
         path = ".";
     }
     
     let vfs = _getGlobalVFS();
-    return VFS_listDirectory(vfs, path);
+    return VFS_ListDirectory(vfs, path);
 }
 
-// mkdir(path: string): void
+// Fs_Mkdir(path: string): void
 // Create directory
 // Parameters:
 //   path - Directory path to create
 // Returns:
 //   null on success, exception string on error
-function mkdir(path) {
+function Fs_Mkdir(path) {
     if (path == null || path == "") {
         return ArgumentException("Path cannot be null or empty");
     }
     
     let vfs = _getGlobalVFS();
-    return VFS_mkdir(vfs, path);
+    return VFS_Mkdir(vfs, path);
 }
 
-// setVFSBackend(backend): void
+// Fs_SetBackend(backend): void
 // Override default VFS backend (for testing)
 // Parameters:
 //   backend - FileSystemBackend implementation (MemoryBackend or NativeBackend)
 // Returns:
 //   null
 // Usage:
-//   import { MemoryBackend, setVFSBackend } from "@std/io/file";
-//   setVFSBackend(MemoryBackend()); // Switch to in-memory storage for tests
-function setVFSBackend(backend) {
+//   import { MemoryBackend, Fs_SetBackend } from "@std/io/file";
+//   Fs_SetBackend(MemoryBackend()); // Switch to in-memory storage for tests
+function Fs_SetBackend(backend) {
     if (_globalVFS != null) {
-        VFS_dispose(_globalVFS);
+        VFS_Dispose(_globalVFS);
     }
     _globalVFS = VFS(backend);
     return null;
@@ -182,29 +208,58 @@ function setVFSBackend(backend) {
 // Async I/O Functions (Promise wrappers — synchronous executor model)
 // ============================================================================
 
-function readFileAsync(path) {
-    return Promise_resolve(readFile(path));
+function Fs_ReadFileAsync(path) {
+    return Promise_Resolve(Fs_ReadFile(path));
 }
 
-function writeFileAsync(path, content) {
-    return Promise_resolve(writeFile(path, content));
+function Fs_WriteFileAsync(path, content) {
+    return Promise_Resolve(Fs_WriteFile(path, content));
 }
 
-function existsAsync(path) {
-    return Promise_resolve(exists(path));
+function Fs_ExistsAsync(path) {
+    return Promise_Resolve(Fs_Exists(path));
 }
 
-function removeFileAsync(path) {
-    return Promise_resolve(removeFile(path));
+function Fs_RemoveFileAsync(path) {
+    return Promise_Resolve(Fs_RemoveFile(path));
 }
 
-function listDirectoryAsync(path) {
-    return Promise_resolve(listDirectory(path));
+function Fs_ListDirectoryAsync(path) {
+    return Promise_Resolve(Fs_ListDirectory(path));
 }
 
-function mkdirAsync(path) {
-    return Promise_resolve(mkdir(path));
+function Fs_MkdirAsync(path) {
+    return Promise_Resolve(Fs_Mkdir(path));
 }
 
-// Stream-based file I/O (FileStream, File_open, File_readAllText, ...) is
+// Stream-based file I/O (FileStream, File_Open, File_ReadAllText, ...) is
 // re-exported from @std/io/filestream via the import above.
+
+// Deprecated pre-convention names, kept so existing code keeps working.
+// They will be removed in a future release; use the names on the right.
+// @deprecated Use Fs_Exists.
+let exists = Fs_Exists;
+// @deprecated Use Fs_ExistsAsync.
+let existsAsync = Fs_ExistsAsync;
+// @deprecated Use Fs_ListDirectory.
+let listDirectory = Fs_ListDirectory;
+// @deprecated Use Fs_ListDirectoryAsync.
+let listDirectoryAsync = Fs_ListDirectoryAsync;
+// @deprecated Use Fs_Mkdir.
+let mkdir = Fs_Mkdir;
+// @deprecated Use Fs_MkdirAsync.
+let mkdirAsync = Fs_MkdirAsync;
+// @deprecated Use Fs_ReadFile.
+let readFile = Fs_ReadFile;
+// @deprecated Use Fs_ReadFileAsync.
+let readFileAsync = Fs_ReadFileAsync;
+// @deprecated Use Fs_RemoveFile.
+let removeFile = Fs_RemoveFile;
+// @deprecated Use Fs_RemoveFileAsync.
+let removeFileAsync = Fs_RemoveFileAsync;
+// @deprecated Use Fs_SetBackend.
+let setVFSBackend = Fs_SetBackend;
+// @deprecated Use Fs_WriteFile.
+let writeFile = Fs_WriteFile;
+// @deprecated Use Fs_WriteFileAsync.
+let writeFileAsync = Fs_WriteFileAsync;

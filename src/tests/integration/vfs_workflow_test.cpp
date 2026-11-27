@@ -30,21 +30,21 @@ TEST(VFSWorkflow, NativeRoundtrip) {
         import {
             VFS,
             NativeBackend,
-            VFS_writeFile,
-            VFS_readFile,
-            VFS_exists,
-            VFS_removeFile,
-            VFS_dispose
+            VFS_WriteFile,
+            VFS_ReadFile,
+            VFS_Exists,
+            VFS_RemoveFile,
+            VFS_Dispose
         } from "@std/io/vfs";
 
         let vfs = VFS(NativeBackend());
         let path = "dryad_vfs_workflow.txt";
-        VFS_writeFile(vfs, path, "workflow");
-        let content = VFS_readFile(vfs, path);
-        let existed = VFS_exists(vfs, path);
-        VFS_removeFile(vfs, path);
-        let ok = existed && content == "workflow" && !VFS_exists(vfs, path);
-        VFS_dispose(vfs);
+        VFS_WriteFile(vfs, path, "workflow");
+        let content = VFS_ReadFile(vfs, path);
+        let existed = VFS_Exists(vfs, path);
+        VFS_RemoveFile(vfs, path);
+        let ok = existed && content == "workflow" && !VFS_Exists(vfs, path);
+        VFS_Dispose(vfs);
     )";
     EXPECT_TRUE(run_dryad(source).is_truthy());
 }

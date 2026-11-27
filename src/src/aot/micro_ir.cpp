@@ -10,30 +10,7 @@ namespace dryad {
 namespace {
 
 size_t opcode_length(Opcode op) {
-    switch (op) {
-        case Opcode::PUSH_INT:
-        case Opcode::PUSH_FLOAT:
-            return 9;
-        case Opcode::PUSH_CONST:
-        case Opcode::LOAD_FAST:
-        case Opcode::STORE_FAST:
-        case Opcode::LOAD_GLOBAL:
-        case Opcode::MAKE_FUNCTION:
-        case Opcode::JUMP:
-        case Opcode::JUMP_IF_FALSE:
-        case Opcode::JUMP_IF_TRUE:
-        case Opcode::GET_PROPERTY:
-        case Opcode::SET_PROPERTY:
-            return 3;
-        case Opcode::CALL:
-        case Opcode::METHOD_CALL:
-        case Opcode::NEW_INSTANCE:
-        case Opcode::CALL_GLOBAL:
-        case Opcode::INTRINSIC_SYSCALL:
-            return 4;
-        default:
-            return 1;
-    }
+    return opcode_size(op);
 }
 
 void find_block_leaders(const std::vector<uint8_t>& code, std::set<size_t>& leaders) {

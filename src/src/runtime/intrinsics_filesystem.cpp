@@ -12,6 +12,14 @@
 
 namespace dryad {
 
+namespace {
+
+bool path_has_nul(const std::string& path) {
+    return path.find('\0') != std::string::npos;
+}
+
+} // namespace
+
 void IntrinsicsRegistry::register_filesystem_intrinsics() {
     register_intrinsic("syscall.mkdir", [](const std::vector<Value>& args) -> Value {
         if (args.empty()) {
@@ -19,6 +27,9 @@ void IntrinsicsRegistry::register_filesystem_intrinsics() {
         }
         
         const std::string& path = args[0].as_string();
+        if (path_has_nul(path)) {
+            return Value(static_cast<int64_t>(-1));
+        }
 #ifdef _WIN32
         int result = ::_mkdir(path.c_str());
 #else
@@ -33,6 +44,9 @@ void IntrinsicsRegistry::register_filesystem_intrinsics() {
         }
         
         const std::string& path = args[0].as_string();
+        if (path_has_nul(path)) {
+            return Value(static_cast<int64_t>(-1));
+        }
         int result = ::rmdir(path.c_str());
         return Value(static_cast<int64_t>(result));
     });
@@ -59,6 +73,9 @@ void IntrinsicsRegistry::register_filesystem_intrinsics() {
         
         const std::string& oldpath = args[0].as_string();
         const std::string& newpath = args[1].as_string();
+        if (path_has_nul(oldpath) || path_has_nul(newpath)) {
+            return Value(static_cast<int64_t>(-1));
+        }
         
         int result = ::rename(oldpath.c_str(), newpath.c_str());
         return Value(static_cast<int64_t>(result));
@@ -79,6 +96,9 @@ void IntrinsicsRegistry::register_filesystem_intrinsics() {
         }
         
         const std::string& path = args[0].as_string();
+        if (path_has_nul(path)) {
+            return Value(static_cast<int64_t>(-1));
+        }
         int result = ::chdir(path.c_str());
         return Value(static_cast<int64_t>(result));
     });
@@ -88,6 +108,9 @@ void IntrinsicsRegistry::register_filesystem_intrinsics() {
             throw DryadException("syscall.exists requires 1 string argument");
         }
         const std::string& path = args[0].as_string();
+        if (path_has_nul(path)) {
+            return Value(false);
+        }
 #ifdef _WIN32
         int result = ::_access(path.c_str(), 0);
 #else
@@ -100,8 +123,12 @@ void IntrinsicsRegistry::register_filesystem_intrinsics() {
         if (args.empty() || !args[0].is_string()) {
             throw DryadException("syscall.filesize requires 1 string argument");
         }
+        const std::string& path = args[0].as_string();
+        if (path_has_nul(path)) {
+            return Value(static_cast<int64_t>(-1));
+        }
         struct stat st;
-        if (::stat(args[0].as_string().c_str(), &st) < 0) {
+        if (::stat(path.c_str(), &st) < 0) {
             return Value(static_cast<int64_t>(-1));
         }
         return Value(static_cast<int64_t>(st.st_size));
@@ -111,7 +138,11 @@ void IntrinsicsRegistry::register_filesystem_intrinsics() {
         if (args.empty() || !args[0].is_string()) {
             throw DryadException("syscall.readdir requires 1 string argument");
         }
-        DIR* dir = ::opendir(args[0].as_string().c_str());
+        const std::string& path = args[0].as_string();
+        if (path_has_nul(path)) {
+            return Value::create_array();
+        }
+        DIR* dir = ::opendir(path.c_str());
         if (dir == nullptr) {
             return Value::create_array();
         }
@@ -128,7 +159,13 @@ void IntrinsicsRegistry::register_filesystem_intrinsics() {
     });
 
     auto open_with_flags = [](const std::string& path, int flags) -> Value {
-        int fd = ::open(path.c_str(), flags, 0644);
+        if (path_has_nul(path)) {
+            return Value(static_cast<int64_t>(-1));
+        }
+#ifndef O_CLOEXEC
+#define O_CLOEXEC 0
+#endif
+        int fd = ::open(path.c_str(), flags | O_CLOEXEC, 0644);
         return Value(static_cast<int64_t>(fd));
     };
 

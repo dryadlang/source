@@ -67,7 +67,6 @@ All notable changes to this project are documented in this file.
 - Promise model is synchronous (no real event loop); `then()` queues callbacks for pending promises.
 - Threading uses blocking `start()` + `join()`; each worker runs a separate `Interpreter`.
 - TLS is client-only with no rigorous certificate verification.
-- Dryad `&&` does not short-circuit — use nested `if` in tests/scripts.
 
 ### Tests
 - **435 unit + 19 integration tests**

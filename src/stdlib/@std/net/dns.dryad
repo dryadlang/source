@@ -3,11 +3,11 @@
 
 import { SocketException } from "@std/core/exceptions";
 
-function Net_isIpv4Literal(host) {
+function _Net_isIpv4Literal(host) {
     if (host == null || host == "") {
         return false;
     }
-    let parts = Net_splitHost(host, ".");
+    let parts = _Net_splitHost(host, ".");
     if (__runtime_array_length(parts) != 4) {
         return false;
     }
@@ -17,7 +17,7 @@ function Net_isIpv4Literal(host) {
         if (part == null || part == "") {
             return false;
         }
-        let n = Net_parseInt(part);
+        let n = _Net_parseInt(part);
         if (n < 0 || n > 255) {
             return false;
         }
@@ -26,7 +26,7 @@ function Net_isIpv4Literal(host) {
     return true;
 }
 
-function Net_splitHost(text, sep) {
+function _Net_splitHost(text, sep) {
     let parts = [];
     let current = "";
     let i = 0;
@@ -48,7 +48,7 @@ function Net_splitHost(text, sep) {
     return parts;
 }
 
-function Net_charByte(text, index) {
+function _Net_charByte(text, index) {
     let len = __string_length(text);
     let handle = __alloc_bytes(len);
     __string_to_bytes(text, handle, 0);
@@ -57,12 +57,12 @@ function Net_charByte(text, index) {
     return byte;
 }
 
-function Net_parseInt(text) {
+function _Net_parseInt(text) {
     let value = 0;
     let i = 0;
     let len = __string_length(text);
     while (i < len) {
-        let byte = Net_charByte(text, i);
+        let byte = _Net_charByte(text, i);
         if (byte < 48 || byte > 57) {
             return -1;
         }
@@ -72,20 +72,27 @@ function Net_parseInt(text) {
     return value;
 }
 
-function Net_resolveHost(host) {
+function Net_ResolveHost(host) {
     if (host == null || host == "") {
         return null;
     }
-    if (Net_isIpv4Literal(host)) {
+    if (_Net_isIpv4Literal(host)) {
         return host;
     }
     return __resolve_host(host);
 }
 
-function Net_resolveHostOrError(host, operation) {
-    let ip = Net_resolveHost(host);
+function Net_ResolveHostOrError(host, operation) {
+    let ip = Net_ResolveHost(host);
     if (ip == null) {
         return [null, SocketException(operation + ": failed to resolve host")];
     }
     return [ip, null];
 }
+
+// Deprecated pre-convention names, kept so existing code keeps working.
+// They will be removed in a future release; use the names on the right.
+// @deprecated Use Net_ResolveHost.
+let Net_resolveHost = Net_ResolveHost;
+// @deprecated Use Net_ResolveHostOrError.
+let Net_resolveHostOrError = Net_ResolveHostOrError;

@@ -63,11 +63,11 @@ void require_tls() {
     }
 }
 
-#endif
-
 void require_network() {
     IntrinsicsRegistry::instance().require_network_access();
 }
+
+#endif
 
 } // namespace
 

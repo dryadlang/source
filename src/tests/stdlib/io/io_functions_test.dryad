@@ -1,57 +1,57 @@
 // High-level I/O function tests loaded via import system.
 
 import {
-    readFile,
-    writeFile,
-    exists,
-    removeFile,
-    listDirectory,
-    mkdir,
-    setVFSBackend
+    Fs_ReadFile,
+    Fs_WriteFile,
+    Fs_Exists,
+    Fs_RemoveFile,
+    Fs_ListDirectory,
+    Fs_Mkdir,
+    Fs_SetBackend
 } from "@std/io/file";
 
 import { MemoryBackend, NativeBackend } from "@std/io/vfs";
 
 function test_read_write_file() {
-    setVFSBackend(MemoryBackend());
-    writeFile("/test.txt", "test content");
-    return readFile("/test.txt") == "test content";
+    Fs_SetBackend(MemoryBackend());
+    Fs_WriteFile("/test.txt", "test content");
+    return Fs_ReadFile("/test.txt") == "test content";
 }
 
 function test_exists_function() {
-    setVFSBackend(MemoryBackend());
-    let missing = exists("/missing.txt");
-    writeFile("/existing.txt", "data");
-    return !missing && exists("/existing.txt");
+    Fs_SetBackend(MemoryBackend());
+    let missing = Fs_Exists("/missing.txt");
+    Fs_WriteFile("/existing.txt", "data");
+    return !missing && Fs_Exists("/existing.txt");
 }
 
 function test_remove_file_function() {
-    setVFSBackend(MemoryBackend());
-    writeFile("/temp.txt", "temporary");
-    let before = exists("/temp.txt");
-    removeFile("/temp.txt");
-    return before && !exists("/temp.txt");
+    Fs_SetBackend(MemoryBackend());
+    Fs_WriteFile("/temp.txt", "temporary");
+    let before = Fs_Exists("/temp.txt");
+    Fs_RemoveFile("/temp.txt");
+    return before && !Fs_Exists("/temp.txt");
 }
 
 function test_set_vfs_backend_isolation() {
-    setVFSBackend(MemoryBackend());
-    writeFile("/file1.txt", "backend1");
-    setVFSBackend(MemoryBackend());
-    writeFile("/file2.txt", "backend2");
-    let content2 = readFile("/file2.txt");
-    let missing = readFile("/file1.txt");
+    Fs_SetBackend(MemoryBackend());
+    Fs_WriteFile("/file1.txt", "backend1");
+    Fs_SetBackend(MemoryBackend());
+    Fs_WriteFile("/file2.txt", "backend2");
+    let content2 = Fs_ReadFile("/file2.txt");
+    let missing = Fs_ReadFile("/file1.txt");
     return content2 == "backend2" && missing != "backend1";
 }
 
 function test_mkdir_function() {
-    setVFSBackend(MemoryBackend());
-    return mkdir("/testdir") == null;
+    Fs_SetBackend(MemoryBackend());
+    return Fs_Mkdir("/testdir") == null;
 }
 
 function test_list_directory_function() {
-    setVFSBackend(MemoryBackend());
-    writeFile("/listed.txt", "x");
-    let files = listDirectory("/");
+    Fs_SetBackend(MemoryBackend());
+    Fs_WriteFile("/listed.txt", "x");
+    let files = Fs_ListDirectory("/");
     let n = __runtime_array_length(files);
     let found = false;
     let i = 0;
@@ -65,11 +65,11 @@ function test_list_directory_function() {
 }
 
 function test_native_read_write_via_file_api() {
-    setVFSBackend(NativeBackend());
+    Fs_SetBackend(NativeBackend());
     let path = "dryad_io_native.txt";
-    writeFile(path, "from file api");
-    let content = readFile(path);
-    let ok = exists(path);
-    removeFile(path);
-    return content == "from file api" && ok && !exists(path);
+    Fs_WriteFile(path, "from file api");
+    let content = Fs_ReadFile(path);
+    let ok = Fs_Exists(path);
+    Fs_RemoveFile(path);
+    return content == "from file api" && ok && !Fs_Exists(path);
 }

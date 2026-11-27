@@ -57,6 +57,14 @@ TEST(PathTest, Extension) {
     EXPECT_TRUE(run_path_test("test_path_extension").is_truthy());
 }
 
+TEST(PathTest, DotDotAndSeparators) {
+    EXPECT_TRUE(run_path_test("test_path_dotdot_and_separators").is_truthy());
+}
+
+TEST(PathTest, AbsoluteJoinReplaces) {
+    EXPECT_TRUE(run_path_test("test_path_absolute_join_replaces").is_truthy());
+}
+
 TEST(PathTest, EnsureParentForNestedFile) {
     EXPECT_TRUE(run_path_test("test_path_ensure_parent_for_nested_file").is_truthy());
 }

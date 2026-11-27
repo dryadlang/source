@@ -3,7 +3,7 @@
 
 import { IEnumerable } from "@std/core/enumerable";
 
-function Queue_allocateSlots(items, capacity) {
+function _Queue_allocateSlots(items, capacity) {
     let i = 0;
     while (i < capacity) {
         __runtime_array_push(items, null);
@@ -12,7 +12,7 @@ function Queue_allocateSlots(items, capacity) {
     return items;
 }
 
-function Queue_grow(queue) {
+function _Queue_grow(queue) {
     let newCapacity = queue._capacity * 2;
     if (newCapacity < 4) {
         newCapacity = 4;
@@ -26,7 +26,7 @@ function Queue_grow(queue) {
         i = i + 1;
     }
 
-    Queue_allocateSlots(newItems, newCapacity);
+    _Queue_allocateSlots(newItems, newCapacity);
     queue._items = newItems;
     queue._capacity = newCapacity;
     queue._head = 0;
@@ -39,7 +39,7 @@ class Queue implements IEnumerable {
         if (capacity < 1) {
             capacity = 16;
         }
-        this._items = Queue_allocateSlots([], capacity);
+        this._items = _Queue_allocateSlots([], capacity);
         this._capacity = capacity;
         this._count = 0;
         this._head = 0;
@@ -64,7 +64,7 @@ class Queue implements IEnumerable {
 
     enqueue(item) {
         if (this._count >= this._capacity) {
-            Queue_grow(this);
+            _Queue_grow(this);
         }
         this._items[this._tail] = item;
         this._tail = (this._tail + 1) % this._capacity;

@@ -2,11 +2,11 @@
 
 import {
     Thread,
-    Thread_parallel,
-    Thread_sleepMs,
-    Thread_hardwareConcurrency,
+    Thread_Parallel,
+    Thread_SleepMs,
+    Thread_HardwareConcurrency,
     ThreadPool,
-    ThreadPool_map
+    ThreadPool_Map
 } from "@std/async/threading/threading";
 
 function worker_add(a, b) {
@@ -34,7 +34,7 @@ function test_thread_with_args() {
 }
 
 function test_thread_parallel() {
-    let outcome = Thread_parallel([worker_identity, worker_identity]);
+    let outcome = Thread_Parallel([worker_identity, worker_identity]);
     if (!__runtime_object_get(outcome, "ok")) {
         return false;
     }
@@ -51,16 +51,16 @@ function test_thread_pool_run() {
 
 function test_thread_pool_map() {
     let pool = new ThreadPool(2);
-    let results = ThreadPool_map(pool, [worker_identity, worker_identity]);
+    let results = ThreadPool_Map(pool, [worker_identity, worker_identity]);
     pool.destroy();
     return results[0] == 99 && results[1] == 99;
 }
 
 function test_thread_hardware_concurrency() {
-    return Thread_hardwareConcurrency() >= 1;
+    return Thread_HardwareConcurrency() >= 1;
 }
 
 function test_thread_sleep() {
-    Thread_sleepMs(1);
+    Thread_SleepMs(1);
     return true;
 }

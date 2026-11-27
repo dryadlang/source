@@ -1,0 +1,147 @@
+// @auto-test
+// @std/net: offline checks (no sockets opened) for the public API.
+
+import {
+    Socket_IsSocket, SocketDomain, SocketDomain_IPv4, SocketDomain_IPv6,
+    SocketType, SocketType_Stream, SocketType_Datagram,
+    Shutdown, Shutdown_Read, Shutdown_Write, Shutdown_Both,
+    Net_ResolveHost, Net_ResolveHostOrError,
+    HttpHeaders, HttpRequest, HttpResponse, HttpResponse_Parse, Http_ParseUrl,
+    NetworkStream_FromSocket, TlsStream_IsAvailable, TlsStream_Connect
+} from "@std/net";
+
+// Renders any value for failure messages (Dryad has no implicit string conversion).
+function show(value) {
+    let kind = __runtime_value_kind(value);
+    if (kind == "string") {
+        return "\"" + value + "\"";
+    }
+    if (kind == "integer") {
+        return __int_to_string(value);
+    }
+    if (kind == "boolean") {
+        if (value) {
+            return "true";
+        }
+        return "false";
+    }
+    if (kind == "null") {
+        return "null";
+    }
+    return "<" + kind + ">";
+}
+
+function expectEq(label, actual, expected) {
+    if (actual == expected) {
+        return true;
+    }
+    return label + ": expected " + show(expected) + ", got " + show(actual);
+}
+
+function all(checks) {
+    let i = 0;
+    while (i < __runtime_array_length(checks)) {
+        let c = checks[i];
+        let r = expectEq(c[0], c[1], c[2]);
+        if (r != true) {
+            return r;
+        }
+        i = i + 1;
+    }
+    return true;
+}
+
+function test_is_socket_rejects_non_sockets() {
+    return all([
+        ["string", Socket_IsSocket("connect failed"), false],
+        ["null", Socket_IsSocket(null), false],
+        ["number", Socket_IsSocket(3), false],
+        ["plain object", Socket_IsSocket(SocketDomain), false]
+    ]);
+}
+
+function test_constants_match_posix_values() {
+    return all([
+        ["AF_INET", SocketDomain_IPv4, 2],
+        ["AF_INET6", SocketDomain_IPv6, 10],
+        ["SOCK_STREAM", SocketType_Stream, 1],
+        ["SOCK_DGRAM", SocketType_Datagram, 2],
+        ["SHUT_RD", Shutdown_Read, 0],
+        ["SHUT_WR", Shutdown_Write, 1],
+        ["SHUT_RDWR", Shutdown_Both, 2],
+        ["SocketDomain.IPv6", SocketDomain.IPv6, SocketDomain_IPv6],
+        ["SocketType.Datagram", SocketType.Datagram, SocketType_Datagram],
+        ["Shutdown.Both", Shutdown.Both, Shutdown_Both]
+    ]);
+}
+
+function test_resolve_host_literals_without_dns() {
+    let pair = Net_ResolveHostOrError("127.0.0.1", "connect");
+    let bad = Net_ResolveHostOrError("", "connect");
+    return all([
+        ["ipv4 literal", Net_ResolveHost("10.0.0.7"), "10.0.0.7"],
+        ["pair ip", pair[0], "127.0.0.1"],
+        ["pair error", pair[1], null],
+        ["empty ip", bad[0], null],
+        ["empty error", bad[1], "connect: failed to resolve host"]
+    ]);
+}
+
+function test_http_headers_and_request_defaults() {
+    let headers = new HttpHeaders();
+    headers.set("Content-Type", "text/plain");
+    let req = new HttpRequest("GET", "http://example.test/", null, null);
+    return all([
+        ["header get", headers.get("Content-Type"), "text/plain"],
+        ["missing header", headers.get("X-None"), null],
+        ["method", req.method, "GET"],
+        ["default body", req.body, ""],
+        ["default headers", req.headers.get("Host"), null]
+    ]);
+}
+
+function test_http_response_parse() {
+    let raw = "HTTP/1.1 404 Not Found\r\nContent-Length: 2\r\n\r\nno";
+    let res = HttpResponse_Parse(raw);
+    let direct = new HttpResponse(200, "OK", new HttpHeaders(), "x");
+    return all([
+        ["status", res.statusCode, 404],
+        ["text", res.statusText, "Not Found"],
+        ["header", res.headers.get("Content-Length"), "2"],
+        ["body", res.body, "no"],
+        ["malformed", HttpResponse_Parse("HTTP/1.1 200 OK"), "Malformed HTTP response"],
+        ["empty", HttpResponse_Parse(""), "Empty HTTP response"],
+        ["constructor", direct.statusCode, 200]
+    ]);
+}
+
+function test_http_parse_url() {
+    let https = Http_ParseUrl("https://example.test/a/b?q=1");
+    let plain = Http_ParseUrl("http://example.test:8080");
+    return all([
+        ["https scheme", https.scheme, "https"],
+        ["https port", https.port, 443],
+        ["https host", https.host, "example.test"],
+        ["https path", https.path, "/a/b?q=1"],
+        ["explicit port", plain.port, 8080],
+        ["default path", plain.path, "/"],
+        ["empty", Http_ParseUrl(""), "URL cannot be null or empty"]
+    ]);
+}
+
+function test_network_stream_rejects_non_sockets() {
+    return all([
+        ["string", NetworkStream_FromSocket("connect failed"), "Expected a Socket"],
+        ["null", NetworkStream_FromSocket(null), "Socket cannot be null"]
+    ]);
+}
+
+function test_tls_connect_reports_unavailable_or_bad_fd() {
+    // Runs offline: with TLS built in, a bad descriptor must be rejected before
+    // the handshake (which would need network access).
+    let result = TlsStream_Connect(-1, "example.test");
+    if (TlsStream_IsAvailable()) {
+        return expectEq("bad fd", result, "TlsStream_Connect requires an open socket descriptor");
+    }
+    return expectEq("unavailable", result, "TLS is not available in this build");
+}

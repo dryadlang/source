@@ -10,6 +10,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace dryad {
@@ -17,6 +18,7 @@ namespace dryad {
 struct VmCallFrame {
     size_t return_pc = 0;
     std::vector<Value> slots;
+    std::vector<Value> upvalues;
     size_t function_index = 0;
 };
 
@@ -44,6 +46,7 @@ public:
     void push_stack(const Value& value);
     void clear_stack() { stack_.clear(); }
     void set_slot(uint16_t index, const Value& value);
+    void set_upvalues(std::vector<Value> upvalues) { upvalues_ = std::move(upvalues); }
 
     void set_jit_delegate(VmJitDelegate* delegate);
     void set_runtime_delegate(VmRuntimeDelegate* delegate);
@@ -55,6 +58,7 @@ private:
     std::vector<uint8_t> bytecode_;
     std::vector<Value> constants_;
     std::vector<Value> slots_;
+    std::vector<Value> upvalues_;
     const CompiledProgram* program_ = nullptr;
     size_t current_function_index_ = 0;
     std::vector<VmCallFrame> frames_;
@@ -79,6 +83,9 @@ private:
     int64_t read_i64_at(size_t offset) const;
     double read_f64_at(size_t offset) const;
     void advance(size_t bytes);
+    Value& cell_at_slot(uint16_t slot, const char* context);
+    Value& cell_at_upvalue(uint16_t index, const char* context);
+    std::vector<Value> pop_args(uint8_t argc);
 
     static double as_f64(const Value& value);
     static int64_t as_i32_slot(const Value& value);

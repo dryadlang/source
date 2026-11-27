@@ -67,28 +67,7 @@ void analyze_bytecode(const CompiledFunction& function, AnalyzeReport& report) {
             report.fast_path_sites++;
         }
 
-        switch (op) {
-            case Opcode::PUSH_INT:
-            case Opcode::PUSH_FLOAT:
-                pc += 9;
-                break;
-            case Opcode::PUSH_CONST:
-            case Opcode::LOAD_FAST:
-            case Opcode::STORE_FAST:
-            case Opcode::LOAD_GLOBAL:
-            case Opcode::MAKE_FUNCTION:
-            case Opcode::JUMP:
-            case Opcode::JUMP_IF_FALSE:
-            case Opcode::JUMP_IF_TRUE:
-                pc += 3;
-                break;
-            case Opcode::INTRINSIC_SYSCALL:
-                pc += 4;
-                break;
-            default:
-                pc += 1;
-                break;
-        }
+        pc += opcode_size(op);
     }
 
     for (const auto& slot : function.metadata.slots) {

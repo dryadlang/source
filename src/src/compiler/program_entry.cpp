@@ -40,26 +40,17 @@ bool program_has_script_body(const Program* program) {
     return false;
 }
 
-std::unique_ptr<FunctionDeclaration> synthesize_script_entry_function(Program* program) {
-    if (!program || !program_has_script_body(program)) {
-        return nullptr;
+std::vector<Statement*> script_level_statements(const Program* program) {
+    std::vector<Statement*> statements;
+    if (!program) {
+        return statements;
     }
-
-    auto body = std::make_unique<BlockStatement>(std::vector<std::unique_ptr<Statement>>{});
-    std::vector<std::unique_ptr<Statement>> remaining;
-    for (auto& stmt : program->statements) {
+    for (const auto& stmt : program->statements) {
         if (is_script_level_statement(stmt->type)) {
-            body->statements.push_back(std::move(stmt));
-        } else {
-            remaining.push_back(std::move(stmt));
+            statements.push_back(stmt.get());
         }
     }
-    program->statements = std::move(remaining);
-
-    return std::make_unique<FunctionDeclaration>(
-        kScriptEntryFunctionName,
-        std::vector<Parameter>{},
-        std::move(body));
+    return statements;
 }
 
 } // namespace dryad

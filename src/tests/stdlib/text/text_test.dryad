@@ -446,9 +446,13 @@ function text_test_parse_float_exponent_bounds() {
     return ok;
 }
 
+// Formatting is exact at any magnitude now; values above 2^63 used to be a
+// range error.
 function text_test_format_float_magnitude_limit() {
     let big = Text_FormatFloat(10000000000000000000.0, 0);
-    return big[1] != null;
+    let huge = Text_FormatFloat(100000000000000000000000.0, 1);
+    return big[1] == null && big[0] == "10000000000000000000" &&
+           huge[1] == null && huge[0] == "99999999999999991611392.0";
 }
 
 function text_test_last_index_of_empty_needle_nonempty() {

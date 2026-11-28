@@ -1,0 +1,731 @@
+// @std/text/float_conv.dryad
+// Exact decimal <-> binary64 conversion helpers for @std/text (internal).
+//
+// Text_ParseFloat and Text_FormatFloatShortest need correctly rounded
+// results, which repeated `* 10.0` / `/ 10.0` cannot give. These helpers do
+// the arithmetic on arbitrary-precision non-negative integers ("bigs"):
+// arrays of 24-bit limbs, least significant first, with no high zero limbs
+// (zero is []). 24-bit limbs keep every intermediate product below 2^53.
+
+let _Big_base = 16777216;
+
+function _Big_fromInt(n) {
+    let limbs = [];
+    let v = n;
+    while (v > 0) {
+        __runtime_array_push(limbs, v % _Big_base);
+        v = v / _Big_base;
+    }
+    return limbs;
+}
+
+function _Big_isZero(a) {
+    return __runtime_array_length(a) == 0;
+}
+
+// a * m + add, for 0 <= m, add < 2^24.
+function _Big_mulAdd(a, m, add) {
+    let out = [];
+    let carry = add;
+    let i = 0;
+    let n = __runtime_array_length(a);
+    while (i < n) {
+        let t = a[i] * m + carry;
+        __runtime_array_push(out, t % _Big_base);
+        carry = t / _Big_base;
+        i = i + 1;
+    }
+    while (carry > 0) {
+        __runtime_array_push(out, carry % _Big_base);
+        carry = carry / _Big_base;
+    }
+    // Trim (m may be 0).
+    while (__runtime_array_length(out) > 0 && out[__runtime_array_length(out) - 1] == 0) {
+        out = _Big_dropTop(out);
+    }
+    return out;
+}
+
+function _Big_dropTop(a) {
+    let out = [];
+    let i = 0;
+    let n = __runtime_array_length(a) - 1;
+    while (i < n) {
+        __runtime_array_push(out, a[i]);
+        i = i + 1;
+    }
+    return out;
+}
+
+// a * 10^n.
+function _Big_mulPow10(a, n) {
+    let out = a;
+    let left = n;
+    while (left >= 7) {
+        out = _Big_mulAdd(out, 10000000, 0);
+        left = left - 7;
+    }
+    let small = 1;
+    while (left > 0) {
+        small = small * 10;
+        left = left - 1;
+    }
+    if (small > 1) {
+        out = _Big_mulAdd(out, small, 0);
+    }
+    return out;
+}
+
+// a * 2^bits.
+function _Big_shl(a, bits) {
+    if (_Big_isZero(a) || bits == 0) {
+        return a;
+    }
+    let out = [];
+    let whole = bits / 24;
+    let part = bits % 24;
+    let i = 0;
+    while (i < whole) {
+        __runtime_array_push(out, 0);
+        i = i + 1;
+    }
+    let factor = 1 << part;
+    let carry = 0;
+    i = 0;
+    let n = __runtime_array_length(a);
+    while (i < n) {
+        let t = a[i] * factor + carry;
+        __runtime_array_push(out, t % _Big_base);
+        carry = t / _Big_base;
+        i = i + 1;
+    }
+    if (carry > 0) {
+        __runtime_array_push(out, carry);
+    }
+    return out;
+}
+
+function _Big_cmp(a, b) {
+    let na = __runtime_array_length(a);
+    let nb = __runtime_array_length(b);
+    if (na != nb) {
+        if (na < nb) {
+            return 0 - 1;
+        }
+        return 1;
+    }
+    let i = na - 1;
+    while (i >= 0) {
+        if (a[i] != b[i]) {
+            if (a[i] < b[i]) {
+                return 0 - 1;
+            }
+            return 1;
+        }
+        i = i - 1;
+    }
+    return 0;
+}
+
+// a - b, for a >= b.
+function _Big_sub(a, b) {
+    let out = [];
+    let borrow = 0;
+    let i = 0;
+    let na = __runtime_array_length(a);
+    let nb = __runtime_array_length(b);
+    while (i < na) {
+        let t = a[i] - borrow;
+        if (i < nb) {
+            t = t - b[i];
+        }
+        if (t < 0) {
+            t = t + _Big_base;
+            borrow = 1;
+        } else {
+            borrow = 0;
+        }
+        __runtime_array_push(out, t);
+        i = i + 1;
+    }
+    while (__runtime_array_length(out) > 0 && out[__runtime_array_length(out) - 1] == 0) {
+        out = _Big_dropTop(out);
+    }
+    return out;
+}
+
+function _Big_bitLength(a) {
+    let n = __runtime_array_length(a);
+    if (n == 0) {
+        return 0;
+    }
+    let top = a[n - 1];
+    let bits = 0;
+    while (top > 0) {
+        bits = bits + 1;
+        top = top >> 1;
+    }
+    return (n - 1) * 24 + bits;
+}
+
+// Approximate value of a big as [mantissa, limbExponent]: the top three
+// limbs as a float, and the limb index of the lowest of them.
+function _Big_topFloat(a) {
+    let n = __runtime_array_length(a);
+    let m = 0.0;
+    let i = n - 1;
+    let used = 0;
+    while (i >= 0 && used < 3) {
+        m = m * 16777216.0 + __int_to_float(a[i]);
+        i = i - 1;
+        used = used + 1;
+    }
+    return [m, i + 1];
+}
+
+// a * 2^(24 * limbs) (whole-limb shift).
+function _Big_shlLimbs(a, limbs) {
+    if (_Big_isZero(a) || limbs == 0) {
+        return a;
+    }
+    let out = [];
+    let i = 0;
+    while (i < limbs) {
+        __runtime_array_push(out, 0);
+        i = i + 1;
+    }
+    i = 0;
+    let n = __runtime_array_length(a);
+    while (i < n) {
+        __runtime_array_push(out, a[i]);
+        i = i + 1;
+    }
+    return out;
+}
+
+// [floor(a / b), a mod b] as an integer quotient, for quotients below 2^62.
+function _Big_divSmallQuotient(a, b) {
+    let qr = _Big_divBig(a, b);
+    let limbs = qr[0];
+    let q = 0;
+    let i = __runtime_array_length(limbs) - 1;
+    while (i >= 0) {
+        q = q * 16777216 + limbs[i];
+        i = i - 1;
+    }
+    return [q, qr[1]];
+}
+
+let _FloatConv_pow10 = [1.0, 10.0, 100.0, 1000.0, 10000.0, 100000.0, 1000000.0, 10000000.0,
+    100000000.0, 1000000000.0, 10000000000.0, 100000000000.0, 1000000000000.0,
+    10000000000000.0, 100000000000000.0, 1000000000000000.0, 10000000000000000.0,
+    100000000000000000.0, 1000000000000000000.0, 10000000000000000000.0,
+    100000000000000000000.0, 1000000000000000000000.0, 10000000000000000000000.0];
+
+// q * 2^k for an integer q < 2^54; exact whenever the result is representable.
+function _FloatConv_scale(q, k) {
+    let v = __int_to_float(q);
+    let e = k;
+    while (e > 0) {
+        v = v * 2.0;
+        e = e - 1;
+    }
+    while (e < 0) {
+        v = v * 0.5;
+        e = e + 1;
+    }
+    return v;
+}
+
+// Correctly rounded (ties to even) magnitude of digits * 10^exp10, where
+// `digits` is an array of decimal digit values without leading zeros.
+// Returns the float, or null when it overflows binary64.
+function _FloatConv_decimalToFloat(digits, exp10) {
+    let nd = __runtime_array_length(digits);
+    if (nd == 0) {
+        return 0.0;
+    }
+    // 800 significant digits decide every binary64 rounding; later non-zero
+    // digits only matter as a "sticky" bit, kept as one extra digit 1.
+    let used = digits;
+    let e10 = exp10;
+    if (nd > 800) {
+        used = [];
+        let sticky = false;
+        let i = 0;
+        while (i < nd) {
+            if (i < 800) {
+                __runtime_array_push(used, digits[i]);
+            } else if (digits[i] != 0) {
+                sticky = true;
+            }
+            i = i + 1;
+        }
+        e10 = e10 + (nd - 800);
+        if (sticky) {
+            __runtime_array_push(used, 1);
+            e10 = e10 - 1;
+        }
+        nd = __runtime_array_length(used);
+    }
+    // value is in [10^(nd + e10 - 1), 10^(nd + e10)).
+    if (nd + e10 > 310) {
+        return null;
+    }
+    if (nd + e10 < 0 - 330) {
+        return 0.0;
+    }
+    // Clinger's fast path: both operands exact, one correctly rounded op.
+    if (nd <= 15 && e10 >= 0 - 22 && e10 <= 22) {
+        let d = 0;
+        let i = 0;
+        while (i < nd) {
+            d = d * 10 + used[i];
+            i = i + 1;
+        }
+        if (e10 >= 0) {
+            return __int_to_float(d) * _FloatConv_pow10[e10];
+        }
+        return __int_to_float(d) / _FloatConv_pow10[0 - e10];
+    }
+    // Exact path: value = num / den with bigs.
+    // Accumulate seven digits per pass (10^7 < 2^24).
+    let num = [];
+    let i = 0;
+    while (i < nd) {
+        let chunk = 0;
+        let mult = 1;
+        let taken = 0;
+        while (taken < 7 && i < nd) {
+            chunk = chunk * 10 + used[i];
+            mult = mult * 10;
+            taken = taken + 1;
+            i = i + 1;
+        }
+        num = _Big_mulAdd(num, mult, chunk);
+    }
+    let den = _Big_fromInt(1);
+    if (e10 >= 0) {
+        num = _Big_mulPow10(num, e10);
+    } else {
+        den = _Big_mulPow10(den, 0 - e10);
+    }
+    // One division: choose kEst so the quotient has 54..56 bits, then drop the
+    // extra low bits (more for subnormals) while rounding half to even, with
+    // the division remainder as the sticky bit.
+    let kEst = _Big_bitLength(num) - _Big_bitLength(den) - 55;
+    let a = num;
+    let b = den;
+    if (kEst >= 0) {
+        b = _Big_shl(den, kEst);
+    } else {
+        a = _Big_shl(num, 0 - kEst);
+    }
+    let qr = _Big_divSmallQuotient(a, b);
+    let q = qr[0];
+    let sticky = !_Big_isZero(qr[1]);
+    let qbits = 0;
+    let t = q;
+    while (t > 0) {
+        qbits = qbits + 1;
+        t = t >> 1;
+    }
+    let shift = qbits - 53;
+    let k = kEst + shift;
+    if (k < 0 - 1074) {
+        shift = shift + (0 - 1074 - k);
+        k = 0 - 1074;
+    }
+    if (shift >= 62) {
+        // Below half of the smallest subnormal.
+        return 0.0;
+    }
+    if (shift > 0) {
+        let unit = 1 << shift;
+        let low = q % unit;
+        let half = unit / 2;
+        q = q / unit;
+        if (low > half || (low == half && (sticky || q % 2 == 1))) {
+            q = q + 1;
+        }
+    }
+    if (q == 9007199254740992) {
+        q = 4503599627370496;
+        k = k + 1;
+    }
+    if (k + 52 > 1023) {
+        return null;
+    }
+    return _FloatConv_scale(q, k);
+}
+
+// [q, k] with |x| = q * 2^k exactly, q an integer < 2^53, for finite x != 0.
+function _FloatConv_decompose(x) {
+    let m = x;
+    if (m < 0.0) {
+        m = 0.0 - m;
+    }
+    let k = 0;
+    while (m >= 9007199254740992.0) {
+        m = m * 0.5;
+        k = k + 1;
+    }
+    while (m < 4503599627370496.0 && k > 0 - 1074) {
+        m = m * 2.0;
+        k = k - 1;
+    }
+    return [__float_to_int(m), k];
+}
+
+// [digits18, e10, sticky]: the first 18 significant decimal digits of |x|
+// (an integer in [10^17, 10^18), below 2^63), the decimal exponent of the
+// first digit, and whether any non-zero digits follow. For finite x != 0.
+// 17 digits always round-trip, so one guard digit plus the sticky flag is
+// enough to round correctly to any p <= 17.
+function _FloatConv_leadingDigits(x) {
+    let parts = _FloatConv_decompose(x);
+    let q = parts[0];
+    let k = parts[1];
+    let num = _Big_fromInt(q);
+    let den = _Big_fromInt(1);
+    if (k >= 0) {
+        num = _Big_shl(num, k);
+    } else {
+        den = _Big_shl(den, 0 - k);
+    }
+    // Estimate e10 = floor(log10(|x|)) from the bit length, then correct it.
+    let bits = _Big_bitLength(num) - _Big_bitLength(den);
+    let e10 = (bits * 30103) / 100000;
+    if (bits < 0) {
+        e10 = e10 - 1;
+    }
+    let attempts = 0;
+    while (attempts < 6) {
+        let s = e10 - 17;
+        let a = num;
+        let b = den;
+        if (s >= 0) {
+            b = _Big_mulPow10(den, s);
+        } else {
+            a = _Big_mulPow10(num, 0 - s);
+        }
+        let qr = _Big_divSmallQuotient(a, b);
+        let d = qr[0];
+        if (d >= 1000000000000000000) {
+            e10 = e10 + 1;
+        } else if (d < 100000000000000000) {
+            e10 = e10 - 1;
+        } else {
+            return [d, e10, !_Big_isZero(qr[1])];
+        }
+        attempts = attempts + 1;
+    }
+    return null;
+}
+
+// Rounds the 18-digit integer d18 (with sticky) to p significant digits,
+// ties to even. Returns [digits, e10Adjust]; digits may be 10^p after a carry,
+// which is reported as [10^(p-1), 1].
+function _FloatConv_roundTo(d18, sticky, p) {
+    let drop = 18 - p;
+    let divisor = 1;
+    let i = 0;
+    while (i < drop) {
+        divisor = divisor * 10;
+        i = i + 1;
+    }
+    let kept = d18 / divisor;
+    let rest = d18 % divisor;
+    let half = divisor / 2;
+    if (rest > half || (rest == half && (sticky || kept % 2 == 1))) {
+        kept = kept + 1;
+    }
+    let limit = 1;
+    i = 0;
+    while (i < p) {
+        limit = limit * 10;
+        i = i + 1;
+    }
+    if (kept == limit) {
+        return [limit / 10, 1];
+    }
+    return [kept, 0];
+}
+
+function _FloatConv_intDigits(n) {
+    let digits = [];
+    let v = n;
+    if (v == 0) {
+        return [0];
+    }
+    let reversed = [];
+    while (v > 0) {
+        __runtime_array_push(reversed, v % 10);
+        v = v / 10;
+    }
+    let i = __runtime_array_length(reversed) - 1;
+    while (i >= 0) {
+        __runtime_array_push(digits, reversed[i]);
+        i = i - 1;
+    }
+    return digits;
+}
+
+// a * b for bigs (schoolbook; each partial product is below 2^48).
+function _Big_mul(a, b) {
+    let na = __runtime_array_length(a);
+    let nb = __runtime_array_length(b);
+    if (na == 0 || nb == 0) {
+        return [];
+    }
+    let out = [];
+    let i = 0;
+    while (i < na + nb) {
+        __runtime_array_push(out, 0);
+        i = i + 1;
+    }
+    i = 0;
+    while (i < na) {
+        let carry = 0;
+        let j = 0;
+        while (j < nb) {
+            let t = out[i + j] + a[i] * b[j] + carry;
+            out[i + j] = t % _Big_base;
+            carry = t / _Big_base;
+            j = j + 1;
+        }
+        let pos = i + nb;
+        while (carry > 0) {
+            let t = out[pos] + carry;
+            out[pos] = t % _Big_base;
+            carry = t / _Big_base;
+            pos = pos + 1;
+        }
+        i = i + 1;
+    }
+    while (__runtime_array_length(out) > 0 && out[__runtime_array_length(out) - 1] == 0) {
+        out = _Big_dropTop(out);
+    }
+    return out;
+}
+
+// [digits, e10]: the shortest digit sequence (no trailing zeros) whose value
+// digits * 10^(e10 - len + 1) reads back as |x|, for finite x != 0.
+//
+// A decimal reads back as x exactly when it lies inside x's rounding
+// interval: halfway to the neighbouring floats, boundaries included when the
+// significand is even (ties to even). The candidates are the 18 leading
+// digits rounded to p = 1..17 places; each is checked against the interval
+// with exact big-integer comparisons.
+function _FloatConv_shortest(x) {
+    let target = x;
+    if (target < 0.0) {
+        target = 0.0 - target;
+    }
+    let parts = _FloatConv_decompose(target);
+    let q = parts[0];
+    let k = parts[1];
+    let lead = _FloatConv_leadingDigits(target);
+    let e10 = lead[1];
+
+    // Interval ends as integers times 2^(k - 2). Below a power of two
+    // (q == 2^52, not subnormal) the lower neighbour is twice as close.
+    let lowX = 4 * q - 2;
+    if (q == 4503599627370496 && k > 0 - 1074) {
+        lowX = 4 * q - 1;
+    }
+    let highX = 4 * q + 2;
+    let inclusive = q % 2 == 0;
+
+    // Compare candidate * 10^t17 with X * 2^(k - 2), where t17 = e10 - 16 and
+    // the candidate is scaled to 17 digits. Clear the negative powers.
+    let t17 = e10 - 16;
+    let kk = k - 2;
+    let candScale = _Big_fromInt(1);
+    let boundScale = _Big_fromInt(1);
+    if (t17 >= 0) {
+        candScale = _Big_mulPow10(candScale, t17);
+    } else {
+        boundScale = _Big_mulPow10(boundScale, 0 - t17);
+    }
+    if (kk >= 0) {
+        boundScale = _Big_shl(boundScale, kk);
+    } else {
+        candScale = _Big_shl(candScale, 0 - kk);
+    }
+    let low = _Big_mul(_Big_fromInt(lowX), boundScale);
+    let high = _Big_mul(_Big_fromInt(highX), boundScale);
+
+    let p = 1;
+    while (p <= 17) {
+        let rounded = _FloatConv_roundTo(lead[0], lead[2], p);
+        let c = rounded[0];
+        let eAdj = rounded[1];
+        // c has p digits at exponent e10 + eAdj; as a 17-digit number at t17:
+        let scaled = c;
+        let z = 17 - p + eAdj;
+        while (z > 0) {
+            scaled = scaled * 10;
+            z = z - 1;
+        }
+        let cand = _Big_mul(_Big_fromInt(scaled), candScale);
+        let cl = _Big_cmp(cand, low);
+        let ch = _Big_cmp(cand, high);
+        let inside = (cl > 0 && ch < 0) || (inclusive && (cl == 0 || ch == 0));
+        if (inside) {
+            let digits = _FloatConv_intDigits(c);
+            let n = __runtime_array_length(digits);
+            while (n > 1 && digits[n - 1] == 0) {
+                digits = _Big_dropTop(digits);
+                n = n - 1;
+            }
+            return [digits, e10 + eAdj];
+        }
+        p = p + 1;
+    }
+    return null;
+}
+
+// [floor(a / m), a mod m] for 0 < m < 2^24.
+function _Big_divSmall(a, m) {
+    let n = __runtime_array_length(a);
+    let out = [];
+    let i = 0;
+    while (i < n) {
+        __runtime_array_push(out, 0);
+        i = i + 1;
+    }
+    let rem = 0;
+    i = n - 1;
+    while (i >= 0) {
+        let cur = rem * _Big_base + a[i];
+        out[i] = cur / m;
+        rem = cur % m;
+        i = i - 1;
+    }
+    while (__runtime_array_length(out) > 0 && out[__runtime_array_length(out) - 1] == 0) {
+        out = _Big_dropTop(out);
+    }
+    return [out, rem];
+}
+
+// Decimal digits of a big, as a string ("0" for zero).
+function _Big_toDecimal(a) {
+    if (_Big_isZero(a)) {
+        return "0";
+    }
+    let names = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
+    let groups = [];
+    let cur = a;
+    while (!_Big_isZero(cur)) {
+        let qr = _Big_divSmall(cur, 10000000);
+        __runtime_array_push(groups, qr[1]);
+        cur = qr[0];
+    }
+    let out = "";
+    let g = __runtime_array_length(groups) - 1;
+    let first = true;
+    while (g >= 0) {
+        let value = groups[g];
+        let chunk = "";
+        let d = 0;
+        while (d < 7) {
+            chunk = names[value % 10] + chunk;
+            value = value / 10;
+            d = d + 1;
+            if (first && value == 0) {
+                break;
+            }
+        }
+        out = out + chunk;
+        first = false;
+        g = g - 1;
+    }
+    return out;
+}
+
+// Decimal digits of round_half_away_from_zero(|x| * 10^decimals), exactly,
+// for finite x and decimals >= 0.
+function _FloatConv_fixedDigits(x, decimals) {
+    let target = x;
+    if (target < 0.0) {
+        target = 0.0 - target;
+    }
+    if (target == 0.0) {
+        return "0";
+    }
+    let parts = _FloatConv_decompose(target);
+    let scaled = _Big_mulPow10(_Big_fromInt(parts[0]), decimals);
+    let k = parts[1];
+    if (k >= 0) {
+        return _Big_toDecimal(_Big_shl(scaled, k));
+    }
+    // scaled / 2^-k, rounding halves up (the value is non-negative).
+    let den = _Big_shl(_Big_fromInt(1), 0 - k);
+    let qr = _Big_divBig(scaled, den);
+    let twice = _Big_shl(qr[1], 1);
+    let result = qr[0];
+    if (_Big_cmp(twice, den) >= 0) {
+        result = _Big_mulAdd(result, 1, 1);
+    }
+    return _Big_toDecimal(result);
+}
+
+// [floor(a / b), a mod b] for any quotient size: long division in base 2^24
+// with float-estimated digits (see _Big_divSmallQuotient).
+function _Big_divBig(a, b) {
+    let nb = __runtime_array_length(b);
+    let na = __runtime_array_length(a);
+    if (_Big_cmp(a, b) < 0) {
+        return [[], a];
+    }
+    let qlimbs = [];
+    let i = 0;
+    while (i <= na - nb) {
+        __runtime_array_push(qlimbs, 0);
+        i = i + 1;
+    }
+    let rem = a;
+    let bTop = _Big_topFloat(b);
+    let j = na - nb;
+    while (j >= 0) {
+        let shifted = _Big_shlLimbs(b, j);
+        let digit = 0;
+        if (_Big_cmp(rem, shifted) >= 0) {
+            let rTop = _Big_topFloat(rem);
+            let estimate = rTop[0] / bTop[0];
+            let e = rTop[1] - bTop[1] - j;
+            while (e > 0) {
+                estimate = estimate * 16777216.0;
+                e = e - 1;
+            }
+            while (e < 0) {
+                estimate = estimate / 16777216.0;
+                e = e + 1;
+            }
+            digit = __float_to_int(estimate);
+            if (digit == null || digit > 16777215) {
+                digit = 16777215;
+            }
+            if (digit < 0) {
+                digit = 0;
+            }
+            let product = _Big_mulAdd(shifted, digit, 0);
+            while (_Big_cmp(product, rem) > 0) {
+                digit = digit - 1;
+                product = _Big_sub(product, shifted);
+            }
+            rem = _Big_sub(rem, product);
+            while (_Big_cmp(rem, shifted) >= 0) {
+                digit = digit + 1;
+                rem = _Big_sub(rem, shifted);
+            }
+        }
+        qlimbs[j] = digit;
+        j = j - 1;
+    }
+    while (__runtime_array_length(qlimbs) > 0 && qlimbs[__runtime_array_length(qlimbs) - 1] == 0) {
+        qlimbs = _Big_dropTop(qlimbs);
+    }
+    return [qlimbs, rem];
+}

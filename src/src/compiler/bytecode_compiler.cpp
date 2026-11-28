@@ -268,6 +268,28 @@ void BytecodeCompiler::compile_expression(Expression* expr) {
             compile_assignment(static_cast<AssignmentExpression*>(expr));
             break;
 
+        case ASTNodeType::ObjectExpression: {
+            // runtime.create_object(), then per property: DUP, value,
+            // SET_PROPERTY key (leaves the value), POP.
+            auto* object_expr = static_cast<ObjectExpression*>(expr);
+            uint16_t create_id = 0;
+            if (!try_resolve_intrinsic_id("runtime.create_object", create_id)) {
+                throw BytecodeUnsupported("Bytecode compiler: runtime.create_object intrinsic not found");
+            }
+            builder_.emit_intrinsic_syscall(create_id, 0);
+            push_stack();
+            for (const auto& property : object_expr->properties) {
+                builder_.emit(Opcode::DUP);
+                push_stack();
+                compile_expression(property.value.get());
+                builder_.emit_set_property(builder_.add_constant(Value(property.key)));
+                pop_stack();
+                builder_.emit(Opcode::POP);
+                pop_stack();
+            }
+            break;
+        }
+
         case ASTNodeType::ArrayExpression: {
             auto* array_expr = static_cast<ArrayExpression*>(expr);
             builder_.emit_new_array();

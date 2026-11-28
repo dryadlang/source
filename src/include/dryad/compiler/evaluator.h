@@ -27,6 +27,7 @@ private:
     Value evaluate_assignment(AssignmentExpression* expr);
     Value evaluate_member(MemberExpression* expr);
     Value evaluate_array(ArrayExpression* expr);
+    Value evaluate_object(ObjectExpression* expr);
     Value evaluate_new(NewExpression* expr);
     Value evaluate_function_expression(FunctionExpression* expr);
     Value evaluate_this(ThisExpression* expr);

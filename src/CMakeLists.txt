@@ -63,6 +63,7 @@ target_include_directories(dryad_common PUBLIC include)
 # Runtime library
 add_library(dryad_runtime STATIC
     src/runtime/value.cpp
+    src/runtime/element_access.cpp
     src/runtime/gc.cpp
     src/runtime/intrinsics.cpp
     src/runtime/intrinsics_registry.cpp
@@ -199,6 +200,7 @@ if(DRYAD_BUILD_TESTS)
         tests/unit/object_test.cpp
         tests/unit/class_test.cpp
         tests/unit/validator_test.cpp
+        tests/unit/object_literal_test.cpp
         tests/unit/poo_foundation_test.cpp
         tests/unit/lsp_foundation_test.cpp
         tests/unit/buffer_intrinsics_test.cpp

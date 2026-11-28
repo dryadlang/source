@@ -3,6 +3,7 @@
 #include "dryad/runtime/function.h"
 #include "dryad/runtime/intrinsics_registry.h"
 #include "dryad/common/utils.h"
+#include "dryad/runtime/element_access.h"
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
@@ -749,15 +750,9 @@ void VM::dispatch_opcode(Opcode op) {
             stack_.pop_back();
             Value index_val = stack_.back();
             stack_.pop_back();
-            Value array_val = stack_.back();
+            Value container = stack_.back();
             stack_.pop_back();
-            if (!array_val.is_array()) {
-                throw DryadException("SET_ELEMENT requires array");
-            }
-            if (!index_val.is_integer()) {
-                throw DryadException("SET_ELEMENT index must be integer");
-            }
-            array_val.array_set(static_cast<size_t>(index_val.as_integer()), value);
+            set_element(container, index_val, value);
             stack_.push_back(value);
             advance(1);
             break;
@@ -880,12 +875,9 @@ void VM::dispatch_opcode(Opcode op) {
             validate_stack(2, "GET_ELEMENT");
             Value index_val = stack_.back();
             stack_.pop_back();
-            Value array_val = stack_.back();
+            Value container = stack_.back();
             stack_.pop_back();
-            if (!array_val.is_array()) {
-                throw DryadException("GET_ELEMENT requires array");
-            }
-            stack_.push_back(array_val.array_get(static_cast<size_t>(index_val.as_integer())));
+            stack_.push_back(get_element(container, index_val));
             advance(1);
             break;
         }

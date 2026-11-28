@@ -180,6 +180,24 @@ public:
         : Expression(ASTNodeType::ArrayExpression, location), elements(std::move(elements)) {}
 };
 
+// One `key: value` entry of an object literal. `{ name }` is shorthand for
+// `{ name: name }` (value is an Identifier).
+struct ObjectProperty {
+    std::string key;
+    std::unique_ptr<Expression> value;
+    SourceLocation location;
+};
+
+// `{ a: 1, "b c": 2, nested: { x: [] } }`. Values are evaluated left to right;
+// a repeated key keeps the last value.
+class ObjectExpression : public Expression {
+public:
+    std::vector<ObjectProperty> properties;
+
+    ObjectExpression(std::vector<ObjectProperty> properties, SourceLocation location = SourceLocation())
+        : Expression(ASTNodeType::ObjectExpression, location), properties(std::move(properties)) {}
+};
+
 class BlockStatement : public Statement {
 public:
     std::vector<std::unique_ptr<Statement>> statements;

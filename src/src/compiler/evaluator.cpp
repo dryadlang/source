@@ -3,6 +3,7 @@
 #include "dryad/runtime/function.h"
 #include "dryad/runtime/class.h"
 #include "dryad/common/utils.h"
+#include "dryad/runtime/element_access.h"
 
 namespace dryad {
 
@@ -38,6 +39,9 @@ Value ExpressionEvaluator::evaluate(Expression* expr) {
         
         case ASTNodeType::ArrayExpression:
             return evaluate_array(static_cast<ArrayExpression*>(expr));
+
+        case ASTNodeType::ObjectExpression:
+            return evaluate_object(static_cast<ObjectExpression*>(expr));
         
         case ASTNodeType::NewExpression:
             return evaluate_new(static_cast<NewExpression*>(expr));
@@ -337,16 +341,7 @@ Value ExpressionEvaluator::evaluate_assignment(AssignmentExpression* expr) {
         
         if (member->computed) {
             Value index = evaluate(member->property.get());
-            if (obj.is_array()) {
-                int64_t idx = index.as_integer();
-                obj.array_set(idx, value);
-            } else if (obj.is_object()) {
-                std::string key = index.to_string();
-                obj.object_set(key, value);
-            } else if (obj.is_instance()) {
-                std::string key = index.to_string();
-                obj.as_instance()->set(key, value);
-            }
+            set_element(obj, index, value);
         } else {
             auto* prop_ident = static_cast<Identifier*>(member->property.get());
             if (obj.is_object()) {
@@ -383,20 +378,7 @@ Value ExpressionEvaluator::evaluate_member(MemberExpression* expr) {
     
     if (expr->computed) {
         Value index = evaluate(expr->property.get());
-        
-        if (obj.is_array()) {
-            if (!index.is_integer()) {
-                throw DryadException("Array index must be an integer");
-            }
-            return obj.array_get(static_cast<size_t>(index.as_integer()));
-        } else if (obj.is_object()) {
-            if (!index.is_string()) {
-                throw DryadException("Object key must be a string");
-            }
-            return obj.object_get(index.as_string());
-        } else {
-            throw DryadException("Cannot access member of non-object/array value");
-        }
+        return get_element(obj, index);
     } else {
         if (!obj.is_object() && !obj.is_instance()) {
             throw DryadException("Non-computed member access requires an object or instance");
@@ -421,6 +403,14 @@ Value ExpressionEvaluator::evaluate_member(MemberExpression* expr) {
             return obj.object_get(id_expr->name);
         }
     }
+}
+
+Value ExpressionEvaluator::evaluate_object(ObjectExpression* expr) {
+    Value object = Value::create_object();
+    for (const auto& property : expr->properties) {
+        object.object_set(property.key, evaluate(property.value.get()));
+    }
+    return object;
 }
 
 Value ExpressionEvaluator::evaluate_array(ArrayExpression* expr) {

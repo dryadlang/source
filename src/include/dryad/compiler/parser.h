@@ -89,6 +89,7 @@ private:
     std::unique_ptr<Expression> parse_postfix();
     std::unique_ptr<Expression> parse_primary();
     std::unique_ptr<Expression> parse_array_literal();
+    std::unique_ptr<Expression> parse_object_literal();
 };
 
 } // namespace dryad

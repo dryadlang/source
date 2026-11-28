@@ -133,3 +133,13 @@ TEST(ValidatorTest, ValidateFileReportsMissingFile) {
     EXPECT_FALSE(result.ok);
     EXPECT_NE(result.message().find("Cannot open file"), std::string::npos);
 }
+
+TEST(ValidatorTest, DynamicOperandsAreNotTypeMismatches) {
+    // A member access has no static type ("unknown"); `obj.n + 1` was
+    // rejected as "Invalid operands for binary expression: 'unknown' and 'number'".
+    auto result = ProgramValidator::validate_source(
+        "let box = { n: 1 };\nlet total = box.n + 1;\ntotal = total * 2;\n");
+    EXPECT_TRUE(result.ok) << result.message();
+    auto mismatch = ProgramValidator::validate_source("let s = \"a\" - 1;\ns = s;\n");
+    EXPECT_FALSE(mismatch.ok);
+}

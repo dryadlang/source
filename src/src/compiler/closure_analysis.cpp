@@ -87,6 +87,11 @@ void collect_referenced(const Expression* expr, std::set<std::string>& out) {
                 collect_referenced(element.get(), out);
             }
             break;
+        case ASTNodeType::ObjectExpression:
+            for (const auto& property : static_cast<const ObjectExpression*>(expr)->properties) {
+                collect_referenced(property.value.get(), out);
+            }
+            break;
         case ASTNodeType::NewExpression:
             for (const auto& arg : static_cast<const NewExpression*>(expr)->arguments) {
                 collect_referenced(arg.get(), out);
@@ -201,6 +206,11 @@ void collect_lambdas(const Expression* expr, std::vector<const FunctionExpressio
         case ASTNodeType::ArrayExpression:
             for (const auto& element : static_cast<const ArrayExpression*>(expr)->elements) {
                 collect_lambdas(element.get(), out);
+            }
+            break;
+        case ASTNodeType::ObjectExpression:
+            for (const auto& property : static_cast<const ObjectExpression*>(expr)->properties) {
+                collect_lambdas(property.value.get(), out);
             }
             break;
         case ASTNodeType::NewExpression:

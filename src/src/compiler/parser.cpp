@@ -732,6 +732,12 @@ std::unique_ptr<Expression> Parser::parse_primary() {
     if (match(TokenType::LeftBracket)) {
         return parse_array_literal();
     }
+
+    // In expression position `{` starts an object literal; a statement that
+    // begins with `{` is still a block.
+    if (match(TokenType::LeftBrace)) {
+        return parse_object_literal();
+    }
     
     if (match(TokenType::LeftParen)) {
         auto expr = parse_expression();
@@ -743,6 +749,46 @@ std::unique_ptr<Expression> Parser::parse_primary() {
     error_at(loc, "Expected expression");
     synchronize_expression();
     return std::make_unique<ErrorExpression>("Expected expression", loc);
+}
+
+std::unique_ptr<Expression> Parser::parse_object_literal() {
+    SourceLocation loc = previous().location;
+    std::vector<ObjectProperty> properties;
+
+    while (!check(TokenType::RightBrace) && !is_at_end()) {
+        const Token key_token = peek();
+        ObjectProperty property;
+        property.location = key_token.location;
+        bool shorthand_allowed = false;
+        if (match(TokenType::Identifier)) {
+            property.key = key_token.lexeme;
+            shorthand_allowed = true;
+        } else if (match(TokenType::StringLiteral) || match(TokenType::IntegerLiteral)) {
+            property.key = key_token.lexeme;
+        } else if (key_token.is_keyword()) {
+            // Keywords are fine as keys: { set: 1, from: 2, class: 3 }.
+            advance();
+            property.key = key_token.lexeme;
+        } else {
+            consume(TokenType::Identifier, "Expected property name in object literal");
+        }
+
+        if (match(TokenType::Colon)) {
+            property.value = parse_expression();
+        } else if (shorthand_allowed && (check(TokenType::Comma) || check(TokenType::RightBrace))) {
+            property.value = std::make_unique<Identifier>(key_token.lexeme, key_token.location);
+        } else {
+            consume(TokenType::Colon, "Expected ':' after object key");
+        }
+        properties.push_back(std::move(property));
+
+        if (!match(TokenType::Comma)) {
+            break;
+        }
+    }
+
+    consume(TokenType::RightBrace, "Expected '}' after object literal");
+    return std::make_unique<ObjectExpression>(std::move(properties), loc);
 }
 
 std::unique_ptr<Expression> Parser::parse_array_literal() {

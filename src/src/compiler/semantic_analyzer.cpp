@@ -301,8 +301,11 @@ std::string SemanticAnalyzer::analyze_expression(Expression* expr, const std::sh
             std::string left = analyze_expression(binary->left.get(), scope);
             std::string right = analyze_expression(binary->right.get(), scope);
             std::string inferred = infer_binary_type(binary->op, left, right);
+            // "unknown" is a dynamically typed operand (member access, call
+            // results...): it may be anything at run time, so it is not a
+            // mismatch. Only two different known types are.
             if (inferred == "unknown" && is_arithmetic(binary->op) && !left.empty() && !right.empty() &&
-                left != right) {
+                left != "unknown" && right != "unknown" && left != right) {
                 report_error("Invalid operands for binary expression: '" + left + "' and '" + right + "'",
                              binary->location);
             }
@@ -374,6 +377,13 @@ std::string SemanticAnalyzer::analyze_expression(Expression* expr, const std::sh
             auto* array = static_cast<ArrayExpression*>(expr);
             for (auto& element : array->elements) {
                 analyze_expression(element.get(), scope);
+            }
+            return "unknown";
+        }
+        case ASTNodeType::ObjectExpression: {
+            auto* object = static_cast<ObjectExpression*>(expr);
+            for (auto& property : object->properties) {
+                analyze_expression(property.value.get(), scope);
             }
             return "unknown";
         }

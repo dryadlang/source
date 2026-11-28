@@ -1,0 +1,429 @@
+// @auto-test
+// @std/math: classification, rounding, powers and roots, logarithms,
+// trigonometry, integer helpers and the seeded random generator. Imports
+// come from the package barrel, so the test also proves it exports them.
+
+import {
+    Math_Pi, Math_Tau, Math_E, Math_Ln2, Math_Ln10, Math_Sqrt2,
+    Math_MaxInt, Math_MinInt, Math_Infinity, Math_NaN,
+    Math_IsNaN, Math_IsFinite, Math_Abs, Math_Sign, Math_Min, Math_Max, Math_Clamp,
+    Math_Trunc, Math_Floor, Math_Ceil, Math_Round, Math_Fmod,
+    Math_Sqrt, Math_IntSqrt, Math_Exp, Math_Log, Math_Log2, Math_Log10, Math_Pow, Math_Hypot,
+    Math_Sin, Math_Cos, Math_Tan, Math_Atan, Math_Atan2, Math_Asin, Math_Acos,
+    Math_ToRadians, Math_ToDegrees, Math_Gcd, Math_Lcm,
+    Random, Math_Random, Math_RandomInt, Math_SetSeed
+} from "@std/math";
+
+// Renders any value for failure messages (Dryad has no implicit string conversion).
+function show(value) {
+    let kind = __runtime_value_kind(value);
+    if (kind == "string") {
+        return "\"" + value + "\"";
+    }
+    if (kind == "integer") {
+        return __int_to_string(value);
+    }
+    if (kind == "float") {
+        if (value != value) {
+            return "NaN";
+        }
+        let scaled = __float_to_int(value * 1000000.0);
+        if (scaled == null) {
+            return "<float out of range>";
+        }
+        return "~" + __int_to_string(scaled) + "e-6";
+    }
+    if (kind == "boolean") {
+        if (value) {
+            return "true";
+        }
+        return "false";
+    }
+    if (kind == "null") {
+        return "null";
+    }
+    return "<" + kind + ">";
+}
+
+function expectEq(label, actual, expected) {
+    if (__runtime_value_kind(actual) == __runtime_value_kind(expected) && actual == expected) {
+        return true;
+    }
+    return label + ": expected " + show(expected) + ", got " + show(actual);
+}
+
+// Relative error within 1e-14 (a few ulps), or exact equality.
+function expectNear(label, actual, expected) {
+    if (__runtime_value_kind(actual) != "float") {
+        return label + ": expected a float, got " + show(actual);
+    }
+    if (actual == expected) {
+        return true;
+    }
+    let diff = actual - expected;
+    if (diff < 0.0) {
+        diff = 0.0 - diff;
+    }
+    let scale = expected;
+    if (scale < 0.0) {
+        scale = 0.0 - scale;
+    }
+    if (scale < 1.0) {
+        scale = 1.0;
+    }
+    if (diff <= scale * 0.00000000000001) {
+        return true;
+    }
+    return label + ": expected " + show(expected) + ", got " + show(actual);
+}
+
+function all(checks) {
+    let i = 0;
+    while (i < __runtime_array_length(checks)) {
+        let check = checks[i];
+        let result = true;
+        if (__runtime_array_length(check) == 4 && check[3] == "near") {
+            result = expectNear(check[0], check[1], check[2]);
+        } else {
+            result = expectEq(check[0], check[1], check[2]);
+        }
+        if (result != true) {
+            return result;
+        }
+        i = i + 1;
+    }
+    return true;
+}
+
+function test_constants() {
+    return all([
+        ["pi", Math_Pi, 3.141592653589793],
+        ["tau", Math_Tau, Math_Pi * 2.0],
+        ["e", Math_E, 2.718281828459045],
+        ["ln2", Math_Ln2, 0.6931471805599453],
+        ["ln10", Math_Ln10, 2.302585092994046],
+        ["sqrt2", Math_Sqrt2, 1.4142135623730951],
+        ["max int", Math_MaxInt, 9223372036854775807],
+        ["min int + 1", Math_MinInt + 1, 0 - 9223372036854775807],
+        ["infinity", Math_Infinity > 1000000000000000000000.0, true],
+        ["nan", Math_IsNaN(Math_NaN), true]
+    ]);
+}
+
+function test_classification() {
+    return all([
+        ["isNaN nan", Math_IsNaN(0.0 / 0.0), true],
+        ["isNaN float", Math_IsNaN(1.5), false],
+        ["isNaN int", Math_IsNaN(3), false],
+        ["isNaN string", Math_IsNaN("x"), false],
+        ["finite int", Math_IsFinite(5), true],
+        ["finite float", Math_IsFinite(1.5), true],
+        ["finite inf", Math_IsFinite(Math_Infinity), false],
+        ["finite -inf", Math_IsFinite(0.0 - Math_Infinity), false],
+        ["finite nan", Math_IsFinite(Math_NaN), false],
+        ["finite string", Math_IsFinite("1"), false]
+    ]);
+}
+
+function test_abs_sign_min_max_clamp() {
+    return all([
+        ["abs int", Math_Abs(0 - 7), 7],
+        ["abs float", Math_Abs(0.0 - 2.5), 2.5],
+        ["abs -0.0", 1.0 / Math_Abs(0.0 - 0.0), Math_Infinity],
+        ["abs string", Math_Abs("x"), "x must be a number"],
+        ["sign int", Math_Sign(0 - 3), 0 - 1],
+        ["sign zero", Math_Sign(0), 0],
+        ["sign float", Math_Sign(2.5), 1.0],
+        ["sign nan", Math_IsNaN(Math_Sign(Math_NaN)), true],
+        ["min", Math_Min(3, 2), 2],
+        ["min mixed", Math_Min(1.5, 2), 1.5],
+        ["min nan", Math_IsNaN(Math_Min(1.0, Math_NaN)), true],
+        ["max", Math_Max(3, 2), 3],
+        ["max mixed", Math_Max(1.5, 2), 2],
+        ["max error", Math_Max(1, null), "b must be a number"],
+        ["clamp low", Math_Clamp(0 - 5, 0, 10), 0],
+        ["clamp high", Math_Clamp(15, 0, 10), 10],
+        ["clamp inside", Math_Clamp(2.5, 0, 10), 2.5],
+        ["clamp bad range", Math_Clamp(1, 10, 0), "low must not be greater than high"]
+    ]);
+}
+
+function test_rounding() {
+    return all([
+        ["floor 2.7", Math_Floor(2.7), 2],
+        ["floor -2.1", Math_Floor(0.0 - 2.1), 0 - 3],
+        ["floor -2.0", Math_Floor(0.0 - 2.0), 0 - 2],
+        ["floor int", Math_Floor(9), 9],
+        ["ceil 2.1", Math_Ceil(2.1), 3],
+        ["ceil -2.7", Math_Ceil(0.0 - 2.7), 0 - 2],
+        ["ceil 3.0", Math_Ceil(3.0), 3],
+        ["trunc -2.7", Math_Trunc(0.0 - 2.7), 0 - 2],
+        ["round 2.5", Math_Round(2.5), 3],
+        ["round -2.5", Math_Round(0.0 - 2.5), 0 - 3],
+        ["round 2.4999", Math_Round(2.4999), 2],
+        ["round 0.49999999999999994", Math_Round(0.49999999999999994), 0],
+        ["round -0.4", Math_Round(0.0 - 0.4), 0],
+        ["floor nan", Math_Floor(Math_NaN), "value has no integer representation"],
+        ["ceil inf", Math_Ceil(Math_Infinity), "value has no integer representation"],
+        ["round huge", Math_Round(100000000000000000000.0), "value has no integer representation"],
+        ["floor string", Math_Floor("1.5"), "x must be a number"]
+    ]);
+}
+
+function test_fmod() {
+    return all([
+        ["5.5 mod 2", Math_Fmod(5.5, 2.0), 1.5],
+        ["-5.5 mod 2", Math_Fmod(0.0 - 5.5, 2.0), 0.0 - 1.5],
+        ["int args", Math_Fmod(7, 3), 1.0],
+        ["large quotient", Math_Fmod(100000000000000000.0, 3.0), 1.0],
+        ["10 mod 0.1", Math_Fmod(10.0, 0.1), 0.09999999999999945],
+        ["by zero", Math_IsNaN(Math_Fmod(1.0, 0.0)), true],
+        ["by inf", Math_Fmod(2.5, Math_Infinity), 2.5],
+        ["inf mod", Math_IsNaN(Math_Fmod(Math_Infinity, 2.0)), true]
+    ]);
+}
+
+function test_sqrt_and_int_sqrt() {
+    return all([
+        ["sqrt 4", Math_Sqrt(4), 2.0],
+        ["sqrt 2", Math_Sqrt(2.0), Math_Sqrt2, "near"],
+        ["sqrt 1e-300", Math_Sqrt(0.000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001), 0.000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001, "near"],
+        ["sqrt 0", Math_Sqrt(0.0), 0.0],
+        ["sqrt inf", Math_Sqrt(Math_Infinity), Math_Infinity],
+        ["sqrt -1", Math_IsNaN(Math_Sqrt(0.0 - 1.0)), true],
+        ["isqrt 0", Math_IntSqrt(0), 0],
+        ["isqrt 15", Math_IntSqrt(15), 3],
+        ["isqrt 16", Math_IntSqrt(16), 4],
+        ["isqrt 10^18", Math_IntSqrt(1000000000000000000), 1000000000],
+        ["isqrt max", Math_IntSqrt(Math_MaxInt), 3037000499],
+        ["isqrt negative", Math_IntSqrt(0 - 1), "n must not be negative"],
+        ["isqrt float", Math_IntSqrt(4.0), "n must be an integer"]
+    ]);
+}
+
+function test_exp_and_log() {
+    return all([
+        ["exp 0", Math_Exp(0), 1.0],
+        ["exp 1", Math_Exp(1), Math_E, "near"],
+        ["exp -1", Math_Exp(0.0 - 1.0), 0.36787944117144233, "near"],
+        ["exp 10", Math_Exp(10.0), 22026.465794806718, "near"],
+        ["exp 700", Math_Exp(700.0) > 100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000.0, true],
+        ["exp overflow", Math_Exp(1000.0), Math_Infinity],
+        ["exp underflow", Math_Exp(0.0 - 1000.0), 0.0],
+        ["exp nan", Math_IsNaN(Math_Exp(Math_NaN)), true],
+        ["log e", Math_Log(Math_E), 1.0, "near"],
+        ["log 1", Math_Log(1), 0.0],
+        ["log 10", Math_Log(10), Math_Ln10, "near"],
+        ["log 0.001", Math_Log(0.001), 0.0 - 6.907755278982137, "near"],
+        ["log 0", Math_Log(0.0), 0.0 - Math_Infinity],
+        ["log -1", Math_IsNaN(Math_Log(0.0 - 1.0)), true],
+        ["log inf", Math_Log(Math_Infinity), Math_Infinity],
+        ["log2 8", Math_Log2(8), 3.0],
+        ["log2 0.25", Math_Log2(0.25), 0.0 - 2.0],
+        ["log2 10", Math_Log2(10.0), 3.321928094887362, "near"],
+        ["log10 1000", Math_Log10(1000), 3.0],
+        ["log10 0.01", Math_Log10(0.01), 0.0 - 2.0],
+        ["log10 2", Math_Log10(2.0), 0.3010299956639812, "near"],
+        ["log string", Math_Log("e"), "x must be a number"]
+    ]);
+}
+
+function test_pow_and_hypot() {
+    return all([
+        ["int pow", Math_Pow(2, 10), 1024],
+        ["int pow zero", Math_Pow(7, 0), 1],
+        ["int negative base", Math_Pow(0 - 3, 3), 0 - 27],
+        ["int negative exponent", Math_Pow(2, 0 - 2), 0.25],
+        ["float integral exponent", Math_Pow(1.5, 2.0), 2.25],
+        ["negative base odd", Math_Pow(0.0 - 2.0, 3.0), 0.0 - 8.0],
+        ["sqrt via pow", Math_Pow(2.0, 0.5), Math_Sqrt2, "near"],
+        ["fractional", Math_Pow(10.0, 0.3), 1.9952623149688795, "near"],
+        ["cube root", Math_Pow(27.0, 1.0 / 3.0), 3.0, "near"],
+        ["negative base fractional", Math_IsNaN(Math_Pow(0.0 - 8.0, 1.0 / 3.0)), true],
+        ["zero base negative exp", Math_Pow(0.0, 0.0 - 1.5), Math_Infinity],
+        ["zero exp", Math_Pow(Math_NaN, 0.0), 1.0],
+        ["inf exponent", Math_Pow(2.0, Math_Infinity), Math_Infinity],
+        ["inf exponent small base", Math_Pow(0.5, Math_Infinity), 0.0],
+        ["hypot 3 4", Math_Hypot(3, 4), 5.0],
+        ["hypot no overflow", Math_Hypot(1000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000.0, 0.0) > 1.0, true],
+        ["hypot inf", Math_Hypot(Math_NaN, Math_Infinity), Math_Infinity],
+        ["pow string", Math_Pow("2", 2), "base must be a number"]
+    ]);
+}
+
+function test_trigonometry() {
+    return all([
+        ["sin 0", Math_Sin(0), 0.0],
+        ["sin pi/6", Math_Sin(Math_Pi / 6.0), 0.49999999999999994, "near"],
+        ["sin pi/2", Math_Sin(Math_Pi / 2.0), 1.0],
+        ["sin pi", Math_Sin(Math_Pi), 0.00000000000000012246467991473532, "near"],
+        ["sin -1", Math_Sin(0.0 - 1.0), 0.0 - 0.8414709848078965, "near"],
+        ["sin 1e6", Math_Sin(1000000.0), 0.0 - 0.34999350217129294, "near"],
+        ["sin 1e9", Math_Sin(1000000000.0), 0.5458434494486996, "near"],
+        ["cos 0", Math_Cos(0), 1.0],
+        ["cos pi", Math_Cos(Math_Pi), 0.0 - 1.0],
+        ["cos 2", Math_Cos(2.0), 0.0 - 0.4161468365471424, "near"],
+        ["tan pi/4", Math_Tan(Math_Pi / 4.0), 0.9999999999999999, "near"],
+        ["tan 2", Math_Tan(2.0), 0.0 - 2.185039863261519, "near"],
+        ["sin inf", Math_IsNaN(Math_Sin(Math_Infinity)), true],
+        ["sin too large", Math_IsNaN(Math_Sin(10000000000.0)), true],
+        ["atan 1", Math_Atan(1), Math_Pi / 4.0, "near"],
+        ["atan -0.5", Math_Atan(0.0 - 0.5), 0.0 - 0.4636476090008061, "near"],
+        ["atan 1e10", Math_Atan(10000000000.0), 1.5707963266948965, "near"],
+        ["atan2 quadrant 2", Math_Atan2(1.0, 0.0 - 1.0), 2.356194490192345, "near"],
+        ["atan2 quadrant 3", Math_Atan2(0.0 - 1.0, 0.0 - 1.0), 0.0 - 2.356194490192345, "near"],
+        ["atan2 negative x axis", Math_Atan2(0.0, 0.0 - 1.0), Math_Pi],
+        ["atan2 y axis", Math_Atan2(1, 0), Math_Pi / 2.0],
+        ["atan2 origin", Math_Atan2(0, 0), 0.0],
+        ["atan2 inf", Math_Atan2(Math_Infinity, Math_Infinity), Math_Pi / 4.0, "near"],
+        ["asin 0.5", Math_Asin(0.5), 0.5235987755982989, "near"],
+        ["asin 1", Math_Asin(1), Math_Pi / 2.0],
+        ["asin out of range", Math_IsNaN(Math_Asin(1.5)), true],
+        ["acos -1", Math_Acos(0 - 1), Math_Pi],
+        ["acos 0.5", Math_Acos(0.5), 1.0471975511965979, "near"],
+        ["degrees", Math_ToDegrees(Math_Pi), 180.0],
+        ["radians", Math_ToRadians(90), Math_Pi / 2.0],
+        ["cos string", Math_Cos("0"), "x must be a number"]
+    ]);
+}
+
+function test_gcd_lcm() {
+    return all([
+        ["gcd", Math_Gcd(84, 36), 12],
+        ["gcd negative", Math_Gcd(0 - 84, 36), 12],
+        ["gcd zero", Math_Gcd(0, 5), 5],
+        ["lcm", Math_Lcm(4, 6), 12],
+        ["lcm zero", Math_Lcm(0, 6), 0],
+        ["lcm negative", Math_Lcm(0 - 4, 6), 12],
+        ["gcd float", Math_Gcd(4.0, 2), "a and b must be integers"]
+    ]);
+}
+
+function test_random_is_reproducible_per_seed() {
+    let a = new Random(42);
+    let b = new Random(42);
+    let c = new Random(43);
+    let same = true;
+    let differs = false;
+    let i = 0;
+    while (i < 20) {
+        let x = a.nextUint32();
+        if (x != b.nextUint32()) {
+            same = false;
+        }
+        if (x != c.nextUint32()) {
+            differs = true;
+        }
+        i = i + 1;
+    }
+    return all([
+        ["same seed, same sequence", same, true],
+        ["other seed, other sequence", differs, true]
+    ]);
+}
+
+function test_random_ranges() {
+    let rng = new Random(7);
+    let floatsOk = true;
+    let intsOk = true;
+    let seen = [false, false, false, false, false, false];
+    let i = 0;
+    while (i < 600) {
+        let f = rng.nextFloat();
+        if (f < 0.0 || f >= 1.0) {
+            floatsOk = false;
+        }
+        let n = rng.nextInt(1, 6);
+        if (n < 1 || n > 6) {
+            intsOk = false;
+        } else {
+            seen[n - 1] = true;
+        }
+        i = i + 1;
+    }
+    let big = rng.nextInt(0, 9007199254740991);
+    let single = rng.nextInt(5, 5);
+    return all([
+        ["floats in [0, 1)", floatsOk, true],
+        ["ints in [1, 6]", intsOk, true],
+        ["every die face", seen[0] && seen[1] && seen[2] && seen[3] && seen[4] && seen[5], true],
+        ["53-bit range", big >= 0 && big <= 9007199254740991, true],
+        ["single value", single, 5],
+        ["reversed range", rng.nextInt(3, 1), "low must not be greater than high"],
+        ["too wide", rng.nextInt(0 - 9007199254740992, 9007199254740992), "range must span less than 2^53"],
+        ["non-integer bounds", rng.nextInt(0, 1.5), "low and high must be integers"]
+    ]);
+}
+
+function test_random_is_roughly_uniform() {
+    let rng = new Random(2024);
+    let buckets = [0, 0, 0, 0];
+    let i = 0;
+    while (i < 4000) {
+        let b = rng.nextInt(0, 3);
+        buckets[b] = buckets[b] + 1;
+        i = i + 1;
+    }
+    // Expected 1000 each; 870..1130 is about 4.8 standard deviations.
+    let j = 0;
+    while (j < 4) {
+        if (buckets[j] < 870 || buckets[j] > 1130) {
+            return "bucket " + __int_to_string(j) + " got " + __int_to_string(buckets[j]);
+        }
+        j = j + 1;
+    }
+    return true;
+}
+
+function test_random_shuffle_choice_bool() {
+    let rng = new Random(1);
+    let items = [1, 2, 3, 4, 5, 6, 7, 8];
+    let shuffled = rng.shuffle(items);
+    let sum = 0;
+    let moved = false;
+    let i = 0;
+    while (i < 8) {
+        sum = sum + items[i];
+        if (items[i] != i + 1) {
+            moved = true;
+        }
+        i = i + 1;
+    }
+    let trues = 0;
+    i = 0;
+    while (i < 200) {
+        if (rng.nextBool()) {
+            trues = trues + 1;
+        }
+        i = i + 1;
+    }
+    let picked = rng.choice(["a", "b", "c"]);
+    return all([
+        ["shuffle returns the array", __runtime_array_length(shuffled), 8],
+        ["same elements", sum, 36],
+        ["order changed", moved, true],
+        ["bools vary", trues > 50 && trues < 150, true],
+        ["choice", picked == "a" || picked == "b" || picked == "c", true],
+        ["choice empty", rng.choice([]), null],
+        ["shuffle non-array", rng.shuffle("abc"), "items must be an array"],
+        ["choice non-array", rng.choice(5), "items must be an array"]
+    ]);
+}
+
+function test_default_generator() {
+    Math_SetSeed(99);
+    let first = Math_Random();
+    let firstInt = Math_RandomInt(1, 100);
+    Math_SetSeed(99);
+    let again = Math_Random();
+    let againInt = Math_RandomInt(1, 100);
+    let unseeded = new Random();
+    let f = unseeded.nextFloat();
+    return all([
+        ["reseeded float", again, first],
+        ["reseeded int", againInt, firstInt],
+        ["in range", first >= 0.0 && first < 1.0 && firstInt >= 1 && firstInt <= 100, true],
+        ["clock seed works", f >= 0.0 && f < 1.0, true],
+        ["bad seed", Math_SetSeed("x"), "seed must be an integer"]
+    ]);
+}

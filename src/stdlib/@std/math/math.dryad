@@ -1,0 +1,1062 @@
+// @std/math/math.dryad
+// Numeric functions written in Dryad. The only intrinsics used are the
+// int <-> float conversions, plus the clock and pid to seed the default
+// random generator.
+//
+// Conventions:
+// - Integer arguments are accepted wherever a float is (converted first).
+// - Floats follow IEEE 754: domain errors give NaN, overflow gives infinity
+//   (Math_Sqrt(-1.0) is NaN, Math_Log(0.0) is -Infinity).
+// - Functions that return an integer (Math_Floor, Math_Round, ...) return an
+//   error string when the value has no integer (NaN, infinity, out of range).
+// - A non-number argument returns an error string.
+
+import { ArgumentException, ArgumentOutOfRangeException } from "@std/core/exceptions";
+
+let Math_Pi = 3.141592653589793;
+let Math_Tau = 6.283185307179586;
+let Math_E = 2.718281828459045;
+let Math_Ln2 = 0.6931471805599453;
+let Math_Ln10 = 2.302585092994046;
+let Math_Sqrt2 = 1.4142135623730951;
+let Math_MaxInt = 9223372036854775807;
+let Math_MinInt = 0 - 9223372036854775807 - 1;
+let Math_Infinity = 1.0 / 0.0;
+let Math_NaN = 0.0 / 0.0;
+
+// Split constants (Cody-Waite): hi has trailing zero bits, so k * hi is exact
+// for the k used in range reduction.
+let _Math_ln2Hi = 0.6931471803691238;
+let _Math_ln2Lo = 0.00000000019082149292705877;
+// pi/2 as six 22-bit pieces: k * piece is exact for |k| < 2^31, so the
+// reduction x - k * pi/2 keeps full precision for |x| up to about 3e9.
+let _Math_pio2Parts = [
+    1.57079601287841796875,
+    0.000000313916416416759602725505828857421875,
+    0.000000000000062233719696699885126633944310015067458152770996,
+    0.000000000000000000002022265958410353334463651232139058677717,
+    0.000000000000000000000000000290385554038885382769050575053539,
+    0.000000000000000000000000000000000043359050443915694141345338
+];
+let _Math_epsilon = 0.0000000000000000001;
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function _Math_isNumber(x) {
+    let kind = __runtime_value_kind(x);
+    return kind == "integer" || kind == "float";
+}
+
+function _Math_toFloat(x) {
+    if (__runtime_value_kind(x) == "integer") {
+        return __int_to_float(x);
+    }
+    return x;
+}
+
+function _Math_notNumber(name) {
+    return ArgumentException(name + " must be a number");
+}
+
+function _Math_isNaNFloat(x) {
+    return x != x;
+}
+
+function _Math_isInfFloat(x) {
+    return x == Math_Infinity || x == 0.0 - Math_Infinity;
+}
+
+// Integer nearest to a finite float (ties away from zero), as an integer.
+// Only for values well inside the integer range (range reduction).
+function _Math_nearestInt(x) {
+    if (x >= 0.0) {
+        return __float_to_int(x + 0.5);
+    }
+    return 0 - __float_to_int(0.5 - x);
+}
+
+function _Math_absFloat(x) {
+    if (x < 0.0) {
+        return 0.0 - x;
+    }
+    return x;
+}
+
+// x * 2^k, exact while no overflow/underflow.
+function _Math_scaleByPowerOfTwo(x, k) {
+    let result = x;
+    let i = 0;
+    if (k > 0) {
+        while (i < k) {
+            result = result * 2.0;
+            i = i + 1;
+        }
+    } else {
+        while (i > k) {
+            result = result * 0.5;
+            i = i - 1;
+        }
+    }
+    return result;
+}
+
+// ---------------------------------------------------------------------------
+// Classification
+// ---------------------------------------------------------------------------
+
+function Math_IsNaN(x) {
+    return __runtime_value_kind(x) == "float" && x != x;
+}
+
+function Math_IsFinite(x) {
+    let kind = __runtime_value_kind(x);
+    if (kind == "integer") {
+        return true;
+    }
+    if (kind != "float") {
+        return false;
+    }
+    return !_Math_isNaNFloat(x) && !_Math_isInfFloat(x);
+}
+
+// ---------------------------------------------------------------------------
+// Sign, comparison
+// ---------------------------------------------------------------------------
+
+function Math_Abs(x) {
+    let kind = __runtime_value_kind(x);
+    if (kind == "integer") {
+        if (x < 0) {
+            return 0 - x;
+        }
+        return x;
+    }
+    if (kind != "float") {
+        return _Math_notNumber("x");
+    }
+    if (x == 0.0) {
+        return 0.0;
+    }
+    return _Math_absFloat(x);
+}
+
+function Math_Sign(x) {
+    let kind = __runtime_value_kind(x);
+    if (kind == "integer") {
+        if (x > 0) {
+            return 1;
+        }
+        if (x < 0) {
+            return 0 - 1;
+        }
+        return 0;
+    }
+    if (kind != "float") {
+        return _Math_notNumber("x");
+    }
+    if (x > 0.0) {
+        return 1.0;
+    }
+    if (x < 0.0) {
+        return 0.0 - 1.0;
+    }
+    return x;
+}
+
+function Math_Min(a, b) {
+    if (!_Math_isNumber(a)) {
+        return _Math_notNumber("a");
+    }
+    if (!_Math_isNumber(b)) {
+        return _Math_notNumber("b");
+    }
+    if (Math_IsNaN(a) || Math_IsNaN(b)) {
+        return Math_NaN;
+    }
+    if (b < a) {
+        return b;
+    }
+    return a;
+}
+
+function Math_Max(a, b) {
+    if (!_Math_isNumber(a)) {
+        return _Math_notNumber("a");
+    }
+    if (!_Math_isNumber(b)) {
+        return _Math_notNumber("b");
+    }
+    if (Math_IsNaN(a) || Math_IsNaN(b)) {
+        return Math_NaN;
+    }
+    if (b > a) {
+        return b;
+    }
+    return a;
+}
+
+function Math_Clamp(x, low, high) {
+    if (!_Math_isNumber(x)) {
+        return _Math_notNumber("x");
+    }
+    if (!_Math_isNumber(low) || !_Math_isNumber(high)) {
+        return _Math_notNumber("low and high");
+    }
+    if (low > high) {
+        return ArgumentOutOfRangeException("low must not be greater than high");
+    }
+    if (x < low) {
+        return low;
+    }
+    if (x > high) {
+        return high;
+    }
+    return x;
+}
+
+// ---------------------------------------------------------------------------
+// Rounding (integer results)
+// ---------------------------------------------------------------------------
+
+// Truncated integer part of a float, or an error for NaN / infinity / out of range.
+function _Math_truncToInt(x) {
+    let t = __float_to_int(x);
+    if (t == null) {
+        return ArgumentOutOfRangeException("value has no integer representation");
+    }
+    return t;
+}
+
+function Math_Trunc(x) {
+    let kind = __runtime_value_kind(x);
+    if (kind == "integer") {
+        return x;
+    }
+    if (kind != "float") {
+        return _Math_notNumber("x");
+    }
+    return _Math_truncToInt(x);
+}
+
+function Math_Floor(x) {
+    let kind = __runtime_value_kind(x);
+    if (kind == "integer") {
+        return x;
+    }
+    if (kind != "float") {
+        return _Math_notNumber("x");
+    }
+    let t = _Math_truncToInt(x);
+    if (__runtime_value_kind(t) != "integer") {
+        return t;
+    }
+    if (x < 0.0 && __int_to_float(t) != x) {
+        return t - 1;
+    }
+    return t;
+}
+
+function Math_Ceil(x) {
+    let kind = __runtime_value_kind(x);
+    if (kind == "integer") {
+        return x;
+    }
+    if (kind != "float") {
+        return _Math_notNumber("x");
+    }
+    let t = _Math_truncToInt(x);
+    if (__runtime_value_kind(t) != "integer") {
+        return t;
+    }
+    if (x > 0.0 && __int_to_float(t) != x) {
+        return t + 1;
+    }
+    return t;
+}
+
+// Nearest integer; halves round away from zero (2.5 -> 3, -2.5 -> -3).
+function Math_Round(x) {
+    let kind = __runtime_value_kind(x);
+    if (kind == "integer") {
+        return x;
+    }
+    if (kind != "float") {
+        return _Math_notNumber("x");
+    }
+    let f = Math_Floor(x);
+    if (__runtime_value_kind(f) != "integer") {
+        return f;
+    }
+    let diff = x - __int_to_float(f);
+    if (diff > 0.5) {
+        return f + 1;
+    }
+    if (diff == 0.5 && x >= 0.0) {
+        return f + 1;
+    }
+    return f;
+}
+
+// Float remainder with the sign of x: x - y * trunc(x / y). NaN when y is 0.
+function Math_Fmod(x, y) {
+    if (!_Math_isNumber(x)) {
+        return _Math_notNumber("x");
+    }
+    if (!_Math_isNumber(y)) {
+        return _Math_notNumber("y");
+    }
+    let a = _Math_toFloat(x);
+    let b = _Math_toFloat(y);
+    if (b == 0.0 || _Math_isNaNFloat(a) || _Math_isNaNFloat(b) || _Math_isInfFloat(a)) {
+        return Math_NaN;
+    }
+    if (_Math_isInfFloat(b)) {
+        return a;
+    }
+    let ab = _Math_absFloat(b);
+    let r = _Math_absFloat(a);
+    // Long division by doubling: exact, unlike r - b * trunc(r / b) for large quotients.
+    while (r >= ab) {
+        let d = ab;
+        while (d * 2.0 <= r) {
+            d = d * 2.0;
+        }
+        r = r - d;
+    }
+    if (a < 0.0) {
+        return 0.0 - r;
+    }
+    return r;
+}
+
+// ---------------------------------------------------------------------------
+// Powers and roots
+// ---------------------------------------------------------------------------
+
+function Math_Sqrt(x) {
+    if (!_Math_isNumber(x)) {
+        return _Math_notNumber("x");
+    }
+    let v = _Math_toFloat(x);
+    if (_Math_isNaNFloat(v) || v < 0.0) {
+        return Math_NaN;
+    }
+    if (v == 0.0 || v == Math_Infinity) {
+        return v;
+    }
+    // v = m * 4^e with m in [1, 4); sqrt(v) = sqrt(m) * 2^e.
+    let m = v;
+    let e = 0;
+    while (m >= 4.0) {
+        m = m * 0.25;
+        e = e + 1;
+    }
+    while (m < 1.0) {
+        m = m * 4.0;
+        e = e - 1;
+    }
+    let y = (1.0 + m) * 0.5;
+    let i = 0;
+    while (i < 8) {
+        y = 0.5 * (y + m / y);
+        i = i + 1;
+    }
+    return _Math_scaleByPowerOfTwo(y, e);
+}
+
+// Largest integer r with r * r <= n, for integers n >= 0.
+function Math_IntSqrt(n) {
+    if (__runtime_value_kind(n) != "integer") {
+        return ArgumentException("n must be an integer");
+    }
+    if (n < 0) {
+        return ArgumentOutOfRangeException("n must not be negative");
+    }
+    if (n < 2) {
+        return n;
+    }
+    // Newton on integers from an upper bound; n / y never overflows.
+    let y = n;
+    let next = (y + n / y) / 2;
+    if (n > 4611686018427387903) {
+        next = 3037000499;
+    }
+    while (next < y) {
+        y = next;
+        next = (y + n / y) / 2;
+    }
+    return y;
+}
+
+function Math_Exp(x) {
+    if (!_Math_isNumber(x)) {
+        return _Math_notNumber("x");
+    }
+    let v = _Math_toFloat(x);
+    if (_Math_isNaNFloat(v)) {
+        return v;
+    }
+    if (v > 709.782712893384) {
+        return Math_Infinity;
+    }
+    if (v < 0.0 - 745.1332191019412) {
+        return 0.0;
+    }
+    // v = k * ln2 + r with |r| <= ln2 / 2; exp(v) = 2^k * exp(r).
+    let k = _Math_nearestInt(v / Math_Ln2);
+    let kf = __int_to_float(k);
+    let r = (v - kf * _Math_ln2Hi) - kf * _Math_ln2Lo;
+    let term = 1.0;
+    let sum = 1.0;
+    let n = 1;
+    while (n < 30) {
+        term = term * r / __int_to_float(n);
+        sum = sum + term;
+        if (_Math_absFloat(term) < _Math_epsilon) {
+            break;
+        }
+        n = n + 1;
+    }
+    // Scale in two steps so 2^k itself never overflows or underflows early.
+    if (k > 1000) {
+        return _Math_scaleByPowerOfTwo(_Math_scaleByPowerOfTwo(sum, 1000), k - 1000);
+    }
+    return _Math_scaleByPowerOfTwo(sum, k);
+}
+
+// Natural logarithm of a positive finite float, as [k, ln(m)] with v = m * 2^k.
+function _Math_logParts(v) {
+    let m = v;
+    let k = 0;
+    while (m >= 2.0) {
+        m = m * 0.5;
+        k = k + 1;
+    }
+    while (m < 1.0) {
+        m = m * 2.0;
+        k = k - 1;
+    }
+    if (m > Math_Sqrt2) {
+        m = m * 0.5;
+        k = k + 1;
+    }
+    // ln(m) = 2 * atanh(s), s = (m - 1) / (m + 1), |s| < 0.172.
+    let s = (m - 1.0) / (m + 1.0);
+    let s2 = s * s;
+    let term = s;
+    let sum = s;
+    let n = 3;
+    while (n < 80) {
+        term = term * s2;
+        let add = term / __int_to_float(n);
+        sum = sum + add;
+        if (_Math_absFloat(add) < _Math_epsilon) {
+            break;
+        }
+        n = n + 2;
+    }
+    return [k, 2.0 * sum, m];
+}
+
+function _Math_logSpecial(v) {
+    if (_Math_isNaNFloat(v) || v < 0.0) {
+        return Math_NaN;
+    }
+    if (v == 0.0) {
+        return 0.0 - Math_Infinity;
+    }
+    if (v == Math_Infinity) {
+        return v;
+    }
+    return null;
+}
+
+function Math_Log(x) {
+    if (!_Math_isNumber(x)) {
+        return _Math_notNumber("x");
+    }
+    let v = _Math_toFloat(x);
+    let special = _Math_logSpecial(v);
+    if (special != null) {
+        return special;
+    }
+    let parts = _Math_logParts(v);
+    let kf = __int_to_float(parts[0]);
+    return kf * _Math_ln2Hi + (kf * _Math_ln2Lo + parts[1]);
+}
+
+function Math_Log2(x) {
+    if (!_Math_isNumber(x)) {
+        return _Math_notNumber("x");
+    }
+    let v = _Math_toFloat(x);
+    let special = _Math_logSpecial(v);
+    if (special != null) {
+        return special;
+    }
+    let parts = _Math_logParts(v);
+    if (parts[2] == 1.0) {
+        return __int_to_float(parts[0]);
+    }
+    return __int_to_float(parts[0]) + parts[1] / Math_Ln2;
+}
+
+function Math_Log10(x) {
+    if (!_Math_isNumber(x)) {
+        return _Math_notNumber("x");
+    }
+    let v = _Math_toFloat(x);
+    let special = _Math_logSpecial(v);
+    if (special != null) {
+        return special;
+    }
+    let result = Math_Log(v) / Math_Ln10;
+    // Exact powers of ten give exact results (log10(1000) is 3, not 2.9999...).
+    let nearest = _Math_nearestInt(result);
+    if (nearest >= 0 - 300 && nearest <= 300 && Math_Pow(10.0, nearest) == v) {
+        return __int_to_float(nearest);
+    }
+    return result;
+}
+
+// base^exponent with an integer exponent, by squaring.
+function _Math_powInt(base, exponent) {
+    let result = 1;
+    let b = base;
+    let e = exponent;
+    if (__runtime_value_kind(base) == "float") {
+        result = 1.0;
+    }
+    while (e > 0) {
+        if (e % 2 == 1) {
+            result = result * b;
+        }
+        e = e / 2;
+        if (e > 0) {
+            b = b * b;
+        }
+    }
+    return result;
+}
+
+// Integer ** non-negative integer stays an integer (wrapping on overflow,
+// like other integer arithmetic). Everything else is a float.
+function Math_Pow(base, exponent) {
+    if (!_Math_isNumber(base)) {
+        return _Math_notNumber("base");
+    }
+    if (!_Math_isNumber(exponent)) {
+        return _Math_notNumber("exponent");
+    }
+    let baseKind = __runtime_value_kind(base);
+    let expKind = __runtime_value_kind(exponent);
+    if (baseKind == "integer" && expKind == "integer" && exponent >= 0) {
+        return _Math_powInt(base, exponent);
+    }
+    let b = _Math_toFloat(base);
+    let e = _Math_toFloat(exponent);
+    if (e == 0.0) {
+        return 1.0;
+    }
+    if (_Math_isNaNFloat(b) || _Math_isNaNFloat(e)) {
+        return Math_NaN;
+    }
+    // Integral exponents (exactly representable) use repeated squaring, which
+    // also handles negative bases.
+    let ei = __float_to_int(e);
+    if (ei != null && __int_to_float(ei) == e && ei <= 9007199254740992 && ei >= 0 - 9007199254740992) {
+        if (ei > 0) {
+            return _Math_powInt(b, ei);
+        }
+        return 1.0 / _Math_powInt(b, 0 - ei);
+    }
+    if (b < 0.0) {
+        return Math_NaN;
+    }
+    if (b == 0.0) {
+        if (e > 0.0) {
+            return 0.0;
+        }
+        return Math_Infinity;
+    }
+    if (_Math_isInfFloat(e)) {
+        if (b == 1.0) {
+            return 1.0;
+        }
+        if ((b > 1.0) == (e > 0.0)) {
+            return Math_Infinity;
+        }
+        return 0.0;
+    }
+    return Math_Exp(e * Math_Log(b));
+}
+
+function Math_Hypot(a, b) {
+    if (!_Math_isNumber(a)) {
+        return _Math_notNumber("a");
+    }
+    if (!_Math_isNumber(b)) {
+        return _Math_notNumber("b");
+    }
+    let x = _Math_absFloat(_Math_toFloat(a));
+    let y = _Math_absFloat(_Math_toFloat(b));
+    if (_Math_isInfFloat(x) || _Math_isInfFloat(y)) {
+        return Math_Infinity;
+    }
+    if (_Math_isNaNFloat(x) || _Math_isNaNFloat(y)) {
+        return Math_NaN;
+    }
+    let big = x;
+    let small = y;
+    if (y > x) {
+        big = y;
+        small = x;
+    }
+    if (big == 0.0) {
+        return 0.0;
+    }
+    // Scaled so the square never overflows.
+    let r = small / big;
+    return big * Math_Sqrt(1.0 + r * r);
+}
+
+// ---------------------------------------------------------------------------
+// Trigonometry (radians)
+// ---------------------------------------------------------------------------
+
+// sin and cos of |r| <= pi/4 by Taylor series.
+function _Math_sinSmall(r) {
+    let r2 = r * r;
+    let term = r;
+    let sum = r;
+    let n = 1;
+    while (n < 30) {
+        term = 0.0 - term * r2 / __int_to_float((2 * n) * (2 * n + 1));
+        sum = sum + term;
+        if (_Math_absFloat(term) < _Math_epsilon) {
+            break;
+        }
+        n = n + 1;
+    }
+    return sum;
+}
+
+function _Math_cosSmall(r) {
+    let r2 = r * r;
+    let term = 1.0;
+    let sum = 1.0;
+    let n = 1;
+    while (n < 30) {
+        term = 0.0 - term * r2 / __int_to_float((2 * n - 1) * (2 * n));
+        sum = sum + term;
+        if (_Math_absFloat(term) < _Math_epsilon) {
+            break;
+        }
+        n = n + 1;
+    }
+    return sum;
+}
+
+// [quadrant 0..3, r] with x = quadrant * pi/2 + r (mod 2pi), |r| <= pi/4.
+function _Math_reduce(x) {
+    let k = _Math_nearestInt(x / (Math_Pi * 0.5));
+    let kf = __int_to_float(k);
+    let r = x;
+    let i = 0;
+    while (i < 6) {
+        r = r - kf * _Math_pio2Parts[i];
+        i = i + 1;
+    }
+    let q = ((k % 4) + 4) % 4;
+    return [q, r];
+}
+
+function _Math_trigArgument(x) {
+    if (!_Math_isNumber(x)) {
+        return _Math_notNumber("x");
+    }
+    let v = _Math_toFloat(x);
+    if (_Math_isNaNFloat(v) || _Math_isInfFloat(v)) {
+        return Math_NaN;
+    }
+    // Beyond 2^31 * pi/2 the reduction above is no longer exact; NaN rather
+    // than a silently wrong value.
+    if (_Math_absFloat(v) > 3373259426.0) {
+        return Math_NaN;
+    }
+    return v;
+}
+
+function Math_Sin(x) {
+    let v = _Math_trigArgument(x);
+    if (__runtime_value_kind(v) != "float" || _Math_isNaNFloat(v)) {
+        return v;
+    }
+    let reduced = _Math_reduce(v);
+    let q = reduced[0];
+    let r = reduced[1];
+    if (q == 0) {
+        return _Math_sinSmall(r);
+    }
+    if (q == 1) {
+        return _Math_cosSmall(r);
+    }
+    if (q == 2) {
+        return 0.0 - _Math_sinSmall(r);
+    }
+    return 0.0 - _Math_cosSmall(r);
+}
+
+function Math_Cos(x) {
+    let v = _Math_trigArgument(x);
+    if (__runtime_value_kind(v) != "float" || _Math_isNaNFloat(v)) {
+        return v;
+    }
+    let reduced = _Math_reduce(v);
+    let q = reduced[0];
+    let r = reduced[1];
+    if (q == 0) {
+        return _Math_cosSmall(r);
+    }
+    if (q == 1) {
+        return 0.0 - _Math_sinSmall(r);
+    }
+    if (q == 2) {
+        return 0.0 - _Math_cosSmall(r);
+    }
+    return _Math_sinSmall(r);
+}
+
+function Math_Tan(x) {
+    let v = _Math_trigArgument(x);
+    if (__runtime_value_kind(v) != "float" || _Math_isNaNFloat(v)) {
+        return v;
+    }
+    let reduced = _Math_reduce(v);
+    let s = _Math_sinSmall(reduced[1]);
+    let c = _Math_cosSmall(reduced[1]);
+    if (reduced[0] % 2 == 0) {
+        return s / c;
+    }
+    return (0.0 - c) / s;
+}
+
+// atan for 0 <= x <= 1.
+function _Math_atanUnit(x) {
+    // tan(pi/8) = sqrt(2) - 1: above it, atan(x) = pi/4 + atan((x - 1) / (x + 1)).
+    if (x > 0.41421356237309503) {
+        return Math_Pi * 0.25 + _Math_atanSeries((x - 1.0) / (x + 1.0));
+    }
+    return _Math_atanSeries(x);
+}
+
+// Taylor series for |x| <= tan(pi/8).
+function _Math_atanSeries(x) {
+    let x2 = x * x;
+    let term = x;
+    let sum = x;
+    let n = 3;
+    while (n < 120) {
+        term = 0.0 - term * x2;
+        let add = term / __int_to_float(n);
+        sum = sum + add;
+        if (_Math_absFloat(add) < _Math_epsilon) {
+            break;
+        }
+        n = n + 2;
+    }
+    return sum;
+}
+
+function Math_Atan(x) {
+    if (!_Math_isNumber(x)) {
+        return _Math_notNumber("x");
+    }
+    let v = _Math_toFloat(x);
+    if (_Math_isNaNFloat(v)) {
+        return v;
+    }
+    let negative = v < 0.0;
+    let a = _Math_absFloat(v);
+    let result = 0.0;
+    if (a > 1.0) {
+        result = Math_Pi * 0.5 - _Math_atanUnit(1.0 / a);
+    } else {
+        result = _Math_atanUnit(a);
+    }
+    if (negative) {
+        return 0.0 - result;
+    }
+    return result;
+}
+
+// Angle of the point (x, y) in (-pi, pi].
+function Math_Atan2(y, x) {
+    if (!_Math_isNumber(y)) {
+        return _Math_notNumber("y");
+    }
+    if (!_Math_isNumber(x)) {
+        return _Math_notNumber("x");
+    }
+    let yv = _Math_toFloat(y);
+    let xv = _Math_toFloat(x);
+    if (_Math_isNaNFloat(yv) || _Math_isNaNFloat(xv)) {
+        return Math_NaN;
+    }
+    if (xv == 0.0) {
+        if (yv > 0.0) {
+            return Math_Pi * 0.5;
+        }
+        if (yv < 0.0) {
+            return 0.0 - Math_Pi * 0.5;
+        }
+        return 0.0;
+    }
+    if (_Math_isInfFloat(xv) || _Math_isInfFloat(yv)) {
+        // Directions only: reduce infinities to unit steps.
+        let ys = Math_Sign(yv);
+        let xs = Math_Sign(xv);
+        if (!_Math_isInfFloat(yv)) {
+            ys = 0.0;
+        }
+        if (!_Math_isInfFloat(xv)) {
+            xs = 0.0;
+        }
+        if (xs == 0.0) {
+            return ys * Math_Pi * 0.5;
+        }
+        return Math_Atan2(ys, xs);
+    }
+    let base = Math_Atan(yv / xv);
+    if (xv > 0.0) {
+        return base;
+    }
+    if (yv >= 0.0) {
+        return base + Math_Pi;
+    }
+    return base - Math_Pi;
+}
+
+function Math_Asin(x) {
+    if (!_Math_isNumber(x)) {
+        return _Math_notNumber("x");
+    }
+    let v = _Math_toFloat(x);
+    if (_Math_isNaNFloat(v) || v > 1.0 || v < 0.0 - 1.0) {
+        return Math_NaN;
+    }
+    return Math_Atan2(v, Math_Sqrt((1.0 - v) * (1.0 + v)));
+}
+
+function Math_Acos(x) {
+    if (!_Math_isNumber(x)) {
+        return _Math_notNumber("x");
+    }
+    let v = _Math_toFloat(x);
+    if (_Math_isNaNFloat(v) || v > 1.0 || v < 0.0 - 1.0) {
+        return Math_NaN;
+    }
+    return Math_Atan2(Math_Sqrt((1.0 - v) * (1.0 + v)), v);
+}
+
+function Math_ToRadians(degrees) {
+    if (!_Math_isNumber(degrees)) {
+        return _Math_notNumber("degrees");
+    }
+    return _Math_toFloat(degrees) * (Math_Pi / 180.0);
+}
+
+function Math_ToDegrees(radians) {
+    if (!_Math_isNumber(radians)) {
+        return _Math_notNumber("radians");
+    }
+    return _Math_toFloat(radians) * (180.0 / Math_Pi);
+}
+
+// ---------------------------------------------------------------------------
+// Integer number theory
+// ---------------------------------------------------------------------------
+
+function Math_Gcd(a, b) {
+    if (__runtime_value_kind(a) != "integer" || __runtime_value_kind(b) != "integer") {
+        return ArgumentException("a and b must be integers");
+    }
+    let x = Math_Abs(a);
+    let y = Math_Abs(b);
+    while (y != 0) {
+        let t = x % y;
+        x = y;
+        y = t;
+    }
+    return x;
+}
+
+function Math_Lcm(a, b) {
+    if (__runtime_value_kind(a) != "integer" || __runtime_value_kind(b) != "integer") {
+        return ArgumentException("a and b must be integers");
+    }
+    if (a == 0 || b == 0) {
+        return 0;
+    }
+    return Math_Abs(a / Math_Gcd(a, b) * b);
+}
+
+// ---------------------------------------------------------------------------
+// Random numbers (not cryptographically secure)
+// ---------------------------------------------------------------------------
+
+let _Math_mask32 = 4294967295;
+let _Math_two32 = 4294967296;
+let _Math_two53 = 9007199254740992;
+
+// One step of a 32-bit LCG (values stay below 2^53, so no overflow).
+function _Math_lcg(s) {
+    return (s * 1664525 + 1013904223) % _Math_two32;
+}
+
+// xorshift128 (Marsaglia): four 32-bit words, period 2^128 - 1. Every
+// intermediate stays below 2^43, so plain integer arithmetic is exact.
+class Random {
+    constructor(seed = null) {
+        let s = seed;
+        if (s == null) {
+            let micros = __float_to_int(__clock_gettime() * 1000000.0);
+            if (micros == null) {
+                micros = 0;
+            }
+            s = micros ^ (__getpid() << 20);
+        }
+        if (__runtime_value_kind(s) != "integer") {
+            s = 0;
+        }
+        // Fold the seed to 32 bits, then spread it over the four words.
+        let folded = (s ^ (s >> 32)) & _Math_mask32;
+        let a = _Math_lcg(folded);
+        let b = _Math_lcg(a);
+        let c = _Math_lcg(b);
+        let d = _Math_lcg(c);
+        if ((a | b | c | d) == 0) {
+            d = 1;
+        }
+        this._x = a;
+        this._y = b;
+        this._z = c;
+        this._w = d;
+    }
+
+    // Next 32-bit unsigned integer in [0, 2^32).
+    nextUint32() {
+        let t = this._x ^ ((this._x << 11) & _Math_mask32);
+        this._x = this._y;
+        this._y = this._z;
+        this._z = this._w;
+        this._w = (this._w ^ (this._w >> 19)) ^ (t ^ (t >> 8));
+        return this._w;
+    }
+
+    // Uniform 53-bit integer in [0, 2^53).
+    _next53() {
+        let high = this.nextUint32() >> 5;
+        let low = this.nextUint32() >> 6;
+        return high * 67108864 + low;
+    }
+
+    // Uniform float in [0.0, 1.0) with 53 random bits.
+    nextFloat() {
+        return __int_to_float(this._next53()) / 9007199254740992.0;
+    }
+
+    // Uniform integer in [low, high], both inclusive, without modulo bias.
+    // low and high must lie within +/- 2^53.
+    nextInt(low, high) {
+        if (__runtime_value_kind(low) != "integer" || __runtime_value_kind(high) != "integer") {
+            return ArgumentException("low and high must be integers");
+        }
+        if (low > high) {
+            return ArgumentOutOfRangeException("low must not be greater than high");
+        }
+        if (low < 0 - _Math_two53 || high > _Math_two53 || high - low >= _Math_two53) {
+            return ArgumentOutOfRangeException("range must span less than 2^53");
+        }
+        let span = high - low + 1;
+        if (span <= _Math_two32) {
+            let limit = _Math_two32 - (_Math_two32 % span);
+            let v = this.nextUint32();
+            while (v >= limit) {
+                v = this.nextUint32();
+            }
+            return low + v % span;
+        }
+        let limit53 = _Math_two53 - (_Math_two53 % span);
+        let w = this._next53();
+        while (w >= limit53) {
+            w = this._next53();
+        }
+        return low + w % span;
+    }
+
+    nextBool() {
+        return (this.nextUint32() & 1) == 1;
+    }
+
+    // Shuffles the array in place (Fisher-Yates) and returns it.
+    shuffle(items) {
+        if (__runtime_value_kind(items) != "array") {
+            return ArgumentException("items must be an array");
+        }
+        let i = __runtime_array_length(items) - 1;
+        while (i > 0) {
+            let j = this.nextInt(0, i);
+            let tmp = items[i];
+            items[i] = items[j];
+            items[j] = tmp;
+            i = i - 1;
+        }
+        return items;
+    }
+
+    // A uniformly chosen element, or null for an empty array.
+    choice(items) {
+        if (__runtime_value_kind(items) != "array") {
+            return ArgumentException("items must be an array");
+        }
+        let count = __runtime_array_length(items);
+        if (count == 0) {
+            return null;
+        }
+        return items[this.nextInt(0, count - 1)];
+    }
+}
+
+// Default generator, created on first use (seeded from the clock and pid).
+let _Math_state = __runtime_create_object();
+
+function _Math_default() {
+    let rng = __runtime_object_get(_Math_state, "rng");
+    if (rng == null) {
+        rng = new Random();
+        __runtime_object_set(_Math_state, "rng", rng);
+    }
+    return rng;
+}
+
+// Uniform float in [0.0, 1.0) from the default generator.
+function Math_Random() {
+    return _Math_default().nextFloat();
+}
+
+// Uniform integer in [low, high] from the default generator.
+function Math_RandomInt(low, high) {
+    return _Math_default().nextInt(low, high);
+}
+
+// Reseeds the default generator, making later Math_Random calls reproducible.
+function Math_SetSeed(seed) {
+    if (__runtime_value_kind(seed) != "integer") {
+        return ArgumentException("seed must be an integer");
+    }
+    __runtime_object_set(_Math_state, "rng", new Random(seed));
+    return null;
+}

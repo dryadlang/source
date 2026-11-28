@@ -1,0 +1,151 @@
+// @auto-test
+// Correctly rounded float parsing (Text_ParseFloat) and shortest round-trip
+// formatting (Text_FormatFloatShortest). Expected strings match Python's repr
+// / JavaScript's Number#toString digits.
+
+import { Text_ParseFloat, Text_FormatFloatShortest, Text_FormatFloat } from "@std/text";
+
+function show(value) {
+    let kind = __runtime_value_kind(value);
+    if (kind == "string") {
+        return "\"" + value + "\"";
+    }
+    if (kind == "float") {
+        let text = Text_FormatFloatShortest(value);
+        if (text[1] != null) {
+            return "<non-finite float>";
+        }
+        return text[0];
+    }
+    if (kind == "integer") {
+        return __int_to_string(value);
+    }
+    if (kind == "null") {
+        return "null";
+    }
+    return "<" + kind + ">";
+}
+
+function all(checks) {
+    let i = 0;
+    while (i < __runtime_array_length(checks)) {
+        let check = checks[i];
+        if (__runtime_value_kind(check[1]) != __runtime_value_kind(check[2]) || check[1] != check[2]) {
+            return check[0] + ": expected " + show(check[2]) + ", got " + show(check[1]);
+        }
+        i = i + 1;
+    }
+    return true;
+}
+
+// Text_ParseFloat(text) printed back with the shortest formatter.
+function roundTrip(text) {
+    let parsed = Text_ParseFloat(text);
+    if (parsed[1] != null) {
+        return "error: " + parsed[1];
+    }
+    return Text_FormatFloatShortest(parsed[0])[0];
+}
+
+function test_parse_is_correctly_rounded() {
+    // The previous parser scaled by 10.0 one step at a time and missed these.
+    return all([
+        ["max finite", roundTrip("1.7976931348623157e308"), "1.7976931348623157e+308"],
+        ["min normal", roundTrip("2.2250738585072014e-308"), "2.2250738585072014e-308"],
+        ["min subnormal", roundTrip("5e-324"), "5e-324"],
+        ["1e23", roundTrip("1e23"), "1e+23"],
+        ["17 digits", roundTrip("21357244218589966e-9"), "21357244.218589965"],
+        ["long mantissa", roundTrip("78563536206170362e-25"), "7.856353620617036e-9"],
+        ["2^53 + 1 ties to even", roundTrip("9007199254740993"), "9007199254740992.0"],
+        ["2^53 + 3 ties to even", roundTrip("9007199254740995"), "9007199254740996.0"],
+        ["halfway below min subnormal", roundTrip("2.4703282292062327e-324"), "0.0"],
+        ["just above that halfway", roundTrip("2.4703282292062328e-324"), "5e-324"],
+        ["leading zeros", roundTrip("00012.5000e1"), "125.0"],
+        ["plus sign", roundTrip("+7"), "7.0"],
+        ["negative zero", roundTrip("-0"), "-0.0"],
+        ["underflow", roundTrip("1e-400"), "0.0"],
+        ["negative underflow", roundTrip("-1e-400"), "-0.0"]
+    ]);
+}
+
+function test_parse_long_inputs() {
+    // More than 800 significant digits: the tail still decides the rounding.
+    let ones = "1.";
+    let i = 0;
+    while (i < 900) {
+        ones = ones + "0";
+        i = i + 1;
+    }
+    let nines = "0.";
+    i = 0;
+    while (i < 1000) {
+        nines = nines + "9";
+        i = i + 1;
+    }
+    return all([
+        ["1 + 10^-901", roundTrip(ones + "1"), "1.0"],
+        ["0.999...9 (1000 nines)", roundTrip(nines), "1.0"]
+    ]);
+}
+
+function test_parse_errors_unchanged() {
+    return all([
+        ["overflow", Text_ParseFloat("1e309")[1], "Float overflow"],
+        ["huge exponent", Text_ParseFloat("1e1000")[1], "Float overflow"],
+        ["no digits", Text_ParseFloat("-")[1], "No digits"],
+        ["exponent digits", Text_ParseFloat("1e")[1], "Exponent requires digits"],
+        ["trailing", Text_ParseFloat("1.5x")[1], "Unexpected trailing characters"],
+        ["not a string", Text_ParseFloat(5)[1], "text must be a string"],
+        ["zero exponent is fine", Text_ParseFloat("0e999")[0], 0.0]
+    ]);
+}
+
+function test_format_shortest() {
+    return all([
+        ["0.1", Text_FormatFloatShortest(0.1)[0], "0.1"],
+        ["0.1 + 0.2", Text_FormatFloatShortest(0.1 + 0.2)[0], "0.30000000000000004"],
+        ["1/3", Text_FormatFloatShortest(1.0 / 3.0)[0], "0.3333333333333333"],
+        ["integral keeps .0", Text_FormatFloatShortest(100.0)[0], "100.0"],
+        ["negative", Text_FormatFloatShortest(0.0 - 2.5)[0], "-2.5"],
+        ["zero", Text_FormatFloatShortest(0.0)[0], "0.0"],
+        ["negative zero", Text_FormatFloatShortest(0.0 * (0.0 - 1.0))[0], "-0.0"],
+        ["1e-6 is plain", Text_FormatFloatShortest(0.000001)[0], "0.000001"],
+        ["1e-7 is scientific", Text_FormatFloatShortest(0.0000001)[0], "1e-7"],
+        ["1e20 is plain", Text_FormatFloatShortest(100000000000000000000.0)[0], "100000000000000000000.0"],
+        ["1e21 is scientific", Text_FormatFloatShortest(1000000000000000000000.0)[0], "1e+21"],
+        ["mantissa in scientific", Text_FormatFloatShortest(Text_ParseFloat("1.5e-10")[0])[0], "1.5e-10"]
+    ]);
+}
+
+function test_format_errors() {
+    return all([
+        ["integer", Text_FormatFloatShortest(1)[1], "value must be a float"],
+        ["nan", Text_FormatFloatShortest(0.0 / 0.0)[1], "value must be finite"],
+        ["infinity", Text_FormatFloatShortest(1.0 / 0.0)[1], "value must be finite"]
+    ]);
+}
+
+// Text_FormatFloat rounds the exact binary value half away from zero.
+function fixed(text, decimals) {
+    let result = Text_FormatFloat(Text_ParseFloat(text)[0], decimals);
+    if (result[1] != null) {
+        return "error: " + result[1];
+    }
+    return result[0];
+}
+
+function test_format_fixed_is_exact() {
+    // It used to compute value * 10^decimals + 0.5 in floats: wrong digits
+    // above 2^53 and "value out of range" above 2^63.
+    return all([
+        ["above 2^53", fixed("594749920894.3783", 6), "594749920894.378296"],
+        ["above 2^63", fixed("191744912251.19553", 8), "191744912251.19552612"],
+        ["large integer", fixed("1e300", 0), "1000000000000000052504760255204420248704468581108159154915854115511802457988908195786371375080447864043704443832883878176942523235360430575644792184786706982848387200926575803737830233794788090059368953234970799945081119038967640880074652742780142494579258788820056842838115669472196386865459400540160"],
+        ["1.005 is below the tie", fixed("1.005", 2), "1.00"],
+        ["2.675 is below the tie", fixed("2.675", 2), "2.67"],
+        ["exact tie rounds away", fixed("0.125", 2), "0.13"],
+        ["negative tie", fixed("-2.5", 0), "-3"],
+        ["tiny", fixed("0.0000001", 15), "0.000000100000000"],
+        ["subnormal", fixed("5e-324", 15), "0.000000000000000"]
+    ]);
+}
